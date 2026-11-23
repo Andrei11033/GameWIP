@@ -48,6 +48,7 @@ void testMetadataDirectoriesAndListing(TestSupport::Context &context, const std:
     static_cast<void>(context.expectTrue("writeAllText creates file", writeStatus.status.ok()));
     static_cast<void>(context.expectEq("writeAllText reports payload size", std::size_t{7}, writeStatus.bytesWritten));
 
+    // Query size, timestamps, and read-only metadata.
     const IO::Types::SizeResult size = FileSystem::getFileSize(file);
     static_cast<void>(context.expectTrue("getFileSize succeeds", size.status.ok()));
     static_cast<void>(context.expectEq("getFileSize reports bytes", std::uint64_t{7}, size.sizeBytes));
@@ -68,6 +69,7 @@ void testMetadataDirectoriesAndListing(TestSupport::Context &context, const std:
     static_cast<void>(context.expectTrue("isReadOnly after clear succeeds", writableAfterSet.status.ok()));
     static_cast<void>(context.expectFalse("setReadOnly false updates metadata", writableAfterSet.value));
 
+    // Check listing contents and entry limits.
     const auto listing = FileSystem::listDirectory(directory);
     static_cast<void>(context.expectTrue("listDirectory succeeds", listing.status.ok()));
     static_cast<void>(context.expectEq("listDirectory returns one entry", std::size_t{1}, listing.entries.size()));
@@ -100,6 +102,7 @@ void testMetadataDirectoriesAndListing(TestSupport::Context &context, const std:
         partialListing.status.code));
     static_cast<void>(context.expectEq("partial listing preserves N entries", std::size_t{1}, partialListing.entries.size()));
 
+    // Check cursor ownership, exhaustion, and entry limits.
     FileSystem::DirectoryCursor cursor;
     static_cast<void>(context.expectEq("closed directory cursor reports NotOpen", ErrorCode::NotOpen, cursor.next().status.code));
 
@@ -107,6 +110,7 @@ void testMetadataDirectoriesAndListing(TestSupport::Context &context, const std:
     {
         return;
     }
+
     static_cast<void>(context.expectEq("open directory cursor rejects AlreadyOpen", ErrorCode::AlreadyOpen, cursor.open(directory).code));
     FileSystem::DirectoryCursor movedCursor = std::move(cursor);
     // The public move contract explicitly guarantees that the source cursor is closed.

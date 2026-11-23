@@ -12,7 +12,8 @@ FileSystem consumer.
 
 `filesystem/filesystem.h` is the complete convenience include. Consumers may
 instead include `filesystem/path.h`, `filesystem/entry.h`,
-`filesystem/file.h`, or `filesystem/directory.h` for the declarations they use.
+`filesystem/file_types.h`, `filesystem/file.h`, or `filesystem/directory.h`
+for the declarations they use.
 
 ## Installed CMake
 

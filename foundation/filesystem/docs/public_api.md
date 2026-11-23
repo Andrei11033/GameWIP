@@ -5,7 +5,8 @@ headers are:
 
 - `filesystem/path.h`: paths, conversion, and path/current-directory operations;
 - `filesystem/entry.h`: generic entry metadata, queries, and mutations;
-- `filesystem/file.h`: file handles, locks, and whole-file operations;
+- `filesystem/file_types.h`: file policies and operation options;
+- `filesystem/file.h`: file handles, locks, and whole-file operations; it includes `file_types.h`;
 - `filesystem/directory.h`: directory cursors, listing, creation, and removal.
 
 Focused headers reduce dependencies and clarify intent. Their declarations have
@@ -190,8 +191,8 @@ concurrently. The same handle or lock object is not internally synchronized. Cur
 
 ## Package and binary boundary
 
-FileSystem is a static library. Its installed package exports `GameWIP::FileSystem`, installs `filesystem/filesystem.h`, and resolves the exact
-matching IO and Unicode packages. IO remains the public API dependency; Unicode is used internally for FileSystem-owned text/native trust boundaries.
+FileSystem is a static library. Its installed package exports `GameWIP::FileSystem`, installs its public headers under `filesystem/`, and resolves the
+exact matching IO and Unicode packages. IO remains the public API dependency; Unicode is used internally for FileSystem-owned text/native trust boundaries.
 FileSystem has no generated export header.
 
 Public inheritance from IO interfaces and exposure of standard-library types require compatible compiler, standard-library, runtime, and build

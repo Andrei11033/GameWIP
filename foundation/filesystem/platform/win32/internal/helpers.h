@@ -4,7 +4,7 @@
 #pragma once
 
 #include "filesystem/internal/helpers.h"
-#include "filesystem/internal/filesystem_platform.h"
+#include "filesystem/internal/platform.h"
 
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -23,9 +23,10 @@
 #include <string_view>
 #include <vector>
 
-namespace GameWIP::FileSystem::Detail::Platform::Win32
+namespace GameWIP::FileSystem::Platform::Win32
 {
     using IO::Types::ErrorCode;
+    using namespace Internal;
 
     /// ------------------------------------------------------------
     /// Native access and sharing
@@ -182,10 +183,10 @@ namespace GameWIP::FileSystem::Detail::Platform::Win32
     /// Native handle helpers
     /// ------------------------------------------------------------
 
-    [[nodiscard]] HANDLE nativeHandle(const Detail::FileState &state) noexcept;
-    [[nodiscard]] HANDLE nativeHandle(const Detail::FileLockState &state) noexcept;
+    [[nodiscard]] HANDLE nativeHandle(const Internal::FileState &state) noexcept;
+    [[nodiscard]] HANDLE nativeHandle(const Internal::FileLockState &state) noexcept;
     [[nodiscard]] bool isValidHandle(HANDLE handle) noexcept;
-    void clearNativeHandle(Detail::FileState &state) noexcept;
+    void clearNativeHandle(Internal::FileState &state) noexcept;
     [[nodiscard]] IO::Types::Status closeNativeHandle(void *&nativeHandle) noexcept;
     [[nodiscard]] const NtApi &ntApi() noexcept;
 
@@ -254,20 +255,23 @@ namespace GameWIP::FileSystem::Detail::Platform::Win32
     /// ------------------------------------------------------------
 
     [[nodiscard]] IO::Types::Status validateExistingEntry(const Types::Path &path, const NativeOpenRequest &request);
-    [[nodiscard]] IO::Types::Status assignFileState(std::unique_ptr<Detail::FileState> &state, UniqueHandle handle, const NativeOpenRequest &request);
+    [[nodiscard]] IO::Types::Status assignFileState(
+        std::unique_ptr<Internal::FileState> &state,
+        UniqueHandle handle,
+        const NativeOpenRequest &request);
     [[nodiscard]] IO::Types::Status seekNativeHandle(HANDLE handle, std::int64_t offset, IO::Types::SeekOrigin origin);
     [[nodiscard]] IO::Types::PositionResult nativePosition(HANDLE handle);
     [[nodiscard]] IO::Types::Status truncateNativeHandle(HANDLE handle, std::uint64_t sizeBytes);
     [[nodiscard]] IO::Types::Status openNativeFileStrict(
-        std::unique_ptr<Detail::FileState> &state,
+        std::unique_ptr<Internal::FileState> &state,
         const Types::Path &path,
         const NativeOpenRequest &request);
     [[nodiscard]] IO::Types::Status openNativeFile(
-        std::unique_ptr<Detail::FileState> &state,
+        std::unique_ptr<Internal::FileState> &state,
         const Types::Path &path,
         const NativeOpenRequest &request);
     [[nodiscard]] IO::Types::SizeResult nativeFileSize(HANDLE handle);
-    [[nodiscard]] IO::Types::Status unlockNativeFile(Detail::FileLockState &state) noexcept;
+    [[nodiscard]] IO::Types::Status unlockNativeFile(Internal::FileLockState &state) noexcept;
 
 #if FILESYSTEM_INTERNAL_TEST_HOOKS
     [[nodiscard]] bool fileUnlockFailureForced() noexcept;
@@ -285,13 +289,13 @@ namespace GameWIP::FileSystem::Detail::Platform::Win32
     [[nodiscard]] IO::Types::Status copyHandleBasicMetadata(HANDLE source, HANDLE destination) noexcept;
     [[nodiscard]] IO::Types::Status createDirectoryStrict(const Types::Path &path, const Types::Directory::CreateOptions &options);
     [[nodiscard]] IO::Types::Status createDirectoriesStrict(const Types::Path &path, const Types::Directory::CreateOptions &options);
-    [[nodiscard]] DirectoryCursorNextResult directoryCursorEntry(Detail::DirectoryCursorState &state, const WIN32_FIND_DATAW &findData);
-    [[nodiscard]] DirectoryCursorOpenResult startDirectoryCursor(std::unique_ptr<Detail::DirectoryCursorState> state);
+    [[nodiscard]] DirectoryCursorNextResult directoryCursorEntry(Internal::DirectoryCursorState &state, const WIN32_FIND_DATAW &findData);
+    [[nodiscard]] DirectoryCursorOpenResult startDirectoryCursor(std::unique_ptr<Internal::DirectoryCursorState> state);
     [[nodiscard]] DirectoryCursorOpenResult openDirectoryCursorImpl(const Types::Path &path, Types::SymlinkPolicy symlinkPolicy);
     [[nodiscard]] DirectoryCursorOpenResult openChildDirectoryCursorImpl(
-        const Detail::DirectoryCursorState &parent,
+        const Internal::DirectoryCursorState &parent,
         const Types::Path &path,
         Types::SymlinkPolicy symlinkPolicy);
-    [[nodiscard]] DirectoryCursorNextResult readDirectoryCursorImpl(Detail::DirectoryCursorState &state);
+    [[nodiscard]] DirectoryCursorNextResult readDirectoryCursorImpl(Internal::DirectoryCursorState &state);
     [[nodiscard]] Types::Directory::ListResult listDirectoryImpl(const Types::Path &path, const Types::Directory::ListOptions &options);
-} // namespace GameWIP::FileSystem::Detail::Platform::Win32
+} // namespace GameWIP::FileSystem::Platform::Win32

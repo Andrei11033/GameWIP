@@ -8,7 +8,7 @@
 #include "validation/tests/filesystem/platform.h"
 
 #include "filesystem/filesystem.h"
-#include "filesystem/internal/filesystem_platform.h"
+#include "filesystem/internal/platform.h"
 #include "validation/tests/runner_helpers.h"
 #include "test_support/test_support.h"
 
@@ -33,6 +33,7 @@ namespace
     using FileSystem::Types::Path;
     using ConstByteSpan = std::span<const std::byte>;
 
+    // Whole-file result types
     static_assert(
         std::is_same_v<decltype(FileSystem::writeAllBytes(std::declval<const Path &>(), std::declval<ConstByteSpan>())), IO::Types::WriteResult>);
     static_assert(
@@ -44,11 +45,13 @@ namespace
     static_assert(
         std::is_same_v<decltype(FileSystem::writeAllBytesAtomic(std::declval<const Path &>(), std::declval<ConstByteSpan>())), IO::Types::Status>);
 
+    // Non-throwing operation contracts
     static_assert(noexcept(FileSystem::writeAllBytes(std::declval<const Path &>(), std::declval<ConstByteSpan>())));
     static_assert(noexcept(FileSystem::appendBytes(std::declval<const Path &>(), std::declval<ConstByteSpan>())));
     static_assert(noexcept(FileSystem::resizeFile(std::declval<const Path &>(), 0)));
     static_assert(noexcept(FileSystem::truncateFile(std::declval<const Path &>())));
 
+    // Default options and share flags
     constexpr FileSystem::Types::File::Share kReadDelete = FileSystem::Types::File::Share::Read | FileSystem::Types::File::Share::Delete;
     static_assert((kReadDelete & FileSystem::Types::File::Share::Read) == FileSystem::Types::File::Share::Read);
     static_assert((kReadDelete & FileSystem::Types::File::Share::Write) == FileSystem::Types::File::Share::None);
@@ -66,6 +69,7 @@ namespace
     static_assert(FileSystem::Types::EntryOptions{}.symlinkPolicy == FileSystem::Types::SymlinkPolicy::DoNotFollow);
     static_assert(FileSystem::Types::RemoveOptions{}.symlinkPolicy == FileSystem::Types::SymlinkPolicy::DoNotFollow);
 
+    // Handle ownership contracts
     static_assert(std::is_move_constructible_v<FileSystem::File>);
     static_assert(!std::is_move_assignable_v<FileSystem::File>);
     static_assert(std::is_move_constructible_v<FileSystem::FileReader>);
@@ -78,6 +82,8 @@ namespace
     static_assert(std::is_move_assignable_v<FileSystem::DirectoryCursor>);
     static_assert(!std::is_copy_constructible_v<FileSystem::DirectoryCursor>);
     static_assert(!std::is_copy_assignable_v<FileSystem::DirectoryCursor>);
+
+    // Public result and option types
     static_assert(std::is_same_v<decltype(FileSystem::Types::File::AtomicWriteOptions{}.temporaryNamePrefix), std::string>);
     static_assert(std::is_same_v<decltype(FileSystem::Types::Directory::ListResult{}.entries), std::vector<FileSystem::Types::Directory::Entry>>);
     static_assert(std::is_same_v<decltype(FileSystem::Types::Lock::Result{}.outcome), FileSystem::Types::Lock::Outcome>);
@@ -170,7 +176,11 @@ namespace
     void testMutationCopyMoveAndRemoval(TestSupport::Context &context, const std::filesystem::path &root);
     void testAtomicWriteAndLocks(TestSupport::Context &context, const std::filesystem::path &root);
 
-#include "validation/tests/filesystem/file_test.inl"
+#include "validation/tests/filesystem/symlink_test.inl"
+#include "validation/tests/filesystem/text_test.inl"
+#include "validation/tests/filesystem/handles_test.inl"
+#include "validation/tests/filesystem/mutation_test.inl"
+#include "validation/tests/filesystem/atomic_lock_test.inl"
 #include "validation/tests/filesystem/metadata_test.inl"
 #include "validation/tests/filesystem/path_test.inl"
 } // namespace

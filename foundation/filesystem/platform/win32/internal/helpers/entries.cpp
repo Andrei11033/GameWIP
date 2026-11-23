@@ -3,7 +3,7 @@
 
 #include "filesystem/platform/win32/internal/helpers.h"
 
-namespace GameWIP::FileSystem::Detail::Platform::Win32
+namespace GameWIP::FileSystem::Platform::Win32
 {
     /// ------------------------------------------------------------
     /// Handle metadata and deletion
@@ -71,6 +71,8 @@ namespace GameWIP::FileSystem::Detail::Platform::Win32
         {
             return makeLastErrorStatus(ErrorCode::StatFailed);
         }
+
+        // Preserve destination attributes while copying portable source fields.
         destinationInfo.LastWriteTime = sourceInfo.LastWriteTime;
 
         if((sourceInfo.FileAttributes & FILE_ATTRIBUTE_READONLY) != 0)
@@ -95,4 +97,4 @@ namespace GameWIP::FileSystem::Detail::Platform::Win32
         return IO::successStatus();
     }
 
-} // namespace GameWIP::FileSystem::Detail::Platform::Win32
+} // namespace GameWIP::FileSystem::Platform::Win32

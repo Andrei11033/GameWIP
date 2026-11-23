@@ -8,7 +8,7 @@
 #include <system_error>
 #include <utility>
 
-namespace GameWIP::FileSystem::Detail::Platform::Win32
+namespace GameWIP::FileSystem::Platform::Win32
 {
     /// ------------------------------------------------------------
     /// Status and option helpers
@@ -149,4 +149,4 @@ namespace GameWIP::FileSystem::Detail::Platform::Win32
         return makeDiagnosticStatus(ErrorCode::PermissionDenied, 0, "path rejected by symlink policy");
     }
 
-} // namespace GameWIP::FileSystem::Detail::Platform::Win32
+} // namespace GameWIP::FileSystem::Platform::Win32

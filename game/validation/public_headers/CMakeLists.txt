@@ -34,6 +34,7 @@ gamewip_add_public_header_check(FileSystem filesystem_header.cpp GameWIP::FileSy
 gamewip_add_public_header_check(FileSystemPath filesystem_path_header.cpp GameWIP::FileSystem)
 gamewip_add_public_header_check(FileSystemEntry filesystem_entry_header.cpp GameWIP::FileSystem)
 gamewip_add_public_header_check(FileSystemFile filesystem_file_header.cpp GameWIP::FileSystem)
+gamewip_add_public_header_check(FileSystemFileTypes filesystem_file_types_header.cpp GameWIP::FileSystem)
 gamewip_add_public_header_check(FileSystemDirectory filesystem_directory_header.cpp GameWIP::FileSystem)
 
 # ------------------------------------------------------------

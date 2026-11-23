@@ -3,7 +3,7 @@
 
 #include "filesystem/platform/win32/internal/helpers.h"
 
-namespace GameWIP::FileSystem::Detail::Platform::Win32
+namespace GameWIP::FileSystem::Platform::Win32
 {
     /// ------------------------------------------------------------
     /// Path syntax helpers
@@ -258,4 +258,4 @@ namespace GameWIP::FileSystem::Detail::Platform::Win32
         return result;
     }
 
-} // namespace GameWIP::FileSystem::Detail::Platform::Win32
+} // namespace GameWIP::FileSystem::Platform::Win32

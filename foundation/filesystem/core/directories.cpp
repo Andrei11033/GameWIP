@@ -2,7 +2,7 @@
 /// @brief FileSystem directory creation, listing, and removal operations.
 
 #include "filesystem/internal/helpers.h"
-#include "filesystem/internal/filesystem_platform.h"
+#include "filesystem/internal/platform.h"
 
 #include <memory>
 #include <new>
@@ -11,7 +11,7 @@
 
 namespace GameWIP::FileSystem
 {
-    using namespace Detail;
+    using namespace Internal;
 
     namespace
     {
@@ -44,7 +44,7 @@ namespace GameWIP::FileSystem
     {
         try
         {
-            return Detail::Platform::createDirectory(path, options);
+            return Platform::createDirectory(path, options);
         }
         catch(const std::bad_alloc &)
         {
@@ -60,7 +60,7 @@ namespace GameWIP::FileSystem
     {
         try
         {
-            return Detail::Platform::createDirectories(path, options);
+            return Platform::createDirectories(path, options);
         }
         catch(const std::bad_alloc &)
         {
@@ -127,7 +127,7 @@ namespace GameWIP::FileSystem
                 return IO::makeStatus(ErrorCode::Unsupported);
             }
 
-            return Detail::Platform::removeEmptyDirectory(path, options);
+            return Platform::removeEmptyDirectory(path, options);
         }
         catch(const std::bad_alloc &)
         {
@@ -149,7 +149,7 @@ namespace GameWIP::FileSystem
                 return removeTreeFailure(ErrorCode::InvalidArgument);
             }
 
-            Detail::Platform::EntryQueryResult existing = queryEntry(path, options.symlinkPolicy);
+            Platform::EntryQueryResult existing = queryEntry(path, options.symlinkPolicy);
 
             if(!existing.status.ok())
             {
@@ -170,7 +170,7 @@ namespace GameWIP::FileSystem
                 return removeTreeFailure(ErrorCode::Unsupported);
             }
 
-            const Types::BoolResult rootPath = Detail::Platform::isRootPath(path);
+            const Types::BoolResult rootPath = Platform::isRootPath(path);
 
             if(!rootPath.status.ok())
             {
@@ -189,7 +189,7 @@ namespace GameWIP::FileSystem
                 Types::EntryInfo info{};
 
                 // Active directory enumeration
-                std::unique_ptr<Detail::DirectoryCursorState> cursor;
+                std::unique_ptr<Internal::DirectoryCursorState> cursor;
             };
 
             // Keep only active ancestry so retained state grows with depth, not total entry count.
@@ -214,16 +214,16 @@ namespace GameWIP::FileSystem
                     if(!current.cursor)
                     {
                         // Open the root once and children relative to their retained parent.
-                        Detail::Platform::DirectoryCursorOpenResult opened;
+                        Platform::DirectoryCursorOpenResult opened;
 
                         if(pending.size() == 1)
                         {
-                            opened = Detail::Platform::openDirectoryCursor(current.path, Types::SymlinkPolicy::DoNotFollow);
+                            opened = Platform::openDirectoryCursor(current.path, Types::SymlinkPolicy::DoNotFollow);
                         }
                         else
                         {
                             const RemovalFrame &parent = pending[pending.size() - 2];
-                            opened = Detail::Platform::openChildDirectoryCursor(*parent.cursor, current.path, Types::SymlinkPolicy::DoNotFollow);
+                            opened = Platform::openChildDirectoryCursor(*parent.cursor, current.path, Types::SymlinkPolicy::DoNotFollow);
                         }
 
                         if(!opened.status.ok())
@@ -234,7 +234,7 @@ namespace GameWIP::FileSystem
                         current.cursor = std::move(opened.state);
                     }
 
-                    Detail::Platform::DirectoryCursorNextResult child = Detail::Platform::readDirectoryCursor(*current.cursor);
+                    Platform::DirectoryCursorNextResult child = Platform::readDirectoryCursor(*current.cursor);
 
                     if(!child.status.ok())
                     {

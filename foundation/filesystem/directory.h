@@ -16,10 +16,10 @@ namespace GameWIP::FileSystem
     /// @note Backend, container, address-space, and resource limits still apply.
     inline constexpr std::uint64_t kNoEntryLimit = std::numeric_limits<std::uint64_t>::max();
 
-    namespace Detail
+    namespace Internal
     {
         struct DirectoryCursorState;
-    } // namespace Detail
+    } // namespace Internal
 
     namespace Types
     {
@@ -98,6 +98,7 @@ namespace GameWIP::FileSystem
                 /// @brief Whether this step returned one accepted child.
                 bool hasEntry = false;
             };
+
             // Tree removal
             /// @brief Options used by removeDirectoryTree().
             struct RemoveTreeOptions
@@ -164,7 +165,7 @@ namespace GameWIP::FileSystem
 
     private:
         // Backend enumeration
-        std::unique_ptr<Detail::DirectoryCursorState> state_;
+        std::unique_ptr<Internal::DirectoryCursorState> state_;
 
         // Filters and progress
         Types::Directory::ListOptions options_{};

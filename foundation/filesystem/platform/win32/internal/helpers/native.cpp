@@ -10,7 +10,7 @@
 #include <mutex>
 #include <utility>
 
-namespace GameWIP::FileSystem::Detail::Platform::Win32
+namespace GameWIP::FileSystem::Platform::Win32
 {
     /// ------------------------------------------------------------
     /// Native handle ownership
@@ -150,12 +150,12 @@ namespace GameWIP::FileSystem::Detail::Platform::Win32
     /// Handle state helpers
     /// ------------------------------------------------------------
 
-    HANDLE nativeHandle(const Detail::FileState &state) noexcept
+    HANDLE nativeHandle(const Internal::FileState &state) noexcept
     {
         return static_cast<HANDLE>(state.nativeHandle);
     }
 
-    HANDLE nativeHandle(const Detail::FileLockState &state) noexcept
+    HANDLE nativeHandle(const Internal::FileLockState &state) noexcept
     {
         return static_cast<HANDLE>(state.nativeHandle);
     }
@@ -165,7 +165,7 @@ namespace GameWIP::FileSystem::Detail::Platform::Win32
         return handle != nullptr && handle != INVALID_HANDLE_VALUE;
     }
 
-    void clearNativeHandle(Detail::FileState &state) noexcept
+    void clearNativeHandle(Internal::FileState &state) noexcept
     {
         state.nativeHandle = nullptr;
         state.readable = false;
@@ -241,67 +241,69 @@ namespace GameWIP::FileSystem::Detail::Platform::Win32
     }
 
 #endif
-} // namespace GameWIP::FileSystem::Detail::Platform::Win32
+} // namespace GameWIP::FileSystem::Platform::Win32
 
 #if FILESYSTEM_INTERNAL_TEST_HOOKS
-namespace GameWIP::FileSystem::Detail::Platform::TestHooks
+namespace GameWIP::FileSystem::Internal::TestHooks::Win32
 {
+    namespace Backend = GameWIP::FileSystem::Platform::Win32;
+
     void setFileUnlockFailure(bool enabled) noexcept
     {
-        Win32::forceFileUnlockFailure.store(enabled, std::memory_order_release);
+        Backend::forceFileUnlockFailure.store(enabled, std::memory_order_release);
     }
 
     void armMoveDestinationValidatedPause() noexcept
     {
-        std::lock_guard lock(Win32::movePauseHook.mutex);
-        Win32::movePauseHook.pauseAfterValidation = true;
-        Win32::movePauseHook.pauseAfterCommit = false;
-        Win32::movePauseHook.reached = false;
-        Win32::movePauseHook.released = false;
+        std::lock_guard lock(Backend::movePauseHook.mutex);
+        Backend::movePauseHook.pauseAfterValidation = true;
+        Backend::movePauseHook.pauseAfterCommit = false;
+        Backend::movePauseHook.reached = false;
+        Backend::movePauseHook.released = false;
     }
 
     void armMoveCommittedPause() noexcept
     {
-        std::lock_guard lock(Win32::movePauseHook.mutex);
-        Win32::movePauseHook.pauseAfterValidation = false;
-        Win32::movePauseHook.pauseAfterCommit = true;
-        Win32::movePauseHook.reached = false;
-        Win32::movePauseHook.released = false;
+        std::lock_guard lock(Backend::movePauseHook.mutex);
+        Backend::movePauseHook.pauseAfterValidation = false;
+        Backend::movePauseHook.pauseAfterCommit = true;
+        Backend::movePauseHook.reached = false;
+        Backend::movePauseHook.released = false;
     }
 
     bool waitForMovePause(std::chrono::milliseconds timeout) noexcept
     {
-        std::unique_lock lock(Win32::movePauseHook.mutex);
-        return Win32::movePauseHook.condition.wait_for(
+        std::unique_lock lock(Backend::movePauseHook.mutex);
+        return Backend::movePauseHook.condition.wait_for(
             lock,
             timeout,
             []
             {
-                return Win32::movePauseHook.reached;
+                return Backend::movePauseHook.reached;
             });
     }
 
     void releaseMovePause() noexcept
     {
-        std::lock_guard lock(Win32::movePauseHook.mutex);
-        Win32::movePauseHook.released = true;
-        Win32::movePauseHook.condition.notify_all();
+        std::lock_guard lock(Backend::movePauseHook.mutex);
+        Backend::movePauseHook.released = true;
+        Backend::movePauseHook.condition.notify_all();
     }
 
     void reset() noexcept
     {
-        Win32::forceFileUnlockFailure.store(false, std::memory_order_release);
-        std::lock_guard lock(Win32::movePauseHook.mutex);
-        Win32::movePauseHook.pauseAfterValidation = false;
-        Win32::movePauseHook.pauseAfterCommit = false;
-        Win32::movePauseHook.reached = false;
-        Win32::movePauseHook.released = true;
-        Win32::movePauseHook.condition.notify_all();
+        Backend::forceFileUnlockFailure.store(false, std::memory_order_release);
+        std::lock_guard lock(Backend::movePauseHook.mutex);
+        Backend::movePauseHook.pauseAfterValidation = false;
+        Backend::movePauseHook.pauseAfterCommit = false;
+        Backend::movePauseHook.reached = false;
+        Backend::movePauseHook.released = true;
+        Backend::movePauseHook.condition.notify_all();
     }
-} // namespace GameWIP::FileSystem::Detail::Platform::TestHooks
+} // namespace GameWIP::FileSystem::Internal::TestHooks::Win32
 #endif
 
-namespace GameWIP::FileSystem::Detail
+namespace GameWIP::FileSystem::Internal
 {
     namespace
     {
@@ -381,4 +383,4 @@ namespace GameWIP::FileSystem::Detail
         }
         stableHandles.clear();
     }
-} // namespace GameWIP::FileSystem::Detail
+} // namespace GameWIP::FileSystem::Internal

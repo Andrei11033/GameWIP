@@ -2,14 +2,14 @@
 /// @brief FileSystem entry predicates and metadata queries.
 
 #include "filesystem/internal/helpers.h"
-#include "filesystem/internal/filesystem_platform.h"
+#include "filesystem/internal/platform.h"
 
 #include <new>
 #include <utility>
 
 namespace GameWIP::FileSystem
 {
-    using namespace Detail;
+    using namespace Internal;
 
     namespace
     {
@@ -58,11 +58,11 @@ namespace GameWIP::FileSystem
             }
             catch(const std::bad_alloc &)
             {
-                return Detail::boolFailure(ErrorCode::OutOfMemory);
+                return Internal::boolFailure(ErrorCode::OutOfMemory);
             }
             catch(...)
             {
-                return Detail::boolFailure(ErrorCode::Unknown);
+                return Internal::boolFailure(ErrorCode::Unknown);
             }
         }
     } // namespace
@@ -86,7 +86,7 @@ namespace GameWIP::FileSystem
     {
         try
         {
-            Detail::Platform::EntryQueryResult result = queryEntry(path, options.symlinkPolicy);
+            Platform::EntryQueryResult result = queryEntry(path, options.symlinkPolicy);
 
             if(!result.status.ok())
             {

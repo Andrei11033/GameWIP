@@ -2,13 +2,13 @@
 /// @brief Shared FileSystem path and entry helpers.
 
 #include "filesystem/internal/helpers.h"
-#include "filesystem/internal/filesystem_platform.h"
+#include "filesystem/internal/platform.h"
 #include "unicode/unicode.h"
 
 #include <algorithm>
 #include <string>
 
-namespace GameWIP::FileSystem::Detail
+namespace GameWIP::FileSystem::Internal
 {
     /// ------------------------------------------------------------
     /// UTF-8 path conversion
@@ -56,4 +56,4 @@ namespace GameWIP::FileSystem::Detail
         const Platform::EntryQueryResult result = queryEntry(path, Types::SymlinkPolicy::DoNotFollow);
         return result.status.ok() && result.info.kind == Types::EntryKind::Symlink;
     }
-} // namespace GameWIP::FileSystem::Detail
+} // namespace GameWIP::FileSystem::Internal

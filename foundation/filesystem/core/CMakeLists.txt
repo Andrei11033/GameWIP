@@ -1,4 +1,15 @@
 target_sources(
     FileSystem
-    PRIVATE directories.cpp handles.cpp metadata.cpp mutations.cpp path.cpp whole_file.cpp
+    PRIVATE
+        atomic_write.cpp
+        directories.cpp
+        directory_cursor.cpp
+        file.cpp
+        file_lock.cpp
+        metadata.cpp
+        mutations.cpp
+        path.cpp
+        reader.cpp
+        writer.cpp
+        whole_file.cpp
 )

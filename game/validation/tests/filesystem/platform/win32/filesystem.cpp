@@ -8,7 +8,7 @@
 #include "validation/tests/filesystem/platform.h"
 
 #include "filesystem/filesystem.h"
-#include "filesystem/internal/filesystem_platform.h"
+#include "filesystem/platform/win32/internal/test_hooks.h"
 #include "test_support/test_support.h"
 
 #include <windows.h>
@@ -59,14 +59,14 @@ namespace
         static_cast<void>(context.expectTrue("write move race source", FileSystem::writeAllText(raceSource, "anchored").status.ok()));
         static_cast<void>(context.expectTrue("create validated move parent", FileSystem::createDirectory(validatedParent).ok()));
 
-        FileSystem::Detail::Platform::TestHooks::armMoveDestinationValidatedPause();
+        FileSystem::Internal::TestHooks::Win32::armMoveDestinationValidatedPause();
         GameWIP::IO::Types::Status moveRaceStatus;
         std::thread moveThread(
             [&]
             {
                 moveRaceStatus = FileSystem::movePath(raceSource, destination);
             });
-        const bool movePaused = FileSystem::Detail::Platform::TestHooks::waitForMovePause(std::chrono::seconds{5});
+        const bool movePaused = FileSystem::Internal::TestHooks::Win32::waitForMovePause(std::chrono::seconds{5});
         static_cast<void>(context.expectTrue("strict move reaches destination validation pause", movePaused));
 
         if(movePaused)
@@ -77,27 +77,27 @@ namespace
             static_cast<void>(context.expectTrue("create replacement move parent", FileSystem::createDirectory(validatedParent).ok()));
         }
 
-        FileSystem::Detail::Platform::TestHooks::releaseMovePause();
+        FileSystem::Internal::TestHooks::Win32::releaseMovePause();
         moveThread.join();
 
         static_cast<void>(context.expectTrue("anchored strict move succeeds", moveRaceStatus.ok()));
         expectExists(context, "anchored move lands in retained parent", parkedParent / "destination.txt", true);
         expectExists(context, "anchored move avoids replacement parent", destination, false);
-        FileSystem::Detail::Platform::TestHooks::reset();
+        FileSystem::Internal::TestHooks::Win32::reset();
 
         // Mutate the source and destination after the native move commits.
         const std::filesystem::path commitSource = directory / "commit-source.txt";
         const std::filesystem::path commitDestination = directory / "commit-destination.txt";
         static_cast<void>(context.expectTrue("write post-commit source", FileSystem::writeAllText(commitSource, "original").status.ok()));
 
-        FileSystem::Detail::Platform::TestHooks::armMoveCommittedPause();
+        FileSystem::Internal::TestHooks::Win32::armMoveCommittedPause();
         GameWIP::IO::Types::Status committedStatus;
         std::thread commitThread(
             [&]
             {
                 committedStatus = FileSystem::movePath(commitSource, commitDestination);
             });
-        const bool commitPaused = FileSystem::Detail::Platform::TestHooks::waitForMovePause(std::chrono::seconds{5});
+        const bool commitPaused = FileSystem::Internal::TestHooks::Win32::waitForMovePause(std::chrono::seconds{5});
         static_cast<void>(context.expectTrue("move reaches committed pause", commitPaused));
 
         if(commitPaused)
@@ -107,7 +107,7 @@ namespace
             static_cast<void>(context.expectTrue("destination can be removed after commit", FileSystem::removeFile(commitDestination).ok()));
         }
 
-        FileSystem::Detail::Platform::TestHooks::releaseMovePause();
+        FileSystem::Internal::TestHooks::Win32::releaseMovePause();
         commitThread.join();
 
         static_cast<void>(context.expectTrue("native commit remains successful after namespace mutation", committedStatus.ok()));
@@ -115,7 +115,7 @@ namespace
         static_cast<void>(context.expectTrue("recreated source query succeeds", recreatedSource.status.ok()));
         static_cast<void>(context.expectEq("recreated source remains caller-visible", std::string{"replacement"}, recreatedSource.text));
         expectExists(context, "concurrently removed destination remains absent", commitDestination, false);
-        FileSystem::Detail::Platform::TestHooks::reset();
+        FileSystem::Internal::TestHooks::Win32::reset();
     }
 
     /// ------------------------------------------------------------
@@ -147,13 +147,13 @@ namespace
                 FileSystem::Types::Lock::Outcome::WouldBlock,
                 blockedBeforeCleanup.outcome));
 
-            FileSystem::Detail::Platform::TestHooks::setFileUnlockFailure(true);
+            FileSystem::Internal::TestHooks::Win32::setFileUnlockFailure(true);
             const FileSystem::FileLock lockDestroyedDuringFailure = std::move(failedUnlockLock.lock);
             static_cast<void>(context.expectTrue("failed-unlock injected lock remains active", lockDestroyedDuringFailure.active()));
         }
 
         // Closing the owner must release the native lock after injected cleanup failure.
-        FileSystem::Detail::Platform::TestHooks::reset();
+        FileSystem::Internal::TestHooks::Win32::reset();
         static_cast<void>(context.expectTrue("failed-unlock owner count clears after lock destruction", failedUnlockOwner.close().ok()));
 
         auto acquiredAfterFailedUnlockCleanup = failedUnlockCompetitor.tryLockExclusive();

@@ -2,12 +2,12 @@
 /// @brief Shared FileSystem option and parent-path validation.
 
 #include "filesystem/internal/helpers.h"
-#include "filesystem/internal/filesystem_platform.h"
+#include "filesystem/internal/platform.h"
 
 #include <new>
 #include <utility>
 
-namespace GameWIP::FileSystem::Detail
+namespace GameWIP::FileSystem::Internal
 {
     /// ------------------------------------------------------------
     /// Shared option validation
@@ -109,4 +109,4 @@ namespace GameWIP::FileSystem::Detail
             return IO::makeStatus(ErrorCode::Unknown);
         }
     }
-} // namespace GameWIP::FileSystem::Detail
+} // namespace GameWIP::FileSystem::Internal

@@ -1,18 +1,19 @@
 /// @file files.cpp
 /// @brief Win32 FileSystem file and lock operations.
 
-#include "filesystem/internal/filesystem_platform.h"
+#include "filesystem/internal/platform.h"
 #include "filesystem/platform/win32/internal/helpers.h"
 
 #include <new>
 #include <utility>
 
-namespace GameWIP::FileSystem::Detail::Platform
+namespace GameWIP::FileSystem::Platform
 {
+    using namespace Internal;
     using namespace Win32;
 
     IO::Types::Status openReader(
-        std::unique_ptr<Detail::FileState> &state,
+        std::unique_ptr<Internal::FileState> &state,
         const Types::Path &path,
         const Types::File::ReaderOpenOptions &options) noexcept
     {
@@ -43,7 +44,7 @@ namespace GameWIP::FileSystem::Detail::Platform
     }
 
     IO::Types::Status openWriter(
-        std::unique_ptr<Detail::FileState> &state,
+        std::unique_ptr<Internal::FileState> &state,
         const Types::Path &path,
         const Types::File::WriterOpenOptions &options) noexcept
     {
@@ -110,7 +111,7 @@ namespace GameWIP::FileSystem::Detail::Platform
     /// File operations
     /// ------------------------------------------------------------
 
-    IO::Types::Status openFile(std::unique_ptr<Detail::FileState> &state, const Types::Path &path, const Types::File::OpenOptions &options) noexcept
+    IO::Types::Status openFile(std::unique_ptr<Internal::FileState> &state, const Types::Path &path, const Types::File::OpenOptions &options) noexcept
     {
         try
         {
@@ -212,7 +213,7 @@ namespace GameWIP::FileSystem::Detail::Platform
         }
     }
 
-    IO::Types::ReadResult readFile(Detail::FileState &state, std::span<std::byte> destination) noexcept
+    IO::Types::ReadResult readFile(Internal::FileState &state, std::span<std::byte> destination) noexcept
     {
         if(!state.readable)
         {
@@ -228,6 +229,7 @@ namespace GameWIP::FileSystem::Detail::Platform
                 const bool atEnd = position.status.ok() && size.status.ok() && position.position >= size.sizeBytes;
                 return {.status = position.status.ok() ? std::move(size.status) : std::move(position.status), .bytesRead = 0, .endOfStream = atEnd};
             }
+
             const auto requestSize =
                 static_cast<DWORD>(std::min<std::size_t>(destination.size(), static_cast<std::size_t>(std::numeric_limits<DWORD>::max())));
             DWORD bytesRead = 0;
@@ -249,7 +251,7 @@ namespace GameWIP::FileSystem::Detail::Platform
         }
     }
 
-    IO::Types::WriteResult writeFile(Detail::FileState &state, std::span<const std::byte> bytes) noexcept
+    IO::Types::WriteResult writeFile(Internal::FileState &state, std::span<const std::byte> bytes) noexcept
     {
         if(!state.writable)
         {
@@ -262,6 +264,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             {
                 return {.status = IO::successStatus(), .bytesWritten = 0};
             }
+
             const auto requestSize =
                 static_cast<DWORD>(std::min<std::size_t>(bytes.size(), static_cast<std::size_t>(std::numeric_limits<DWORD>::max())));
             DWORD bytesWritten = 0;
@@ -283,7 +286,7 @@ namespace GameWIP::FileSystem::Detail::Platform
         }
     }
 
-    IO::Types::Status flushFile(Detail::FileState &state, IO::Types::FlushMode mode) noexcept
+    IO::Types::Status flushFile(Internal::FileState &state, IO::Types::FlushMode mode) noexcept
     {
         try
         {
@@ -301,6 +304,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             {
                 return makeLastErrorStatus(ErrorCode::FlushFailed);
             }
+
             return IO::successStatus();
         }
         catch(const std::bad_alloc &)
@@ -313,7 +317,7 @@ namespace GameWIP::FileSystem::Detail::Platform
         }
     }
 
-    IO::Types::Status closeFile(Detail::FileState &state) noexcept
+    IO::Types::Status closeFile(Internal::FileState &state) noexcept
     {
         try
         {
@@ -351,7 +355,7 @@ namespace GameWIP::FileSystem::Detail::Platform
         }
     }
 
-    IO::Types::PositionResult filePosition(const Detail::FileState &state) noexcept
+    IO::Types::PositionResult filePosition(const Internal::FileState &state) noexcept
     {
         try
         {
@@ -359,6 +363,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             {
                 return {.status = IO::makeStatus(ErrorCode::NotSeekable)};
             }
+
             return nativePosition(nativeHandle(state));
         }
         catch(const std::bad_alloc &)
@@ -371,7 +376,7 @@ namespace GameWIP::FileSystem::Detail::Platform
         }
     }
 
-    IO::Types::SizeResult fileSize(const Detail::FileState &state) noexcept
+    IO::Types::SizeResult fileSize(const Internal::FileState &state) noexcept
     {
         try
         {
@@ -387,7 +392,7 @@ namespace GameWIP::FileSystem::Detail::Platform
         }
     }
 
-    IO::Types::Status seekFile(Detail::FileState &state, std::int64_t offset, IO::Types::SeekOrigin origin) noexcept
+    IO::Types::Status seekFile(Internal::FileState &state, std::int64_t offset, IO::Types::SeekOrigin origin) noexcept
     {
         try
         {
@@ -395,6 +400,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             {
                 return IO::makeStatus(ErrorCode::NotSeekable);
             }
+
             return seekNativeHandle(nativeHandle(state), offset, origin);
         }
         catch(const std::bad_alloc &)
@@ -407,7 +413,7 @@ namespace GameWIP::FileSystem::Detail::Platform
         }
     }
 
-    IO::Types::Status resizeFile(Detail::FileState &state, std::uint64_t sizeBytes, bool restorePosition) noexcept
+    IO::Types::Status resizeFile(Internal::FileState &state, std::uint64_t sizeBytes, bool restorePosition) noexcept
     {
         try
         {
@@ -429,6 +435,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             {
                 return originalPosition.status;
             }
+
             LARGE_INTEGER target{};
             target.QuadPart = static_cast<LONGLONG>(sizeBytes);
 
@@ -446,6 +453,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             {
                 return seekNativeHandle(nativeHandle(state), static_cast<std::int64_t>(originalPosition.position), IO::Types::SeekOrigin::Begin);
             }
+
             return IO::successStatus();
         }
         catch(const std::bad_alloc &)
@@ -458,7 +466,7 @@ namespace GameWIP::FileSystem::Detail::Platform
         }
     }
 
-    NativeLockResult tryLockFile(Detail::FileState &state, Types::Lock::Mode mode) noexcept
+    NativeLockResult tryLockFile(Internal::FileState &state, Types::Lock::Mode mode) noexcept
     {
         try
         {
@@ -479,7 +487,8 @@ namespace GameWIP::FileSystem::Detail::Platform
             {
                 state.activeLocks = std::make_shared<std::uint32_t>(0);
             }
-            auto lockState = std::make_unique<Detail::FileLockState>();
+
+            auto lockState = std::make_unique<Internal::FileLockState>();
 
             // Acquire a detached handle before locking so every successful native lock is immediately owned by
             // the returned FileLock. This avoids an unobservable lock if duplication were to fail after locking.
@@ -496,6 +505,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             {
                 return {.status = makeLastErrorStatus(ErrorCode::LockFailed)};
             }
+
             UniqueHandle duplicatedHandle{duplicatedHandleRaw};
 
             OVERLAPPED overlapped{};
@@ -511,6 +521,7 @@ namespace GameWIP::FileSystem::Detail::Platform
 
                 return {.status = makeWin32Status(error, ErrorCode::LockFailed)};
             }
+
             lockState->nativeHandle = duplicatedHandle.release();
             lockState->activeLocks = state.activeLocks;
             lockState->active = true;
@@ -529,9 +540,9 @@ namespace GameWIP::FileSystem::Detail::Platform
         }
     }
 
-    IO::Types::Status unlockFile(Detail::FileLockState &state) noexcept
+    IO::Types::Status unlockFile(Internal::FileLockState &state) noexcept
     {
         return unlockNativeFile(state);
     }
 
-} // namespace GameWIP::FileSystem::Detail::Platform
+} // namespace GameWIP::FileSystem::Platform

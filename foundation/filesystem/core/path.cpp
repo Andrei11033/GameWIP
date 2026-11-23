@@ -103,7 +103,7 @@ namespace GameWIP::FileSystem
             {
                 std::string message = ec.message();
 
-                if(Detail::validUtf8(message))
+                if(Internal::validUtf8(message))
                 {
                     return IO::makeStatus(code, ec.value(), std::move(message));
                 }
@@ -242,11 +242,11 @@ namespace GameWIP::FileSystem
         }
         catch(const std::bad_alloc &)
         {
-            return Detail::boolFailure(ErrorCode::OutOfMemory);
+            return Internal::boolFailure(ErrorCode::OutOfMemory);
         }
         catch(...)
         {
-            return Detail::boolFailure(ErrorCode::InvalidArgument);
+            return Internal::boolFailure(ErrorCode::InvalidArgument);
         }
     }
 
@@ -258,11 +258,11 @@ namespace GameWIP::FileSystem
         }
         catch(const std::bad_alloc &)
         {
-            return Detail::boolFailure(ErrorCode::OutOfMemory);
+            return Internal::boolFailure(ErrorCode::OutOfMemory);
         }
         catch(...)
         {
-            return Detail::boolFailure(ErrorCode::InvalidArgument);
+            return Internal::boolFailure(ErrorCode::InvalidArgument);
         }
     }
 
@@ -383,14 +383,14 @@ namespace GameWIP::FileSystem
 
     Types::PathResult pathFromUtf8(std::string_view utf8Path) noexcept
     {
-        if(!Detail::validUtf8(utf8Path))
+        if(!Internal::validUtf8(utf8Path))
         {
             return pathFailure(ErrorCode::EncodingFailed);
         }
 
         try
         {
-            Types::Path result = Detail::pathFromTrustedUtf8(utf8Path);
+            Types::Path result = Internal::pathFromTrustedUtf8(utf8Path);
             return {.status = IO::successStatus(), .path = std::move(result)};
         }
         catch(const std::bad_alloc &)
@@ -434,7 +434,7 @@ namespace GameWIP::FileSystem
             std::u8string u8String = path.u8string();
             std::string utf8{u8String.begin(), u8String.end()};
 
-            if(!Detail::validUtf8(utf8))
+            if(!Internal::validUtf8(utf8))
             {
                 return utf8Failure(ErrorCode::EncodingFailed);
             }

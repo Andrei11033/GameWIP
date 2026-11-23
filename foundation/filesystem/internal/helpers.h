@@ -9,14 +9,14 @@
 #include <cstdint>
 #include <string_view>
 
-namespace GameWIP::FileSystem::Detail
+namespace GameWIP::FileSystem::Platform
+{
+    struct EntryQueryResult;
+} // namespace GameWIP::FileSystem::Platform
+
+namespace GameWIP::FileSystem::Internal
 {
     using IO::Types::ErrorCode;
-
-    namespace Platform
-    {
-        struct EntryQueryResult;
-    } // namespace Platform
 
     /// ------------------------------------------------------------
     /// Shared result helpers
@@ -35,11 +35,11 @@ namespace GameWIP::FileSystem::Detail
 
     [[nodiscard]] bool validUtf8(std::string_view text) noexcept;
     [[nodiscard]] Types::Path pathFromTrustedUtf8(std::string_view utf8Path);
-    [[nodiscard]] Platform::EntryQueryResult queryEntry(const Types::Path &path, Types::SymlinkPolicy symlinkPolicy);
+    [[nodiscard]] GameWIP::FileSystem::Platform::EntryQueryResult queryEntry(const Types::Path &path, Types::SymlinkPolicy symlinkPolicy);
     [[nodiscard]] bool isValidReplaceMode(Types::ReplaceMode mode) noexcept;
     [[nodiscard]] bool isValidFileShare(Types::File::Share share) noexcept;
     [[nodiscard]] bool isValidSymlinkPolicy(Types::SymlinkPolicy policy) noexcept;
     [[nodiscard]] bool includeEntryKind(Types::EntryKind kind, const Types::Directory::ListOptions &options) noexcept;
     [[nodiscard]] bool finalEntryIsSymlink(const Types::Path &path) noexcept;
     [[nodiscard]] IO::Types::Status validateParentDirectory(const Types::Path &path, bool createMissing, Types::SymlinkPolicy symlinkPolicy) noexcept;
-} // namespace GameWIP::FileSystem::Detail
+} // namespace GameWIP::FileSystem::Internal

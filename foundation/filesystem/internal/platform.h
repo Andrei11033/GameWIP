@@ -1,20 +1,17 @@
-/// @file filesystem_platform.h
+/// @file platform.h
 /// @brief Internal platform abstraction used by the FileSystem library.
 
 #pragma once
 
 #include "filesystem/filesystem.h"
 
-#include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <span>
 #include <vector>
 
-#ifndef FILESYSTEM_INTERNAL_TEST_HOOKS
-#define FILESYSTEM_INTERNAL_TEST_HOOKS 0
-#endif
-
-namespace GameWIP::FileSystem::Detail
+namespace GameWIP::FileSystem::Internal
 {
     /// @brief Platform-owned native file handle state used by File, FileReader, and FileWriter.
     struct FileState
@@ -83,28 +80,10 @@ namespace GameWIP::FileSystem::Detail
         bool hasBufferedEntry = false;    ///< Whether a next visible entry is buffered.
         bool finished = false;            ///< Whether enumeration reached the end or failed.
     };
-} // namespace GameWIP::FileSystem::Detail
+} // namespace GameWIP::FileSystem::Internal
 
-namespace GameWIP::FileSystem::Detail::Platform
+namespace GameWIP::FileSystem::Platform
 {
-#if FILESYSTEM_INTERNAL_TEST_HOOKS
-    namespace TestHooks
-    {
-        /// @brief Forces FileLock release attempts to fail for the focused ownership/destructor-cleanup seam until disabled or reset.
-        void setFileUnlockFailure(bool enabled) noexcept;
-        /// @brief Pauses a move after destination validation and before native commit.
-        void armMoveDestinationValidatedPause() noexcept;
-        /// @brief Pauses a move after native commit and before the backend returns.
-        void armMoveCommittedPause() noexcept;
-        /// @brief Waits until an armed move pause is reached.
-        [[nodiscard]] bool waitForMovePause(std::chrono::milliseconds timeout) noexcept;
-        /// @brief Releases an armed move pause.
-        void releaseMovePause() noexcept;
-        /// @brief Restores all retained FileSystem test-hook state.
-        void reset() noexcept;
-    } // namespace TestHooks
-#endif
-
     /// ------------------------------------------------------------
     /// Native operation results
     /// ------------------------------------------------------------
@@ -126,14 +105,14 @@ namespace GameWIP::FileSystem::Detail::Platform
         /// @brief Whether the native lock was acquired.
         Types::Lock::Outcome outcome = Types::Lock::Outcome::WouldBlock;
         /// @brief Native lock state when outcome is Acquired.
-        std::unique_ptr<Detail::FileLockState> state;
+        std::unique_ptr<Internal::FileLockState> state;
     };
 
     /// @brief Cursor-open result; state is present only on success.
     struct DirectoryCursorOpenResult
     {
         IO::Types::Status status;
-        std::unique_ptr<Detail::DirectoryCursorState> state;
+        std::unique_ptr<Internal::DirectoryCursorState> state;
     };
 
     /// @brief One cursor step; successful exhaustion is represented by hasEntry=false.
@@ -168,7 +147,7 @@ namespace GameWIP::FileSystem::Detail::Platform
     /// @param options Sharing and symlink-resolution behavior.
     /// @return Success, or a validation/open failure status.
     [[nodiscard]] IO::Types::Status openReader(
-        std::unique_ptr<Detail::FileState> &state,
+        std::unique_ptr<Internal::FileState> &state,
         const Types::Path &path,
         const Types::File::ReaderOpenOptions &options) noexcept;
 
@@ -177,7 +156,7 @@ namespace GameWIP::FileSystem::Detail::Platform
     /// @param options Creation, append, sharing, symlink, and close-flush behavior.
     /// @return Success, or a validation/open failure status.
     [[nodiscard]] IO::Types::Status openWriter(
-        std::unique_ptr<Detail::FileState> &state,
+        std::unique_ptr<Internal::FileState> &state,
         const Types::Path &path,
         const Types::File::WriterOpenOptions &options) noexcept;
 
@@ -186,39 +165,39 @@ namespace GameWIP::FileSystem::Detail::Platform
     /// @param options Access, creation, sharing, initial-position, symlink, and close-flush behavior.
     /// @return Success, or a validation/open/seek failure status.
     [[nodiscard]] IO::Types::Status openFile(
-        std::unique_ptr<Detail::FileState> &state,
+        std::unique_ptr<Internal::FileState> &state,
         const Types::Path &path,
         const Types::File::OpenOptions &options) noexcept;
 
     /// @brief Reads from an open native file handle.
-    [[nodiscard]] IO::Types::ReadResult readFile(Detail::FileState &state, std::span<std::byte> destination) noexcept;
+    [[nodiscard]] IO::Types::ReadResult readFile(Internal::FileState &state, std::span<std::byte> destination) noexcept;
 
     /// @brief Writes to an open native file handle.
-    [[nodiscard]] IO::Types::WriteResult writeFile(Detail::FileState &state, std::span<const std::byte> bytes) noexcept;
+    [[nodiscard]] IO::Types::WriteResult writeFile(Internal::FileState &state, std::span<const std::byte> bytes) noexcept;
 
     /// @brief Flushes an open native file handle.
-    [[nodiscard]] IO::Types::Status flushFile(Detail::FileState &state, IO::Types::FlushMode mode) noexcept;
+    [[nodiscard]] IO::Types::Status flushFile(Internal::FileState &state, IO::Types::FlushMode mode) noexcept;
 
     /// @brief Closes an open native file handle. ResourceBusy is returned while active locks remain.
-    [[nodiscard]] IO::Types::Status closeFile(Detail::FileState &state) noexcept;
+    [[nodiscard]] IO::Types::Status closeFile(Internal::FileState &state) noexcept;
 
     /// @brief Returns the current file position for a seekable native handle.
-    [[nodiscard]] IO::Types::PositionResult filePosition(const Detail::FileState &state) noexcept;
+    [[nodiscard]] IO::Types::PositionResult filePosition(const Internal::FileState &state) noexcept;
 
     /// @brief Returns the current file size for an open native handle.
-    [[nodiscard]] IO::Types::SizeResult fileSize(const Detail::FileState &state) noexcept;
+    [[nodiscard]] IO::Types::SizeResult fileSize(const Internal::FileState &state) noexcept;
 
     /// @brief Moves the current file position for a seekable native handle.
-    [[nodiscard]] IO::Types::Status seekFile(Detail::FileState &state, std::int64_t offset, IO::Types::SeekOrigin origin) noexcept;
+    [[nodiscard]] IO::Types::Status seekFile(Internal::FileState &state, std::int64_t offset, IO::Types::SeekOrigin origin) noexcept;
 
     /// @brief Resizes an open writable native file handle, optionally preserving its observable position.
-    [[nodiscard]] IO::Types::Status resizeFile(Detail::FileState &state, std::uint64_t sizeBytes, bool restorePosition) noexcept;
+    [[nodiscard]] IO::Types::Status resizeFile(Internal::FileState &state, std::uint64_t sizeBytes, bool restorePosition) noexcept;
 
     /// @brief Attempts to acquire a non-blocking whole-file lock from an open native handle.
-    [[nodiscard]] NativeLockResult tryLockFile(Detail::FileState &state, Types::Lock::Mode mode) noexcept;
+    [[nodiscard]] NativeLockResult tryLockFile(Internal::FileState &state, Types::Lock::Mode mode) noexcept;
 
     /// @brief Unlocks a whole-file lock. Failure leaves the lock active.
-    [[nodiscard]] IO::Types::Status unlockFile(Detail::FileLockState &state) noexcept;
+    [[nodiscard]] IO::Types::Status unlockFile(Internal::FileLockState &state) noexcept;
 
     /// ------------------------------------------------------------
     /// Path operations
@@ -253,12 +232,12 @@ namespace GameWIP::FileSystem::Detail::Platform
     /// @brief Opens a nested cursor relative to its active parent, retaining only the new directory handle.
     /// The parent cursor must outlive the returned cursor.
     [[nodiscard]] DirectoryCursorOpenResult openChildDirectoryCursor(
-        const Detail::DirectoryCursorState &parent,
+        const Internal::DirectoryCursorState &parent,
         const Types::Path &path,
         Types::SymlinkPolicy symlinkPolicy) noexcept;
 
     /// @brief Reads one direct child without collecting siblings; exhaustion remains successful.
-    [[nodiscard]] DirectoryCursorNextResult readDirectoryCursor(Detail::DirectoryCursorState &state) noexcept;
+    [[nodiscard]] DirectoryCursorNextResult readDirectoryCursor(Internal::DirectoryCursorState &state) noexcept;
 
     /// ------------------------------------------------------------
     /// Metadata and entry mutations
@@ -281,4 +260,4 @@ namespace GameWIP::FileSystem::Detail::Platform
 
     /// @brief Returns whether a backend considers an entry hidden.
     [[nodiscard]] Types::BoolResult isHidden(const Types::Path &path) noexcept;
-} // namespace GameWIP::FileSystem::Detail::Platform
+} // namespace GameWIP::FileSystem::Platform

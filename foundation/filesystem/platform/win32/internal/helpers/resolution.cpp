@@ -3,7 +3,7 @@
 
 #include "filesystem/platform/win32/internal/helpers.h"
 
-namespace GameWIP::FileSystem::Detail::Platform::Win32
+namespace GameWIP::FileSystem::Platform::Win32
 {
     /// ------------------------------------------------------------
     /// Stable path resolution and metadata
@@ -607,4 +607,4 @@ namespace GameWIP::FileSystem::Detail::Platform::Win32
         return {.status = IO::successStatus(), .handles = std::move(handles), .info = info.info};
     }
 
-} // namespace GameWIP::FileSystem::Detail::Platform::Win32
+} // namespace GameWIP::FileSystem::Platform::Win32

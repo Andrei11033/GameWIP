@@ -5,7 +5,7 @@
 
 #include <utility>
 
-namespace GameWIP::FileSystem::Detail
+namespace GameWIP::FileSystem::Internal
 {
     /// ------------------------------------------------------------
     /// Predicate and size failures
@@ -44,4 +44,4 @@ namespace GameWIP::FileSystem::Detail
     {
         return {.status = IO::makeStatus(code), .bytesWritten = bytesWritten};
     }
-} // namespace GameWIP::FileSystem::Detail
+} // namespace GameWIP::FileSystem::Internal

@@ -6,7 +6,7 @@ Include `filesystem/filesystem.h`. Passive values live in `GameWIP::FileSystem::
 `GameWIP::FileSystem`.
 
 The focused public headers are `filesystem/path.h`, `filesystem/entry.h`,
-`filesystem/file.h`, and `filesystem/directory.h`.
+`filesystem/file_types.h`, `filesystem/file.h`, and `filesystem/directory.h`.
 
 ## How the library is organized
 

@@ -1,14 +1,15 @@
 /// @file entries.cpp
 /// @brief Win32 FileSystem entry queries and mutations.
 
-#include "filesystem/internal/filesystem_platform.h"
+#include "filesystem/internal/platform.h"
 #include "filesystem/platform/win32/internal/helpers.h"
 
 #include <new>
 #include <utility>
 
-namespace GameWIP::FileSystem::Detail::Platform
+namespace GameWIP::FileSystem::Platform
 {
+    using namespace Internal;
     using namespace Win32;
 
     EntryQueryResult queryEntry(const Types::Path &path, Types::SymlinkPolicy symlinkPolicy) noexcept
@@ -39,6 +40,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             {
                 return IO::makeStatus(ErrorCode::InvalidArgument);
             }
+
             OpenPathResult opened =
                 openExistingPath(path, symlinkPolicy, FILE_READ_ATTRIBUTES | FILE_WRITE_ATTRIBUTES, kShareAll, true, ErrorCode::StatFailed);
 
@@ -46,6 +48,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             {
                 return std::move(opened.status);
             }
+
             return setHandleReadOnly(opened.handle.get(), readOnly);
         }
         catch(const std::bad_alloc &)
@@ -66,6 +69,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             {
                 return IO::makeStatus(ErrorCode::InvalidArgument);
             }
+
             OpenPathResult source = openExistingPath(from, symlinkPolicy, FILE_READ_ATTRIBUTES, kShareAll, false, ErrorCode::StatFailed);
 
             if(!source.status.ok())
@@ -77,6 +81,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             {
                 return IO::makeStatus(ErrorCode::InvalidArgument);
             }
+
             OpenPathResult destination = openExistingPath(
                 to,
                 Types::SymlinkPolicy::DoNotFollow,
@@ -94,6 +99,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             {
                 return IO::makeStatus(ErrorCode::InvalidArgument);
             }
+
             return copyHandleBasicMetadata(source.handle.get(), destination.handle.get());
         }
         catch(const std::bad_alloc &)
@@ -114,6 +120,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             {
                 return IO::makeStatus(ErrorCode::InvalidArgument);
             }
+
             OpenPathResult opened =
                 openExistingPath(path, options.symlinkPolicy, DELETE | FILE_READ_ATTRIBUTES, kShareAll, true, ErrorCode::RemoveFailed);
 
@@ -130,6 +137,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             {
                 return IO::makeStatus(ErrorCode::IsDirectory);
             }
+
             return markHandleForDeletion(opened.handle.get(), ErrorCode::RemoveFailed);
         }
         catch(const std::bad_alloc &)
@@ -150,6 +158,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             {
                 return IO::makeStatus(ErrorCode::InvalidArgument);
             }
+
             OpenPathResult opened =
                 openExistingPath(path, options.symlinkPolicy, DELETE | FILE_READ_ATTRIBUTES, kShareAll, true, ErrorCode::RemoveFailed);
 
@@ -166,6 +175,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             {
                 return IO::makeStatus(ErrorCode::NotDirectory);
             }
+
             return markHandleForDeletion(opened.handle.get(), ErrorCode::RemoveFailed);
         }
         catch(const std::bad_alloc &)
@@ -215,12 +225,15 @@ namespace GameWIP::FileSystem::Detail::Platform
                 {
                     return std::move(source.status);
                 }
+
+                // Resolve the destination and keep its parent open through commit.
                 WidePathResult nativeTo = absoluteNativePath(to);
 
                 if(!nativeTo.status.ok())
                 {
                     return std::move(nativeTo.status);
                 }
+
                 ParsedPathResult parsedTo = parseAbsolutePath(nativeTo.path);
 
                 if(!parsedTo.status.ok())
@@ -232,12 +245,14 @@ namespace GameWIP::FileSystem::Detail::Platform
                 {
                     return IO::makeStatus(ErrorCode::InvalidArgument);
                 }
+
                 HandleResult destinationParent = openParentStrict(parsedTo);
 
                 if(!destinationParent.status.ok())
                 {
                     return std::move(destinationParent.status);
                 }
+
 #if FILESYSTEM_INTERNAL_TEST_HOOKS
                 pauseMoveIfArmed(false);
 #endif
@@ -266,6 +281,7 @@ namespace GameWIP::FileSystem::Detail::Platform
                 {
                     return IO::makeStatus(ErrorCode::Unsupported, 0, "NtSetInformationFile is unavailable");
                 }
+
                 IO_STATUS_BLOCK renameStatus{};
                 const NTSTATUS status = api.setInformationFile(
                     source.handle.get(),
@@ -278,9 +294,11 @@ namespace GameWIP::FileSystem::Detail::Platform
                 {
                     return makeNtStatus(status, ErrorCode::MoveFailed);
                 }
+
 #if FILESYSTEM_INTERNAL_TEST_HOOKS
                 pauseMoveIfArmed(true);
 #endif
+
                 return IO::successStatus();
             }
 
@@ -291,6 +309,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             {
                 return std::move(nativeFrom.status);
             }
+
             WidePathResult nativeTo = absoluteNativePath(to);
 
             if(!nativeTo.status.ok())
@@ -302,6 +321,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             {
                 return makeLastErrorStatus(ErrorCode::MoveFailed);
             }
+
             return IO::successStatus();
         }
         catch(const std::bad_alloc &)
@@ -322,6 +342,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             {
                 return IO::makeStatus(ErrorCode::InvalidArgument);
             }
+
             OpenPathResult opened = openExistingPath(
                 path,
                 Types::SymlinkPolicy::FollowAll,
@@ -344,6 +365,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             {
                 return makeLastErrorStatus(ErrorCode::FlushFailed);
             }
+
             return IO::successStatus();
         }
         catch(const std::bad_alloc &)
@@ -385,4 +407,4 @@ namespace GameWIP::FileSystem::Detail::Platform
         }
     }
 
-} // namespace GameWIP::FileSystem::Detail::Platform
+} // namespace GameWIP::FileSystem::Platform

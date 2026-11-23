@@ -3,7 +3,7 @@
 
 #include "filesystem/platform/win32/internal/helpers.h"
 
-namespace GameWIP::FileSystem::Detail::Platform::Win32
+namespace GameWIP::FileSystem::Platform::Win32
 {
     /// ------------------------------------------------------------
     /// Native file-open policy
@@ -42,9 +42,12 @@ namespace GameWIP::FileSystem::Detail::Platform::Win32
     }
 
     /// @brief Publishes a successfully opened native handle into platform-neutral file state.
-    [[nodiscard]] IO::Types::Status assignFileState(std::unique_ptr<Detail::FileState> &state, UniqueHandle handle, const NativeOpenRequest &request)
+    [[nodiscard]] IO::Types::Status assignFileState(
+        std::unique_ptr<Internal::FileState> &state,
+        UniqueHandle handle,
+        const NativeOpenRequest &request)
     {
-        auto newState = std::make_unique<Detail::FileState>();
+        auto newState = std::make_unique<Internal::FileState>();
         newState->nativeHandle = handle.release();
         newState->access = request.access;
         newState->flushOnClose = request.flushOnClose;
@@ -99,7 +102,7 @@ namespace GameWIP::FileSystem::Detail::Platform::Win32
 
     /// @brief Performs a handle-relative final open for non-FollowAll policies.
     [[nodiscard]] IO::Types::Status openNativeFileStrict(
-        std::unique_ptr<Detail::FileState> &state,
+        std::unique_ptr<Internal::FileState> &state,
         const Types::Path &path,
         const NativeOpenRequest &request)
     {
@@ -220,7 +223,7 @@ namespace GameWIP::FileSystem::Detail::Platform::Win32
 
     /// @brief Executes one validated native open and initializes FileState on success.
     [[nodiscard]] IO::Types::Status openNativeFile(
-        std::unique_ptr<Detail::FileState> &state,
+        std::unique_ptr<Internal::FileState> &state,
         const Types::Path &path,
         const NativeOpenRequest &request)
     {
@@ -340,7 +343,7 @@ namespace GameWIP::FileSystem::Detail::Platform::Win32
     }
 
     /// @brief Releases a whole-file native lock and decrements shared active-lock state.
-    [[nodiscard]] IO::Types::Status unlockNativeFile(Detail::FileLockState &state) noexcept
+    [[nodiscard]] IO::Types::Status unlockNativeFile(Internal::FileLockState &state) noexcept
     {
         if(!state.active)
         {
@@ -371,4 +374,4 @@ namespace GameWIP::FileSystem::Detail::Platform::Win32
         return IO::successStatus();
     }
 
-} // namespace GameWIP::FileSystem::Detail::Platform::Win32
+} // namespace GameWIP::FileSystem::Platform::Win32

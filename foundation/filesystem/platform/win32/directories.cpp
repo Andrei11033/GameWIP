@@ -1,14 +1,15 @@
 /// @file directories.cpp
 /// @brief Win32 FileSystem directory operations.
 
-#include "filesystem/internal/filesystem_platform.h"
+#include "filesystem/internal/platform.h"
 #include "filesystem/platform/win32/internal/helpers.h"
 
 #include <new>
 #include <utility>
 
-namespace GameWIP::FileSystem::Detail::Platform
+namespace GameWIP::FileSystem::Platform
 {
+    using namespace Internal;
     using namespace Win32;
 
     /// ------------------------------------------------------------
@@ -28,6 +29,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             {
                 return createDirectoryStrict(path, options);
             }
+
             EntryQueryResult existing = queryEntryImpl(path, Types::SymlinkPolicy::FollowAll);
 
             if(existing.status.ok())
@@ -43,6 +45,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             {
                 return std::move(existing.status);
             }
+
             WidePathResult nativePath = absoluteNativePath(path);
 
             if(!nativePath.status.ok())
@@ -54,6 +57,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             {
                 return makeLastErrorStatus(ErrorCode::DirectoryCreateFailed);
             }
+
             return IO::successStatus();
         }
         catch(const std::bad_alloc &)
@@ -79,12 +83,14 @@ namespace GameWIP::FileSystem::Detail::Platform
             {
                 return createDirectoriesStrict(path, options);
             }
+
             WidePathResult absolutePath = absoluteNativePath(path);
 
             if(!absolutePath.status.ok())
             {
                 return std::move(absolutePath.status);
             }
+
             ParsedPathResult parsedPath = parseAbsolutePath(absolutePath.path);
 
             if(!parsedPath.status.ok())
@@ -96,6 +102,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             {
                 return options.succeedIfAlreadyExists ? IO::successStatus() : IO::makeStatus(ErrorCode::AlreadyExists);
             }
+
             Types::Path current = std::filesystem::path{parsedPath.root};
             bool createdAny = false;
 
@@ -117,6 +124,7 @@ namespace GameWIP::FileSystem::Detail::Platform
                 {
                     return std::move(existing.status);
                 }
+
                 WidePathResult nativeCurrent = absoluteNativePath(current);
 
                 if(!nativeCurrent.status.ok())
@@ -128,6 +136,7 @@ namespace GameWIP::FileSystem::Detail::Platform
                 {
                     return makeLastErrorStatus(ErrorCode::DirectoryCreateFailed);
                 }
+
                 createdAny = true;
             }
 
@@ -181,6 +190,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             {
                 return {.status = IO::makeStatus(ErrorCode::InvalidArgument)};
             }
+
             return listDirectoryImpl(path, options);
         }
         catch(const std::bad_alloc &)
@@ -201,6 +211,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             {
                 return {.status = IO::makeStatus(ErrorCode::InvalidArgument)};
             }
+
             return openDirectoryCursorImpl(path, symlinkPolicy);
         }
         catch(const std::bad_alloc &)
@@ -213,7 +224,7 @@ namespace GameWIP::FileSystem::Detail::Platform
         }
     }
 
-    DirectoryCursorNextResult readDirectoryCursor(Detail::DirectoryCursorState &state) noexcept
+    DirectoryCursorNextResult readDirectoryCursor(Internal::DirectoryCursorState &state) noexcept
     {
         try
         {
@@ -230,7 +241,7 @@ namespace GameWIP::FileSystem::Detail::Platform
     }
 
     DirectoryCursorOpenResult openChildDirectoryCursor(
-        const Detail::DirectoryCursorState &parent,
+        const Internal::DirectoryCursorState &parent,
         const Types::Path &path,
         Types::SymlinkPolicy symlinkPolicy) noexcept
     {
@@ -240,6 +251,7 @@ namespace GameWIP::FileSystem::Detail::Platform
             {
                 return {.status = IO::makeStatus(ErrorCode::InvalidArgument)};
             }
+
             return openChildDirectoryCursorImpl(parent, path, symlinkPolicy);
         }
         catch(const std::bad_alloc &)
@@ -252,4 +264,4 @@ namespace GameWIP::FileSystem::Detail::Platform
         }
     }
 
-} // namespace GameWIP::FileSystem::Detail::Platform
+} // namespace GameWIP::FileSystem::Platform

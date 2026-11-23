@@ -2,7 +2,7 @@
 /// @brief FileSystem resize, copy, move, and mutation operations.
 
 #include "filesystem/internal/helpers.h"
-#include "filesystem/internal/filesystem_platform.h"
+#include "filesystem/internal/platform.h"
 
 #include <cstddef>
 #include <filesystem>
@@ -14,7 +14,7 @@
 
 namespace GameWIP::FileSystem
 {
-    using namespace Detail;
+    using namespace Internal;
 
     namespace
     {
@@ -98,7 +98,7 @@ namespace GameWIP::FileSystem
     {
         try
         {
-            return Detail::Platform::setReadOnly(path, readOnly, options.symlinkPolicy);
+            return Platform::setReadOnly(path, readOnly, options.symlinkPolicy);
         }
         catch(const std::bad_alloc &)
         {
@@ -142,7 +142,7 @@ namespace GameWIP::FileSystem
                 return IO::makeStatus(ErrorCode::InvalidArgument);
             }
 
-            Detail::Platform::EntryQueryResult destination = queryEntry(to, Types::SymlinkPolicy::DoNotFollow);
+            Platform::EntryQueryResult destination = queryEntry(to, Types::SymlinkPolicy::DoNotFollow);
 
             if(destination.status.ok() && options.replaceMode == Types::ReplaceMode::FailIfExists)
             {
@@ -255,7 +255,7 @@ namespace GameWIP::FileSystem
 
             if(options.metadataMode == Types::File::CopyMetadataMode::Basic)
             {
-                return Detail::Platform::copyBasicMetadata(from, to, options.symlinkPolicy);
+                return Platform::copyBasicMetadata(from, to, options.symlinkPolicy);
             }
 
             return IO::successStatus();
@@ -304,7 +304,7 @@ namespace GameWIP::FileSystem
             }
 
             // Check destination conflicts before creating its parent or moving.
-            Detail::Platform::EntryQueryResult destination = queryEntry(to, Types::SymlinkPolicy::DoNotFollow);
+            Platform::EntryQueryResult destination = queryEntry(to, Types::SymlinkPolicy::DoNotFollow);
 
             if(destination.status.ok() && options.replaceMode == Types::ReplaceMode::FailIfExists)
             {
@@ -323,7 +323,7 @@ namespace GameWIP::FileSystem
                 return parentStatus;
             }
 
-            IO::Types::Status moveStatus = Detail::Platform::movePath(from, to, options.replaceMode, options.symlinkPolicy);
+            IO::Types::Status moveStatus = Platform::movePath(from, to, options.replaceMode, options.symlinkPolicy);
 
             if(!moveStatus.ok())
             {
@@ -357,7 +357,7 @@ namespace GameWIP::FileSystem
                 return IO::makeStatus(ErrorCode::Unsupported);
             }
 
-            return Detail::Platform::removeFile(path, options);
+            return Platform::removeFile(path, options);
         }
         catch(const std::bad_alloc &)
         {

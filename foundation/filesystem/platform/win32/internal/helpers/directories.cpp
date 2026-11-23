@@ -3,7 +3,7 @@
 
 #include "filesystem/platform/win32/internal/helpers.h"
 
-namespace GameWIP::FileSystem::Detail::Platform::Win32
+namespace GameWIP::FileSystem::Platform::Win32
 {
     /// ------------------------------------------------------------
     /// Directory enumeration helpers
@@ -35,12 +35,14 @@ namespace GameWIP::FileSystem::Detail::Platform::Win32
     /// @brief Creates one final directory through a stable parent handle.
     [[nodiscard]] IO::Types::Status createDirectoryStrict(const Types::Path &path, const Types::Directory::CreateOptions &options)
     {
+        // Resolve and validate the target path.
         WidePathResult absolutePath = absoluteNativePath(path);
 
         if(!absolutePath.status.ok())
         {
             return std::move(absolutePath.status);
         }
+
         ParsedPathResult parsedPath = parseAbsolutePath(absolutePath.path);
 
         if(!parsedPath.status.ok())
@@ -52,6 +54,8 @@ namespace GameWIP::FileSystem::Detail::Platform::Win32
         {
             return options.succeedIfAlreadyExists ? IO::successStatus() : IO::makeStatus(ErrorCode::AlreadyExists);
         }
+
+        // Reuse an existing directory or propagate a non-missing error.
         EntryQueryResult existing = queryStrictPath(parsedPath, options.symlinkPolicy);
 
         if(existing.status.ok())
@@ -68,6 +72,7 @@ namespace GameWIP::FileSystem::Detail::Platform::Win32
             return std::move(existing.status);
         }
 
+        // Create the target relative to its stable parent.
         HandleResult parent = openParentStrict(parsedPath);
 
         if(!parent.status.ok())
@@ -90,12 +95,14 @@ namespace GameWIP::FileSystem::Detail::Platform::Win32
     /// @brief Creates missing components one at a time while retaining strict traversal handles.
     [[nodiscard]] IO::Types::Status createDirectoriesStrict(const Types::Path &path, const Types::Directory::CreateOptions &options)
     {
+        // Resolve the target path.
         WidePathResult absolutePath = absoluteNativePath(path);
 
         if(!absolutePath.status.ok())
         {
             return std::move(absolutePath.status);
         }
+
         ParsedPathResult parsedPath = parseAbsolutePath(absolutePath.path);
 
         if(!parsedPath.status.ok())
@@ -107,6 +114,8 @@ namespace GameWIP::FileSystem::Detail::Platform::Win32
         {
             return options.succeedIfAlreadyExists ? IO::successStatus() : IO::makeStatus(ErrorCode::AlreadyExists);
         }
+
+        // Start traversal from the root and create missing components.
         HandleResult current = openRootDirectory(parsedPath.root);
 
         if(!current.status.ok())
@@ -142,6 +151,7 @@ namespace GameWIP::FileSystem::Detail::Platform::Win32
                 {
                     return std::move(child.status);
                 }
+
                 createdAny = true;
             }
 
@@ -161,6 +171,7 @@ namespace GameWIP::FileSystem::Detail::Platform::Win32
             {
                 return IO::makeStatus(ErrorCode::AlreadyExists);
             }
+
             current.handle = std::move(child.handle);
         }
 
@@ -172,7 +183,7 @@ namespace GameWIP::FileSystem::Detail::Platform::Win32
     /// ------------------------------------------------------------
 
     /// Converts one native enumeration record into a platform-neutral directory entry.
-    [[nodiscard]] DirectoryCursorNextResult directoryCursorEntry(Detail::DirectoryCursorState &state, const WIN32_FIND_DATAW &findData)
+    [[nodiscard]] DirectoryCursorNextResult directoryCursorEntry(Internal::DirectoryCursorState &state, const WIN32_FIND_DATAW &findData)
     {
         const std::wstring childName{findData.cFileName};
         const Types::Path childPath = state.directoryPath / std::filesystem::path{childName};
@@ -206,7 +217,7 @@ namespace GameWIP::FileSystem::Detail::Platform::Win32
     }
 
     /// Starts native enumeration after the caller has stabilized the directory path.
-    [[nodiscard]] DirectoryCursorOpenResult startDirectoryCursor(std::unique_ptr<Detail::DirectoryCursorState> state)
+    [[nodiscard]] DirectoryCursorOpenResult startDirectoryCursor(std::unique_ptr<Internal::DirectoryCursorState> state)
     {
         WidePathResult absolutePath = absoluteNativePath(state->directoryPath);
 
@@ -285,7 +296,7 @@ namespace GameWIP::FileSystem::Detail::Platform::Win32
             return {.status = std::move(stablePath.status)};
         }
 
-        auto state = std::make_unique<Detail::DirectoryCursorState>();
+        auto state = std::make_unique<Internal::DirectoryCursorState>();
         state->directoryPath = path;
         state->symlinkPolicy = symlinkPolicy;
         state->stableHandles.reserve(stablePath.handles.size());
@@ -300,7 +311,7 @@ namespace GameWIP::FileSystem::Detail::Platform::Win32
 
     /// Opens a child from its stabilized parent so active nested cursors retain one new handle per level.
     [[nodiscard]] DirectoryCursorOpenResult openChildDirectoryCursorImpl(
-        const Detail::DirectoryCursorState &parent,
+        const Internal::DirectoryCursorState &parent,
         const Types::Path &path,
         Types::SymlinkPolicy symlinkPolicy)
     {
@@ -325,7 +336,7 @@ namespace GameWIP::FileSystem::Detail::Platform::Win32
             return {.status = std::move(childHandle.status)};
         }
 
-        auto state = std::make_unique<Detail::DirectoryCursorState>();
+        auto state = std::make_unique<Internal::DirectoryCursorState>();
         state->directoryPath = path;
         state->symlinkPolicy = symlinkPolicy;
         state->stableHandles.push_back(childHandle.handle.release());
@@ -333,7 +344,7 @@ namespace GameWIP::FileSystem::Detail::Platform::Win32
     }
 
     /// Advances one cursor without collecting sibling entries.
-    [[nodiscard]] DirectoryCursorNextResult readDirectoryCursorImpl(Detail::DirectoryCursorState &state)
+    [[nodiscard]] DirectoryCursorNextResult readDirectoryCursorImpl(Internal::DirectoryCursorState &state)
     {
         if(state.hasBufferedEntry)
         {
@@ -345,6 +356,7 @@ namespace GameWIP::FileSystem::Detail::Platform::Win32
         {
             return {.status = IO::successStatus()};
         }
+
         const HANDLE findHandle = static_cast<HANDLE>(state.nativeFindHandle);
         WIN32_FIND_DATAW findData{};
 
@@ -409,4 +421,4 @@ namespace GameWIP::FileSystem::Detail::Platform::Win32
         }
     }
 
-} // namespace GameWIP::FileSystem::Detail::Platform::Win32
+} // namespace GameWIP::FileSystem::Platform::Win32
