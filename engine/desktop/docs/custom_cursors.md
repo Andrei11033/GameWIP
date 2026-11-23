@@ -17,8 +17,8 @@ stride at least one row, and the payload size exactly `resolvedStride * height`.
 one image per intended DPI. Invalid input returns a failed
 `Types::Result<Cursor>` with no value.
 
-The span overload eagerly creates every variant before publishing; if any native
-creation or allocation fails, created variants are released and no partial `Cursor` results.
+The span overload eagerly creates every variant before publishing. If creation
+or allocation fails, it releases created variants and returns no `Cursor`.
 
 ## DPI variants
 
