@@ -44,7 +44,14 @@ add_executable(GameWIPIsolatedConsumer main.cpp ../consumer_probe.h)
 if(GAMEWIP_CONSUMER_PACKAGE STREQUAL "Logger")
     target_sources(
         GameWIPIsolatedConsumer
-        PRIVATE logger_config.cpp logger_logging.cpp logger_macros.cpp logger_message_format.cpp logger_record.cpp logger_reports.cpp logger_types.cpp
+        PRIVATE
+            logger_config.cpp
+            logger_logging.cpp
+            logger_macros.cpp
+            logger_message_format.cpp
+            logger_record.cpp
+            logger_reports.cpp
+            logger_types.cpp
     )
 elseif(GAMEWIP_CONSUMER_PACKAGE STREQUAL "Terminal")
     target_sources(GameWIPIsolatedConsumer PRIVATE terminal_style.cpp)
@@ -52,33 +59,38 @@ elseif(GAMEWIP_CONSUMER_PACKAGE STREQUAL "Desktop")
     target_sources(
         GameWIPIsolatedConsumer
         PRIVATE
-            desktop_types.cpp
             desktop_accessibility.cpp
-            desktop_clipboard.cpp
-            desktop_data_transfer.cpp
             desktop_child_surface.cpp
+            desktop_clipboard.cpp
             desktop_cursor.cpp
+            desktop_data_transfer.cpp
             desktop_description.cpp
             desktop_dialogs.cpp
-            desktop_events.cpp
             desktop_display.cpp
             desktop_display_info.cpp
             desktop_drag_drop.cpp
-            desktop_window.cpp
+            desktop_events.cpp
             desktop_renderer_bridge.cpp
             desktop_shell.cpp
-            desktop_shell_types.cpp
+            desktop_shell_jump_lists.cpp
+            desktop_shell_notifications.cpp
+            desktop_shell_registration.cpp
             desktop_shell_taskbar.cpp
             desktop_shell_tray.cpp
-            desktop_shell_notifications.cpp
-            desktop_shell_jump_lists.cpp
-            desktop_shell_registration.cpp
+            desktop_shell_types.cpp
+            desktop_types.cpp
+            desktop_window.cpp
     )
     add_subdirectory(platform)
 elseif(GAMEWIP_CONSUMER_PACKAGE STREQUAL "TestSupport")
     target_sources(
         GameWIPIsolatedConsumer
-        PRIVATE test_support_types.cpp test_support_reporting.cpp test_support_files.cpp test_support_process.cpp test_support_stress.cpp
+        PRIVATE
+            test_support_files.cpp
+            test_support_process.cpp
+            test_support_reporting.cpp
+            test_support_stress.cpp
+            test_support_types.cpp
     )
 endif()
 

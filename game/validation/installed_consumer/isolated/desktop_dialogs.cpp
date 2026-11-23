@@ -3,6 +3,9 @@
 
 #include "desktop/dialogs.h"
 
+#include <cstddef>
+#include <span>
+
 bool consumeDesktopDialogs()
 {
     namespace DialogTypes = GameWIP::Desktop::Types::Dialogs;
