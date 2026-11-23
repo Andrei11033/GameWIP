@@ -5,7 +5,7 @@
 #include "validation/tests/base/platform.h"
 
 #include "base/checked_arithmetic.h"
-#include "validation/tests/runner_helpers.h"
+#include "validation/tests/internal/helpers/runner_helpers.h"
 #include "test_support/test_support.h"
 
 #include <array>

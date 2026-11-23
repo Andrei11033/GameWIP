@@ -10,7 +10,7 @@
 
 #include "logger/logger.h"
 #include "logger/logger_macros.h"
-#include "validation/tests/runner_helpers.h"
+#include "validation/tests/internal/helpers/runner_helpers.h"
 #include "test_support/test_support.h"
 #include "unicode/unicode.h"
 

@@ -7,7 +7,7 @@
 #include "validation/tests/io/io_test.h"
 
 #include "io/io.h"
-#include "validation/tests/runner_helpers.h"
+#include "validation/tests/internal/helpers/runner_helpers.h"
 #include "test_support/test_support.h"
 
 #include <algorithm>

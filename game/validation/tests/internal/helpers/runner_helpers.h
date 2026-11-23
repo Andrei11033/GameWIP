@@ -12,7 +12,7 @@
 
 namespace GameWIP::Test::RunnerHelpers
 {
-    namespace Detail
+    namespace Internal
     {
         enum class ReportStyle
         {
@@ -57,7 +57,7 @@ namespace GameWIP::Test::RunnerHelpers
 
             return ReportStyle::None;
         }
-    } // namespace Detail
+    } // namespace Internal
 
     /// @brief Writes one validation report line with category-based styling when supported.
     [[nodiscard]] inline bool writeValidationConsoleLine(std::string_view category, std::string_view line) noexcept
@@ -66,35 +66,35 @@ namespace GameWIP::Test::RunnerHelpers
         using GameWIP::Terminal::Types::Style::BasicColor;
         using GameWIP::Terminal::Types::Style::Request;
 
-        const Detail::ReportStyle reportStyle = Detail::reportStyleFor(category);
+        const Internal::ReportStyle reportStyle = Internal::reportStyleFor(category);
         Request style;
 
         switch(reportStyle)
         {
-        case Detail::ReportStyle::None:
+        case Internal::ReportStyle::None:
             break;
-        case Detail::ReportStyle::Green:
+        case Internal::ReportStyle::Green:
             style.foreground = GameWIP::Terminal::basicColor(BasicColor::BrightGreen);
             break;
-        case Detail::ReportStyle::Red:
+        case Internal::ReportStyle::Red:
             style.foreground = GameWIP::Terminal::basicColor(BasicColor::BrightRed);
             break;
-        case Detail::ReportStyle::Yellow:
+        case Internal::ReportStyle::Yellow:
             style.foreground = GameWIP::Terminal::basicColor(BasicColor::BrightYellow);
             break;
-        case Detail::ReportStyle::Cyan:
+        case Internal::ReportStyle::Cyan:
             style.foreground = GameWIP::Terminal::basicColor(BasicColor::BrightCyan);
             break;
-        case Detail::ReportStyle::Gray:
+        case Internal::ReportStyle::Gray:
             style.foreground = GameWIP::Terminal::basicColor(BasicColor::BrightBlack);
             break;
-        case Detail::ReportStyle::Blue:
+        case Internal::ReportStyle::Blue:
             style.foreground = GameWIP::Terminal::basicColor(BasicColor::BrightBlue);
             break;
-        case Detail::ReportStyle::Magenta:
+        case Internal::ReportStyle::Magenta:
             style.foreground = GameWIP::Terminal::basicColor(BasicColor::BrightMagenta);
             break;
-        case Detail::ReportStyle::Result:
+        case Internal::ReportStyle::Result:
         {
             const BasicColor color = line.contains("failed=0") ? BasicColor::BrightGreen : BasicColor::BrightRed;
             style.foreground = GameWIP::Terminal::basicColor(color);
@@ -110,7 +110,7 @@ namespace GameWIP::Test::RunnerHelpers
             options.lineEnding = GameWIP::Terminal::Types::Output::LineEnding::Native;
 
             const Segment segment =
-                reportStyle == Detail::ReportStyle::None ? GameWIP::Terminal::textSegment(line) : GameWIP::Terminal::styledTextSegment(line, style);
+                reportStyle == Internal::ReportStyle::None ? GameWIP::Terminal::textSegment(line) : GameWIP::Terminal::styledTextSegment(line, style);
             const std::array<Segment, 1> segments{segment};
 
             return GameWIP::Terminal::writeSegments(GameWIP::Terminal::Types::Output::Stream::Stdout, segments, options).ok();

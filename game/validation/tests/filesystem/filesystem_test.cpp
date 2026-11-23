@@ -9,7 +9,7 @@
 
 #include "filesystem/filesystem.h"
 #include "filesystem/internal/platform.h"
-#include "validation/tests/runner_helpers.h"
+#include "validation/tests/internal/helpers/runner_helpers.h"
 #include "test_support/test_support.h"
 
 #include <chrono>

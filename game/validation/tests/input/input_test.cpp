@@ -7,7 +7,7 @@
 #include "input/input.h"
 #include "input/synthetic.h"
 #include "test_support/test_support.h"
-#include "validation/tests/runner_helpers.h"
+#include "validation/tests/internal/helpers/runner_helpers.h"
 
 #include <cstdint>
 #include <span>

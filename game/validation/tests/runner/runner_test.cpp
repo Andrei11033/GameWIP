@@ -10,7 +10,7 @@
 #include "validation/process_arguments.h"
 #include "validation/tests/internal/runner_test_hooks.h"
 #include "validation/tests/runner/platform.h"
-#include "validation/tests/runner_helpers.h"
+#include "validation/tests/internal/helpers/runner_helpers.h"
 
 #include "test_support/test_support.h"
 
@@ -93,13 +93,16 @@ namespace
     void recordInvocation(ProbeRecord &record, std::string_view name, const ValidationTests::ModuleInvocation &invocation)
     {
         ++record.runs;
+
         record.manualTests = invocation.options.enableManualTests;
         record.childProcesses = invocation.options.enableTestSupportChildProcessTests;
         record.writeReport = invocation.options.writeReport;
         record.appendReport = invocation.appendReport;
+
         record.reportPath = invocation.options.reportPath;
         std::error_code temporaryError;
         record.temporaryRoot = std::filesystem::temp_directory_path(temporaryError);
+
         probeState.invocationOrder.push_back(name);
     }
 
@@ -193,6 +196,7 @@ namespace
     {
         probeState = {};
 
+        // Build the owned process arguments passed to the runner.
         std::vector<std::string> argumentStorage;
         argumentStorage.reserve(arguments.size() + 1);
         argumentStorage.emplace_back("runner-tests");
@@ -210,6 +214,7 @@ namespace
             argumentPointers.push_back(argument.data());
         }
 
+        // Suppress expected diagnostics from nested runner invocations.
         const ScopedRunnerOutput capturedOutput;
         return ValidationTests::Internal::TestHooks::runWithModules(
             static_cast<int>(argumentPointers.size()),

@@ -6,7 +6,7 @@
 #include "validation/executable_path.h"
 #include "validation/tests/desktop/accessibility_test.h"
 #include "validation/process_arguments.h"
-#include "validation/tests/runner_helpers.h"
+#include "validation/tests/internal/helpers/runner_helpers.h"
 
 #ifndef DESKTOP_INTERNAL_TEST_HOOKS
 #define DESKTOP_INTERNAL_TEST_HOOKS 0

@@ -3,11 +3,11 @@
 
 #include "validation/tests/runner.h"
 
-#include "validation/process_arguments.h"
 #include "validation/executable_path.h"
+#include "validation/process_arguments.h"
 #include "validation/tests/internal/runner_test_hooks.h"
 #include "validation/tests/registry.h"
-#include "validation/tests/runner_helpers.h"
+#include "validation/tests/internal/helpers/runner_helpers.h"
 
 #include "test_support/process.h"
 
@@ -50,6 +50,7 @@ namespace GameWIP::Validation::Tests
                 selection.conflictingModules = true;
                 return;
             }
+
             selection.module = std::move(module);
         }
 
@@ -175,6 +176,7 @@ namespace GameWIP::Validation::Tests
                     {
                         throw std::invalid_argument("relative report paths cannot contain a root name or root directory");
                     }
+
                     const std::filesystem::path normalized = options.reportPath.lexically_normal();
 
                     for(const std::filesystem::path &component : normalized)

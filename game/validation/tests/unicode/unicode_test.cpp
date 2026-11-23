@@ -4,7 +4,7 @@
 #include "validation/tests/unicode/unicode_test.h"
 
 #include "test_support/test_support.h"
-#include "validation/tests/runner_helpers.h"
+#include "validation/tests/internal/helpers/runner_helpers.h"
 #include "unicode/internal/generated/unicode_properties.h"
 #include "unicode/internal/unicode_properties.h"
 #include "unicode/unicode.h"

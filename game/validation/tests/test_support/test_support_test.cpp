@@ -10,7 +10,7 @@
 #include "validation/executable_path.h"
 #include "validation/platform_tests.h"
 #include "validation/process_arguments.h"
-#include "validation/tests/runner_helpers.h"
+#include "validation/tests/internal/helpers/runner_helpers.h"
 
 #include "test_support/test_support.h"
 

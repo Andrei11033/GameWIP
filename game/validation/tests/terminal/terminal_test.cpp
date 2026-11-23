@@ -8,7 +8,7 @@
 
 #include "validation/executable_path.h"
 #include "validation/process_arguments.h"
-#include "validation/tests/runner_helpers.h"
+#include "validation/tests/internal/helpers/runner_helpers.h"
 #include "validation/tests/terminal/platform.h"
 
 #include "terminal/terminal.h"

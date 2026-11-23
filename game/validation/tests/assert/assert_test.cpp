@@ -15,7 +15,7 @@
 #include "debug/assert/internal/assert_test_hooks.h"
 
 #include "logger/logger.h"
-#include "validation/tests/runner_helpers.h"
+#include "validation/tests/internal/helpers/runner_helpers.h"
 #include "test_support/test_support.h"
 
 #include <algorithm>
