@@ -36,19 +36,25 @@ namespace
 
     struct ProbeRecord
     {
+        // Captured module options
         std::size_t runs = 0;
         bool manualTests = false;
         bool childProcesses = true;
         bool writeReport = true;
         bool appendReport = false;
+
+        // Captured paths
         std::filesystem::path reportPath;
         std::filesystem::path temporaryRoot;
     };
 
     struct ProbeState
     {
+        // Module records
         ProbeRecord alpha;
         ProbeRecord beta;
+
+        // Observed dispatch order
         std::vector<std::string_view> invocationOrder;
     };
 
@@ -234,10 +240,14 @@ namespace
     void testDefaultManualOptions(TestSupport::Context &context)
     {
         const Validation::TestResult result = runProbe({});
+
+        // Verify selection and invocation counts.
         static_cast<void>(context.expectTrue("default runner invocation succeeds", result.ok()));
         static_cast<void>(context.expectEq("default runner keeps both modules selected", std::size_t{2}, result.modulesRun));
         static_cast<void>(context.expectEq("default runner invokes alpha", std::size_t{1}, probeState.alpha.runs));
         static_cast<void>(context.expectEq("default runner invokes beta", std::size_t{1}, probeState.beta.runs));
+
+        // Verify defaults and deterministic ordering.
         static_cast<void>(context.expectFalse("manual tests default off", probeState.alpha.manualTests));
         static_cast<void>(context.expectTrue(
             "default runner uses stable order then name",
@@ -271,12 +281,14 @@ namespace
         static_cast<void>(context.expectEq("skipped module is not invoked", std::size_t{0}, probeState.alpha.runs));
         static_cast<void>(context.expectEq("unskipped module is invoked", std::size_t{1}, probeState.beta.runs));
 
+        // A focused selection remains valid when another module is skipped.
         result = runProbe({"--test-module=alpha", "--skip-test-module=beta"});
         static_cast<void>(context.expectTrue("selected module can skip unrelated module", result.ok()));
         static_cast<void>(context.expectEq("selection plus unrelated skip runs selected module", std::size_t{1}, result.modulesRun));
         static_cast<void>(context.expectEq("selected module still runs", std::size_t{1}, probeState.alpha.runs));
         static_cast<void>(context.expectEq("unrelated skipped module does not run", std::size_t{0}, probeState.beta.runs));
 
+        // Reject unknown and contradictory skip requests.
         result = runProbe({"--skip-test-module=gamma"});
         static_cast<void>(context.expectFalse("unknown skipped module fails", result.ok()));
         static_cast<void>(context.expectEq("unknown skipped module runs no module", std::size_t{0}, result.modulesRun));
@@ -296,6 +308,7 @@ namespace
         static_cast<void>(context.expectFalse("unknown selected module fails", result.ok()));
         static_cast<void>(context.expectEq("unknown selected module runs no module", std::size_t{0}, result.modulesRun));
 
+        // Empty selectors and conflicting selectors are invalid.
         result = runProbe({"--test-module="});
         static_cast<void>(context.expectFalse("empty selected module fails", result.ok()));
         static_cast<void>(context.expectEq("empty selected module runs no module", std::size_t{0}, result.modulesRun));
@@ -304,6 +317,7 @@ namespace
         static_cast<void>(context.expectFalse("conflicting selected modules fail", result.ok()));
         static_cast<void>(context.expectEq("conflicting selected modules run no module", std::size_t{0}, result.modulesRun));
 
+        // Repeated identical selectors remain unambiguous.
         result = runProbe({"--test-module=alpha", "--test-module=alpha"});
         static_cast<void>(context.expectTrue("repeated identical module selector succeeds", result.ok()));
         static_cast<void>(context.expectEq("repeated identical selector runs one module", std::size_t{1}, result.modulesRun));
@@ -325,12 +339,15 @@ namespace
         static_cast<void>(context.expectTrue("unknown reserved child selector is handled", result.handledChildInvocation));
         static_cast<void>(context.expectEq("unknown reserved child selector runs no module", std::size_t{0}, result.modulesRun));
 
+        // Multiple reserved selectors are rejected as ambiguous.
         result = runProbe({"--assert-test-child=unknown", "--test-support-test-child=unknown"});
         static_cast<void>(context.expectFalse("multiple reserved child selectors fail", result.ok()));
         static_cast<void>(context.expectTrue("multiple reserved child selectors are handled", result.handledChildInvocation));
         static_cast<void>(context.expectEq("multiple reserved child selectors run no module", std::size_t{0}, result.modulesRun));
 
+#if defined(_WIN32)
         GameWIP::Test::RunnerPlatform::testWin32ReportPaths(context, runDefaultProbeWithOptions, unattendedOptions, reportOutputEnabled);
+#endif
     }
 
     void testReportResolutionAndAggregation(TestSupport::Context &context)
@@ -408,6 +425,7 @@ namespace
         static_cast<void>(context.expectFalse("empty module name fails registration validation", result.ok()));
         static_cast<void>(context.expectEq("empty module name runs no module", std::size_t{0}, result.modulesRun));
 
+        // A valid name still requires a callback.
         constexpr std::array<ValidationTests::Module, 1> nullCallback = {{
             {.name = "null", .order = 10, .run = nullptr},
         }};
@@ -415,6 +433,7 @@ namespace
         static_cast<void>(context.expectFalse("null module callback fails registration validation", result.ok()));
         static_cast<void>(context.expectEq("null module callback runs no module", std::size_t{0}, result.modulesRun));
 
+        // Names must be unique within one registry.
         constexpr std::array<ValidationTests::Module, 2> duplicateNames = {{
             {.name = "duplicate", .order = 10, .run = runAlpha},
             {.name = "duplicate", .order = 20, .run = runBeta},
@@ -482,6 +501,8 @@ namespace GameWIP::Test
         const TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::RunnerHelpers::makeReportingOptions(options);
 
         TestSupport::Runner runner(reportOptions);
+
+        // Verify selection and option propagation.
         runner.runSuite("Validation runner default options", testDefaultManualOptions);
         runner.runSuite("Validation runner capability options", testPositiveCapabilityOptions);
         runner.runSuite("Validation runner selection independence", testSelectionIndependence);
@@ -489,9 +510,13 @@ namespace GameWIP::Test
         runner.runSuite("Validation runner invalid module selection", testInvalidModuleSelection);
         runner.runSuite("Validation runner retained options", testRetainedOptions);
         runner.runSuite("Validation runner reserved input validation", testReservedChildAndReportValidation);
+
+        // Verify report aggregation and failure handling.
         runner.runSuite("Validation runner report resolution and aggregation", testReportResolutionAndAggregation);
         runner.runSuite("Validation runner failure isolation", testModuleFailureIsolation);
         runner.runSuite("Validation runner invalid registrations", testInvalidRegistrations);
+
+        // Verify child routing and embedded startup detection.
         runner.runSuite("Validation runner child routing", testChildRouting);
         runner.runSuite("Validation runner embedded request", testEmbeddedRunRequest);
 

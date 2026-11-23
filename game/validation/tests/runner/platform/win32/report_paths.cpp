@@ -20,6 +20,7 @@ namespace GameWIP::Test::RunnerPlatform
         static_cast<void>(context.expectTrue("root-relative report rejection does not fail tests", result.ok()));
         static_cast<void>(context.expectFalse("root-relative report path disables report output", reportOutputEnabled()));
 
+        // Reject drive-relative paths as well.
         ValidationTests::RunOptions driveRelative = makeOptions();
         driveRelative.writeReport = true;
         driveRelative.reportPath = "C:escaped-report.txt";
