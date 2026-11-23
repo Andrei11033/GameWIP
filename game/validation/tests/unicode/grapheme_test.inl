@@ -113,7 +113,7 @@ void testOfficialGraphemeConformance(TestSupport::Context &context)
 
     if(!conformancePath.has_value())
     {
-        constexpr std::string_view reason = "Unicode 17.0.0 GraphemeBreakTest.txt is not cached. Run '.\\gamewip.bat unicode verify' "
+        constexpr std::string_view reason = "Unicode 17.0.0 GraphemeBreakTest.txt is not cached. Run the helper's unicode verify action "
                                             "or set GAMEWIP_UNICODE_GRAPHEME_BREAK_TEST.";
 
         if(std::getenv("GAMEWIP_REQUIRE_UNICODE_CONFORMANCE_TESTS") != nullptr)
@@ -127,6 +127,8 @@ void testOfficialGraphemeConformance(TestSupport::Context &context)
 
         return;
     }
+
+    // Confirm that the fixture is readable before scanning its cases.
     std::ifstream input(*conformancePath, std::ios::binary);
 
     if(!input)
@@ -141,6 +143,7 @@ void testOfficialGraphemeConformance(TestSupport::Context &context)
     std::size_t checkedOffsets = 0;
     std::string line;
 
+    // Parse each non-comment case and check both traversal directions.
     while(std::getline(input, line))
     {
         ++lineNumber;
@@ -179,6 +182,7 @@ void testOfficialGraphemeConformance(TestSupport::Context &context)
         checkedOffsets += fixture->codePointOffsets.size();
     }
 
+    // Reject truncated, empty, or mismatched fixture data.
     if(!input.eof())
     {
         context.fail("official Unicode grapheme conformance data", std::format("read failed before EOF: {}", conformancePath->string()));

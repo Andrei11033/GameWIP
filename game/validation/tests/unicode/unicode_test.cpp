@@ -18,7 +18,6 @@
 #include <filesystem>
 #include <format>
 #include <fstream>
-#include <iostream>
 #include <initializer_list>
 #include <memory>
 #include <optional>
@@ -27,6 +26,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <utility>
 #include <vector>
 
@@ -193,6 +193,7 @@ namespace
     /// @brief Returns a diagnostic when one fixture disagrees with stateless or indexed traversal.
     std::optional<std::string> graphemeFailure(const GraphemeFixture &fixture)
     {
+        // Compare stateless traversal at every code-point offset.
         for(const std::size_t offset : fixture.codePointOffsets)
         {
             const Unicode::Types::Utf8::BoundaryResult expectedNext = expectedNextGrapheme(fixture, offset);
@@ -224,6 +225,7 @@ namespace
             }
         }
 
+        // Build the bounded index before checking cursor traversal.
         std::vector<std::size_t> boundaryStorage(fixture.codePointOffsets.size());
         Unicode::Utf8::GraphemeCursor cursor;
         const Unicode::Types::Utf8::GraphemeIndexResult indexed = cursor.reset(fixture.text, boundaryStorage);
@@ -239,6 +241,7 @@ namespace
                 cursor.boundaryCount());
         }
 
+        // Check indexed traversal in both directions.
         for(std::size_t index = 1; index < fixture.boundaries.size(); ++index)
         {
             const Unicode::Types::Utf8::BoundaryResult actual = cursor.next();
@@ -384,6 +387,7 @@ namespace
         fixture.codePointOffsets.push_back(0);
         fixture.boundaries.push_back(0);
 
+        // Parse scalar/boundary pairs into the expected fixture.
         std::string scalarText;
 
         while(tokens >> scalarText)
