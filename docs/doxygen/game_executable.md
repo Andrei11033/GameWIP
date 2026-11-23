@@ -17,7 +17,7 @@ runtime facade in `game/runtime/`, generated version metadata and `--version`
 output, the compile-time validation facade, and the boundary between executable
 integration code and reusable libraries.
 
-## Source layout
+## Key source layout
 
 | Path | Purpose |
 | --- | --- |
@@ -49,7 +49,11 @@ integration code and reusable libraries.
 | `game/runtime/lifecycle/logger_lifecycle.h` | Internal Logger lifecycle operations for the runtime. |
 | `game/runtime/lifecycle/logger_lifecycle.cpp` | Logger setup, initialization failure detail, session summary, and shutdown. |
 | `game/runtime/runtime_input.h` | Selects the runtime Input session for the active platform. |
+| `game/runtime/platform/CMakeLists.txt` | Selects the runtime platform backend. |
 | `game/runtime/platform/input_reports.h` | Internal contract for native report details. |
+| `game/runtime/platform/win32/CMakeLists.txt` | Registers Win32 runtime sources. |
+| `game/runtime/platform/win32/input_backends.h` | Internal Win32 backend-status reporting declaration. |
+| `game/runtime/platform/win32/input_backends.cpp` | Win32 backend availability and status reporting at Trace. |
 | `game/runtime/platform/win32/runtime_input.cpp` | Win32 Input attachment and selected-backend handling. |
 | `game/runtime/platform/win32/input_reports.cpp` | Win32 keyboard and mouse report decoding. |
 | `game/runtime/options/runtime_options.h` | Environment-backed settings used by runtime startup. |
@@ -89,7 +93,7 @@ These paths use the helper's default Windows x64 target. Direct CMake builds use
 | `--inputDevices` | Every game build | Adds bounded grouped device descriptors at Trace. |
 | `--inputBackends=<list>` | Windows | Selects comma-separated `rawInput`, `hid`, `xinput`, `gameInput`, `directInput`, or `windowMessages` providers; `none` disables them all. Without it, all available providers are tried. |
 | `--windowEvents` | Every game build | Logs each Window event with its details at Debug and Trace. |
-| `--startup-tests` | `dev`, `profile`, or a custom startup-test build | Runs embedded correctness validation before runtime. Public `GameWIPTests.exe` options may accompany it. |
+| `--startup-tests` | `dev`, `profile`, or a custom startup-test build | Runs embedded correctness validation before runtime. Options for the separately built `GameWIPTests` executable may accompany it. |
 | `--benchmark_*` or `--v=<level>` | A custom build with startup benchmarks | Forwards Google Benchmark options to the embedded benchmark runner. |
 
 Validation options without `--startup-tests` do not request an ordinary embedded
@@ -98,11 +102,13 @@ benchmark arguments. Invalid values warn and fall back to a valid environment
 setting or the build default. Input switches take no value except
 `--inputBackends=<list>`. A custom
 startup-benchmark build may reject other arguments.
-When built, `GameWIPTests.exe --help` and `GameWIPBenchmarks.exe --help` show
-their options. See @ref project_command_line_tools for the available targets.
+When built, `GameWIPTests --help` and `GameWIPBenchmarks --help` show their
+options (`.exe` on Windows). See @ref project_command_line_tools for targets.
 
 Run `.\gamewip.bat runtime` or select **Development > Run game executable**
-to open the interactive builder. On Linux, use `bash ./gamewip.sh runtime`.
+to open the interactive builder. On Linux, `bash ./gamewip.sh runtime` opens the
+same builder; game runtime builds remain blocked until the libraries have Linux
+backends (@ref project_build).
 The direct `run` action accepts the same options:
 
 ```powershell

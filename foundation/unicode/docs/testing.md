@@ -4,6 +4,10 @@ Unicode validation covers the public contracts, generated property data, officia
 grapheme conformance, package boundaries, sanitizers, static analysis, and
 diagnostic benchmarks.
 
+Examples use Windows PowerShell and the Windows x64 output paths. On Linux, pass
+the same helper arguments to `bash ./gamewip.sh`; set environment variables with
+Bash syntax and use the selected target's output path for executables.
+
 ## Common workflow
 
 Prepare or verify the pinned Unicode data, then run the focused correctness module:
@@ -57,6 +61,12 @@ When the file is absent, an ordinary local test run skips only the official conf
 $env:GAMEWIP_REQUIRE_UNICODE_CONFORMANCE_TESTS = "1"
 .\gamewip.bat module unicode
 Remove-Item Env:GAMEWIP_REQUIRE_UNICODE_CONFORMANCE_TESTS
+```
+
+On Linux, require the fixture for one run with:
+
+```bash
+GAMEWIP_REQUIRE_UNICODE_CONFORMANCE_TESTS=1 bash ./gamewip.sh module unicode
 ```
 
 The primary CI correctness job prepares the pinned data before CTest and requires official Unicode conformance. Ordinary configure, build, test,
