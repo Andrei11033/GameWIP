@@ -3,5 +3,7 @@
 
 #include "desktop/description.h"
 
+#include <variant>
+
 static_assert(GameWIP::Desktop::Types::Controls{}.closable);
 static_assert(std::holds_alternative<GameWIP::Desktop::Types::WindowedModeRequest>(GameWIP::Desktop::Types::WindowModes::windowed()));

@@ -3,5 +3,7 @@
 
 #include "desktop/result.h"
 
+#include <optional>
+
 static_assert(GameWIP::Desktop::Types::Result<int>{}.value == std::nullopt);
 static_assert(!GameWIP::Desktop::Types::Result<int>{}.ok());

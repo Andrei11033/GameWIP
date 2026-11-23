@@ -7,6 +7,8 @@
 
 #include "terminal/terminal.h"
 
+#include <cstddef>
+#include <format>
 #include <span>
 #include <string_view>
 #include <type_traits>
