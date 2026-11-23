@@ -15,11 +15,11 @@ Rebuild the Windows tools from the Tracy client locked by the checkout:
 The focused command produces `tracy-profiler.exe`, `tracy-capture.exe`,
 `tracy-csvexport.exe`, `tracy-import-chrome.exe`, `tracy-import-fuchsia.exe`,
 and `tracy-update.exe` under `<managed-tools-root>/tools/tracy` (default
-`build/gamewip/tools/managed/tools/tracy`). It uses UCRT64 GCC/Ninja Release builds
-with a reproducible `x86-64-v3` baseline, stages the tools and required UCRT
-DLLs, and replaces existing tools only after verification. Visual Studio is not
-required. First use may take several minutes because the GUI profiler compiles
-substantial upstream dependencies.
+`build/gamewip/tools/managed/tools/tracy`). It uses UCRT64 GCC and Ninja Release
+builds with a reproducible `x86-64-v3` baseline. It stages the tools and required
+UCRT DLLs, and replaces existing tools only after verification. Visual Studio is
+not required. First use may take several minutes because the GUI profiler
+compiles substantial upstream dependencies.
 
 Build the profiling preset:
 
@@ -31,12 +31,17 @@ cmake --build --preset profile
 Start the matching profiler, then run the profiling build:
 
 ```powershell
-$toolsRoot = if ($env:GAMEWIP_MANAGED_TOOLS_ROOT) { $env:GAMEWIP_MANAGED_TOOLS_ROOT } else { 'build/gamewip/tools/managed' }
+$toolsRoot = if ($env:GAMEWIP_MANAGED_TOOLS_ROOT) {
+    $env:GAMEWIP_MANAGED_TOOLS_ROOT
+} else {
+    'build/gamewip/tools/managed'
+}
 Start-Process (Join-Path $toolsRoot 'tools/tracy/tracy-profiler.exe')
 .\build\profile\GameWIP.exe
 ```
 
-Use a representative scenario. A capture of an empty or artificial run is rarely useful evidence for optimization decisions.
+Use a representative scenario. An empty or artificial run rarely provides
+useful optimization evidence.
 
 The VS Code `F9` workflow uses `gamewip.bat` to configure and build the selected
 target, start Tracy, and run the game. `Alt+F9` profiles startup tests. Pass
@@ -50,8 +55,9 @@ cmake --build --preset profile
 
 ## Build controls
 
-The profile preset enables `GAMEWIP_ENABLE_TRACY=ON` and `GAMEWIP_ENABLE_STARTUP_TESTS=ON`. Runtime arguments decide whether a capture covers the game
-or embedded correctness tests; no cache option needs to be changed.
+The profile preset enables `GAMEWIP_ENABLE_TRACY=ON` and
+`GAMEWIP_ENABLE_STARTUP_TESTS=ON`. Runtime arguments decide whether a capture
+covers the game or embedded correctness tests; no cache option needs to change.
 
 Tracy support must remain optional:
 
@@ -117,7 +123,8 @@ Reusable libraries remain profiler-agnostic by default. A library may add
 private compile-time zones when a representative capture shows meaningful
 opaque work that needs subdivision.
 
-Tracy must not appear in public library APIs, installed public headers, package usage requirements, or consumer examples.
+Tracy must not appear in public library APIs, installed public headers, package
+usage requirements, or consumer examples.
 
 ## Failure behavior
 

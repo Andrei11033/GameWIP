@@ -29,6 +29,8 @@ project-wide rule; silence is not an exception.
   accepted Win32 adapter is the one deliberate exception to the general plural-collection rule: `Desktop::Native::Win32::HandleView`,
   `Types::Result<HandleView>`, and `getHandle(...)` describe one coherent native-handle
   view/result even though the view contains both `HINSTANCE` and `HWND`.
+- Capability and support queries describe implemented semantics; they do not
+  infer support from platform presence alone.
 
 ## Text and bytes
 
@@ -61,10 +63,7 @@ but platform code must not introduce an independent Win32 codec implementation.
 Keeping conversion in one library makes validation, malformed-input handling,
 and boundary behavior consistent across consumers.
 
-## Predicates, units, and offsets
-
-Predicate names distinguish plain state, classification, presence, capability, support, and conditional behavior without mechanically adding a
-prefix. Capability and support queries report implemented semantics and do not infer them from platform presence alone.
+## Units and offsets
 
 Public units must be visible in the type, member name, or directly adjacent contract. Distinguish logical coordinates, physical pixels, durations,
 byte counts, code-unit counts, scalar counts, and grapheme counts. Text offsets state their unit and required boundary. UTF-8 storage normally uses

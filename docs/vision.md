@@ -91,10 +91,9 @@ developers and players can see why it behaved as it did.
 ### Measure performance as systems grow
 
 Correctness comes first, followed by representative workloads and measurement.
-Systems should spend time where it changes the result and become more selective
-as world, machine, and multiplayer depth grows. Observability and performance
-remain development principles throughout the product rather than end-stage
-cleanup.
+As world, machine, and multiplayer depth grows, measurements guide where to
+become more selective. Observability and performance remain development
+principles throughout the product rather than end-stage cleanup.
 
 ## Where the details live
 

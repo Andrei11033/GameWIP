@@ -85,7 +85,8 @@ Use `PRIVATE` dependencies for implementation-only requirements.
 
 ## Public API integration
 
-A public API is any installed symbol, type, macro, option, result type, or supported behavior that external consumers may use.
+A public API is any installed symbol, type, macro, option, result type, or
+supported behavior that external consumers may use.
 
 A public API change must be reflected in all relevant parts of the project:
 
@@ -202,12 +203,13 @@ Choose the owner before writing a page.
 | Documentation type | Owner |
 | --- | --- |
 | Public API usage, examples, behavior, failure modes, and troubleshooting | Owning library `docs/` directory |
-| Build, validation, testing, benchmark, profiling, coverage, static-analysis, documentation, and automation workflows | `docs/doxygen/` |
+| Build, validation, and repository workflows | `docs/doxygen/` |
 | Vision, roadmap, decisions, versioning, contribution workflow, and milestone evidence | `docs/` |
 | Public API reference | Installed public headers |
 | Private implementation notes | Internal headers and source files |
 
-Generated Doxygen pages must be registered explicitly. Library pages are registered by the owning library target. Project pages are registered in
+Generated Doxygen pages must be registered explicitly. Library pages are
+registered by the owning library target. Project pages are registered in
 `cmake/GameWIPDocumentation.cmake`.
 
 Documentation changes must follow @ref project_documentation.

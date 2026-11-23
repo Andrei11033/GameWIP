@@ -234,8 +234,9 @@ not rewrite prose, workflow behavior, or semantic CMake policy.
 
 Use `gamewip tool status` to inspect tool selection and competing
 copies. Use `gamewip ready` to verify the complete declared development
-environment. Use `setup.bat repair` when provider-owned software is missing or
-incompatible.
+environment. Run the setup helper's `repair` action when provider-owned
+software is missing or incompatible (`setup.bat repair` on Windows or
+`bash ./setup.sh repair` on Linux).
 
 If setup state is incomplete or unreadable, `check` reports it without writing.
 `repair` and other confirmed setup actions normalize recoverable fields or

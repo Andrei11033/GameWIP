@@ -212,21 +212,25 @@ just to make neighboring targets look alike.
 Installation exports only the public header set and any generated shared-library
 export headers required by the package.
 
+Private implementation uses the library's `Internal` namespace. Backend
+contracts use its sibling `Platform` namespace; test hooks use
+`Internal::TestHooks`.
+
 These are not consumer API:
 
 - Internal headers.
 - Platform backend headers.
 - Test-hook headers.
 - Validation-only helpers.
-- Private `Detail` implementation helpers.
+- Private `Internal` implementation helpers.
 - Backend-native handles and platform-specific types.
 - Source-tree-only CMake helpers.
 
 An intentional native interoperability header may expose the handles and types
 required by its documented connector API.
 
-Public manuals must not require readers to understand `Detail` namespaces.
-Maintainer documentation may mention them when explaining implementation
+Public manuals document supported contracts, not internal namespaces.
+Maintainer documentation may name them when explaining implementation
 boundaries, validation hooks, or backend contracts.
 
 ## Installed-package boundary
@@ -246,10 +250,10 @@ Package rules are documented in @ref project_library_compatibility.
 
 ## Platform backend boundary
 
-Platform-specific implementation belongs behind the owning library's internal
-backend contract. Backend file layout, native error translation, Unicode and
-path behavior, cleanup rules, and test-hook restrictions are documented in @ref
-project_platform_backend_contract.
+Platform-specific implementation belongs under `platform/<platform-id>/` and
+implements the owning library's `Platform` contract. Backend file layout,
+native error translation, Unicode and path behavior, cleanup rules, and
+test-hook restrictions are documented in @ref project_platform_backend_contract.
 
 ## Validation ownership
 

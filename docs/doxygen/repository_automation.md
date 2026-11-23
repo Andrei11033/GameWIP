@@ -1,9 +1,9 @@
 @page project_repository_automation Repository and project automation
 
-GameWIP uses local scripts and GitHub workflows to automate tool declarations,
-project metadata, and project status. The scripts handle deterministic state;
-priority, scope, security disclosures, milestone intent, and product decisions
-stay with a maintainer.
+GameWIP uses local scripts and GitHub workflows to automate repository metadata
+and project status. The scripts handle deterministic state; priority, scope,
+security disclosures, milestone intent, and product decisions stay with a
+maintainer.
 
 Contributor-facing workflow rules are in `docs/contributing.md`.
 
@@ -17,33 +17,6 @@ Contributor-facing workflow rules are in `docs/contributing.md`.
 | `issue-area-labels.yml` | Area labels on issues. |
 | `project-automation.yml` | Project status and metadata reconciliation (below). |
 | `release-preparation.yml` | Manual, approval-gated release preparation. |
-
-## Project-tool update automation
-
-Project-tool updates start with `scripts/config/project-tools.json`. Provider
-adapters handle upstream queries, installation, verification, and rollback for
-the machine state they manage. The shared tool engine handles discovery,
-planning, tracked staging, validation, preview, consent, application,
-post-update verification, formatting with the updated tools, and the final
-quality gate. A normal tool for an
-existing provider, or another reference to an existing tool version, belongs in
-configuration rather than new updater code.
-
-The updater has a closed set of files and fields that it may change. It may
-update planned registry string fields and declared live references only. Registry
-changes use the expected old value and planned new value as a compare-and-set,
-and unrelated JSON source stays byte-for-byte stable. A text-reference
-`pattern` is a literal template with exactly one `{version}` token, not a regular
-expression. `text` and `cmakeMinimum` references are live; `path` references
-only record where a tool is used and are never rewritten.
-
-Repository text reads use strict UTF-8 and reject malformed input. Writes use
-UTF-8 without a byte-order mark. `tool update ... -Preview` runs
-discovery, planning, staging, and validation, then stops before changing tracked
-files or machine state. When everything is current, the plan stages nothing and
-does not reinstall an identical tool. A provider owns rollback once it starts
-changing its managed machine state; the shared engine does not try to wrap every
-provider in one universal machine transaction.
 
 ## Project status rules
 
@@ -103,13 +76,8 @@ token.
 
 ## Required repository configuration
 
-Configure these Actions variables:
-
-```text
-PROJECT_OWNER=Andrei11033
-PROJECT_NUMBER=2
-ACTIVE_MILESTONE=R01 - Desktop, Input, and Action Foundation
-```
+Configure `PROJECT_OWNER`, `PROJECT_NUMBER`, and `ACTIVE_MILESTONE` as listed
+in @ref project_repository_maintenance.
 
 Add a `PROJECT_TOKEN` Actions secret containing a dedicated classic personal access token with the `repo` and `project` scopes.
 

@@ -13,9 +13,9 @@ project_benchmarking. Library-specific test coverage and approved hooks remain d
 
 ## Common workflow
 
-Configure, build, and run all validation through CTest. Direct CMake commands
-use `build/<preset>`. The Windows helper uses `build/<target>/<preset>` and
-defaults to `windows-x64`:
+Configure and build validation with CMake presets, then run it through CTest.
+Direct CMake commands use `build/<preset>`. The helper uses
+`build/<target>/<preset>` and defaults to `windows-x64`:
 
 ```powershell
 cmake --preset test
@@ -24,15 +24,21 @@ ctest --preset test
 ```
 
 For the same workflow through the project helper, use an incremental run during
-ordinary iteration or request a complete preset-tree recreation explicitly:
+ordinary iteration or request a complete preset-tree recreation explicitly.
+Use `gamewip.bat` on Windows and `./gamewip.sh` on Linux:
 
-```powershell
+```text
+Windows:
 .\gamewip.bat test test
 .\gamewip.bat test test -CleanBuild
+
+Linux:
+./gamewip.sh test test
+./gamewip.sh test test -CleanBuild
 ```
 
-CTest runs binaries for the selected target. ARM64 cross-builds need an ARM64
-Windows host to run; the helper does not configure an emulator.
+CTest runs binaries for the selected target. Cross-built binaries need a
+compatible host or configured emulator; the helper does not configure one.
 
 Clean-build mode cannot be combined with `-SkipBuild`, because deleting the selected
 tree makes configuration and compilation mandatory. Installed-package consumer
@@ -48,8 +54,9 @@ launches.
 
 ## Commands
 
-Executable examples below use the helper's default Windows x64 target. Direct
-CMake builds use `build/test` instead of `build/windows-x64/test`.
+Executable examples below use the helper's default Windows x64 target. For Linux
+x64, use `./build/linux-x64/test/GameWIPTests` in place of
+`build/windows-x64/test/GameWIPTests.exe`. Direct CMake builds use `build/test`.
 
 Run all modules directly:
 
@@ -76,10 +83,10 @@ Run one module and retain a focused report:
   --test-report=logs/validation/filesystem_test_report.txt
 ```
 
-Relative report paths are rooted beside `GameWIPTests.exe`, not in the caller's
+Relative report paths are rooted beside the test executable, not in the caller's
 current directory or the operating-system temporary directory. Direct CMake
-builds write under `build/test/logs/validation`; Windows helper builds write
-under `build/<target>/test/logs/validation`.
+builds write under `build/test/logs/validation`; helper builds write under
+`build/<target>/test/logs/validation`.
 
 Disable the retained report for quick local iteration:
 
@@ -119,14 +126,15 @@ The complete runner argument contract is owned by @ref project_validation.
 
 ## Project command helper
 
-The root `gamewip.bat` helper provides interactive and noninteractive validation
-commands, a command builder, focused modules, and bounded parallel stress runs.
-Its complete syntax, defaults, catalog, retained-output behavior, failure model,
-and extension rules are owned by @ref project_command_line_tools.
+The root `gamewip.bat` and `gamewip.sh` helpers provide interactive and
+noninteractive validation commands, a command builder, focused modules, and
+bounded parallel stress runs. Their complete syntax, defaults, catalog,
+retained-output behavior, failure model, and extension rules are owned by
+@ref project_command_line_tools.
 
-Use `GameWIPTests.exe --help` to print current public runner options and module
-names without executing validation. The complete runner argument contract
-remains owned by @ref project_validation.
+Run the built `GameWIPTests` executable with `--help` to print current public
+runner options and module names without executing validation. The complete
+runner argument contract remains owned by @ref project_validation.
 
 ## Test-module source API
 

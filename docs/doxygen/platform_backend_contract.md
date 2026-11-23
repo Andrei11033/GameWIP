@@ -11,7 +11,8 @@ library has a consistent boundary.
 
 ## Scope
 
-This contract applies to first-party platform backends under reusable libraries. It does not document third-party vendor internals, game-specific
+This contract applies to first-party platform backends under reusable
+libraries. It does not document third-party vendor internals, game-specific
 runtime policy, or public library APIs.
 
 ## Core rules
@@ -56,7 +57,8 @@ Backends must not expose native handles, native error types, platform headers, o
 backend configuration through installed public headers unless that is the
 library's explicit public contract.
 
-Public headers may expose portable value types, options, result types, and enums. Native state must live in internal implementation objects,
+Public headers may expose portable value types, options, result types, and
+enums. Native state must live in internal implementation objects,
 backend-owned storage, or pImpl-style bridges.
 
 ## Internal contract standard
@@ -71,7 +73,8 @@ Portable core code must not depend on implementation details of one backend.
 
 ## Unicode and path rules
 
-Backends that touch paths, terminal text, process arguments, or environment variables must document their encoding boundary.
+Backends that touch paths, terminal text, process arguments, or environment
+variables must document their encoding boundary.
 
 FileSystem must keep `std::filesystem::path` as the native path type and use
 UTF-8 conversion helpers at public text boundaries. Terminal and Logger must
@@ -109,7 +112,8 @@ deterministic.
 
 ## Internal test hooks
 
-Backend hooks are maintainer validation tools. They are not consumer API, are not installed, and are not compatibility promises.
+Backend hooks are maintainer validation tools. They are not consumer API, are
+not installed, and are not compatibility promises.
 
 Each hook interface must define:
 
@@ -149,7 +153,8 @@ intentionally modeling a platform concept. The platform dependency then belongs
 in the public API guide, examples, package usage requirements, and compatibility
 notes.
 
-Temporary backend limitations may be documented in troubleshooting or testing pages, but they must not silently weaken the public contract.
+Temporary backend limitations may be documented in troubleshooting or testing
+pages, but they must not silently weaken the public contract.
 
 ## Review invariants
 

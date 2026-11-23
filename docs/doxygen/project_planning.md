@@ -17,32 +17,19 @@ vision -> phases -> capability slices -> promoted release milestone -> GitHub is
 
 ## Active work
 
-Use GitHub issues for:
-
-- Implementation tasks.
-- Validation tasks.
-- Bugs.
-- Follow-up cleanup.
-- Milestone work that is too detailed for the roadmap page.
-- Blockers and dependencies.
-
-The roadmap defines long-term capability outcomes and the conditions for
-completing each concrete milestone. It does not duplicate individual issues.
+Use GitHub issues to track implementation, validation, bugs, cleanup, blockers,
+dependencies, and work too detailed for the roadmap. The roadmap defines
+capability outcomes and milestone gates; it does not replace issue details.
 
 ## Milestones and issue history
 
-GitHub issues are the record of active work, so the repository does not keep a
-separate source-tree task ledger. Do not pre-create speculative issues for
-future capability slices. Only active, concrete milestone work receives
-detailed implementation issues. Future ideas may remain in Backlog until
-scheduling gives them a clear release target. The roadmap carries the capability
-direction and milestone gates, so update it when either changes.
+The repository keeps no separate task ledger. Create detailed issues for active,
+concrete work; leave future ideas in Backlog until they have a release target.
+Update the roadmap when capability direction or milestone gates change.
 
-A GitHub milestone means concrete work is targeted to that release. A capability
-slice does not automatically receive a milestone, and a useful future issue may
-remain in Backlog until scheduling gives it a release target. Use GitHub's
-**Blocked by** and blocking relationships for hard dependencies. Keep preferred
-sequencing that is not a hard blocker in the issue or roadmap.
+A milestone means concrete work is targeted to that release. Use GitHub's
+**Blocked by** relationship for hard dependencies. Keep preferred sequencing
+that is not a blocker in the issue or roadmap.
 
 ## Related pages
 

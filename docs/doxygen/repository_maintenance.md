@@ -115,9 +115,10 @@ longer knows how to clean.
 
 ## Manual workflow map
 
-Use `gamewip.bat workflow list` to discover supported
-dispatches. The helper fixes the ref to `master`, shows the exact command, and
-uses typed confirmation for writes and deployments.
+Use `gamewip.bat workflow list` on Windows or `bash ./gamewip.sh workflow list`
+on Linux to discover supported dispatches. The helper fixes the ref to
+`master`, shows the exact command, and uses typed confirmation for writes and
+deployments.
 
 | Dispatch | Use it when | Effect |
 | --- | --- | --- |

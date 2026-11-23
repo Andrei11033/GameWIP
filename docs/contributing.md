@@ -146,8 +146,6 @@ refactor(validation): split accessibility tests
 
 This is a style preference, not an enforced rule. Keep the action and area
 specific to the change. Issue titles use their work type instead.
-For squash merges, the pull request title becomes the commit subject and GitHub
-adds its pull-request suffix.
 
 Use the repository pull-request template. Keep `Summary` focused on what
 changed and why, record checks and results under `Validation`, add `Linked
@@ -214,8 +212,7 @@ After a pull request is merged, delete the feature branch unless more work will 
 
 ## Squash commit messages
 
-The pull request title and squash commit subject use the preferred
-`action(area): imperative summary` style. The squash commit keeps GitHub's
+GitHub uses the pull request title as the squash subject and appends the
 pull-request suffix:
 
 ```text
@@ -241,8 +238,7 @@ runtime-only handling until creation completes.
 This prevents false NotOpen failures during visible-window creation.
 ```
 
-Keep GitHub's generated `(#123)` suffix so
-the commit in `master` links directly to its originating pull request.
+Keep the generated suffix so the commit links to its pull request.
 
 ## Local sync after merge
 

@@ -4,7 +4,8 @@ Quality workflow pages explain how to run specialized verification tools, where
 they write results, and what evidence to record for quality-gate or performance
 work.
 
-Correctness validation is documented separately in @ref project_validation and @ref project_testing.
+Correctness validation is documented separately in @ref project_validation
+and @ref project_testing.
 
 ## Analysis and measurement workflows
 
