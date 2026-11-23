@@ -10,7 +10,7 @@
 
 #include <span>
 
-namespace GameWIP::Validation::Tests::Detail
+namespace GameWIP::Validation::Tests::Internal::TestHooks
 {
     /// @brief Runs the ordinary validation policy against an explicit module set instead of the process registry.
     /// @param argc Original process argument count.
@@ -20,4 +20,4 @@ namespace GameWIP::Validation::Tests::Detail
     /// @return The same aggregate or child-route result contract as Tests::run().
     /// @note This approved source-tree test seam is not installed and is not application or module API.
     [[nodiscard]] TestResult runWithModules(int argc, char **argv, RunOptions options, std::span<const Module> registrations);
-} // namespace GameWIP::Validation::Tests::Detail
+} // namespace GameWIP::Validation::Tests::Internal::TestHooks

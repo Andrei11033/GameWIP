@@ -315,7 +315,7 @@ namespace GameWIP::Validation::Tests
         }
     } // namespace
 
-    TestResult Detail::runWithModules(int argc, char **argv, RunOptions options, std::span<const Module> registrations)
+    TestResult Internal::TestHooks::runWithModules(int argc, char **argv, RunOptions options, std::span<const Module> registrations)
     {
         const ProcessArguments arguments = processArguments(argc, argv);
         const std::vector<Module> modules = sortedModules(registrations);
@@ -590,6 +590,6 @@ namespace GameWIP::Validation::Tests
 
     TestResult run(int argc, char **argv, RunOptions options)
     {
-        return Detail::runWithModules(argc, argv, std::move(options), registeredModules());
+        return Internal::TestHooks::runWithModules(argc, argv, std::move(options), registeredModules());
     }
 } // namespace GameWIP::Validation::Tests

@@ -16,12 +16,15 @@ integration is documented in @ref project_game_executable.
 
 ## Build controls
 
-| Option | Purpose | Source default |
+| Option | Purpose | Top-level default |
 | --- | --- | --- |
 | `GAMEWIP_BUILD_TESTS` | Builds `GameWIPTests` and CTest entries. | `ON` |
 | `GAMEWIP_BUILD_BENCHMARKS` | Builds `GameWIPBenchmarks`. | `OFF` |
 | `GAMEWIP_ENABLE_STARTUP_TESTS` | Links correctness modules into `GameWIP` for explicit `--startup-tests` execution. | `OFF` |
 | `GAMEWIP_RUN_BENCHMARKS_AT_STARTUP` | Links benchmarks into `GameWIP` and runs them after startup tests. | `OFF` |
+
+When GameWIP is included by another project, tests and benchmarks default to
+`OFF`.
 
 When both build and startup options for a validation kind are disabled, its
 modules are not compiled or linked into the executable. Google Benchmark is
@@ -96,9 +99,8 @@ invalidated by a later registration.
 The runner copies registrations before sorting and execution. It rejects empty names, null run callbacks, and duplicate names before invoking any
 module.
 
-Correctness modules are discovered from `game/validation/tests/`. Use
-`GameWIPTests.exe --help` to see the current module names available for
-selection.
+Correctness modules are discovered from `game/validation/tests/`. Run the built
+`GameWIPTests` executable with `--help` to see the current module names.
 
 ## Module invocation
 
@@ -172,8 +174,8 @@ ordinary module suite.
 Relative report paths are lexically normalized beneath the running executable's
 directory. The default therefore produces
 `logs/validation/latest_test_report.txt` inside the active build tree, regardless
-of the caller's current directory. Direct CMake uses `build/<preset>`; Windows
-helper builds use `build/<target>/<preset>`. A relative path that still contains
+of the caller's current directory. Direct CMake uses `build/<preset>`; helper
+builds use `build/<target>/<preset>`. A relative path that still contains
 a parent-traversal component after normalization is rejected. Absolute paths
 are normalized and honored as explicit caller-selected destinations.
 
@@ -203,7 +205,7 @@ Before matching child routes or invoking modules, the runner creates `temp`
 beneath the running executable directory and temporarily points `TEMP`, `TMP`,
 and `TMPDIR` at it. This keeps TestSupport workspaces, subsystem fixtures, and
 inherited child-process temporary activity within the active build tree. Direct
-CMake builds use `build/<preset>`; Windows helper builds use
+CMake builds use `build/<preset>`; helper builds use
 `build/<target>/<preset>`. The prior environment is restored when validation
 returns, including when embedded startup validation continues into the game
 runtime. Failure to
@@ -233,7 +235,7 @@ Normal aggregate failures produce `exitCode == 1`; only routed child invocations
 
 ## Runner test seam
 
-`GameWIP::Validation::Tests::Detail::runWithModules()` accepts an explicit
+`GameWIP::Validation::Tests::Internal::TestHooks::runWithModules()` accepts an explicit
 module span so the `runner` validation module can test ordering, selection,
 conflict handling, and policy propagation without mutating the static registry.
 

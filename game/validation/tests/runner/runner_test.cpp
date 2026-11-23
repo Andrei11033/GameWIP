@@ -205,7 +205,7 @@ namespace
         }
 
         const ScopedRunnerOutput capturedOutput;
-        return ValidationTests::Detail::runWithModules(
+        return ValidationTests::Internal::TestHooks::runWithModules(
             static_cast<int>(argumentPointers.size()),
             argumentPointers.data(),
             std::move(options),
