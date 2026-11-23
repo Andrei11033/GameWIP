@@ -7,6 +7,7 @@ void testEnvironmentHelpers(TestSupport::Context &context)
     TestSupport::ScopedProcessState processState;
     static_cast<void>(context.expectTrue("Process-state scope construction succeeds", processState.status().ok()));
 
+    // Reject malformed names and text before changing process state.
     const TestSupport::ScopedEnvironmentVariable emptyName(processState, "", "value");
     static_cast<void>(context.expectEq(
         "ScopedEnvironmentVariable rejects an empty name",
@@ -25,6 +26,7 @@ void testEnvironmentHelpers(TestSupport::Context &context)
         TestSupport::Types::InfrastructureError::InvalidArgument,
         invalidUtf8.status().error));
 
+    // Restore an initially absent variable across nested scopes.
     {
         const TestSupport::ScopedUnsetEnvironmentVariable clean(processState, kScopedVariable);
         static_cast<void>(context.expectTrue("Initial scoped unset succeeds", clean.status().ok()));
@@ -51,6 +53,7 @@ void testEnvironmentHelpers(TestSupport::Context &context)
         static_cast<void>(context.expectTrue("Environment restoration is idempotent", explicitRestore.restore().ok()));
     }
 
+    // Preserve unrelated external mutations and retain restoration failures.
     {
         TestSupport::ScopedEnvironmentVariable conflicted(processState, kScopedVariable, "guarded");
         static_cast<void>(context.expectTrue("Environment conflict setup succeeds", conflicted.status().ok()));
@@ -69,6 +72,7 @@ void testEnvironmentHelpers(TestSupport::Context &context)
             processState.restorationStatus().error));
     }
 
+    // Restore previous values after nested set and unset guards.
     {
         TestSupport::ScopedProcessState destructorProcessState;
         {

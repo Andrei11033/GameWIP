@@ -13,6 +13,7 @@
 #include <windows.h>
 
 #include <algorithm>
+#include <cstddef>
 #include <cwchar>
 #include <cwctype>
 #include <stdexcept>

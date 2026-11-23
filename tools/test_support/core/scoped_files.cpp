@@ -7,6 +7,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <format>
 #include <new>
@@ -146,6 +147,37 @@ namespace GameWIP::TestSupport
     ScopedCurrentPath::ScopedCurrentPath(ScopedProcessState &processState, const std::filesystem::path &path) noexcept
         : processState_(&processState)
     {
+        // Restore the prior directory if setup fails after changing it.
+        bool directoryChanged = false;
+
+        const auto restoreAfterSetupFailure = [this, &directoryChanged]() noexcept
+        {
+            if(!directoryChanged)
+            {
+                return;
+            }
+
+            try
+            {
+                std::error_code error;
+                std::filesystem::current_path(previousPath_, error);
+
+                if(error)
+                {
+                    processState_->recordRestorationFailure(
+                        Internal::failureStatus(Types::InfrastructureError::FileOperationFailed, Internal::nativeCode(error)));
+                }
+            }
+            catch(const std::bad_alloc &)
+            {
+                processState_->recordRestorationFailure(Internal::failureStatus(Types::InfrastructureError::OutOfMemory));
+            }
+            catch(...)
+            {
+                processState_->recordRestorationFailure(Internal::failureStatus(Types::InfrastructureError::FileOperationFailed));
+            }
+        };
+
         try
         {
             // Require the process-state scope before changing the shared directory.
@@ -167,7 +199,6 @@ namespace GameWIP::TestSupport
             }
 
             // Resolve the destination before changing the process current directory.
-
             const std::filesystem::path targetPath = std::filesystem::absolute(path, error);
 
             if(error)
@@ -177,7 +208,7 @@ namespace GameWIP::TestSupport
                 return;
             }
 
-            expectedPath_ = targetPath;
+            // Change directory, then retain the path the operating system reports.
             std::filesystem::current_path(targetPath, error);
 
             if(error)
@@ -186,15 +217,28 @@ namespace GameWIP::TestSupport
                 previousPath_.clear();
                 return;
             }
+
+            directoryChanged = true;
+            expectedPath_ = std::filesystem::current_path(error);
+
+            if(error)
+            {
+                status_ = Internal::failureStatus(Types::InfrastructureError::FileOperationFailed, Internal::nativeCode(error));
+                restoreAfterSetupFailure();
+                previousPath_.clear();
+                return;
+            }
         }
         catch(const std::bad_alloc &)
         {
             status_ = Internal::failureStatus(Types::InfrastructureError::OutOfMemory);
+            restoreAfterSetupFailure();
             previousPath_.clear();
         }
         catch(...)
         {
             status_ = Internal::failureStatus(Types::InfrastructureError::FileOperationFailed);
+            restoreAfterSetupFailure();
             previousPath_.clear();
         }
     }
@@ -236,6 +280,7 @@ namespace GameWIP::TestSupport
                 processState_->recordRestorationFailure(restorationStatus_);
                 return restorationStatus_;
             }
+
             std::filesystem::current_path(previousPath_, error);
             restorationStatus_ = error ? Internal::failureStatus(Types::InfrastructureError::FileOperationFailed, Internal::nativeCode(error))
                                        : Types::InfrastructureStatus{};

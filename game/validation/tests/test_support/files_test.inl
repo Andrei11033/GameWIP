@@ -7,6 +7,7 @@ void testFileHelpers(TestSupport::Context &context, const std::filesystem::path 
     TestSupport::ScopedProcessState processState;
     static_cast<void>(context.expectTrue("Process-state scope construction succeeds", processState.status().ok()));
 
+    // Exercise file creation, content queries, and cleanup.
     const std::filesystem::path path = root / "files" / "sample.txt";
     static_cast<void>(context.expectTrue("writeTextFile succeeds", TestSupport::writeTextFile(path, "alpha beta alpha beta").ok()));
     const std::filesystem::path existingDirectory = root / "files" / "existing";
@@ -54,6 +55,7 @@ void testFileHelpers(TestSupport::Context &context, const std::filesystem::path 
     static_cast<void>(context.expectTrue("removed-file inspection succeeds", removedFile.status.ok()));
     static_cast<void>(context.expectFalse("removeIfExists removes file", removedFile.value));
 
+    // Verify unique temporary directories and recursive cleanup.
     std::filesystem::path firstTemporaryPath;
     std::filesystem::path secondTemporaryPath;
     {
@@ -81,6 +83,7 @@ void testFileHelpers(TestSupport::Context &context, const std::filesystem::path 
     static_cast<void>(context.expectTrue("Second temporary-directory cleanup is inspectable", secondRemoved.status.ok()));
     static_cast<void>(context.expectFalse("ScopedTemporaryDirectory removes each unique directory", secondRemoved.value));
 
+    // Verify current-directory restoration and conflict detection.
     const std::filesystem::path originalCurrentPath = std::filesystem::current_path();
     {
         TestSupport::ScopedCurrentPath temporaryCurrentPath(processState, root);
@@ -118,6 +121,7 @@ void testUtf8TextFileContracts(TestSupport::Context &context, const std::filesys
         raw.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
     };
 
+    // Round-trip valid UTF-8 without changing its bytes.
     const std::filesystem::path validPath = root / "utf8" / "valid.txt";
     const std::string validText = "Gr\xC3\xBC\xC3\x9F"
                                   "e \xCE\xBB";
@@ -126,6 +130,7 @@ void testUtf8TextFileContracts(TestSupport::Context &context, const std::filesys
     static_cast<void>(context.expectTrue("UTF-8 text read succeeds", validRead.status.ok()));
     static_cast<void>(context.expectEq("UTF-8 text round trips unchanged", validText, validRead.text));
 
+    // Preserve only the complete valid prefix from malformed or incomplete input.
     const std::string malformed = std::string("prefix") + std::string("\xFF", 1);
     const std::filesystem::path malformedPath = root / "utf8" / "malformed.txt";
     writeRaw(malformedPath, malformed);
@@ -146,6 +151,7 @@ void testUtf8TextFileContracts(TestSupport::Context &context, const std::filesys
         incompleteRead.status.error));
     static_cast<void>(context.expectEq("incomplete text read preserves valid prefix", std::string("prefix"), incompleteRead.text));
 
+    // Reject invalid writes before truncating existing files.
     const std::filesystem::path preservedPath = root / "utf8" / "preserved.txt";
     static_cast<void>(context.expectTrue("preexisting UTF-8 fixture write succeeds", TestSupport::writeTextFile(preservedPath, "sentinel").ok()));
 
@@ -167,6 +173,7 @@ void testUtf8TextFileContracts(TestSupport::Context &context, const std::filesys
     static_cast<void>(context.expectTrue("incomplete text write leaves destination readable", incompletePreservedRead.status.ok()));
     static_cast<void>(context.expectEq("incomplete text write preserves destination", std::string("sentinel"), incompletePreservedRead.text));
 
+    // Reject invalid writes before creating parent directories.
     const std::filesystem::path malformedParent = root / "utf8" / "malformed-not-created";
     const TestSupport::Types::InfrastructureStatus malformedNoSideEffect = TestSupport::writeTextFile(malformedParent / "bad.txt", malformed);
     static_cast<void>(context.expectEq(

@@ -6,6 +6,7 @@
 #include "unicode/unicode.h"
 
 #include <cerrno>
+#include <cstddef>
 #include <cstdint>
 #include <fstream>
 #include <limits>

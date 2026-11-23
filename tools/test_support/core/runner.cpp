@@ -7,6 +7,7 @@
 #include <iostream>
 #include <memory>
 #include <sstream>
+#include <string_view>
 #include <utility>
 
 namespace GameWIP::TestSupport
@@ -81,6 +82,7 @@ namespace GameWIP::TestSupport
 
     void Runner::recordSuiteResult(const Types::Reporting::SuiteResult &result)
     {
+        // Aggregate completed suite counts.
         {
             std::lock_guard lock(mutex_);
             summary_.passed += result.summary.passed;
@@ -88,6 +90,7 @@ namespace GameWIP::TestSupport
             summary_.skipped += result.summary.skipped;
         }
 
+        // Report the completed suite after releasing the aggregate lock.
         std::ostringstream message;
         message << result.name << " passed=" << result.summary.passed << " failed=" << result.summary.failed << " skipped=" << result.summary.skipped
                 << " elapsedMs=" << result.elapsedMilliseconds;
@@ -109,7 +112,6 @@ namespace GameWIP::TestSupport
         try
         {
             const double elapsedMilliseconds = timer_.elapsedMilliseconds();
-            timer_.reset();
             std::ostringstream message;
             message << "section " << name_ << " elapsedMs=" << elapsedMilliseconds;
             context_.metric(message.str());

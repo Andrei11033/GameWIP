@@ -7,6 +7,7 @@
 #include "test_support/internal/status.h"
 
 #include <new>
+#include <string_view>
 #include <system_error>
 
 namespace GameWIP::TestSupport::Internal

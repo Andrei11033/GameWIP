@@ -54,6 +54,7 @@ void testSummaryAndTimer(TestSupport::Context &context)
 /// @brief Verifies Context categories, expectation diagnostics, counts, and report failures.
 void testContextReporting(TestSupport::Context &context, const std::filesystem::path &root)
 {
+    // Record normal categories and successful expectations.
     const std::filesystem::path reportPath = root / "context_report.txt";
     TestSupport::Context nested("NestedContext", quietReport(reportPath));
     static_cast<void>(
@@ -99,6 +100,7 @@ void testContextReporting(TestSupport::Context &context, const std::filesystem::
     static_cast<void>(context.expectContains("Context report includes manual", report, "[MANUAL] [NestedContext] manual line"));
     static_cast<void>(context.expectContains("Context report includes metric", report, "[METRIC] [NestedContext] metric line"));
 
+    // Keep failures countable and their value formatting inspectable.
     TestSupport::Context failing("FailingContext", quietReport(root / "failing_context_report.txt"));
     static_cast<void>(failing.expectTrue("intentional false expectation", false));
     static_cast<void>(failing.expectNear("intentional negative tolerance", 1.0, 1.0, -1.0));
@@ -128,6 +130,7 @@ void testContextReporting(TestSupport::Context &context, const std::filesystem::
 /// @brief Verifies append, truncate, flush, and console-verbosity report modes.
 void testReportModes(TestSupport::Context &context, const std::filesystem::path &root)
 {
+    // Verify disabled and console-only sinks.
     const std::filesystem::path noReportPath = root / "no_report.txt";
     TestSupport::Types::Reporting::Options noReportOptions;
     noReportOptions.writeConsole = false;
@@ -164,6 +167,7 @@ void testReportModes(TestSupport::Context &context, const std::filesystem::path 
     static_cast<void>(context.expectTrue("Console-only path inspection succeeds", consoleOnlyExists.status.ok()));
     static_cast<void>(context.expectFalse("Console-only report writes no file", consoleOnlyExists.value));
 
+    // Verify custom console writers and their failure report.
     const std::filesystem::path customConsolePath = root / "custom_console_report.txt";
     TestSupport::Types::Reporting::Options customConsoleOptions = quietReport(customConsolePath);
     customConsoleOptions.writeConsole = true;
@@ -200,6 +204,7 @@ void testReportModes(TestSupport::Context &context, const std::filesystem::path 
     static_cast<void>(context.expectFalse("Failed custom console writer does not duplicate output", failedConsoleOutput.contains("not duplicated")));
     static_cast<void>(context.expectContains("Failed custom console writer is diagnosed", failedConsoleError, "[TEST OUTPUT] console writer failed"));
 
+    // Verify append, truncate, and destructor flush behavior.
     const std::filesystem::path appendPath = root / "append_report.txt";
     TestSupport::Types::Reporting::Options firstOptions = quietReport(appendPath);
     firstOptions.appendReport = false;
@@ -262,6 +267,7 @@ void testReportModes(TestSupport::Context &context, const std::filesystem::path 
         TestSupport::Types::Reporting::SinkState::Failed,
         invalidReport.finalize().state));
 
+    // Check which categories each console verbosity exposes.
     std::string conciseOutput;
     {
         const ScopedPromptStreams captured("");
@@ -312,6 +318,7 @@ void testReportModes(TestSupport::Context &context, const std::filesystem::path 
 /// @brief Verifies accepted manual-answer spellings, retries, and EOF behavior.
 void testPromptManualCheck(TestSupport::Context &context)
 {
+    // Check accepted answers, retries, and end-of-input behavior.
     static_cast<void>(
         context.expectTrue("promptManualCheck accepts yes", promptWithInput("yes\n") == TestSupport::Types::Reporting::ManualAnswer::Yes));
     static_cast<void>(context.expectTrue("promptManualCheck accepts y", promptWithInput("y\n") == TestSupport::Types::Reporting::ManualAnswer::Yes));
@@ -327,6 +334,7 @@ void testPromptManualCheck(TestSupport::Context &context)
     static_cast<void>(
         context.expectTrue("promptManualCheck returns skipped on EOF", promptWithInput("") == TestSupport::Types::Reporting::ManualAnswer::Skipped));
 
+    // Check skip reasons and stale-reason clearing.
     const auto promptReason = [&](std::string_view input, std::string_view expected)
     {
         const ScopedPromptStreams streams(input);
@@ -398,6 +406,7 @@ void testManualPromptChecks(TestSupport::Context &context, const TestSupportTest
 /// @brief Verifies Runner aggregation, exception capture, and Section diagnostics.
 void testRunnerAndSection(TestSupport::Context &context, const std::filesystem::path &root)
 {
+    // Aggregate suite results and verify the shared report lifecycle.
     TestSupport::Types::Reporting::Options runnerOptions = quietReport(root / "runner_report.txt");
     runnerOptions.flushReportEachLine = false;
     TestSupport::Runner runner(runnerOptions);
@@ -438,6 +447,7 @@ void testRunnerAndSection(TestSupport::Context &context, const std::filesystem::
     static_cast<void>(context.expectContains("Section reports begin", reportResult.text, "begin section: small section"));
     static_cast<void>(context.expectContains("Section reports metric", reportResult.text, "section small section elapsedMs="));
 
+    // Convert one suite exception into a failure and keep later suites runnable.
     TestSupport::Runner throwingRunner(quietReport(root / "throwing_runner_report.txt"));
     const TestSupport::Types::Reporting::SuiteResult throwing = throwingRunner.runSuite(
         "ThrowingSuite",

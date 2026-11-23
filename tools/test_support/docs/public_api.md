@@ -85,9 +85,10 @@ unrelated native mutations are detected as `ProcessStateConflict` rather than si
 arguments receives the worker index. Worker exceptions do not stop peers; every started worker is joined, then one scheduling-dependent exception is
 rethrown.
 
-## Type organization
+## Related pages
 
-Types live under `TestSupport::Types::Reporting` and `TestSupport::Types::Process`.
-Details: @ref test_support_reports, @ref test_support_files_environment,
-@ref test_support_child_processes, @ref test_support_timing_stress.
+- @ref test_support_reports
+- @ref test_support_files_environment
+- @ref test_support_child_processes
+- @ref test_support_timing_stress
 Dependencies: @ref test_support.

@@ -9,6 +9,7 @@
 #include <cmath>
 #include <memory>
 #include <sstream>
+#include <string_view>
 #include <utility>
 
 namespace GameWIP::TestSupport

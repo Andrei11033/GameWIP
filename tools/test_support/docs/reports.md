@@ -3,7 +3,8 @@
 Reporting types live under `TestSupport::Types::Reporting` and are declared in `test_support/reporting.h`.
 
 `Types::Reporting::Options` configures console mirroring and the report-file sink. `Types::Reporting::ConsoleVerbosity` controls console categories.
-An optional `consoleWriter` receives a category and formatted line without a line ending. It returns whether the line was written successfully.
+An optional `consoleWriter` receives a category and formatted line without a line ending. It returns whether the line was written successfully and
+must not re-enter the same report sink.
 
 Validation supplies a Terminal writer that colors complete report lines, including runner-owned status lines: passes green, failures red, skips
 yellow, manual checks and summaries cyan, info gray, metrics blue, and stress reports magenta. Result lines are green when there are no failures

@@ -18,6 +18,7 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <filesystem>
@@ -252,6 +253,7 @@ namespace GameWIP::Test
 
     int runTestSupportTests(int argc, char **argv, const TestSupportTestOptions &options)
     {
+        // Route private child protocols before creating the test workspace.
         if(hasArgument(argc, argv, kEnvironmentChildArgument) || hasArgument(argc, argv, kCurrentPathChildArgument) ||
            hasArgument(argc, argv, kEchoChildArgument) || hasArgument(argc, argv, kSleepChildArgument) ||
            hasArgument(argc, argv, kExitCodeChildArgument) || hasArgument(argc, argv, kOutputChildArgument) ||
@@ -261,6 +263,7 @@ namespace GameWIP::Test
             return runTestSupportChild(argc, argv);
         }
 
+        // Prepare an isolated workspace and shared report sink.
         const TestSupport::ScopedTemporaryDirectory workspace("test_support_tests");
 
         if(!workspace.status().ok())
@@ -283,6 +286,7 @@ namespace GameWIP::Test
 
         const std::filesystem::path executablePath = GameWIP::Validation::currentExecutablePath();
 
+        // Run each TestSupport feature suite independently.
         runner.runSuite("TestSupport core", testSummaryAndTimer);
         runner.runSuite(
             "TestSupport files",
@@ -335,6 +339,7 @@ namespace GameWIP::Test
                 testStressHelpers(context, executablePath, options);
             });
 
+        // Report aggregate outcomes and finalize the shared sink.
         const TestSupport::Types::Reporting::Summary result = runner.result();
         runner.summary(std::format("TestSupport library self-tests passed={} failed={} skipped={}", result.passed, result.failed, result.skipped));
 

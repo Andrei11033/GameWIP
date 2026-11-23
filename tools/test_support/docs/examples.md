@@ -9,7 +9,6 @@ process state, child execution, manual observations, and concurrent stress.
 namespace TS = GameWIP::TestSupport;
 
 TS::Types::Reporting::Options options;
-options.writeConsole = true;
 options.reportPath = "logs/validation/example.txt";
 
 TS::Runner runner(options);
@@ -155,10 +154,10 @@ if(answer == TS::Types::Reporting::ManualAnswer::No)
 
 {
     TS::Section section(context, "startup");
-    TS::Timer timer;
-    context.metric("startupMs=" + std::to_string(timer.elapsedMilliseconds()));
 }
 ```
+
+`Section` reports its elapsed time when it leaves scope. Use `Timer` directly when the measured interval needs a custom boundary or metric.
 
 ## Stress coordination
 

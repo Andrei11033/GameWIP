@@ -111,6 +111,7 @@ void testStressHelpers(TestSupport::Context &context, const std::filesystem::pat
         return;
     }
 
+    // Exercise the blocking gate and future waiters in a child process.
     if(options.enableChildProcessTests)
     {
         TestSupport::Types::Process::Options childOptions;
@@ -140,6 +141,7 @@ void testStressHelpers(TestSupport::Context &context, const std::filesystem::pat
         context.skip("StartGate child", "child process tests disabled by TestSupportTestOptions");
     }
 
+    // Verify the cooperative stop flag and callable forms.
     TestSupport::StopFlag stopFlag;
     static_cast<void>(context.expectFalse("StopFlag starts without a request", stopFlag.stopRequested()));
     stopFlag.requestStop();
@@ -219,6 +221,7 @@ void testStressHelpers(TestSupport::Context &context, const std::filesystem::pat
         });
     static_cast<void>(context.expectEq("runWorkers passes each worker its index", std::set<std::size_t>{0, 1, 2, 3}, workerIndices));
 
+    // Confirm worker failures propagate only after all started workers finish.
     std::atomic<std::size_t> enteredFailureWorkers{0};
     std::atomic<std::size_t> completedFailureWorkers{0};
     bool rethrown = false;

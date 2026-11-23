@@ -6,6 +6,7 @@
 #include "test_support/types.h"
 
 #include <chrono>
+#include <cstddef>
 #include <exception>
 #include <filesystem>
 #include <memory>
@@ -49,6 +50,7 @@ namespace GameWIP::TestSupport
         };
 
         /// @brief Receives a category and formatted line without a line ending; return true when written successfully.
+        /// @note Called while the report sink is locked; do not re-enter the same sink from the callback.
         using ConsoleWriter = bool (*)(std::string_view category, std::string_view line) noexcept;
 
         /// @brief Runtime report-output settings shared by test suites.
@@ -350,7 +352,7 @@ namespace GameWIP::TestSupport
     /// @brief Repeatedly prompts for a recognized yes/no/skip line.
     /// @return Selected answer, or Skipped on end-of-input.
     Types::Reporting::ManualAnswer promptManualCheck(std::string_view question);
-    /// @brief Prompts for a manual answer and preserves an optional "s <reason>" or end-of-input reason.
+    /// @brief Prompts for a manual answer and preserves any skip reason.
     Types::Reporting::ManualAnswer promptManualCheck(std::string_view question, std::string &skipReason);
 
     /// ------------------------------------------------------------

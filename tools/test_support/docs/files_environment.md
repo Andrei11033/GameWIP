@@ -53,7 +53,8 @@ retries. GameWIP validation scopes that process directory to the active `build/<
 Its destructor attempts recursive removal and then removes empty TestSupport parent directories; open handles, abnormal termination, or external
 filesystem activity can still leave artifacts.
 
-`ScopedCurrentPath` captures and changes process-global current-directory state. Safe use requires strict LIFO ownership and no unrelated
+`ScopedCurrentPath` captures and changes process-global current-directory state. After changing it, the guard records the path returned by
+`current_path()` for its restoration check, so lexical aliases alone do not create a conflict. Safe use requires strict LIFO ownership and no unrelated
 relative-path resolution or direct current-directory mutation during the scope. A direct mutation is detected during restoration and reported as
 `ProcessStateConflict` instead of overwriting the newer directory.
 
