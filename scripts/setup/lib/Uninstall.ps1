@@ -46,8 +46,7 @@ function Invoke-GameWipEditorIntegrationRemoval
     $keybindings = Join-Path (Get-GameWipVsCodeUserDirectory) 'keybindings.json'
     $legacyBackup = "$keybindings.gamewip-backup"
     $managedBackup = Join-Path (Get-GameWipStorageAreaPath -Area state) 'vscode-keybindings.json'
-    $hasOriginalKeybindings = (Test-Path -LiteralPath $managedBackup -PathType Leaf) -or
-        (Test-Path -LiteralPath $legacyBackup -PathType Leaf)
+    $hasOriginalKeybindings = (Test-Path -LiteralPath $managedBackup -PathType Leaf) -or (Test-Path -LiteralPath $legacyBackup -PathType Leaf)
 
     if (Test-Path -LiteralPath $keybindings -PathType Leaf)
     {
