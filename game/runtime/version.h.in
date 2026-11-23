@@ -23,7 +23,7 @@ namespace GameWIP::Version
     inline constexpr std::string_view buildNumber = "@GAMEWIP_VERSION_BUILD_NUMBER@";
     /// @brief Git commit recorded when the header was generated, when available.
     inline constexpr std::string_view gitCommit = "@GAMEWIP_VERSION_GIT_COMMIT@";
-    /// @brief True when header generation detected tracked worktree modifications.
+    /// @brief True when generation detected tracked or non-ignored untracked changes.
     inline constexpr bool dirty = std::string_view{"@GAMEWIP_VERSION_DIRTY_CPP@"} == "true";
     /// @brief True when the generated identity represents a release build.
     inline constexpr bool release = std::string_view{"@GAMEWIP_VERSION_RELEASE_CPP@"} == "true";

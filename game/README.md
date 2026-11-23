@@ -28,7 +28,7 @@ Put new gameplay or engine behavior at the boundary that owns the concept, keep
 platform-specific details behind an internal backend, and cover deterministic
 behavior with focused correctness tests.
 
-## Common checks
+## Windows checks
 
 ```powershell
 cmake --preset test
