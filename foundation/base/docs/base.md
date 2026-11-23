@@ -1,84 +1,49 @@
-@page internal_base Internal Base
+@page internal_base Base
 
 # Purpose
 
-Base is source-tree-only infrastructure for mechanisms shared by otherwise
-independent GameWIP implementations. The rule is simple: share mechanisms, not
-domain policy.
+Base contains small mechanisms shared by independent GameWIP components. Keep
+domain policy in its owning library.
 
 # Dependency boundary
 
-`GameWIPBase` is an internal, header-only target exposed in the source tree as `GameWIP::Base`. It is not installed or exported, has no dependency
-on another GameWIP target, and may use only the C++ standard library and required platform SDK headers. Installed package interfaces must not refer
-to Base or its include directory.
+`GameWIP::Base` is a header-only internal target for source-tree use. It is not
+installed or exported, has no GameWIP dependencies, and may use the C++ standard
+library and required platform SDK headers.
 
-# What belongs in Base
+# Checked arithmetic
 
-Code belongs here only when it is a small, stable mechanism that multiple
-first-party components need unchanged. Checked unsigned arithmetic and typed
-native procedure lookup are the current examples.
+Include `base/checked_arithmetic.h` for allocation-free, `constexpr`, `noexcept`
+predicates on unsigned integral values:
 
-# What does not belong in Base
+- `GameWIP::Base::wouldAddOverflow(left, right)` checks whether addition exceeds
+  the value type's maximum.
+- `GameWIP::Base::wouldMultiplyOverflow(left, right)` checks the equivalent for
+  multiplication, including zero operands.
 
-Unicode conversion, logging, error policy, FileSystem semantics, Window semantics, DPI or cursor selection, and simulation time belong in their
-owning libraries. Base also does not own generic utilities, scope-exit policy, or native-resource RAII.
+A `false` result guarantees that the operation is representable in that type.
 
-# Portable mechanisms
+# Win32 procedure lookup
 
-Include `base/checked_arithmetic.h` for two allocation-free, `constexpr`,
-`noexcept` predicates:
+Win32 implementation code may include
+`base/platform/win32/dynamic_library.h` for
+`GameWIP::Base::Win32::loadProcedure<FunctionType>(module, name)`. The template
+requires the exact function-pointer type and returns null for null arguments or
+an unresolved export. It borrows the module and name; the caller keeps the module
+loaded while using the returned procedure.
 
-- `GameWIP::Base::wouldAddOverflow(left, right)` reports whether unsigned
-  addition would exceed the value type's maximum without performing the
-  overflowing operation.
-- `GameWIP::Base::wouldMultiplyOverflow(left, right)` provides the equivalent
-  check for unsigned multiplication, including zero operands.
+# Keep Base narrow
 
-Both operands use the same unsigned integral type. A `false` result guarantees
-that the corresponding operation is representable in that type.
+Add a mechanism only when independent components already need the same
+implementation and it has no domain-specific policy. Unicode conversion,
+logging, error policy, FileSystem and Window behavior, DPI and cursor selection,
+simulation time, generic utilities, scope-exit policy, and native-resource RAII
+belong with their owning libraries.
 
-# Win32 mechanisms
+# Validation
 
-Include `base/platform/win32/dynamic_library.h` only in Win32 implementation
-code. `GameWIP::Base::Win32::loadProcedure<FunctionType>(module, name)` is the
-single typed `GetProcAddress` conversion boundary. `FunctionType` must be an
-exact function-pointer type.
-
-The function borrows the module handle and procedure name, performs no
-allocation, and returns null for a null argument or unresolved export. It does
-not load, retain, or release the module. A returned procedure remains valid
-only while the caller keeps that module loaded.
-
-# Generated API reference
-
-The generated namespace pages for `GameWIP::Base` and
-`GameWIP::Base::Win32` contain the exact template constraints, parameters, and
-return contracts. Base is documented for source-tree maintainers; it is not an
-installed consumer API.
-
-# Admission criteria
-
-A mechanism belongs in Base only when it is already duplicated across independent
-components, contains no domain-specific result, error, lifetime, or policy
-decision, stays independent of every GameWIP library target, and exposes a
-narrow surface that can be tested directly.
-
-# Testing
-
-Base tests use a compact arithmetic table covering zero/one, maximum values, safe boundaries and overflow in both operand orders. Compile-time checks
-cover narrow unsigned operands, constant evaluation and `noexcept`. On Windows, direct procedure-lookup tests cover null arguments, missing exports,
-and invoking a known export through its typed function pointer.
-
-Run the unattended Base module from the repository root:
-
-```powershell
-.\build\test\GameWIPTests.exe --test-module=base
-```
-
-# Adding a helper
-
-Document the repeated mechanism and its consumers, add focused tests, preserve the dependency boundary, and update this page. A new domain policy
-belongs in its owning library instead.
+`game/validation/tests/base` covers arithmetic boundaries and typed Win32
+procedure lookup. See @ref project_testing for build and run commands.
 
 # Related pages
 
