@@ -28,7 +28,12 @@ function(gamewip_add_validation_module_directories root_directory)
 endfunction()
 
 function(gamewip_add_test_module)
-    cmake_parse_arguments(MODULE "" "NAME" "SOURCES;LINK_LIBRARIES" ${ARGN})
+    cmake_parse_arguments(PARSE_ARGV 0 MODULE "" "NAME" "SOURCES;LINK_LIBRARIES")
+
+    if(MODULE_UNPARSED_ARGUMENTS)
+        message(FATAL_ERROR "gamewip_add_test_module received unknown arguments: ${MODULE_UNPARSED_ARGUMENTS}")
+    endif()
+
     if(NOT MODULE_NAME OR NOT MODULE_SOURCES)
         message(FATAL_ERROR "gamewip_add_test_module requires NAME and SOURCES.")
     endif()
@@ -49,7 +54,12 @@ function(gamewip_add_test_module)
 endfunction()
 
 function(gamewip_add_benchmark_module)
-    cmake_parse_arguments(MODULE "" "NAME" "SOURCES;LINK_LIBRARIES" ${ARGN})
+    cmake_parse_arguments(PARSE_ARGV 0 MODULE "" "NAME" "SOURCES;LINK_LIBRARIES")
+
+    if(MODULE_UNPARSED_ARGUMENTS)
+        message(FATAL_ERROR "gamewip_add_benchmark_module received unknown arguments: ${MODULE_UNPARSED_ARGUMENTS}")
+    endif()
+
     if(NOT MODULE_NAME OR NOT MODULE_SOURCES)
         message(FATAL_ERROR "gamewip_add_benchmark_module requires NAME and SOURCES.")
     endif()
