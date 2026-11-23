@@ -54,6 +54,7 @@ REQUIRED_CHECK_NAMES = {
             "Repository Checks",
             "Coverage",
             "AddressSanitizer",
+            "UndefinedBehaviorSanitizer",
             "Docs Check",
             "Gate",
         ),
@@ -64,11 +65,6 @@ ACTION_REFERENCE = re.compile(r"^\s*uses:\s*([^\s#]+)")
 ACTION_VERSION_ANNOTATION = re.compile(r"^\s*uses:\s*([^\s#]+)(?:\s+#\s*(\S(?:.*\S)?))?\s*$")
 ACTION_VERSION = re.compile(r"^v[0-9]+(?:\.[0-9]+){0,2}$")
 VALIDATION_TOOL_REFERENCE = re.compile(r"\btool\s+ensure\s+([a-z0-9][a-z0-9_-]*)", re.IGNORECASE)
-
-
-def validation_tool_ids(text: str) -> set[str]:
-    """Return tool IDs explicitly provisioned by the validation workflow."""
-    return {match.group(1).lower() for match in VALIDATION_TOOL_REFERENCE.finditer(text)}
 
 
 FULL_COMMIT_PIN = re.compile(r"^[^\s@]+@[0-9a-f]{40}$")
@@ -163,6 +159,11 @@ SECTION_DIVIDER = re.compile(r"^(?P<indent>\s*)(?P<marker>//|#)\s*(?P<dashes>-{1
 SECTION_TITLE = re.compile(r"^(?P<indent>\s*)(?P<marker>//|#)\s*(?P<title>\S(?:.*\S)?)\s*$")
 DOXYGEN_GROUP_OPEN = re.compile(r"^\s*/// @\{\s*$")
 CANONICAL_DIVIDER = "-" * 60
+
+
+def validation_tool_ids(text: str) -> set[str]:
+    """Return tool IDs explicitly provisioned by the validation workflow."""
+    return {match.group(1).lower() for match in VALIDATION_TOOL_REFERENCE.finditer(text)}
 
 
 # ------------------------------------------------------------
@@ -902,11 +903,36 @@ def check_editor_integration(failures: list[str]) -> None:
     helper_actions = {entry.get("id") for entry in read_json("scripts/config/commands.json", failures).get("actions", [])}
 
     for task in tasks.get("tasks", []):
-        command = str(task.get("command", ""))
-        args = task.get("args", [])
+        invocations = [("default", task.get("command", ""), task.get("args", []))]
+        windows = task.get("windows", {})
 
-        if "gamewip.bat" in command and args and args[0] not in helper_actions:
-            failures.append(f".vscode/tasks.json: task '{task.get('label')}' invokes unknown helper action '{args[0]}'")
+        if isinstance(windows, dict):
+            invocations.append(("Windows", windows.get("command", ""), windows.get("args", [])))
+
+        for platform, command, args in invocations:
+            command = str(command).lower()
+
+            if not isinstance(args, list):
+                continue
+
+            action_index = 0 if "gamewip.bat" in command else None
+
+            if action_index is None and args and str(args[0]).lower().endswith("gamewip.sh"):
+                action_index = 1
+
+            if action_index is None:
+                continue
+
+            if len(args) <= action_index:
+                failures.append(f".vscode/tasks.json: task '{task.get('label')}' has no {platform} helper action")
+                continue
+
+            action = args[action_index]
+
+            if action not in helper_actions:
+                failures.append(
+                    f".vscode/tasks.json: task '{task.get('label')}' invokes unknown {platform} helper action '{action}'"
+                )
 
 
 def check_extracted_workflow_logic(failures: list[str]) -> None:
@@ -1148,6 +1174,7 @@ def main() -> int:
     check_unicode_conversion_authority(failures)
     check_quality_contract(failures)
     check_extracted_workflow_logic(failures)
+
     # Validate workflow contracts and protected action references.
     safe_ctest_presets = fail_closed_ctest_presets(failures)
     workflows = sorted((*WORKFLOW_ROOT.glob("*.yml"), *WORKFLOW_ROOT.glob("*.yaml")))

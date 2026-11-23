@@ -17,7 +17,7 @@ surprises, or deviations from the original direction. -->
 
 ## Checklist
 
-<!-- Optional quick review; -->
+<!-- Quick review checklist. -->
 
 - [ ] Focused change
 - [ ] Docs or configuration updated where needed

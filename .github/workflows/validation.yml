@@ -599,6 +599,63 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
+  undefined_behavior_sanitizer:
+    name: UndefinedBehaviorSanitizer
+    needs: [change_scope, prepare_dependencies]
+    if: needs.change_scope.outputs.needs_deep == 'true'
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Install CLANG64 tools
+        uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2
+        with:
+          msystem: CLANG64
+          update: true
+          install: >-
+            git
+            mingw-w64-clang-x86_64-cmake
+            mingw-w64-clang-x86_64-clang
+            mingw-w64-clang-x86_64-compiler-rt
+            mingw-w64-clang-x86_64-lld
+            mingw-w64-clang-x86_64-ninja
+
+      - name: Restore locked dependency cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: build/gamewip/cache/dependencies
+          key: gamewip-dependencies-${{ runner.os }}-${{ hashFiles('scripts/config/dependencies.json') }}
+
+      - name: Report CMake version
+        shell: msys2 {0}
+        run: cmake --version
+
+      - name: Configure
+        shell: msys2 {0}
+        run: cmake --preset ci-ubsan
+
+      - name: Build
+        shell: msys2 {0}
+        run: cmake --build --preset ci-ubsan --parallel
+
+      - name: Test
+        shell: msys2 {0}
+        run: ctest --preset ci-ubsan
+
+      - name: Upload sanitizer diagnostics
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ubsan-diagnostics-${{ github.run_id }}
+          path: build/ci-ubsan/logs
+          if-no-files-found: ignore
+          retention-days: 14
+
   docs_check:
     name: Docs Check
     needs: [change_scope, prepare_dependencies]
@@ -673,6 +730,7 @@ jobs:
       - repository_checks
       - coverage
       - address_sanitizer
+      - undefined_behavior_sanitizer
       - docs_check
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -692,6 +750,7 @@ jobs:
           REPOSITORY_RESULT: ${{ needs.repository_checks.result }}
           COVERAGE_RESULT: ${{ needs.coverage.result }}
           ASAN_RESULT: ${{ needs.address_sanitizer.result }}
+          UBSAN_RESULT: ${{ needs.undefined_behavior_sanitizer.result }}
           DOCS_RESULT: ${{ needs.docs_check.result }}
         run: |
           set -euo pipefail
@@ -711,6 +770,7 @@ jobs:
             [[ "$BUILD_RESULT" == success ]] || failures+=("Build and Test: $BUILD_RESULT")
             [[ "$COVERAGE_RESULT" == success ]] || failures+=("Coverage: $COVERAGE_RESULT")
             [[ "$ASAN_RESULT" == success ]] || failures+=("AddressSanitizer: $ASAN_RESULT")
+            [[ "$UBSAN_RESULT" == success ]] || failures+=("UndefinedBehaviorSanitizer: $UBSAN_RESULT")
           fi
 
           if [[ "$NEEDS_DOCS" == true ]]; then

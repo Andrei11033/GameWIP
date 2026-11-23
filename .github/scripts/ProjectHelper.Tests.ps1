@@ -1397,6 +1397,7 @@ foreach ($requiredAction in @('menu', 'ready', 'quality', 'tool', 'history', 'an
         throw "Missing action metadata '$requiredAction'."
     }
 }
+
 $duplicateActions = @($actionIds | Group-Object | Where-Object Count -gt 1)
 
 if ($duplicateActions.Count -ne 0)
@@ -1838,6 +1839,7 @@ if (-not (Test-GameWipWindowsHost))
         {
             Stop-Process -Id $descendantId -Force -ErrorAction SilentlyContinue
         }
+
         Remove-Item -LiteralPath $unixCancellationRoot -Recurse -Force -ErrorAction SilentlyContinue
     }
 }
@@ -2242,6 +2244,7 @@ try
             throw "Tracked mutation planning omitted '$expectedTarget'."
         }
     }
+
     $stagedRegistrySource = [string]$trackedPlan.Files[$testRegistryPath]
 
     if ($stagedRegistrySource -notmatch '"requiredVersion":\s+"1\.1\.0"' -or $stagedRegistrySource -notmatch '"version":\s+"4\.1\.0"')

@@ -4,8 +4,8 @@
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const test = require('node:test');
 const path = require('node:path');
+const test = require('node:test');
 const { hasMeaningfulContent, validatePullRequest } = require('./pr-standards.js');
 
 const valid = {

@@ -531,6 +531,7 @@ class ProjectAutomation {
                                         __typename
                                         ... on Issue { number repository { nameWithOwner } }
                                         ... on PullRequest { number repository { nameWithOwner } }
+                                        ... on DraftIssue { title }
                                     }
                                 }
                                 pageInfo { hasNextPage endCursor }
@@ -552,6 +553,11 @@ class ProjectAutomation {
         const items = await this.listProjectItems();
 
         for (const item of items) {
+            if (item.__typename === 'DraftIssue') {
+                this.core.warning(`Skipping draft issue "${item.title}"; project sync supports repository issues and pull requests.`);
+                continue;
+            }
+
             if (item.repository.nameWithOwner !== this.config.repository) {
                 continue;
             }

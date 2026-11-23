@@ -14,6 +14,7 @@ function sectionText(body, name) {
     if (!match) {
         return undefined;
     }
+
     const rest = body.slice(match.index + match[0].length);
     const next = /^##\s+/m.exec(rest);
     return (next ? rest.slice(0, next.index) : rest).trim();
@@ -54,6 +55,7 @@ function validatePullRequest(pr) {
     if (/\s\(#\d+\)$/.test(pr.title)) {
         errors.push("PR title should not include GitHub's `(#number)` suffix.");
     }
+
     const body = pr.body || '';
 
     for (const name of REQUIRED_SECTIONS) {
@@ -62,13 +64,14 @@ function validatePullRequest(pr) {
         }
     }
 
-    for (const name of ['Summary', 'Validation']) {
+    for (const name of REQUIRED_SECTIONS) {
         const value = sectionText(body, name);
 
         if (value !== undefined && !hasMeaningfulContent(value)) {
             errors.push(`\`## ${name}\` must contain meaningful content.`);
         }
     }
+
     // Require explicit closure guidance when linked issues are listed.
     const linked = sectionText(body, 'Linked Issues');
 
@@ -80,6 +83,7 @@ function validatePullRequest(pr) {
     ) {
         errors.push('`## Linked Issues` must contain `Closes #123` or `No linked issue: reason`.');
     }
+
     // Require one canonical area, type, and priority label.
     const labels = (pr.labels || []).map((label) => label.name);
     const areaLabels = labels.filter((label) => label.startsWith('area:'));

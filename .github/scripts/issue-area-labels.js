@@ -77,6 +77,7 @@ async function applyIssueAreaLabel({ github, context }) {
     if (target === undefined) {
         return;
     }
+
     const request = { owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number };
 
     // Replace stale area metadata with the current selection.
@@ -86,7 +87,7 @@ async function applyIssueAreaLabel({ github, context }) {
         }
     }
 
-    if (target && !current.includes(target)) {
+    if (!current.includes(target)) {
         await github.rest.issues.addLabels({ ...request, labels: [target] });
     }
 }
