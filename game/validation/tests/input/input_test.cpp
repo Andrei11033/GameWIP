@@ -73,6 +73,7 @@ namespace
                 },
         };
 
+        // Add the device and resolve its standard and persistent controls.
         Input::Types::DeviceId device{};
         if(!context.expectTrue("synthetic device is added", source.addDevice(description, device).ok()))
         {
@@ -128,6 +129,7 @@ namespace
 
         static_cast<void>(context.expectTrue("device connection event is published", connectedEvent));
 
+        // Publish button transitions and accumulate relative movement.
         const Input::Types::ElementId buttonElement = button.value();
         static_cast<void>(context.expectTrue("button value publishes", source.setAbsoluteValue(buttonElement, Input::Types::Value{true}).ok()));
         static_cast<void>(context.expectTrue("first relative delta publishes", source.addRelativeDelta(axis, Input::Types::Value{1.25F}).ok()));
@@ -159,6 +161,7 @@ namespace
         axisValue = std::get_if<float>(frame.value(axis));
         static_cast<void>(context.expectTrue("relative value resets for the next frame", axisValue != nullptr && *axisValue == -1.5F));
 
+        // Reject value types and update modes that do not match each element.
         static_cast<void>(context.expectEq(
             "wrong absolute value type is rejected",
             GameWIP::IO::Types::ErrorCode::InvalidArgument,
@@ -174,6 +177,7 @@ namespace
             GameWIP::IO::Types::ErrorCode::InvalidArgument,
             source.addRelativeDelta(axis, Input::Types::Value{true}).code));
 
+        // Capture committed text and repeat events without a new press.
         static_cast<void>(
             context.expectTrue("synthetic text commit succeeds", source.commitText(Input::Types::SurfaceId{77}, "Synthetic text").ok()));
 
@@ -222,6 +226,7 @@ namespace
 
         static_cast<void>(context.expectTrue("element repeat event is published", repeatedEvent));
 
+        // Invalidate the button, then remove its device and source.
         static_cast<void>(context.expectTrue("element invalidation succeeds", source.invalidate(buttonElement).ok()));
 
         const auto invalidationCapture = input.capture(frame);
