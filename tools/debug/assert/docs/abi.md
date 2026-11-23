@@ -41,12 +41,12 @@ The reviewed Assert export allowlist contains:
 
 ```text
 GameWIP::Debug::Assert::debugBreak
-GameWIP::Debug::Assert::Detail::handleAssertFailure
-GameWIP::Debug::Assert::Detail::handleCheckFailure
-GameWIP::Debug::Assert::Detail::handleInteractiveAssertFailure
+GameWIP::Debug::Assert::Internal::handleAssertFailure
+GameWIP::Debug::Assert::Internal::handleCheckFailure
+GameWIP::Debug::Assert::Internal::handleInteractiveAssertFailure
 ```
 
-`debugBreak()` is public runtime API. The `Detail::handle*` symbols are exported ABI support for the public macros; consumers must not call them
+`debugBreak()` is public runtime API. The `Internal::handle*` symbols are exported ABI support for the public macros; consumers must not call them
 directly or depend on their signatures beyond using the supported macros.
 
 ## Binary compatibility

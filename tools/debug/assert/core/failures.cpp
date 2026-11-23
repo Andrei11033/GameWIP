@@ -311,7 +311,7 @@ namespace
             return;
         }
 
-        GameWIP::Debug::Assert::Detail::Platform::showErrorPopup(presentation.popupTitle, message);
+        GameWIP::Debug::Assert::Platform::showErrorPopup(presentation.popupTitle, message);
     }
 
     /// ------------------------------------------------------------
@@ -354,7 +354,7 @@ namespace
     /// @return Break when a debugger is attached, otherwise Abort.
     FailureAction defaultInteractiveAction() noexcept
     {
-        return GameWIP::Debug::Assert::Detail::Platform::isDebuggerAttached() ? FailureAction::Break : FailureAction::Abort;
+        return GameWIP::Debug::Assert::Platform::isDebuggerAttached() ? FailureAction::Break : FailureAction::Abort;
     }
 
     /// @brief Selects an action for one interactive fatal assert failure.
@@ -382,10 +382,7 @@ namespace
         // Without an override, debugger state determines the default offered by the action dialog.
         // Interactive dialogs are independent of the ordinary error-popup compile-time toggles.
         const FailureAction defaultAction = defaultInteractiveAction();
-        return GameWIP::Debug::Assert::Detail::Platform::showFailureActionDialog(
-            failurePresentation(FailureKind::Assert).popupTitle,
-            message,
-            defaultAction);
+        return GameWIP::Debug::Assert::Platform::showFailureActionDialog(failurePresentation(FailureKind::Assert).popupTitle, message, defaultAction);
     }
 
     /// @brief Applies the selected action for an interactive fatal assert failure.
@@ -397,7 +394,7 @@ namespace
         {
         case FailureAction::Break:
             // Interactive Break permits continuation when execution resumes in the debugger.
-            GameWIP::Debug::Assert::Detail::Platform::debugBreak();
+            GameWIP::Debug::Assert::Platform::debugBreak();
             return;
 
         case FailureAction::Abort:
@@ -489,11 +486,11 @@ namespace GameWIP::Debug::Assert
 {
     void debugBreak() noexcept
     {
-        Detail::Platform::debugBreak();
+        Platform::debugBreak();
     }
 } // namespace GameWIP::Debug::Assert
 
-namespace GameWIP::Debug::Assert::Detail
+namespace GameWIP::Debug::Assert::Internal
 {
     [[noreturn]] void handleAssertFailure(
         std::string_view conditionText,
@@ -506,11 +503,11 @@ namespace GameWIP::Debug::Assert::Detail
         reportNonInteractiveFailure(FailureKind::Assert, conditionText, message, file, line, function);
 
         // Ordinary fatal assertions break only when debugger detection reports an attached debugger.
-        const bool debuggerAttached = Detail::Platform::isDebuggerAttached();
+        const bool debuggerAttached = Platform::isDebuggerAttached();
 
         if(debuggerAttached)
         {
-            Detail::Platform::debugBreak();
+            Platform::debugBreak();
         }
 
         // Resuming after a debugger break still leads to termination on this fatal path.
@@ -537,4 +534,4 @@ namespace GameWIP::Debug::Assert::Detail
     {
         reportNonInteractiveFailure(FailureKind::Check, conditionText, message, file, line, function);
     }
-} // namespace GameWIP::Debug::Assert::Detail
+} // namespace GameWIP::Debug::Assert::Internal

@@ -8,7 +8,7 @@
 
 #include <string_view>
 
-namespace GameWIP::Debug::Assert::Detail::Platform
+namespace GameWIP::Debug::Assert::Platform
 {
     /// ------------------------------------------------------------
     /// Failure presentation and debugger operations
@@ -40,4 +40,4 @@ namespace GameWIP::Debug::Assert::Detail::Platform
     /// @details Callers decide whether a debugger must be attached first. DEBUG_BREAK() intentionally force-breaks.
     /// @note Continuing from the debugger resumes execution.
     void debugBreak() noexcept;
-} // namespace GameWIP::Debug::Assert::Detail::Platform
+} // namespace GameWIP::Debug::Assert::Platform

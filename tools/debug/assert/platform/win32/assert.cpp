@@ -274,7 +274,7 @@ namespace
 } // namespace
 
 #if ASSERT_INTERNAL_TEST_HOOKS
-namespace GameWIP::Debug::Assert::TestHooks
+namespace GameWIP::Debug::Assert::Internal::TestHooks
 {
     /// ------------------------------------------------------------
     /// Diagnostic failure validation
@@ -285,18 +285,16 @@ namespace GameWIP::Debug::Assert::TestHooks
         nextDiagnosticPreparationFailure.store(true, std::memory_order_release);
         const bool previous = suppressNativePresentationForTest;
         suppressNativePresentationForTest = true;
-        GameWIP::Debug::Assert::Detail::Platform::showErrorPopup(
-            "Assert diagnostic preparation",
-            "The static emergency popup path must remain noexcept.");
+        GameWIP::Debug::Assert::Platform::showErrorPopup("Assert diagnostic preparation", "The static emergency popup path must remain noexcept.");
         suppressNativePresentationForTest = previous;
 
         const bool failureRemainedArmed = nextDiagnosticPreparationFailure.exchange(false, std::memory_order_acq_rel);
         return !failureRemainedArmed;
     }
-} // namespace GameWIP::Debug::Assert::TestHooks
+} // namespace GameWIP::Debug::Assert::Internal::TestHooks
 #endif
 
-namespace GameWIP::Debug::Assert::Detail::Platform
+namespace GameWIP::Debug::Assert::Platform
 {
     /// ------------------------------------------------------------
     /// Failure presentation and debugger operations
@@ -371,4 +369,4 @@ namespace GameWIP::Debug::Assert::Detail::Platform
     {
         DebugBreak();
     }
-} // namespace GameWIP::Debug::Assert::Detail::Platform
+} // namespace GameWIP::Debug::Assert::Platform

@@ -10,7 +10,7 @@
 #endif
 
 #if ASSERT_INTERNAL_TEST_HOOKS
-namespace GameWIP::Debug::Assert::TestHooks
+namespace GameWIP::Debug::Assert::Internal::TestHooks
 {
     /// ------------------------------------------------------------
     /// Diagnostic failure validation
@@ -20,5 +20,5 @@ namespace GameWIP::Debug::Assert::TestHooks
     /// @return True only when the armed one-shot failure was consumed by the real popup path.
     /// @warning Test-only and source-tree-only. Final native presentation is suppressed for the current test thread.
     [[nodiscard]] ASSERT_EXPORT bool runDiagnosticPreparationEmergencyPathForTest() noexcept;
-} // namespace GameWIP::Debug::Assert::TestHooks
+} // namespace GameWIP::Debug::Assert::Internal::TestHooks
 #endif

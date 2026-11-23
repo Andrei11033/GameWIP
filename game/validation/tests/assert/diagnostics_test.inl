@@ -131,7 +131,7 @@ void testDiagnosticPreparationEmergencyPath(TestContext &context)
 #if ASSERT_INTERNAL_TEST_HOOKS
     context.expectTrue(
         "diagnostic preparation failure reaches static emergency popup path",
-        GameWIP::Debug::Assert::TestHooks::runDiagnosticPreparationEmergencyPathForTest());
+        GameWIP::Debug::Assert::Internal::TestHooks::runDiagnosticPreparationEmergencyPathForTest());
 #else
     context.skip("diagnostic preparation emergency path", "Assert test hooks are disabled");
 #endif
