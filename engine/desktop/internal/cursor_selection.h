@@ -23,14 +23,15 @@ namespace GameWIP::Desktop::Internal
     {
         std::size_t best = 0;
 
-        for(std::size_t i = 1; i < intendedDpis.size(); ++i)
+        for(std::size_t index = 1; index < intendedDpis.size(); ++index)
         {
-            if(isBetterDpiCandidate(intendedDpis[i], intendedDpis[best], targetDpi))
+            if(isBetterDpiCandidate(intendedDpis[index], intendedDpis[best], targetDpi))
             {
-                best = i;
+                best = index;
             }
         }
 
         return best;
     }
+
 } // namespace GameWIP::Desktop::Internal

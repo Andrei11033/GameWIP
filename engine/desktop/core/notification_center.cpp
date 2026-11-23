@@ -3,11 +3,10 @@
 
 #include "desktop/shell_notifications.h"
 
-#include "desktop/internal/shell_helpers.h"
-#include "desktop/platform/shell.h"
-#include "desktop/internal/shell_state.h"
-
 #include "base/checked_arithmetic.h"
+#include "desktop/internal/shell_helpers.h"
+#include "desktop/internal/shell_state.h"
+#include "desktop/platform/shell.h"
 
 #include <algorithm>
 #include <chrono>
@@ -15,9 +14,9 @@
 #include <cstdint>
 #include <memory>
 #include <new>
-#include <thread>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <unordered_set>
 #include <utility>
 #include <variant>
@@ -179,22 +178,10 @@ namespace GameWIP::Desktop
             return IO::makeStatus(code);
         }
 
-        /// @brief Releases the event-queue binding retained by one notification center.
-        void releaseNotificationQueue(NotificationCenterState &state) noexcept
-        {
-            Internal::unbindQueue(state.eventQueue);
-            state.eventQueue = nullptr;
-        }
-
         /// @brief Validates an open notification center and its owner-thread access.
         [[nodiscard]] IO::Types::Status requireOwnedNotification(NotificationCenterState *state, bool owned) noexcept
         {
-            if(state == nullptr || !state->open || state->platform == nullptr)
-            {
-                return error(ErrorCode::NotOpen);
-            }
-
-            return owned ? IO::successStatus() : error(ErrorCode::ResourceBusy);
+            return Internal::requireOwnedShellResource(state != nullptr && state->open && state->platform != nullptr, owned);
         }
     } // namespace
 
@@ -232,6 +219,7 @@ namespace GameWIP::Desktop
 
         try
         {
+            // Open the native center before publishing its state to the wrapper.
             auto candidate = std::make_unique<Internal::NotificationCenterState>();
             candidate->ownerThread = std::this_thread::get_id();
             candidate->open = true;
@@ -264,6 +252,7 @@ namespace GameWIP::Desktop
 
         try
         {
+            // Bind the event queue before opening the native center.
             auto candidate = std::make_unique<Internal::NotificationCenterState>();
             candidate->ownerThread = std::this_thread::get_id();
             IO::Types::Status status = Internal::bindQueue(eventQueue, candidate->ownerThread, candidate->eventQueue);
@@ -281,6 +270,8 @@ namespace GameWIP::Desktop
                 Platform::closeNotificationCenterBestEffort(*candidate);
                 return status;
             }
+
+            // Publish only after both queue and native setup succeed.
             state_ = std::move(candidate);
             return IO::successStatus();
         }
@@ -328,7 +319,7 @@ namespace GameWIP::Desktop
             return status;
         }
 
-        releaseNotificationQueue(*state_);
+        Internal::unbindQueue(state_->eventQueue);
         state_->notifications.clear();
         state_.reset();
         return IO::successStatus();

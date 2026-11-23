@@ -35,7 +35,6 @@ namespace GameWIP::Desktop::Platform
         using IO::Types::ErrorCode;
         using Win32::closestIcon;
         using Win32::convertTip;
-        using Win32::copyRgbaToBgra;
         using Win32::createIcon;
 
         /// @brief Owns native taskbar resources associated with one portable TaskbarItem.
@@ -51,6 +50,18 @@ namespace GameWIP::Desktop::Platform
         };
 
         constexpr std::size_t kTaskbarButtonCapacity = 7;
+
+        /// @brief Releases a set of taskbar-owned icon handles.
+        void destroyIcons(std::span<HICON> icons) noexcept
+        {
+            for(HICON icon : icons)
+            {
+                if(icon != nullptr)
+                {
+                    DestroyIcon(icon);
+                }
+            }
+        }
 
         /// @brief Applies taskbar progress state through the COM taskbar interface.
         [[nodiscard]] IO::Types::Status applyTaskbarProgress(TaskbarNative &native, const std::optional<Types::Shell::Progress> &progress) noexcept
@@ -133,13 +144,7 @@ namespace GameWIP::Desktop::Platform
 
             const auto cleanupIcons = [&] noexcept
             {
-                for(HICON icon : newIcons)
-                {
-                    if(icon != nullptr)
-                    {
-                        DestroyIcon(icon);
-                    }
-                }
+                destroyIcons(newIcons);
                 newIcons.clear();
             };
             try
@@ -186,13 +191,15 @@ namespace GameWIP::Desktop::Platform
                     const OwnedThumbnailButton &button = buttons[index];
                     nativeButton.iId = button.id.value;
                     nativeButton.dwFlags = button.enabled ? THBF_ENABLED : THBF_DISABLED;
-                    IO::Types::Status tipStatus = convertTip(button.label, *reinterpret_cast<std::array<wchar_t, 260> *>(nativeButton.szTip));
+                    std::array<wchar_t, 260> tooltip{};
+                    IO::Types::Status tipStatus = convertTip(button.label, tooltip);
 
                     if(!tipStatus.ok())
                     {
                         cleanupIcons();
                         return tipStatus;
                     }
+                    std::copy(tooltip.begin(), tooltip.end(), nativeButton.szTip);
 
                     if(button.icon.has_value())
                     {
@@ -304,13 +311,7 @@ namespace GameWIP::Desktop::Platform
         std::vector<HICON> newIcons;
         const auto cleanupIcons = [&] noexcept
         {
-            for(HICON icon : newIcons)
-            {
-                if(icon != nullptr)
-                {
-                    DestroyIcon(icon);
-                }
-            }
+            destroyIcons(newIcons);
             newIcons.clear();
         };
         try
@@ -388,13 +389,7 @@ namespace GameWIP::Desktop::Platform
             native->overlay = newOverlay;
 
             // Replace button icon ownership after every native update succeeds.
-            for(HICON icon : native->buttonIcons)
-            {
-                if(icon != nullptr)
-                {
-                    DestroyIcon(icon);
-                }
-            }
+            destroyIcons(native->buttonIcons);
             native->buttonIcons = std::move(newIcons);
             return IO::successStatus();
         }
@@ -444,13 +439,7 @@ namespace GameWIP::Desktop::Platform
         }
 
         // Release thumbnail icons and detach the native state.
-        for(HICON icon : native->buttonIcons)
-        {
-            if(icon != nullptr)
-            {
-                DestroyIcon(icon);
-            }
-        }
+        destroyIcons(native->buttonIcons);
         delete native;
         state.platform = nullptr;
         state.open = false;
@@ -476,13 +465,7 @@ namespace GameWIP::Desktop::Platform
                     DestroyIcon(native->overlay);
                 }
 
-                for(HICON icon : native->buttonIcons)
-                {
-                    if(icon != nullptr)
-                    {
-                        DestroyIcon(icon);
-                    }
-                }
+                destroyIcons(native->buttonIcons);
                 delete native;
             }
             window.taskbarItem = nullptr;

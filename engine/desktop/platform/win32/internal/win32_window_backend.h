@@ -19,6 +19,8 @@
 #include <windowsx.h>
 
 #include <atomic>
+#include <cstdint>
+#include <memory>
 #include <mutex>
 #include <optional>
 #include <string>
@@ -79,15 +81,17 @@ namespace GameWIP::Desktop::Platform
         WindowState *owner = nullptr;
         HINSTANCE instance = nullptr;
         HWND handle = nullptr;
-        GameWIP::Desktop::Native::Win32::MessageSink messageSink = nullptr;
-        void *messageSinkContext = nullptr;
         DWORD ownerThreadId = 0;
 
-        // Message routing and cursor/icon resources
+        // Native icon and cursor resources
         HCURSOR cursor = nullptr;
         HICON largeIcon = nullptr;
         HICON smallIcon = nullptr;
         bool classReferenceHeld = false;
+
+        // Message routing and native state
+        GameWIP::Desktop::Native::Win32::MessageSink messageSink = nullptr;
+        void *messageSinkContext = nullptr;
         bool cursorClipApplied = false;
         bool cursorTracking = false;
         bool destroying = false;
@@ -201,11 +205,18 @@ namespace GameWIP::Desktop::Platform
     [[nodiscard]] Types::LogicalSize physicalToLogicalSize(std::uint32_t width, std::uint32_t height, UINT dpi) noexcept;
     /// @}
 
+    /// @name Cursor helpers
+    /// @{
+
     [[nodiscard]] HCURSOR loadCursor(Types::CursorShape shape) noexcept;
     void releaseCustomCursorBinding(HWND window) noexcept;
     void refreshCustomCursorForDpi(WindowState &state, std::uint32_t dpi) noexcept;
     [[nodiscard]] IO::Types::Status replaceCustomCursorWithSystem(WindowState &state, HCURSOR cursor) noexcept;
     [[nodiscard]] bool pointInRect(Types::LogicalPosition point, const Types::LogicalRect &rect) noexcept;
+    /// @}
+
+    /// @name Window geometry and mode helpers
+    /// @{
 
     [[nodiscard]] IO::Types::Status refreshCachedGeometry(WindowState &state) noexcept;
     void updateCurrentMonitor(WindowState &state) noexcept;
@@ -219,6 +230,10 @@ namespace GameWIP::Desktop::Platform
     [[nodiscard]] IO::Types::Status resumeExclusive(WindowState &state) noexcept;
     [[nodiscard]] IO::Types::Status applyWindowMode(WindowState &state, const Types::WindowModeRequest &request) noexcept;
     [[nodiscard]] IO::Types::Status recoverAfterDisplayChange(WindowState &state, bool forceRemovedMonitor = false) noexcept;
+    /// @}
+
+    /// @name Display helpers
+    /// @{
 
     [[nodiscard]] Types::Result<Types::Display::Info> monitorFromNative(HMONITOR monitor) noexcept;
     [[nodiscard]] HMONITOR nativeMonitor(Types::Display::MonitorId id) noexcept;
@@ -226,6 +241,7 @@ namespace GameWIP::Desktop::Platform
     [[nodiscard]] std::uint32_t runtimeWindowsBuild() noexcept;
     [[nodiscard]] bool supportsSystemBackdrop() noexcept;
     [[nodiscard]] bool supportsTransparentFramebuffer() noexcept;
+    /// @}
 
     [[nodiscard]] LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam);
 } // namespace GameWIP::Desktop::Platform

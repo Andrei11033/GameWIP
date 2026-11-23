@@ -4,14 +4,20 @@ target_sources(
         win32_accessibility.cpp
         win32_accessibility_lifecycle.cpp
         win32_accessibility_patterns.cpp
+        win32_accessibility_properties.cpp
         win32_accessibility_text.cpp
+        win32_accessibility_text_pattern.cpp
         win32_child_surface.cpp
         win32_clipboard.cpp
         win32_controls.cpp
         win32_cursor.cpp
         win32_data_transfer.cpp
-        win32_dialogs.cpp
+        win32_display_color.cpp
+        win32_dispatcher.cpp
         win32_drag_drop.cpp
+        win32_drag_drop_source.cpp
+        win32_file_dialogs.cpp
+        win32_message_dialogs.cpp
         win32_mode.cpp
         win32_monitor.cpp
         win32_notification_center.cpp

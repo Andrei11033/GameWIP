@@ -90,6 +90,8 @@ namespace GameWIP::Desktop::Internal::TestHooks
     enum class FailurePoint
     {
         None,
+
+        // Window creation and input regions
         Allocation,
         Dispatcher,
         NativeCreation,
@@ -97,17 +99,25 @@ namespace GameWIP::Desktop::Internal::TestHooks
         TitleConversion,
         RegionCopy,
         IconConversion,
+
+        // Cursor creation and binding
         Cursor,
         SystemCursorLoad,
         CursorBinding,
         CursorStateAllocation,
+
+        // Display discovery and fullscreen transitions
         MonitorQuery,
         DisplayEnumeration,
         DisplayColorQuery,
         FullscreenPartial,
         DisplayRestoration,
+
+        // Window close and event delivery
         Close,
         EventPump,
+
+        // Clipboard operations
         ClipboardAllocation,
         ClipboardOwnerCreation,
         ClipboardAccess,
@@ -115,11 +125,15 @@ namespace GameWIP::Desktop::Internal::TestHooks
         ClipboardRead,
         ClipboardEnumeration,
         ClipboardClose,
+
+        // Drag/drop target lifecycle
         DragDropOleInitialization,
         DragDropRegistration,
         DragDropRevocation,
         DragDropPreparation,
         DragDropMaterialization,
+
+        // Dialog and progress lifecycle
         DialogConversion,
         DialogSuggestedDirectory,
         DialogNativeOperation,
@@ -129,9 +143,13 @@ namespace GameWIP::Desktop::Internal::TestHooks
         ProgressOwnerBlocking,
         ProgressOwnerRestoreWake,
         ProgressMutation,
+
+        // Native Window creation
         WindowStyleQuery,
         WindowUserDataInstallation,
         WindowCreationCallback,
+
+        // Shell registration and lifetime
         ShellNativeOpen,
         ShellNativeApply,
         ShellNativeClose,

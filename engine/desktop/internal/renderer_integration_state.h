@@ -30,15 +30,20 @@ namespace GameWIP::Desktop::Internal
         bool occlusionProviderAttached = false;
         bool occluded = false;
 
-        /// @brief Clears the active mask and advances its generation for stale-publish rejection.
-        void invalidatePointerHitMask() noexcept
+        /// @brief Publishes a completed mask and clears its reserved target metadata.
+        void commitPointerHitMask(std::uint64_t generation, Types::PixelSize size) noexcept
         {
-            pointerHitMask.clear();
-            pointerHitMaskSize = {};
-            pointerHitMaskActiveGeneration = 0;
+            pointerHitMaskActiveGeneration = generation;
+            pointerHitMaskSize = size;
             pointerHitMaskTargetGeneration = 0;
             pointerHitMaskTargetSize = {};
             pointerHitMaskTargetWordCount = 0;
+        }
+
+        /// @brief Clears the active mask and advances its generation for stale-publish rejection.
+        void invalidatePointerHitMask() noexcept
+        {
+            clearPointerHitMask();
 
             if(pointerHitMaskGeneration == std::numeric_limits<std::uint64_t>::max())
             {
@@ -53,15 +58,21 @@ namespace GameWIP::Desktop::Internal
         /// @brief Clears optional renderer state at the end of one Window lifetime.
         void finishWindowLifetime() noexcept
         {
+            clearPointerHitMask();
+            pointerHitMaskBackendSupportedForTesting = false;
+            occlusionProviderAttached = false;
+            occluded = false;
+        }
+
+    private:
+        void clearPointerHitMask() noexcept
+        {
             pointerHitMask.clear();
             pointerHitMaskSize = {};
             pointerHitMaskActiveGeneration = 0;
             pointerHitMaskTargetGeneration = 0;
             pointerHitMaskTargetSize = {};
             pointerHitMaskTargetWordCount = 0;
-            pointerHitMaskBackendSupportedForTesting = false;
-            occlusionProviderAttached = false;
-            occluded = false;
         }
     };
 } // namespace GameWIP::Desktop::Internal

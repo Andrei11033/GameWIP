@@ -577,7 +577,7 @@ namespace GameWIP::Desktop::Platform
         return scrollValue(&A::ScrollInfo::verticalViewSize, out, false);
     }
 
-    HRESULT NodeProvider::get_HorizontallyScrollable(BOOL *out)
+    HRESULT NodeProvider::scrollable(bool horizontal, BOOL *out) noexcept
     {
         if(!out)
         {
@@ -595,30 +595,18 @@ namespace GameWIP::Desktop::Platform
         {
             return kUnsupported;
         }
-        *out = q.node->scroll->horizontalScrollable;
+        *out = horizontal ? q.node->scroll->horizontalScrollable : q.node->scroll->verticalScrollable;
         return S_OK;
+    }
+
+    HRESULT NodeProvider::get_HorizontallyScrollable(BOOL *out)
+    {
+        return scrollable(true, out);
     }
 
     HRESULT NodeProvider::get_VerticallyScrollable(BOOL *out)
     {
-        if(!out)
-        {
-            return E_POINTER;
-        }
-        *out = FALSE;
-        const auto q = query();
-
-        if(!q)
-        {
-            return kUnavailable;
-        }
-
-        if(!q.node->scroll)
-        {
-            return kUnsupported;
-        }
-        *out = q.node->scroll->verticalScrollable;
-        return S_OK;
+        return scrollable(false, out);
     }
 
     HRESULT NodeProvider::ScrollIntoView()
@@ -809,6 +797,7 @@ namespace GameWIP::Desktop::Platform
             return kUnavailable;
         }
 
+        // Validate the requested property and its native value type.
         if(id != 0 && id != UIA_NamePropertyId && id != UIA_ControlTypePropertyId && id != UIA_SelectionItemIsSelectedPropertyId &&
            id != UIA_AutomationIdPropertyId)
         {
@@ -830,10 +819,10 @@ namespace GameWIP::Desktop::Platform
             return E_INVALIDARG;
         }
 
-        bool past = start == nullptr;
         const auto &layout = static_cast<const UiaSnapshot *>(q.snapshot->native.get())->layout;
         std::uint32_t startOrdinal = 0;
 
+        // Resolve the optional start provider in this snapshot.
         if(start)
         {
             bool found = false;
@@ -852,16 +841,16 @@ namespace GameWIP::Desktop::Platform
             {
                 return E_INVALIDARG;
             }
-            past = true;
         }
         A::NodeId best = 0;
         std::uint32_t bestOrdinal = std::numeric_limits<std::uint32_t>::max();
 
+        // Search later descendants and keep the first match in tree order.
         for(std::size_t i = 0; i < q.snapshot->storage.nodes.size(); ++i)
         {
             const auto &n = q.snapshot->storage.nodes[i];
 
-            if(!past || !descendant(*q.snapshot, n, id_) || (start && layout[i].ordinal <= startOrdinal))
+            if(!descendant(*q.snapshot, n, id_) || (start && layout[i].ordinal <= startOrdinal))
             {
                 continue;
             }

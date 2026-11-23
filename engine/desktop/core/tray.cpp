@@ -4,8 +4,8 @@
 #include "desktop/shell_tray.h"
 
 #include "desktop/internal/shell_helpers.h"
-#include "desktop/platform/shell.h"
 #include "desktop/internal/shell_state.h"
+#include "desktop/platform/shell.h"
 
 #include <atomic>
 #include <cstddef>
@@ -192,22 +192,10 @@ namespace GameWIP::Desktop
             return IO::makeStatus(code);
         }
 
-        /// @brief Releases the event-queue binding retained by one tray icon.
-        void releaseTrayQueue(TrayIconState &state) noexcept
-        {
-            Internal::unbindQueue(state.eventQueue);
-            state.eventQueue = nullptr;
-        }
-
         /// @brief Validates an open tray icon and its owner-thread access.
         [[nodiscard]] IO::Types::Status requireOwnedTray(TrayIconState *state, bool owned) noexcept
         {
-            if(state == nullptr || !state->open || state->platform == nullptr)
-            {
-                return error(ErrorCode::NotOpen);
-            }
-
-            return owned ? IO::successStatus() : error(ErrorCode::ResourceBusy);
+            return Internal::requireOwnedShellResource(state != nullptr && state->open && state->platform != nullptr, owned);
         }
     } // namespace
 
@@ -388,7 +376,7 @@ namespace GameWIP::Desktop
             return status;
         }
 
-        releaseTrayQueue(*state_);
+        Internal::unbindQueue(state_->eventQueue);
         state_.reset();
         return IO::successStatus();
     }

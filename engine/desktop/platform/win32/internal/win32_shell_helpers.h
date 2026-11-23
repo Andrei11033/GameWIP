@@ -4,6 +4,7 @@
 #pragma once
 
 #include "desktop/internal/shell_state.h"
+#include "desktop/types.h"
 #include "io/status.h"
 
 #ifndef WIN32_LEAN_AND_MEAN
@@ -38,11 +39,10 @@ namespace GameWIP::Desktop::Platform
     {
         inline constexpr UINT kTrayCallbackMessage = WM_APP + 0x271;
 
-        /// @brief Copies validated packed RGBA8 pixels into a native BGRA8 buffer.
-        void copyRgbaToBgra(std::span<const std::byte> source, std::byte *destination) noexcept;
-
         /// @brief Creates a native icon from retained RGBA8 pixels.
         [[nodiscard]] HICON createIcon(const OwnedIconImage &image) noexcept;
+        /// @brief Creates a native icon from a validated RGBA8 image view.
+        [[nodiscard]] HICON createIcon(Types::PixelSize size, std::span<const std::byte> rgba8) noexcept;
         /// @brief Selects the retained icon nearest to the requested dimensions.
         [[nodiscard]] const OwnedIconImage &closestIcon(std::span<const OwnedIconImage> images, int desiredWidth, int desiredHeight) noexcept;
         /// @brief Converts bounded UTF-8 shell text to a native tooltip buffer.

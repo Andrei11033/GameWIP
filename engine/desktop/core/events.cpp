@@ -66,6 +66,7 @@ namespace GameWIP::Desktop::Internal
     /// @brief Enqueues a Window event, preserving durable events when the fixed queue is full.
     EnqueueResult enqueueEvent(WindowState &state, Types::Events::Payload data) noexcept
     {
+        // Ignore events during teardown and account for unavailable storage.
         if(state.suppressEvents)
         {
             return EnqueueResult::Coalesced;
@@ -77,6 +78,7 @@ namespace GameWIP::Desktop::Internal
             return EnqueueResult::Dropped;
         }
 
+        // Merge recent replaceable events before enforcing queue capacity.
         if(isCoalescible(data))
         {
             for(std::size_t offset = state.eventCount; offset > 0; --offset)
@@ -107,6 +109,7 @@ namespace GameWIP::Desktop::Internal
             }
         }
 
+        // Preserve durable events by evicting a coalescible event when the queue is full.
         if(state.eventCount == state.eventStorage.size())
         {
             std::size_t replaceIndex = state.eventCount;
@@ -133,6 +136,7 @@ namespace GameWIP::Desktop::Internal
             discardAt(state, replaceIndex);
         }
 
+        // Append the event at the logical tail of the ring.
         const std::size_t slot = physicalIndex(state, state.eventCount);
         state.eventStorage[slot] = Types::Event{state.nextSequence++, std::move(data)};
         ++state.eventCount;

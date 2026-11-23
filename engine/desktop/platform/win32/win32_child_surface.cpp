@@ -224,6 +224,7 @@ namespace GameWIP::Desktop::Platform
                     return 0;
                 }
 
+                // Compute the new host geometry before publishing the DPI change.
                 const Types::ContentScale previousScale = state->contentScale;
                 const Types::Dpi previousDpi = state->dpi;
                 const Types::PixelSize previousPixels = state->pixelSize;
@@ -250,6 +251,8 @@ namespace GameWIP::Desktop::Platform
                     static_cast<float>(newDpi) / static_cast<float>(kBaselineDpi)};
                 state->pixelSize = {static_cast<std::uint32_t>(width), static_cast<std::uint32_t>(height)};
                 refreshChildScreenRect(*state);
+
+                // Publish scale and pixel-size changes after the native resize succeeds.
                 routeChildSurfaceEvent(
                     *state,
                     Types::ChildSurface::Events::ContentScaleChanged{previousScale, state->contentScale, previousDpi, state->dpi, state->pixelSize});
@@ -314,6 +317,7 @@ namespace GameWIP::Desktop::Platform
     {
         try
         {
+            // Validate the parent and register shared child-class state.
             if(!parent.platform || parent.platform->handle == nullptr)
             {
                 return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
@@ -333,6 +337,7 @@ namespace GameWIP::Desktop::Platform
             registerOpenChildSurface(state);
             state.platform->registered = true;
 
+            // Convert the requested logical rectangle at the parent's effective DPI.
             const UINT dpi = dpiForWindow(parent.platform->handle);
             int x = 0;
             int y = 0;
@@ -349,6 +354,8 @@ namespace GameWIP::Desktop::Platform
                 return IO::makeStatus(IO::Types::ErrorCode::OpenFailed);
             }
             DWORD creationError = ERROR_SUCCESS;
+
+            // Create the HWND while mixed-DPI child hosting is active.
             {
                 DpiHostingScope hosting;
 
@@ -385,6 +392,7 @@ namespace GameWIP::Desktop::Platform
                     "create ChildSurface host");
             }
 
+            // Publish the initial scale, interaction, and visibility state.
             state.dpi = {static_cast<float>(dpi), static_cast<float>(dpi)};
             state.contentScale = {
                 static_cast<float>(dpi) / static_cast<float>(kBaselineDpi),
@@ -437,6 +445,7 @@ namespace GameWIP::Desktop::Platform
             return {IO::makeStatus(IO::Types::ErrorCode::CloseFailed), false};
         }
 
+        // Destroy the HWND before unregistering state or releasing its class reference.
         if(state.platform->handle != nullptr)
         {
             state.platform->destroying = true;
@@ -453,6 +462,8 @@ namespace GameWIP::Desktop::Platform
             unregisterOpenChildSurface(state);
             state.platform->registered = false;
         }
+
+        // Release the shared class registration after its final native user closes.
         IO::Types::Status status = IO::successStatus();
 
         if(state.platform->classReferenceHeld)

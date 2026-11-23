@@ -43,6 +43,7 @@ namespace GameWIP::Desktop::Platform
         return {left, top, right - left, bottom - top};
     }
 
+    // Map portable roles to native control types.
     int controlType(A::Role role) noexcept
     {
         switch(role)
@@ -142,6 +143,7 @@ namespace GameWIP::Desktop::Platform
         return UIA_CustomControlTypeId;
     }
 
+    // Check whether a node exposes the requested pattern.
     bool patternSupported(const A::Node &n, PATTERNID id) noexcept
     {
         switch(id)
@@ -184,12 +186,14 @@ namespace GameWIP::Desktop::Platform
         }
     }
 
+    // Resolve a retained provider as a fragment interface.
     HRESULT fragment(const PublishedSnapshot &snapshot, A::NodeId id, IRawElementProviderFragment **out) noexcept
     {
         auto *provider = providerFor(snapshot, id);
         return provider ? provider->QueryInterface(__uuidof(IRawElementProviderFragment), reinterpret_cast<void **>(out)) : S_OK;
     }
 
+    // Resolve annotations through the retained snapshot and apply exposure rules.
     const A::TextAnnotation *annotationFor(const UiaQuery &q, std::size_t &source, std::size_t &index) noexcept
     {
         if(!q)
@@ -216,6 +220,7 @@ namespace GameWIP::Desktop::Platform
         return annotationFor(q, source, index) != nullptr;
     }
 
+    // Write native VARIANT values with the matching COM type.
     HRESULT boolean(VARIANT *out, bool value) noexcept
     {
         out->vt = VT_BOOL;
@@ -249,6 +254,7 @@ namespace GameWIP::Desktop::Platform
         return hr;
     }
 
+    // Find the retained node relationships and snapshot descendants.
     std::span<const A::NodeId> relation(const A::Node &node, A::RelationKind kind) noexcept
     {
         for(const auto &r : node.relations)

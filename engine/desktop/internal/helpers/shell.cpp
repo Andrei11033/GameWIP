@@ -103,6 +103,8 @@ namespace GameWIP::Desktop::Internal
         }
     }
 
+    // Queue ownership
+
     /// @brief Binds one shell resource to an owner-thread queue and increments its bind count.
     [[nodiscard]] IO::Types::Status bindQueue(ShellEventQueue &queue, std::thread::id owner, ShellEventQueueState *&outQueue) noexcept
     {
@@ -128,8 +130,19 @@ namespace GameWIP::Desktop::Internal
         return IO::successStatus();
     }
 
-    /// @brief Drops one resource binding without closing or destroying the queue.
-    void unbindQueue(ShellEventQueueState *queue) noexcept
+    /// @brief Checks native liveness before enforcing shell-resource owner-thread access.
+    [[nodiscard]] IO::Types::Status requireOwnedShellResource(bool live, bool owned) noexcept
+    {
+        if(!live)
+        {
+            return error(ErrorCode::NotOpen);
+        }
+
+        return owned ? IO::successStatus() : error(ErrorCode::ResourceBusy);
+    }
+
+    /// @brief Drops one resource binding and clears its non-owning queue pointer.
+    void unbindQueue(ShellEventQueueState *&queue) noexcept
     {
         if(queue == nullptr)
         {
@@ -141,5 +154,7 @@ namespace GameWIP::Desktop::Internal
         {
             --queue->boundResourceCount;
         }
+
+        queue = nullptr;
     }
 } // namespace GameWIP::Desktop::Internal

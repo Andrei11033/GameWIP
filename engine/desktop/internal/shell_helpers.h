@@ -12,6 +12,8 @@
 
 namespace GameWIP::Desktop::Internal
 {
+    // Text and value validation
+
     /// @brief Validates shell text and optionally requires a non-empty value.
     [[nodiscard]] bool validText(std::string_view text, bool required = false) noexcept;
 
@@ -21,9 +23,14 @@ namespace GameWIP::Desktop::Internal
     /// @brief Validates and deep-copies an icon view into retained shell state.
     [[nodiscard]] IO::Types::Status copyIcon(Types::IconImageView view, OwnedIconImage &out) noexcept;
 
+    // Queue ownership
+
     /// @brief Binds one shell resource to an owner-thread queue.
     [[nodiscard]] IO::Types::Status bindQueue(ShellEventQueue &queue, std::thread::id owner, ShellEventQueueState *&outQueue) noexcept;
 
-    /// @brief Drops one resource binding without closing or destroying its queue.
-    void unbindQueue(ShellEventQueueState *queue) noexcept;
+    /// @brief Checks native liveness before enforcing shell-resource owner-thread access.
+    [[nodiscard]] IO::Types::Status requireOwnedShellResource(bool live, bool owned) noexcept;
+
+    /// @brief Drops one resource binding and clears its non-owning queue pointer.
+    void unbindQueue(ShellEventQueueState *&queue) noexcept;
 } // namespace GameWIP::Desktop::Internal

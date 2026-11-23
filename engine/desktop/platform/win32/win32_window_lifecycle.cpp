@@ -30,6 +30,7 @@ namespace GameWIP::Desktop::Platform
     {
         try
         {
+            // Check native DPI requirements and optional capabilities before allocating state.
             const DPI_AWARENESS_CONTEXT context = GetThreadDpiAwarenessContext();
 
             if(context == nullptr || AreDpiAwarenessContextsEqual(context, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) == FALSE)
@@ -48,6 +49,8 @@ namespace GameWIP::Desktop::Platform
             {
                 return IO::makeStatus(IO::Types::ErrorCode::Unsupported, 0, "system backdrop effects require Windows 11 build 22621 or newer");
             }
+
+            // Allocate owner-thread state and acquire the process-wide Window class.
             auto data = std::unique_ptr<WindowData, WindowDataDeleter>(new WindowData{});
             data->owner = &state;
             data->instance = GetModuleHandleW(nullptr);
@@ -68,6 +71,7 @@ namespace GameWIP::Desktop::Platform
             data->classReferenceHeld = true;
             state.platform = std::move(data);
 
+            // Validate monitor identities and register the owner dispatcher.
             const std::optional<Types::Display::MonitorId> requestedModeMonitor = std::visit(
                 [](const auto &request) -> std::optional<Types::Display::MonitorId>
                 {
@@ -99,6 +103,7 @@ namespace GameWIP::Desktop::Platform
             }
             registerOpenState(state);
 
+            // Prepare title and owner data for native creation.
             DWORD nativeCode = ERROR_SUCCESS;
 
             if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::TitleConversion))
@@ -127,6 +132,7 @@ namespace GameWIP::Desktop::Platform
                 ownerHandle = owner->platform->handle;
             }
 
+            // Convert the client size and resolve its initial frame placement.
             const UINT dpi = dpiForWindow(nullptr);
             const Types::PixelSize physicalClient = logicalToPhysicalSize(description.windowed.clientSize, dpi);
 
@@ -205,6 +211,8 @@ namespace GameWIP::Desktop::Platform
             {
                 return IO::makeStatus(IO::Types::ErrorCode::OpenFailed);
             }
+
+            // Create the HWND, then publish its handle and stable Window identity.
             HWND handle = CreateWindowExW(
                 extendedStyle,
                 kWindowClassName,
@@ -274,6 +282,7 @@ namespace GameWIP::Desktop::Platform
                 }
             }
 
+            // Apply requested shell, display, and cursor policies before showing the Window.
             if(state.transparentFramebuffer)
             {
                 const BOOL enabled = TRUE;
@@ -319,6 +328,8 @@ namespace GameWIP::Desktop::Platform
             {
                 return status;
             }
+
+            // Show the initialized Window and publish its initial state.
             int showCommand = SW_HIDE;
 
             if(description.activation.visible)
@@ -366,6 +377,7 @@ namespace GameWIP::Desktop::Platform
     /// @brief Closes a Window on its owner thread and reports whether native ownership ended.
     CloseResult close(WindowState &state) noexcept
     {
+        // Validate ownership and restore the desktop display mode first.
         if(!state.platform)
         {
             return {IO::successStatus(), true};
@@ -388,6 +400,7 @@ namespace GameWIP::Desktop::Platform
             return {std::move(status), false};
         }
 
+        // Release cursor confinement before notifying dependent native resources.
         if(state.platform->cursorClipApplied && ClipCursor(nullptr) == FALSE)
         {
             return {statusFromWin32(IO::Types::ErrorCode::CloseFailed, GetLastError(), "release cursor confinement"), false};
@@ -450,6 +463,7 @@ namespace GameWIP::Desktop::Platform
             return {statusFromWin32(IO::Types::ErrorCode::CloseFailed, nativeCode, "DestroyWindow"), false};
         }
 
+        // Release owned icons, registry entries, and the native class reference.
         if(state.platform->largeIcon != nullptr)
         {
             DestroyIcon(state.platform->largeIcon);
@@ -479,6 +493,7 @@ namespace GameWIP::Desktop::Platform
     /// @brief Performs best-effort Window teardown for normal and dispatcher-exit paths.
     void closeBestEffort(WindowState &state) noexcept
     {
+        // Finish bookkeeping directly if the owner dispatcher has already exited.
         if(!state.platform)
         {
             return;
@@ -513,6 +528,8 @@ namespace GameWIP::Desktop::Platform
             state.platform.reset();
             return;
         }
+
+        // Tear down owner-thread resources without interrupting dispatcher shutdown.
         static_cast<void>(leaveExclusive(state));
 
         if(state.platform->cursorClipApplied)

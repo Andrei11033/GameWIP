@@ -1,8 +1,9 @@
 /// @file win32_operations.cpp
 /// @brief Win32 ownership, identity, icon, and geometry operations for Window.
 
-#include "desktop/platform/win32/internal/win32_window_backend.h"
+#include "desktop/platform/win32/internal/win32_shell_helpers.h"
 #include "desktop/platform/win32/internal/win32_unicode.h"
+#include "desktop/platform/win32/internal/win32_window_backend.h"
 
 #include <algorithm>
 #include <limits>
@@ -120,75 +121,6 @@ namespace GameWIP::Desktop::Platform
                     return distance(left) < distance(right);
                 });
         }
-
-        /// @brief Creates a 32-bit BGRA HICON from a portable RGBA image.
-        [[nodiscard]] HICON createIcon(const Types::IconImageView &image) noexcept
-        {
-            BITMAPV5HEADER header{};
-            header.bV5Size = sizeof(header);
-            header.bV5Width = static_cast<LONG>(image.size.width);
-            header.bV5Height = -static_cast<LONG>(image.size.height);
-            header.bV5Planes = 1;
-            header.bV5BitCount = 32;
-            header.bV5Compression = BI_BITFIELDS;
-            header.bV5RedMask = 0x00FF0000;
-            header.bV5GreenMask = 0x0000FF00;
-            header.bV5BlueMask = 0x000000FF;
-            header.bV5AlphaMask = 0xFF000000;
-
-            void *pixels = nullptr;
-            HDC screen = GetDC(nullptr);
-
-            if(screen == nullptr)
-            {
-                return nullptr;
-            }
-            HBITMAP color = CreateDIBSection(screen, reinterpret_cast<const BITMAPINFO *>(&header), DIB_RGB_COLORS, &pixels, nullptr, 0);
-            ReleaseDC(nullptr, screen);
-
-            if(color == nullptr || pixels == nullptr)
-            {
-                if(color != nullptr)
-                {
-                    DeleteObject(color);
-                }
-
-                return nullptr;
-            }
-
-            // The returned bitmap owns pixel storage with image.rgba8.size() writable bytes for this 32-bit DIB.
-#if defined(__clang__)
-#pragma clang unsafe_buffer_usage begin
-#endif
-            std::span<std::byte> destination(static_cast<std::byte *>(pixels), image.rgba8.size());
-#if defined(__clang__)
-#pragma clang unsafe_buffer_usage end
-#endif
-            for(std::size_t offset = 0; offset < image.rgba8.size(); offset += 4)
-            {
-                const std::uint8_t red = std::to_integer<std::uint8_t>(image.rgba8[offset]);
-                const std::uint8_t green = std::to_integer<std::uint8_t>(image.rgba8[offset + 1]);
-                const std::uint8_t blue = std::to_integer<std::uint8_t>(image.rgba8[offset + 2]);
-                const std::uint8_t alpha = std::to_integer<std::uint8_t>(image.rgba8[offset + 3]);
-                destination[offset] = static_cast<std::byte>(blue);
-                destination[offset + 1] = static_cast<std::byte>(green);
-                destination[offset + 2] = static_cast<std::byte>(red);
-                destination[offset + 3] = static_cast<std::byte>(alpha);
-            }
-
-            HBITMAP mask = CreateBitmap(static_cast<int>(image.size.width), static_cast<int>(image.size.height), 1, 1, nullptr);
-
-            if(mask == nullptr)
-            {
-                DeleteObject(color);
-                return nullptr;
-            }
-            ICONINFO info{TRUE, 0, 0, mask, color};
-            HICON icon = CreateIconIndirect(&info);
-            DeleteObject(mask);
-            DeleteObject(color);
-            return icon;
-        }
     } // namespace
 
     /// ------------------------------------------------------------
@@ -298,14 +230,16 @@ namespace GameWIP::Desktop::Platform
         const int largeHeight = GetSystemMetricsForDpi(SM_CYICON, dpi);
         const int smallWidth = GetSystemMetricsForDpi(SM_CXSMICON, dpi);
         const int smallHeight = GetSystemMetricsForDpi(SM_CYSMICON, dpi);
-        HICON large = createIcon(closestIcon(images, largeWidth, largeHeight));
+        const Types::IconImageView &largeImage = closestIcon(images, largeWidth, largeHeight);
+        HICON large = Win32::createIcon(largeImage.size, largeImage.rgba8);
 
         if(large == nullptr)
         {
             return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "CreateIconIndirect large");
         }
 
-        HICON small = createIcon(closestIcon(images, smallWidth, smallHeight));
+        const Types::IconImageView &smallImage = closestIcon(images, smallWidth, smallHeight);
+        HICON small = Win32::createIcon(smallImage.size, smallImage.rgba8);
 
         if(small == nullptr)
         {

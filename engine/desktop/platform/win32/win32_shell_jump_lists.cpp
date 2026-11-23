@@ -123,10 +123,7 @@ namespace GameWIP::Desktop::Platform
             return FAILED(result) ? statusFromHResult(result) : IO::successStatus();
         }
 
-        [[nodiscard]] IO::Types::Status appendJumpTasks(
-            ICustomDestinationList *list,
-            std::wstring_view category,
-            std::span<const Types::JumpLists::Task> tasks)
+        [[nodiscard]] IO::Types::Status createJumpTaskArray(std::span<const Types::JumpLists::Task> tasks, ComPtr<IObjectArray> &out)
         {
             ComPtr<IObjectCollection> collection;
             HRESULT result = CoCreateInstance(CLSID_EnumerableObjectCollection, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(collection.put()));
@@ -136,7 +133,7 @@ namespace GameWIP::Desktop::Platform
                 return statusFromHResult(result);
             }
 
-            // Build the link collection for this category.
+            // Build the link collection from the task descriptors.
             for(const Types::JumpLists::Task &task : tasks)
             {
                 ComPtr<IShellLinkW> link;
@@ -155,17 +152,33 @@ namespace GameWIP::Desktop::Platform
                 }
             }
 
-            // Convert the collection and append the named category.
-            ComPtr<IObjectArray> objects;
-            result = collection->QueryInterface(IID_PPV_ARGS(objects.put()));
+            // Expose the collection through the shell task interface.
+            result = collection->QueryInterface(IID_PPV_ARGS(out.put()));
 
             if(FAILED(result))
             {
                 return statusFromHResult(result);
             }
 
+            return IO::successStatus();
+        }
+
+        [[nodiscard]] IO::Types::Status appendJumpTasks(
+            ICustomDestinationList *list,
+            std::wstring_view category,
+            std::span<const Types::JumpLists::Task> tasks)
+        {
+            ComPtr<IObjectArray> objects;
+            const IO::Types::Status status = createJumpTaskArray(tasks, objects);
+
+            if(!status.ok())
+            {
+                return status;
+            }
+
+            // Append the completed task array under its category label.
             std::wstring label(category);
-            result = list->AppendCategory(label.c_str(), objects.get());
+            const HRESULT result = list->AppendCategory(label.c_str(), objects.get());
             return FAILED(result) ? statusFromHResult(result) : IO::successStatus();
         }
 
@@ -205,8 +218,9 @@ namespace GameWIP::Desktop::Platform
     /// Jump Lists
     /// ------------------------------------------------------------
 
-#if DESKTOP_INTERNAL_TEST_HOOKS
 } // namespace GameWIP::Desktop::Platform
+
+#if DESKTOP_INTERNAL_TEST_HOOKS
 
 namespace GameWIP::Desktop::Internal::TestHooks::Platform
 {
@@ -304,6 +318,7 @@ namespace GameWIP::Desktop::Platform
             {
                 return statusFromHResult(result);
             }
+
             UINT maximumSlots = 0;
             ComPtr<IObjectArray> removed;
             result = list->BeginList(&maximumSlots, IID_PPV_ARGS(removed.put()));
@@ -312,45 +327,22 @@ namespace GameWIP::Desktop::Platform
             {
                 return statusFromHResult(result);
             }
+
             JumpListTransaction transaction(*list.get());
 
             // Publish tasks and named categories.
             if(!description.tasks.empty())
             {
-                ComPtr<IObjectCollection> collection;
-                result = CoCreateInstance(CLSID_EnumerableObjectCollection, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(collection.put()));
+                ComPtr<IObjectArray> taskArray;
+                IO::Types::Status status = createJumpTaskArray(description.tasks, taskArray);
 
-                if(FAILED(result))
+                if(!status.ok())
                 {
-                    return statusFromHResult(result);
+                    return status;
                 }
 
-                for(const Types::JumpLists::Task &task : description.tasks)
-                {
-                    ComPtr<IShellLinkW> link;
-                    IO::Types::Status status = createJumpLink(task, link);
-
-                    if(!status.ok())
-                    {
-                        return status;
-                    }
-
-                    result = collection->AddObject(link.get());
-
-                    if(FAILED(result))
-                    {
-                        return statusFromHResult(result);
-                    }
-                }
-                ComPtr<IObjectArray> objects;
-                result = collection->QueryInterface(IID_PPV_ARGS(objects.put()));
-
-                if(FAILED(result))
-                {
-                    return statusFromHResult(result);
-                }
-
-                result = list->AddUserTasks(objects.get());
+                // Add the completed task array to the user's Jump List.
+                result = list->AddUserTasks(taskArray.get());
 
                 if(FAILED(result))
                 {

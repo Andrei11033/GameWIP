@@ -6,6 +6,8 @@
 #include "desktop/accessibility.h"
 
 #include <atomic>
+#include <cstddef>
+#include <cstdint>
 #include <deque>
 #include <mutex>
 #include <string>

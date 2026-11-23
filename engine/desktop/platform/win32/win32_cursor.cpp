@@ -5,6 +5,7 @@
 
 #include "desktop/platform/cursor.h"
 #include "desktop/internal/cursor_state.h"
+#include "desktop/platform/win32/internal/win32_pixel_helpers.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -57,6 +58,7 @@ namespace GameWIP::Desktop::Platform
         {
             cursor = nullptr;
 
+            // Create the top-down color surface used by the cursor.
             BITMAPV5HEADER header{};
             header.bV5Size = sizeof(header);
             header.bV5Width = static_cast<LONG>(image.size.width);
@@ -102,20 +104,21 @@ namespace GameWIP::Desktop::Platform
 #if defined(__clang__)
 #pragma clang unsafe_buffer_usage end
 #endif
+
+            // Convert each source row into the DIB's packed BGRA layout.
             for(std::size_t row = 0; row < image.size.height; ++row)
             {
                 const std::size_t sourceOffset = row * sourceStride;
                 const std::size_t destinationOffset = row * packedRowBytes;
 
-                for(std::size_t column = 0; column < packedRowBytes; column += 4)
+                if(!Win32::copyRgbaToBgra(image.rgba8.subspan(sourceOffset, packedRowBytes), destination.subspan(destinationOffset, packedRowBytes)))
                 {
-                    destination[destinationOffset + column] = image.rgba8[sourceOffset + column + 2];
-                    destination[destinationOffset + column + 1] = image.rgba8[sourceOffset + column + 1];
-                    destination[destinationOffset + column + 2] = image.rgba8[sourceOffset + column];
-                    destination[destinationOffset + column + 3] = image.rgba8[sourceOffset + column + 3];
+                    DeleteObject(color);
+                    return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
                 }
             }
 
+            // Initialize the monochrome mask required by ICONINFO.
             SetLastError(ERROR_SUCCESS);
             HBITMAP mask = CreateBitmap(static_cast<int>(image.size.width), static_cast<int>(image.size.height), 1, 1, nullptr);
 
@@ -149,6 +152,7 @@ namespace GameWIP::Desktop::Platform
             SelectObject(maskDc, previousMask);
             DeleteDC(maskDc);
 
+            // Create the cursor handle, then release its input bitmaps.
             ICONINFO info{};
             info.fIcon = FALSE;
             info.xHotspot = image.hotspot.x;
@@ -218,6 +222,7 @@ namespace GameWIP::Desktop::Platform
     {
         try
         {
+            // Select the best image and allocate its HWND binding.
             const std::uint32_t dpi = dpiForWindow(window.platform->handle);
             const NativeCursorVariant &variant = cursor->variantForDpi(dpi);
 
@@ -228,6 +233,7 @@ namespace GameWIP::Desktop::Platform
             auto replacement = std::make_unique<CursorBinding>(CursorBinding{std::move(cursor), variant.intendedDpi});
             CursorBinding *previous = cursorBinding(window.platform->handle);
 
+            // Publish the replacement before updating the visible cursor.
             if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::CursorBinding))
             {
                 return IO::makeStatus(IO::Types::ErrorCode::NativeFailure, ERROR_GEN_FAILURE, "injected custom cursor binding failure");
@@ -244,6 +250,8 @@ namespace GameWIP::Desktop::Platform
             {
                 SetCursor(window.platform->cursor);
             }
+
+            // Release the prior binding after the new state is active.
             CursorBinding *published = replacement.release();
             delete previous;
 
@@ -356,6 +364,7 @@ namespace GameWIP::Desktop::Platform
         snapshot.hotspotY = info.yHotspot;
         try
         {
+            // Read the first color pixel for validation inspection.
             BITMAP bitmap{};
 
             if(info.hbmColor != nullptr && GetObjectW(info.hbmColor, sizeof(bitmap), &bitmap) == sizeof(bitmap) && bitmap.bmWidth > 0 &&
@@ -398,6 +407,7 @@ namespace GameWIP::Desktop::Platform
             snapshot.valid = false;
         }
 
+        // Release the bitmaps returned by GetIconInfo.
         if(info.hbmMask != nullptr)
         {
             DeleteObject(info.hbmMask);

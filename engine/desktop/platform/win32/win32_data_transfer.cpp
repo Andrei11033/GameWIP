@@ -601,6 +601,206 @@ namespace GameWIP::Desktop::Platform::DataTransfer
     /// Target materialization
     /// ------------------------------------------------------------
 
+    namespace
+    {
+        /// @brief Decodes a terminated UTF-16 clipboard string into portable UTF-8 text.
+        [[nodiscard]] IO::Types::Status materializeText(const void *raw, std::size_t size, Transfer::Item &out)
+        {
+            if(size < sizeof(wchar_t) || size % sizeof(wchar_t))
+            {
+                return failure(ErrorCode::EncodingFailed);
+            }
+
+            const auto wide = span<const wchar_t>(raw, size / sizeof(wchar_t));
+            const auto end = std::ranges::find(wide, L'\0');
+
+            if(end == wide.end())
+            {
+                return failure(ErrorCode::EncodingFailed);
+            }
+
+            Transfer::Text text;
+            DWORD code = 0;
+
+            if(!utf16ToUtf8({wide.data(), static_cast<std::size_t>(end - wide.begin())}, text.text, code))
+            {
+                return failure(unicodeConversionError(code, ErrorCode::EncodingFailed), code);
+            }
+
+            out = std::move(text);
+            return IO::successStatus();
+        }
+
+        /// @brief Decodes an HDROP path list into portable filesystem paths.
+        [[nodiscard]] IO::Types::Status materializeFiles(HGLOBAL global, Transfer::Item &out)
+        {
+            const UINT count = DragQueryFileW(static_cast<HDROP>(global), 0xFFFFFFFF, nullptr, 0);
+
+            if(!count)
+            {
+                return failure(ErrorCode::EncodingFailed);
+            }
+
+            Transfer::FileList list;
+            list.paths.reserve(count);
+
+            for(UINT index = 0; index < count; ++index)
+            {
+                const UINT length = DragQueryFileW(static_cast<HDROP>(global), index, nullptr, 0);
+
+                if(!length)
+                {
+                    return failure(ErrorCode::EncodingFailed);
+                }
+
+                std::wstring path(length + 1, L'\0');
+
+                if(DragQueryFileW(static_cast<HDROP>(global), index, path.data(), length + 1) != length)
+                {
+                    return failure(ErrorCode::ReadFailed);
+                }
+
+                path.resize(length);
+                std::string validated;
+                DWORD code = 0;
+
+                if(!utf16ToUtf8(path, validated, code))
+                {
+                    return failure(unicodeConversionError(code, ErrorCode::EncodingFailed), code);
+                }
+
+                list.paths.emplace_back(std::move(path));
+            }
+
+            out = std::move(list);
+            return IO::successStatus();
+        }
+
+        /// @brief Copies opaque custom clipboard bytes into the portable value.
+        [[nodiscard]] IO::Types::Status materializeCustom(const void *raw, std::size_t size, const Transfer::Format &format, Transfer::Item &out)
+        {
+            Transfer::CustomData data;
+            data.formatName = format.customName;
+            const auto bytes = span<const std::byte>(raw, size);
+            data.bytes.assign(bytes.begin(), bytes.end());
+            out = std::move(data);
+            return IO::successStatus();
+        }
+
+        /// @brief Decodes a supported DIB layout into tightly packed RGBA8 pixels.
+        [[nodiscard]] IO::Types::Status materializeImage(const void *raw, std::size_t size, Transfer::Item &out)
+        {
+            // Validate the header and supported pixel encodings before reading channel data.
+            if(size < sizeof(BITMAPINFOHEADER))
+            {
+                return failure(ErrorCode::ReadFailed);
+            }
+
+            BITMAPINFOHEADER header{};
+            std::ranges::copy(span<const std::byte>(raw, sizeof(header)), std::as_writable_bytes(std::span{&header, std::size_t{1}}).begin());
+            const bool dimensionsValid = header.biSize >= sizeof(BITMAPINFOHEADER) && header.biSize <= size && header.biWidth > 0 &&
+                                         header.biHeight != 0 && header.biHeight != LONG_MIN;
+            const bool encodingSupported =
+                header.biPlanes == 1 && ((header.biBitCount == 24 && header.biCompression == BI_RGB) ||
+                                         (header.biBitCount == 32 && (header.biCompression == BI_RGB || header.biCompression == BI_BITFIELDS)));
+
+            if(!dimensionsValid)
+            {
+                return failure(ErrorCode::ReadFailed);
+            }
+
+            if(!encodingSupported)
+            {
+                return failure(ErrorCode::Unsupported);
+            }
+
+            const std::size_t width = static_cast<std::size_t>(header.biWidth);
+            const std::size_t height = header.biHeight < 0 ? static_cast<std::size_t>(-header.biHeight) : static_cast<std::size_t>(header.biHeight);
+            std::size_t bits = 0;
+            std::size_t rounded = 0;
+            std::size_t row = 0;
+            std::size_t bytes = 0;
+            std::size_t packed = 0;
+            std::size_t pixelRow = 0;
+            std::size_t pixelOffset = header.biSize;
+            bool explicitAlpha = false;
+            bool masksSupported = true;
+
+            // Accept only the documented RGB channel masks for bitfield DIBs.
+            if(header.biCompression == BI_BITFIELDS && header.biSize == sizeof(BITMAPINFOHEADER))
+            {
+                std::size_t masksEnd = 0;
+
+                if(!add(pixelOffset, 3 * sizeof(DWORD), masksEnd) || masksEnd > size)
+                {
+                    masksSupported = false;
+                }
+                else
+                {
+                    std::array<DWORD, 3> masks{};
+                    std::ranges::copy(
+                        span<const std::byte>(raw, size).subspan(pixelOffset, sizeof(masks)),
+                        std::as_writable_bytes(std::span{masks}).begin());
+                    masksSupported = masks[0] == 0x00FF0000U && masks[1] == 0x0000FF00U && masks[2] == 0x000000FFU;
+                    pixelOffset = masksEnd;
+                }
+            }
+            else if(header.biCompression == BI_BITFIELDS)
+            {
+                if(header.biSize < sizeof(BITMAPV4HEADER))
+                {
+                    masksSupported = false;
+                }
+                else
+                {
+                    BITMAPV4HEADER extended{};
+                    std::ranges::copy(
+                        span<const std::byte>(raw, sizeof(extended)),
+                        std::as_writable_bytes(std::span{&extended, std::size_t{1}}).begin());
+                    masksSupported = extended.bV4RedMask == 0x00FF0000U && extended.bV4GreenMask == 0x0000FF00U &&
+                                     extended.bV4BlueMask == 0x000000FFU && (extended.bV4AlphaMask == 0 || extended.bV4AlphaMask == 0xFF000000U);
+                    explicitAlpha = extended.bV4AlphaMask == 0xFF000000U;
+                }
+            }
+
+            if(!masksSupported)
+            {
+                return failure(ErrorCode::Unsupported);
+            }
+
+            // Check every row and destination extent before converting pixels.
+            if(!multiply(width, header.biBitCount, bits) || !add(bits, 31, rounded) || !multiply((rounded / 32), 4, row) ||
+               !multiply(row, height, bytes) || !multiply(width, 4, pixelRow) || !multiply(pixelRow, height, packed) || pixelOffset > size ||
+               bytes > size - pixelOffset)
+            {
+                return failure(ErrorCode::ReadFailed);
+            }
+
+            Transfer::Image image;
+            image.size = {static_cast<std::uint32_t>(width), static_cast<std::uint32_t>(height)};
+            image.rgba8.resize(packed);
+            const auto source = span<const std::byte>(raw, size).subspan(pixelOffset, bytes);
+
+            for(std::size_t y = 0; y < height; ++y)
+            {
+                const auto sourceRow = source.subspan((header.biHeight < 0 ? y : height - 1 - y) * row, row);
+                auto destinationRow = std::span{image.rgba8}.subspan(y * pixelRow, pixelRow);
+
+                for(std::size_t x = 0; x < width; ++x)
+                {
+                    const std::size_t pixel = x * (header.biBitCount / 8);
+                    destinationRow[x * 4] = sourceRow[pixel + 2];
+                    destinationRow[x * 4 + 1] = sourceRow[pixel + 1];
+                    destinationRow[x * 4 + 2] = sourceRow[pixel];
+                    destinationRow[x * 4 + 3] = explicitAlpha ? sourceRow[pixel + 3] : std::byte{0xFF};
+                }
+            }
+
+            out = std::move(image);
+            return IO::successStatus();
+        }
+    } // namespace
+
     /// @brief Decodes one locked HGLOBAL into a portable data-transfer item.
     IO::Types::Status materializeGlobal(HGLOBAL global, const Transfer::Format &format, Transfer::Item &out) noexcept
     {
@@ -627,173 +827,18 @@ namespace GameWIP::Desktop::Platform::DataTransfer
 
             if(format.kind == Transfer::FormatKind::Text)
             {
-                // Reject unterminated or misaligned UTF-16 before converting foreign clipboard memory.
-                if(size < sizeof(wchar_t) || size % sizeof(wchar_t))
-                {
-                    return failure(ErrorCode::EncodingFailed);
-                }
-                auto wide = span<const wchar_t>(raw, size / sizeof(wchar_t));
-                auto end = std::ranges::find(wide, L'\0');
-
-                if(end == wide.end())
-                {
-                    return failure(ErrorCode::EncodingFailed);
-                }
-                Transfer::Text text;
-                DWORD code = 0;
-
-                if(!utf16ToUtf8({wide.data(), static_cast<std::size_t>(end - wide.begin())}, text.text, code))
-                {
-                    return failure(unicodeConversionError(code, ErrorCode::EncodingFailed), code);
-                }
-                out = std::move(text);
+                return materializeText(raw, size, out);
             }
-            else if(format.kind == Transfer::FormatKind::FileList)
+            if(format.kind == Transfer::FormatKind::FileList)
             {
-                const UINT count = DragQueryFileW(static_cast<HDROP>(global), 0xFFFFFFFF, nullptr, 0);
-
-                if(!count)
-                {
-                    return failure(ErrorCode::EncodingFailed);
-                }
-                Transfer::FileList list;
-                list.paths.reserve(count);
-
-                for(UINT i = 0; i < count; ++i)
-                {
-                    UINT n = DragQueryFileW(static_cast<HDROP>(global), i, nullptr, 0);
-
-                    if(!n)
-                    {
-                        return failure(ErrorCode::EncodingFailed);
-                    }
-                    std::wstring path(n + 1, L'\0');
-
-                    if(DragQueryFileW(static_cast<HDROP>(global), i, path.data(), n + 1) != n)
-                    {
-                        return failure(ErrorCode::ReadFailed);
-                    }
-                    path.resize(n);
-                    std::string validated;
-                    DWORD code = 0;
-
-                    if(!utf16ToUtf8(path, validated, code))
-                    {
-                        return failure(unicodeConversionError(code, ErrorCode::EncodingFailed), code);
-                    }
-                    list.paths.emplace_back(std::move(path));
-                }
-
-                out = std::move(list);
+                return materializeFiles(global, out);
             }
-            else if(format.kind == Transfer::FormatKind::Custom)
+            if(format.kind == Transfer::FormatKind::Custom)
             {
-                Transfer::CustomData data;
-                data.formatName = format.customName;
-                data.bytes.assign(span<const std::byte>(raw, size).begin(), span<const std::byte>(raw, size).end());
-                out = std::move(data);
-            }
-            else
-            {
-                if(size < sizeof(BITMAPINFOHEADER))
-                {
-                    return failure(ErrorCode::ReadFailed);
-                }
-                BITMAPINFOHEADER h{};
-                std::ranges::copy(span<const std::byte>(raw, sizeof(h)), std::as_writable_bytes(std::span{&h, std::size_t{1}}).begin());
-                const bool dimensionsValid =
-                    h.biSize >= sizeof(BITMAPINFOHEADER) && h.biSize <= size && h.biWidth > 0 && h.biHeight != 0 && h.biHeight != LONG_MIN;
-                const bool encodingSupported =
-                    h.biPlanes == 1 && ((h.biBitCount == 24 && h.biCompression == BI_RGB) ||
-                                        (h.biBitCount == 32 && (h.biCompression == BI_RGB || h.biCompression == BI_BITFIELDS)));
-
-                if(!dimensionsValid)
-                {
-                    return failure(ErrorCode::ReadFailed);
-                }
-
-                if(!encodingSupported)
-                {
-                    return failure(ErrorCode::Unsupported);
-                }
-                const std::size_t w = static_cast<std::size_t>(h.biWidth),
-                                  height = h.biHeight < 0 ? static_cast<std::size_t>(-h.biHeight) : static_cast<std::size_t>(h.biHeight);
-                std::size_t bits = 0, rounded = 0, row = 0, bytes = 0, packed = 0, pixelRow = 0;
-                std::size_t pixelOffset = h.biSize;
-                bool explicitAlpha = false;
-                bool masksSupported = true;
-
-                if(h.biCompression == BI_BITFIELDS && h.biSize == sizeof(BITMAPINFOHEADER))
-                {
-                    std::size_t masksEnd = 0;
-
-                    if(!add(pixelOffset, 3 * sizeof(DWORD), masksEnd) || masksEnd > size)
-                    {
-                        masksSupported = false;
-                    }
-                    else
-                    {
-                        std::array<DWORD, 3> masks{};
-                        std::ranges::copy(
-                            span<const std::byte>(raw, size).subspan(pixelOffset, sizeof(masks)),
-                            std::as_writable_bytes(std::span{masks}).begin());
-                        masksSupported = masks[0] == 0x00FF0000U && masks[1] == 0x0000FF00U && masks[2] == 0x000000FFU;
-                        pixelOffset = masksEnd;
-                    }
-                }
-                else if(h.biCompression == BI_BITFIELDS)
-                {
-                    if(h.biSize < sizeof(BITMAPV4HEADER))
-                    {
-                        masksSupported = false;
-                    }
-                    else
-                    {
-                        BITMAPV4HEADER extended{};
-                        std::ranges::copy(
-                            span<const std::byte>(raw, sizeof(extended)),
-                            std::as_writable_bytes(std::span{&extended, std::size_t{1}}).begin());
-                        masksSupported = extended.bV4RedMask == 0x00FF0000U && extended.bV4GreenMask == 0x0000FF00U &&
-                                         extended.bV4BlueMask == 0x000000FFU && (extended.bV4AlphaMask == 0 || extended.bV4AlphaMask == 0xFF000000U);
-                        explicitAlpha = extended.bV4AlphaMask == 0xFF000000U;
-                    }
-                }
-
-                if(!masksSupported)
-                {
-                    return failure(ErrorCode::Unsupported);
-                }
-
-                if(!multiply(w, h.biBitCount, bits) || !add(bits, 31, rounded) || !multiply((rounded / 32), 4, row) ||
-                   !multiply(row, height, bytes) || !multiply(w, 4, pixelRow) || !multiply(pixelRow, height, packed) || pixelOffset > size ||
-                   bytes > size - pixelOffset)
-                {
-                    return failure(ErrorCode::ReadFailed);
-                }
-                Transfer::Image image;
-                image.size = {static_cast<std::uint32_t>(w), static_cast<std::uint32_t>(height)};
-                image.rgba8.resize(packed);
-                auto src = span<const std::byte>(raw, size).subspan(pixelOffset, bytes);
-
-                for(std::size_t y = 0; y < height; ++y)
-                {
-                    auto s = src.subspan((h.biHeight < 0 ? y : height - 1 - y) * row, row);
-                    auto d = std::span{image.rgba8}.subspan(y * pixelRow, pixelRow);
-
-                    for(std::size_t x = 0; x < w; ++x)
-                    {
-                        auto p = x * (h.biBitCount / 8);
-                        d[x * 4] = s[p + 2];
-                        d[x * 4 + 1] = s[p + 1];
-                        d[x * 4 + 2] = s[p];
-                        d[x * 4 + 3] = explicitAlpha ? s[p + 3] : std::byte{0xFF};
-                    }
-                }
-
-                out = std::move(image);
+                return materializeCustom(raw, size, format, out);
             }
 
-            return IO::successStatus();
+            return materializeImage(raw, size, out);
         }
         catch(const std::bad_alloc &)
         {

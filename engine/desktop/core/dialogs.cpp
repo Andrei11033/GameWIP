@@ -3,9 +3,9 @@
 
 #include "desktop/dialogs.h"
 
+#include "desktop/internal/window_state.h"
 #include "desktop/platform/dialogs.h"
 #include "desktop/platform/window.h"
-#include "desktop/internal/window_state.h"
 
 #include <new>
 
@@ -20,6 +20,8 @@ namespace GameWIP::Desktop::Dialogs
         {
             return IO::makeStatus(code);
         }
+
+        // Owner and text validation
 
         /// @brief Rejects embedded NUL characters before text reaches a native dialog API.
         [[nodiscard]] IO::Types::Status validateText(std::string_view text) noexcept
@@ -42,6 +44,8 @@ namespace GameWIP::Desktop::Dialogs
             }
             return Platform::ownedByCurrentThread(*state) ? IO::successStatus() : error(ErrorCode::ResourceBusy);
         }
+
+        // File-filter validation
 
         /// @brief Returns whether an extension is one native-filter-safe filename component.
         [[nodiscard]] bool validExtensionSyntax(std::string_view extension) noexcept
@@ -93,6 +97,8 @@ namespace GameWIP::Desktop::Dialogs
 
             return IO::successStatus();
         }
+
+        // Message and prompt validation
 
         /// @brief Validates the portable severity values accepted by every dialog backend.
         [[nodiscard]] bool validSeverity(Types::Dialogs::Severity severity) noexcept
@@ -346,6 +352,7 @@ namespace GameWIP::Desktop::Dialogs
                 result.status = validateFilters(description.filters, description.preferredFilterIndex);
             }
 
+            // Validate the suggested extension after the shared filters.
             if(result.status.ok() && !description.suggestedExtension.empty())
             {
                 result.status = validateText(description.suggestedExtension);
@@ -431,6 +438,7 @@ namespace GameWIP::Desktop::Dialogs
         Types::Dialogs::Message::Result result;
         try
         {
+            // Validate owner access and the selected button combination.
             result.status = validateOwner(description.owner);
 
             if(result.status.ok() && (!validSeverity(description.severity) || !validMessageButtons(description.buttons) ||
@@ -440,6 +448,7 @@ namespace GameWIP::Desktop::Dialogs
                 result.status = error(ErrorCode::InvalidArgument);
             }
 
+            // Validate visible text before entering the native dialog.
             if(result.status.ok())
             {
                 result.status = validateText(description.title);

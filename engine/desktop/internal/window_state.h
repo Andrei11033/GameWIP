@@ -8,6 +8,8 @@
 #include "desktop/internal/renderer_integration_state.h"
 #include "desktop/window.h"
 
+#include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -192,6 +194,7 @@ namespace GameWIP::Desktop::Internal
     {
         const RendererIntegrationState *renderer = state.rendererIntegration;
 
+        // Use native hit testing when the published mask cannot answer this point.
         if(renderer == nullptr || renderer->pointerHitMask.empty() || renderer->pointerHitMaskActiveGeneration == 0 ||
            renderer->pointerHitMaskSize != state.framebufferSize || state.clientSize.width == 0 || state.clientSize.height == 0 || position.x < 0 ||
            position.y < 0 || static_cast<std::uint32_t>(position.x) >= state.clientSize.width ||
@@ -199,6 +202,8 @@ namespace GameWIP::Desktop::Internal
         {
             return true;
         }
+
+        // Map the logical client point into framebuffer pixels.
         const std::uint64_t x = static_cast<std::uint64_t>(position.x) * state.framebufferSize.width / state.clientSize.width;
         const std::uint64_t y = static_cast<std::uint64_t>(position.y) * state.framebufferSize.height / state.clientSize.height;
 
@@ -207,6 +212,7 @@ namespace GameWIP::Desktop::Internal
             return true;
         }
 
+        // Read the corresponding bit from the packed hit mask.
         constexpr std::uint64_t bitsPerWord = std::numeric_limits<Types::Renderer::PointerHitMaskWord>::digits;
         const std::uint64_t width = state.framebufferSize.width;
         const std::uint64_t wordsPerRow = width / bitsPerWord + (width % bitsPerWord != 0 ? 1U : 0U);

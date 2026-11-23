@@ -153,7 +153,10 @@ namespace GameWIP::Desktop::Accessibility
 
         bool boundedNode(const A::Node &node, const A::Limits &limits, std::uint64_t &bytes)
         {
-            std::uint64_t nodeBytes = 0, values = 0;
+            std::uint64_t nodeBytes = 0;
+            std::uint64_t extensionValues = 0;
+
+            // Bound the node's scalar text and direct child counts.
             const auto string = [&](std::string_view text)
             {
                 if(text.size() > limits.maximumTextBytesPerNode)
@@ -178,6 +181,7 @@ namespace GameWIP::Desktop::Accessibility
                 return false;
             }
 
+            // Bound the combined target count across all relations.
             std::uint64_t targets = 0;
 
             for(const auto &relation : node.relations)
@@ -190,9 +194,10 @@ namespace GameWIP::Desktop::Accessibility
                 }
             }
 
+            // Bound nested extension depth, count, and text.
             const auto extension = [&](const auto &self, const A::ExtensionValue &value, std::uint32_t depth) -> bool
             {
-                if(depth > limits.maximumExtensionDepth || ++values > limits.maximumExtensionValuesPerNode)
+                if(depth > limits.maximumExtensionDepth || ++extensionValues > limits.maximumExtensionValuesPerNode)
                 {
                     return false;
                 }
@@ -229,6 +234,7 @@ namespace GameWIP::Desktop::Accessibility
                 }
             }
 
+            // Bound optional selection and text payloads.
             if(node.selection && node.selection->selectedNodes.size() > limits.maximumNodes)
             {
                 return false;
@@ -328,6 +334,7 @@ namespace GameWIP::Desktop::Accessibility
 
     IO::Types::Status SnapshotBuilder::addNode(const A::Node &node) noexcept
     {
+        // Validate limits and the node's identity before allocating.
         if(validate({}, limits_).issue == A::ValidationIssue::InvalidLimits || node.id == 0)
         {
             return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
@@ -344,6 +351,8 @@ namespace GameWIP::Desktop::Accessibility
             {
                 return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
             }
+
+            // Check per-node and aggregate copy budgets before deep-copying views.
             std::uint64_t bytes = state_ ? state_->textBytes : 0;
 
             if(!boundedNode(node, limits_, bytes))
@@ -352,6 +361,7 @@ namespace GameWIP::Desktop::Accessibility
             }
             auto owned = std::make_shared<Internal::OwnedAccessibilityNode>(node);
 
+            // Reserve every indexed container before committing the new node.
             if(!state_)
             {
                 state_ = std::make_unique<Internal::SnapshotBuilderState>();
@@ -365,6 +375,7 @@ namespace GameWIP::Desktop::Accessibility
                 state_->nodes.reserve(capacity);
             }
 
+            // Publish ownership, the borrowed node view, and its ID together.
             state_->nodeIds.insert(node.id);
             state_->owned.push_back(std::move(owned));
             state_->nodes.push_back(state_->owned.back()->node);

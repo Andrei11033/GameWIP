@@ -2,6 +2,7 @@
 /// @brief Shared state and pixel conversion for Desktop's Win32 shell features.
 
 #include "desktop/platform/shell.h"
+#include "desktop/platform/win32/internal/win32_pixel_helpers.h"
 #include "desktop/platform/win32/internal/win32_shell_helpers.h"
 #include "desktop/platform/win32/internal/win32_unicode.h"
 #include "desktop/platform/win32/internal/win32_window_backend.h"
@@ -11,6 +12,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <span>
 #include <string>
 
 namespace GameWIP::Desktop::Platform
@@ -77,26 +79,22 @@ namespace GameWIP::Desktop::Platform
 
     namespace Win32
     {
-        void copyRgbaToBgra(std::span<const std::byte> source, std::byte *destination) noexcept
-        {
-            for(std::size_t offset = 0; offset < source.size(); offset += 4)
-            {
-                const std::array<std::byte, 4> pixel{source[offset + 2], source[offset + 1], source[offset], source[offset + 3]};
-                destination = std::copy(pixel.begin(), pixel.end(), destination);
-            }
-        }
-
         HICON createIcon(const OwnedIconImage &image) noexcept
         {
-            if(image.size.width == 0 || image.size.height == 0 || image.rgba8.empty())
+            return createIcon(image.size, image.rgba8);
+        }
+
+        HICON createIcon(Types::PixelSize size, std::span<const std::byte> rgba8) noexcept
+        {
+            if(size.width == 0 || size.height == 0 || rgba8.empty())
             {
                 return nullptr;
             }
 
             BITMAPV5HEADER header{};
             header.bV5Size = sizeof(header);
-            header.bV5Width = static_cast<LONG>(image.size.width);
-            header.bV5Height = -static_cast<LONG>(image.size.height);
+            header.bV5Width = static_cast<LONG>(size.width);
+            header.bV5Height = -static_cast<LONG>(size.height);
             header.bV5Planes = 1;
             header.bV5BitCount = 32;
             header.bV5Compression = BI_BITFIELDS;
@@ -124,8 +122,20 @@ namespace GameWIP::Desktop::Platform
 
                 return nullptr;
             }
-            copyRgbaToBgra(image.rgba8, static_cast<std::byte *>(pixels));
-            HBITMAP mask = CreateBitmap(static_cast<int>(image.size.width), static_cast<int>(image.size.height), 1, 1, nullptr);
+#if defined(__clang__)
+#pragma clang unsafe_buffer_usage begin
+#endif
+            std::span<std::byte> destination(static_cast<std::byte *>(pixels), rgba8.size());
+#if defined(__clang__)
+#pragma clang unsafe_buffer_usage end
+#endif
+
+            if(!copyRgbaToBgra(rgba8, destination))
+            {
+                DeleteObject(color);
+                return nullptr;
+            }
+            HBITMAP mask = CreateBitmap(static_cast<int>(size.width), static_cast<int>(size.height), 1, 1, nullptr);
 
             if(mask == nullptr)
             {

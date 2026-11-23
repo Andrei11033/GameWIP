@@ -54,15 +54,20 @@ namespace GameWIP::Desktop::Platform
     /// @brief Owns one modeless progress HWND and its child controls.
     struct ProgressDialogData
     {
+        // Dialog ownership
         ProgressDialogState *owner = nullptr;
+        HWND nativeOwner = nullptr;
+        DWORD ownerThreadId = 0;
+
+        // Native window and controls
         HINSTANCE instance = nullptr;
         HWND handle = nullptr;
         HWND heading = nullptr;
         HWND message = nullptr;
         HWND progress = nullptr;
         HWND cancel = nullptr;
-        HWND nativeOwner = nullptr;
-        DWORD ownerThreadId = 0;
+
+        // Registration and teardown state
         bool classReferenceHeld = false;
         bool registered = false;
         bool blockingOwner = false;
@@ -520,6 +525,7 @@ namespace GameWIP::Desktop::Platform
         /// @brief Destroys native progress resources and reports whether portable cleanup completed.
         [[nodiscard]] ProgressCloseResult finalizeNative(ProgressDialogState &state, bool restoreOwner) noexcept
         {
+            // Restore an owner retained after unexpected native destruction.
             if(state.ownerRestorePending && restoreOwner)
             {
                 IO::Types::Status restore = restoreOwnerAfterRemoval(state);
@@ -531,6 +537,7 @@ namespace GameWIP::Desktop::Platform
             }
             cancelProgressOwnerRestore(state);
 
+            // Destroy the live window before releasing state reachable by its procedure.
             if(!state.platform)
             {
                 state.nativeDestroyedPendingFinalize = true;
@@ -556,6 +563,7 @@ namespace GameWIP::Desktop::Platform
                 }
             }
 
+            // Remove dispatcher tracking and restore owner interaction.
             if(data.registered)
             {
                 unregisterOpenProgressDialog(state);
@@ -577,6 +585,7 @@ namespace GameWIP::Desktop::Platform
             state.cancelRequested = false;
             state.nativeDestroyedPendingFinalize = true;
 
+            // Release the shared window class before freeing native state.
             if(data.classReferenceHeld)
             {
                 IO::Types::Status status = releaseProgressClass();
@@ -659,6 +668,8 @@ namespace GameWIP::Desktop::Platform
         {
             return;
         }
+
+        // Detach portable callback ownership before native teardown.
         ProgressDialogState *portableOwner = data->owner;
         data->owner = nullptr;
         const bool onOwnerThread = data->ownerThreadId == GetCurrentThreadId();
@@ -786,6 +797,7 @@ namespace GameWIP::Desktop::Platform
     {
         try
         {
+            // Convert user text before acquiring native resources.
             std::wstring title;
             std::wstring heading;
             std::wstring message;
@@ -809,6 +821,8 @@ namespace GameWIP::Desktop::Platform
             {
                 return status;
             }
+
+            // Bind the native dialog to its owner and acquire the shared class.
             auto data = std::unique_ptr<ProgressDialogData, ProgressDialogDataDeleter>(new ProgressDialogData);
             data->owner = &state;
             data->ownerThreadId = GetCurrentThreadId();
@@ -835,6 +849,7 @@ namespace GameWIP::Desktop::Platform
             state.platform = std::move(data);
             ProgressDialogData &native = *state.platform;
 
+            // Initialize common controls and calculate the native window bounds.
             INITCOMMONCONTROLSEX controls{sizeof(controls), ICC_PROGRESS_CLASS};
 
             if(InitCommonControlsEx(&controls) == FALSE)
@@ -848,6 +863,8 @@ namespace GameWIP::Desktop::Platform
             {
                 return statusFromWin32(IO::Types::ErrorCode::OpenFailed, GetLastError(), "AdjustWindowRectExForDpi ProgressDialog");
             }
+
+            // Create and register the top-level dialog.
 #if DESKTOP_INTERNAL_TEST_HOOKS
             const bool failNativeCreation = Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::NativeCreation);
 #else
@@ -880,6 +897,7 @@ namespace GameWIP::Desktop::Platform
             registerOpenProgressDialog(state);
             native.registered = true;
 
+            // Create child controls and preserve the first native failure.
             DWORD controlCreationError = ERROR_SUCCESS;
             native.heading = CreateWindowExW(
                 0,
@@ -976,6 +994,7 @@ namespace GameWIP::Desktop::Platform
                     "create ProgressDialog controls");
             }
 
+            // Configure fonts and initialize the progress range.
             HFONT font = static_cast<HFONT>(GetStockObject(DEFAULT_GUI_FONT));
             SendMessageW(native.heading, WM_SETFONT, reinterpret_cast<WPARAM>(font), TRUE);
             SendMessageW(native.message, WM_SETFONT, reinterpret_cast<WPARAM>(font), TRUE);
@@ -986,6 +1005,7 @@ namespace GameWIP::Desktop::Platform
             }
             SendMessageW(native.progress, PBM_SETRANGE32, 0, kProgressRange);
 
+            // Apply the initial mode and layout.
             status = applyProgressMode(state, state.mode);
 
             if(!status.ok())
@@ -1002,6 +1022,7 @@ namespace GameWIP::Desktop::Platform
                 return status;
             }
 
+            // Block the Window owner only after native setup is complete.
             if(state.ownerId.isValid() && state.blocksOwner)
             {
 #if DESKTOP_INTERNAL_TEST_HOOKS
@@ -1021,6 +1042,7 @@ namespace GameWIP::Desktop::Platform
                 state.platform->blockingOwner = true;
             }
 
+            // Show the completed dialog without activating it.
             ShowWindow(state.platform->handle, SW_SHOWNOACTIVATE);
 
             if(UpdateWindow(state.platform->handle) == FALSE)

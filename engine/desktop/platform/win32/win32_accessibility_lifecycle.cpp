@@ -26,6 +26,8 @@ namespace GameWIP::Desktop::Platform
             {
                 return;
             }
+
+            // Build queries against the snapshots on each side of the change.
             const auto beforeIndex = event.before->findIndex(event.notification.node), afterIndex = event.after->findIndex(event.notification.node);
 
             if(beforeIndex >= event.before->storage.nodes.size() || afterIndex >= event.after->storage.nodes.size())
@@ -50,6 +52,7 @@ namespace GameWIP::Desktop::Platform
                 return;
             }
 
+            // Apply the latest exposure rules to both values before announcing a change.
             if(after.node->exposure == A::Exposure::RedactContent || currentNode->exposure == A::Exposure::RedactContent)
             {
                 protectedBefore.exposure = A::Exposure::RedactContent;
@@ -73,6 +76,7 @@ namespace GameWIP::Desktop::Platform
             after.node = &protectedAfter;
             VARIANT oldValue{}, newValue{};
 
+            // Raise the event only when both snapshot values can be read.
             if(SUCCEEDED(property(before, id, &oldValue)) && SUCCEEDED(property(after, id, &newValue)))
             {
                 static_cast<void>(UiaRaiseAutomationPropertyChangedEvent(provider, id, oldValue, newValue));
@@ -96,6 +100,8 @@ namespace GameWIP::Desktop::Platform
             {
                 return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
             }
+
+            // Allocate the native state and bounded text-range pool.
             auto native = std::make_shared<UiaState>();
             native->ranges.reserve(runtime->limits.maximumNativeTextRanges);
 
@@ -104,10 +110,13 @@ namespace GameWIP::Desktop::Platform
                 native->ranges.push_back(std::make_unique<TextRangeProvider>());
             }
 
+            // Load the optional announcement entry point.
             if(const auto module = GetModuleHandleW(L"uiautomationcore.dll"))
             {
                 native->raiseNotification = Base::Win32::loadProcedure<RaiseNotification>(module, "UiaRaiseNotificationEvent");
             }
+
+            // Publish host linkage and supported accessibility features.
             runtime->nativeThread = data->ownerThreadId;
             runtime->hostEnabled.store(IsWindowEnabled(data->handle) != FALSE);
             runtime->nativeWindow.store(reinterpret_cast<std::uintptr_t>(data->handle));
@@ -147,6 +156,7 @@ namespace GameWIP::Desktop::Platform
                 }
             }
 
+            // Enforce the provider limit before allocating snapshot state.
             if(missing > runtime->limits.maximumNativeProviders - native.providers.size())
             {
                 return IO::makeStatus(IO::Types::ErrorCode::SizeLimitExceeded);
@@ -157,6 +167,7 @@ namespace GameWIP::Desktop::Platform
             result->layout.resize(snapshot.storage.nodes.size());
             result->annotationSources.resize(snapshot.storage.nodes.size(), {snapshot.storage.nodes.size(), 0});
 
+            // Index annotation owners for constant-time node lookup.
             for(std::size_t i = 0; i < snapshot.storage.nodes.size(); ++i)
             {
                 if(const auto &text = snapshot.storage.nodes[i].text)
@@ -176,6 +187,7 @@ namespace GameWIP::Desktop::Platform
                 }
             }
 
+            // Prepare new provider identities under temporary ownership.
             struct Additions
             {
                 std::map<A::NodeId, NodeProvider *> values;
@@ -188,30 +200,25 @@ namespace GameWIP::Desktop::Platform
                     }
                 }
             } additions;
-            try
+
+            for(const auto &node : snapshot.storage.nodes)
             {
-                for(const auto &node : snapshot.storage.nodes)
+                if(!native.providers.contains(node.id))
                 {
-                    if(!native.providers.contains(node.id))
+                    auto *provider = new NodeProvider(runtime, node.id, node.id == snapshot.storage.root);
+                    try
                     {
-                        auto *provider = new NodeProvider(runtime, node.id, node.id == snapshot.storage.root);
-                        try
-                        {
-                            additions.values.emplace(node.id, provider);
-                        }
-                        catch(...)
-                        {
-                            provider->Release();
-                            throw;
-                        }
+                        additions.values.emplace(node.id, provider);
+                    }
+                    catch(...)
+                    {
+                        provider->Release();
+                        throw;
                     }
                 }
             }
-            catch(...)
-            {
-                throw;
-            }
 
+            // Build cached layout and tree traversal order.
             std::vector<A::NodeId> pending;
             pending.reserve(snapshot.storage.nodes.size());
             pending.push_back(snapshot.storage.root);
@@ -260,6 +267,7 @@ namespace GameWIP::Desktop::Platform
                 }
             }
 
+            // Close each subtree interval from the last descendant upward.
             for(auto index = traversal.rbegin(); index != traversal.rend(); ++index)
             {
                 if(const auto parent = snapshot.storage.nodes[*index].parent; parent != 0)
@@ -269,9 +277,10 @@ namespace GameWIP::Desktop::Platform
                 }
             }
 
-            // No fallible work after the identity registry merge: map node transfer does not allocate.
+            // Transfer provider ownership only after fallible snapshot work is complete.
             native.providers.merge(additions.values);
 
+            // Retain providers and cached text for the published snapshot.
             for(const auto &node : snapshot.storage.nodes)
             {
                 auto *provider = static_cast<IRawElementProviderSimple *>(native.providers.find(node.id)->second);
@@ -369,10 +378,13 @@ namespace GameWIP::Desktop::Platform
 
     void deliverAccessibilityNotification(AccessibilityRuntime &runtime, const AccessibilityPendingNotification &event) noexcept
     {
+        // Ignore stale notifications and work no accessibility client requested.
         if(!runtime.live.load() || !event.after || !UiaClientsAreListening())
         {
             return;
         }
+
+        // Resolve the provider and node retained by this notification.
         auto *provider = providerFor(*event.after, event.notification.node);
 
         if(!provider)
@@ -387,6 +399,7 @@ namespace GameWIP::Desktop::Platform
             return;
         }
 
+        // Suppress events for nodes removed from the current tree.
         const auto currentSnapshot = runtime.snapshot.load();
         const auto *currentNode = currentSnapshot ? currentSnapshot->find(node->id) : nullptr;
 

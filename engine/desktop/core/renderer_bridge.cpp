@@ -2,6 +2,7 @@
 /// @brief Owner-thread renderer bridge state transitions.
 
 #include "desktop/renderer_bridge.h"
+
 #include "base/checked_arithmetic.h"
 
 #include "desktop/internal/desktop_test_hooks.h"
@@ -78,6 +79,7 @@ namespace GameWIP::Desktop::Renderer
 
         try
         {
+            // Snapshot owner-thread values before exposing the concurrent read view.
             auto publication = std::make_unique<Internal::PresentationPublicationState>();
             Internal::publishCachedPresentationState(*publication, *state);
             const Internal::RendererIntegrationState *renderer = Internal::WindowAccess::rendererIntegration(window);
@@ -128,6 +130,7 @@ namespace GameWIP::Desktop::Renderer
 
         if(renderer == nullptr)
         {
+            // Allocate the optional bridge only after capability validation.
             renderer = ensureIntegration(window);
         }
 
@@ -288,6 +291,7 @@ namespace GameWIP::Desktop::Renderer
             return {.status = IO::makeStatus(IO::Types::ErrorCode::InvalidArgument)};
         }
 
+        // Reserve the generation and dimensions for the next publication.
         const std::uint64_t generation = ++renderer->pointerHitMaskGeneration;
         renderer->pointerHitMaskTargetGeneration = generation;
         renderer->pointerHitMaskTargetSize = state->framebufferSize;
@@ -320,6 +324,8 @@ namespace GameWIP::Desktop::Renderer
         {
             return IO::makeStatus(IO::Types::ErrorCode::Interrupted);
         }
+
+        // Verify the reserved generation and target size before reading mask data.
         const Types::PixelSize size = renderer->pointerHitMaskTargetSize;
         const std::size_t required = renderer->pointerHitMaskTargetWordCount;
 
@@ -332,6 +338,7 @@ namespace GameWIP::Desktop::Renderer
         const std::size_t wordsPerRow = static_cast<std::size_t>(size.width) / bitsPerWord + (size.width % bitsPerWord != 0 ? 1U : 0U);
         const unsigned int validBitsInLastWord = static_cast<unsigned int>(size.width % bitsPerWord);
 
+        // Reject nonzero padding bits at the end of each framebuffer row.
         if(validBitsInLastWord != 0)
         {
             const Types::Renderer::PointerHitMaskWord validBits =
@@ -351,14 +358,11 @@ namespace GameWIP::Desktop::Renderer
         if(renderer->pointerHitMask.size() == required)
         {
             std::copy(words.begin(), words.end(), renderer->pointerHitMask.begin());
-            renderer->pointerHitMaskActiveGeneration = generation;
-            renderer->pointerHitMaskSize = size;
-            renderer->pointerHitMaskTargetGeneration = 0;
-            renderer->pointerHitMaskTargetSize = {};
-            renderer->pointerHitMaskTargetWordCount = 0;
+            renderer->commitPointerHitMask(generation, size);
             return IO::successStatus();
         }
 
+        // Allocate a replacement before discarding the currently published mask.
         try
         {
             if(Internal::consumeFailure(Internal::TestHooks::FailurePoint::Allocation))
@@ -367,11 +371,7 @@ namespace GameWIP::Desktop::Renderer
             }
             std::vector<Types::Renderer::PointerHitMaskWord> replacement(words.begin(), words.end());
             renderer->pointerHitMask.swap(replacement);
-            renderer->pointerHitMaskActiveGeneration = generation;
-            renderer->pointerHitMaskSize = size;
-            renderer->pointerHitMaskTargetGeneration = 0;
-            renderer->pointerHitMaskTargetSize = {};
-            renderer->pointerHitMaskTargetWordCount = 0;
+            renderer->commitPointerHitMask(generation, size);
             return IO::successStatus();
         }
         catch(const std::bad_alloc &)

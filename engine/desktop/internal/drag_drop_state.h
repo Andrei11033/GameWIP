@@ -5,6 +5,7 @@
 
 #include "desktop/drag_drop.h"
 
+#include <cstddef>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -48,15 +49,20 @@ namespace GameWIP::Desktop::Internal
         /// @brief Clears FIFO and movement indexes before releasing event storage.
         void clearRetainedEvents() noexcept
         {
+            // Release queued payloads while the retained storage view is valid.
             for(std::size_t slot = eventHead; slot != noSlot; slot = queueNext[slot])
             {
                 eventStorage[slot] = {};
             }
+
+            // Reset all list heads and the active count.
             eventHead = noSlot;
             eventTail = noSlot;
             movementHead = noSlot;
             movementTail = noSlot;
             eventCount = 0;
+
+            // Clear the storage view and intrusive indexes.
             eventStorage = {};
             queueNext = {};
             queuePrevious = {};

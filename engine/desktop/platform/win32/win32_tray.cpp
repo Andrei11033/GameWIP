@@ -3,6 +3,7 @@
 
 #include "desktop/internal/desktop_test_hooks.h"
 #include "desktop/platform/shell.h"
+#include "desktop/platform/win32/internal/win32_pixel_helpers.h"
 #include "desktop/platform/win32/internal/win32_shell_helpers.h"
 #include "desktop/platform/win32/internal/win32_window_backend.h"
 #include "desktop/platform/win32/internal/win32_unicode.h"
@@ -16,6 +17,7 @@
 #include <cstdint>
 #include <new>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -45,6 +47,44 @@ namespace GameWIP::Desktop::Platform
             HICON icon = nullptr;
             UINT taskbarCreatedMessage = 0;
             bool version4 = false;
+        };
+
+        /// @brief Destroys a submenu until ownership passes to its parent menu.
+        class MenuOwner final
+        {
+        public:
+            MenuOwner() noexcept = default;
+            MenuOwner(const MenuOwner &) = delete;
+            MenuOwner &operator=(const MenuOwner &) = delete;
+
+            ~MenuOwner() noexcept
+            {
+                reset();
+            }
+
+            [[nodiscard]] HMENU get() const noexcept
+            {
+                return value_;
+            }
+
+            void reset(HMENU value = nullptr) noexcept
+            {
+                if(value_ != nullptr)
+                {
+                    DestroyMenu(value_);
+                }
+                value_ = value;
+            }
+
+            [[nodiscard]] HMENU release() noexcept
+            {
+                HMENU value = value_;
+                value_ = nullptr;
+                return value;
+            }
+
+        private:
+            HMENU value_ = nullptr;
         };
 
         inline constexpr wchar_t kTrayWindowClassName[] = L"GameWIP.Shell.TrayMessage";
@@ -90,7 +130,19 @@ namespace GameWIP::Desktop::Platform
 
                 return nullptr;
             }
-            copyRgbaToBgra(image.rgba8, static_cast<std::byte *>(pixels));
+#if defined(__clang__)
+#pragma clang unsafe_buffer_usage begin
+#endif
+            std::span<std::byte> destination(static_cast<std::byte *>(pixels), image.rgba8.size());
+#if defined(__clang__)
+#pragma clang unsafe_buffer_usage end
+#endif
+
+            if(!copyRgbaToBgra(image.rgba8, destination))
+            {
+                DeleteObject(bitmap);
+                return nullptr;
+            }
             return bitmap;
         }
 
@@ -157,34 +209,25 @@ namespace GameWIP::Desktop::Platform
                     info.fType |= MFT_RADIOCHECK;
                 }
                 info.dwTypeData = text.data();
-                HMENU submenu = nullptr;
+                MenuOwner submenu;
 
                 // Recursively build submenus; leaf items retain their command ID.
                 if(item.kind == Types::Tray::MenuItemKind::Submenu)
                 {
-                    submenu = CreatePopupMenu();
+                    submenu.reset(CreatePopupMenu());
 
-                    if(submenu == nullptr)
+                    if(submenu.get() == nullptr)
                     {
                         return false;
                     }
 
-                    try
+                    if(!appendMenuItems(submenu.get(), item.children, bitmaps))
                     {
-                        if(!appendMenuItems(submenu, item.children, bitmaps))
-                        {
-                            DestroyMenu(submenu);
-                            return false;
-                        }
-                    }
-                    catch(...)
-                    {
-                        DestroyMenu(submenu);
-                        throw;
+                        return false;
                     }
 
                     info.fMask |= MIIM_SUBMENU;
-                    info.hSubMenu = submenu;
+                    info.hSubMenu = submenu.get();
                 }
                 else
                 {
@@ -218,13 +261,9 @@ namespace GameWIP::Desktop::Platform
 
                 if(InsertMenuItemW(menu, static_cast<UINT>(-1), TRUE, &info) == FALSE)
                 {
-                    if(submenu != nullptr)
-                    {
-                        DestroyMenu(submenu);
-                    }
-
                     return false;
                 }
+                static_cast<void>(submenu.release());
             }
 
             return true;

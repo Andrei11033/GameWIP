@@ -3,11 +3,11 @@
 
 #include "desktop/child_surface.h"
 
-#include "desktop/platform/child_surface.h"
 #include "desktop/internal/child_surface_state.h"
-#include "desktop/platform/window.h"
-#include "desktop/internal/window_state.h"
 #include "desktop/internal/desktop_test_hooks.h"
+#include "desktop/internal/window_state.h"
+#include "desktop/platform/child_surface.h"
+#include "desktop/platform/window.h"
 
 #include <cmath>
 #include <new>
@@ -128,6 +128,7 @@ namespace GameWIP::Desktop
         const Types::ChildSurface::Description &description,
         Types::ChildSurface::QueueConfiguration queue) noexcept
     {
+        // Validate the wrapper and requested queue storage.
         if(state_)
         {
             return error(ErrorCode::AlreadyOpen);
@@ -141,6 +142,7 @@ namespace GameWIP::Desktop
             return error(ErrorCode::InvalidArgument);
         }
 
+        // Require a live parent owned by the calling thread.
         Internal::WindowState *parentState = Internal::WindowAccess::state(parent);
 
         if(parentState == nullptr || !Platform::hasLiveNativeWindow(*parentState))
@@ -160,6 +162,7 @@ namespace GameWIP::Desktop
 
         try
         {
+            // Allocate state and bind the selected event-storage policy.
             auto candidate = std::make_unique<Internal::ChildSurfaceState>();
             initializeCachedState(*candidate, description);
 
@@ -180,6 +183,8 @@ namespace GameWIP::Desktop
             }
 
             candidate->parentId = parentState->id;
+
+            // Open the native surface before publishing the candidate state.
             IO::Types::Status status = Platform::openChildSurface(*candidate, *parentState);
             if(!status.ok())
             {
@@ -222,6 +227,7 @@ namespace GameWIP::Desktop
 
     IO::Types::Status ChildSurface::close() noexcept
     {
+        // Release portable state when no native cleanup remains.
         if(!isOpen() && (!state_ || !state_->nativeDestroyedPendingFinalize))
         {
             if(state_)
@@ -232,6 +238,7 @@ namespace GameWIP::Desktop
             return IO::successStatus();
         }
 
+        // Native teardown must run on the surface's owner thread.
         if(owned(state_.get()) == nullptr)
         {
             return error(ErrorCode::ResourceBusy);
@@ -239,6 +246,7 @@ namespace GameWIP::Desktop
 
         Platform::CloseResult result = Platform::closeChildSurface(*state_);
 
+        // Retain state only when the backend still owns a native resource.
         if(result.resourceClosed)
         {
             releaseEventStorage(*state_);

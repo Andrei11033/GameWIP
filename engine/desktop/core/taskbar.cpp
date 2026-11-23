@@ -4,10 +4,10 @@
 #include "desktop/shell_taskbar.h"
 
 #include "desktop/internal/shell_helpers.h"
-#include "desktop/platform/shell.h"
 #include "desktop/internal/shell_state.h"
-#include "desktop/platform/window.h"
 #include "desktop/internal/window_state.h"
+#include "desktop/platform/shell.h"
+#include "desktop/platform/window.h"
 
 #include <cstdint>
 #include <limits>
@@ -131,22 +131,12 @@ namespace GameWIP::Desktop
             return IO::makeStatus(code);
         }
 
-        /// @brief Releases the event-queue binding retained by one taskbar item.
-        void releaseTaskbarQueue(TaskbarItemState &state) noexcept
-        {
-            Internal::unbindQueue(state.eventQueue);
-            state.eventQueue = nullptr;
-        }
-
         /// @brief Validates an open taskbar item and its owner-thread access.
         [[nodiscard]] IO::Types::Status requireOwnedTaskbar(TaskbarItemState *state, bool owned) noexcept
         {
-            if(state == nullptr || !state->open || state->platform == nullptr || state->window == nullptr)
-            {
-                return error(ErrorCode::NotOpen);
-            }
-
-            return owned ? IO::successStatus() : error(ErrorCode::ResourceBusy);
+            return Internal::requireOwnedShellResource(
+                state != nullptr && state->open && state->platform != nullptr && state->window != nullptr,
+                owned);
         }
     } // namespace
 
@@ -354,7 +344,7 @@ namespace GameWIP::Desktop
             state_->window->taskbarItem = nullptr;
         }
 
-        releaseTaskbarQueue(*state_);
+        Internal::unbindQueue(state_->eventQueue);
         state_.reset();
         return IO::successStatus();
     }

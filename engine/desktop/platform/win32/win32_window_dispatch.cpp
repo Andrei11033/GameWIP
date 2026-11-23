@@ -9,12 +9,38 @@
 
 namespace GameWIP::Desktop::Platform
 {
+    namespace
+    {
+        /// @brief Clears the active pump marker on every return path.
+        class ActivePumpScope final
+        {
+        public:
+            explicit ActivePumpScope(Dispatcher &dispatcher) noexcept
+                : dispatcher_(dispatcher)
+            {
+            }
+
+            ~ActivePumpScope() noexcept
+            {
+                dispatcher_.activeResult = nullptr;
+                dispatcher_.pumping = false;
+            }
+
+            ActivePumpScope(const ActivePumpScope &) = delete;
+            ActivePumpScope &operator=(const ActivePumpScope &) = delete;
+
+        private:
+            Dispatcher &dispatcher_;
+        };
+    } // namespace
+
     /// @brief Pumps the owner-thread dispatcher and optionally waits for native input.
     Types::Events::PumpResult pumpEvents(std::chrono::milliseconds timeout, bool wait) noexcept
     {
         Dispatcher &current = dispatcher();
         Types::Events::PumpResult result;
 
+        // Reject reentrant pumps and injected failures before publishing active state.
         if(current.pumping)
         {
             result.status = IO::makeStatus(IO::Types::ErrorCode::ResourceBusy);
@@ -29,7 +55,9 @@ namespace GameWIP::Desktop::Platform
 
         current.pumping = true;
         current.activeResult = &result;
+        const ActivePumpScope activePump(current);
 
+        // Surface deferred cleanup failures before considering a blocking wait.
         if(current.deferredPumpFailure)
         {
             result.status = std::move(*current.deferredPumpFailure);
@@ -40,19 +68,17 @@ namespace GameWIP::Desktop::Platform
         // enter a blocking wait after an error is ready to return.
         if(!result.status.ok())
         {
-            current.activeResult = nullptr;
-            current.pumping = false;
             return result;
         }
 
+        // Avoid waiting when no native message source is active.
         if(current.windows.empty() && current.childSurfaces.empty() && (!current.progressDialogs || current.progressDialogs->empty()) &&
            !hasShellEventSources())
         {
-            current.activeResult = nullptr;
-            current.pumping = false;
             return result;
         }
 
+        // Pending UI Automation actions must be drained without blocking.
         bool accessibilityPending = false;
 
         for(const WindowState *state : current.windows)
@@ -83,20 +109,17 @@ namespace GameWIP::Desktop::Platform
             if(waitResult == WAIT_TIMEOUT)
             {
                 result.timedOut = true;
-                current.activeResult = nullptr;
-                current.pumping = false;
                 return result;
             }
 
             if(waitResult == WAIT_FAILED)
             {
                 result.status = statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "MsgWaitForMultipleObjectsEx");
-                current.activeResult = nullptr;
-                current.pumping = false;
                 return result;
             }
         }
 
+        // Drain queued native messages and retain display-change state.
         bool receivedDisplayChange = false;
         MSG message{};
         const UINT wake = wakeMessage();
@@ -130,6 +153,7 @@ namespace GameWIP::Desktop::Platform
 
         const bool displayColorChanged = consumeDisplayColorConfigurationChange();
 
+        // Synthesize color-change events when Windows omitted WM_DISPLAYCHANGE.
         if(!receivedDisplayChange && displayColorChanged)
         {
             for(WindowState *state : current.windows)
@@ -141,6 +165,7 @@ namespace GameWIP::Desktop::Platform
             }
         }
 
+        // Publish deferred accessibility state and refresh relative cursors.
         for(WindowState *state : current.windows)
         {
             if(state != nullptr)
@@ -159,8 +184,6 @@ namespace GameWIP::Desktop::Platform
                 }
             }
         }
-        current.activeResult = nullptr;
-        current.pumping = false;
         return result;
     }
 } // namespace GameWIP::Desktop::Platform

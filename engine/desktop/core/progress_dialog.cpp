@@ -4,13 +4,14 @@
 #include "desktop/dialogs.h"
 
 #include "desktop/internal/desktop_test_hooks.h"
+#include "desktop/internal/window_state.h"
 #include "desktop/platform/dialogs.h"
 #include "desktop/platform/window.h"
-#include "desktop/internal/window_state.h"
 
 #include <atomic>
 #include <cmath>
 #include <new>
+#include <utility>
 
 namespace GameWIP::Desktop
 {
@@ -114,6 +115,7 @@ namespace GameWIP::Desktop
             return error(ErrorCode::AlreadyOpen);
         }
 
+        // Validate progress values and visible text before native setup.
         if(!validMode(description.presentationMode) || !std::isfinite(description.progress) || description.progress < 0.0 ||
            description.progress > 1.0)
         {
@@ -129,6 +131,7 @@ namespace GameWIP::Desktop
             }
         }
 
+        // Validate the optional owner Window and its calling thread.
         Internal::WindowState *ownerState = nullptr;
 
         if(description.owner != nullptr)
@@ -148,6 +151,7 @@ namespace GameWIP::Desktop
 
         try
         {
+            // Open a private candidate and publish it only after native setup succeeds.
             if(Internal::consumeFailure(Internal::TestHooks::FailurePoint::Allocation))
             {
                 return error(ErrorCode::OutOfMemory);

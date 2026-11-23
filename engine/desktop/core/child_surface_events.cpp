@@ -3,6 +3,8 @@
 
 #include "desktop/internal/child_surface_state.h"
 
+#include <utility>
+
 namespace GameWIP::Desktop::Internal
 {
     namespace
@@ -57,6 +59,7 @@ namespace GameWIP::Desktop::Internal
     /// @brief Enqueues a ChildSurface event, coalescing geometry bursts before dropping durable events.
     ChildSurfaceEnqueueResult enqueueChildSurfaceEvent(ChildSurfaceState &state, Types::ChildSurface::Events::Payload data) noexcept
     {
+        // Ignore native callbacks while the surface is being created.
         if(state.suppressEvents)
         {
             return ChildSurfaceEnqueueResult::Coalesced;
@@ -68,6 +71,7 @@ namespace GameWIP::Desktop::Internal
             return ChildSurfaceEnqueueResult::Dropped;
         }
 
+        // Coalesce recent geometry updates before applying queue pressure.
         if(isChildSurfaceEventCoalescible(data))
         {
             for(std::size_t offset = state.eventCount; offset > 0; --offset)
@@ -92,12 +96,13 @@ namespace GameWIP::Desktop::Internal
 
                         return ChildSurfaceEnqueueResult::Coalesced;
                     }
-                    queued.data = data;
+                    queued.data = std::move(data);
                     return ChildSurfaceEnqueueResult::Coalesced;
                 }
             }
         }
 
+        // Preserve durable events by evicting a coalescible event when full.
         if(state.eventCount == state.eventStorage.size())
         {
             std::size_t replaceIndex = state.eventCount;
@@ -124,8 +129,9 @@ namespace GameWIP::Desktop::Internal
             discardAt(state, replaceIndex);
         }
 
+        // Append the event at the logical tail of the ring.
         const std::size_t slot = physicalIndex(state, state.eventCount);
-        state.eventStorage[slot] = {state.nextSequence++, data};
+        state.eventStorage[slot] = {state.nextSequence++, std::move(data)};
         ++state.eventCount;
         return ChildSurfaceEnqueueResult::Queued;
     }

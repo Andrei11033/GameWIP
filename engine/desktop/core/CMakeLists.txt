@@ -3,6 +3,7 @@ target_sources(
     PRIVATE
         accessibility.cpp
         accessibility_snapshot.cpp
+        accessibility_transport.cpp
         accessibility_validation.cpp
         child_surface.cpp
         child_surface_events.cpp
@@ -20,6 +21,9 @@ target_sources(
         taskbar.cpp
         tray.cpp
         window.cpp
+        window_geometry.cpp
+        window_interaction.cpp
+        window_state.cpp
 )
 
 if(DESKTOP_ENABLE_TEST_HOOKS)

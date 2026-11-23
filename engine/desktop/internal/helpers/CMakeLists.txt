@@ -1,1 +1,10 @@
-target_sources(Desktop PRIVATE event_storage.h shell.cpp)
+target_sources(
+    Desktop
+    PRIVATE
+        accessibility_publication.cpp
+        accessibility_publication.h
+        event_storage.h
+        shell.cpp
+        window_validation.cpp
+        window_validation.h
+)

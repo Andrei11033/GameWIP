@@ -2,12 +2,15 @@
 /// @brief Win32 native message callback and event translation.
 
 #include "desktop/platform/win32/internal/win32_window_backend.h"
+
 #include "desktop/internal/accessibility_state.h"
-#include "desktop/platform/drag_drop.h"
 #include "desktop/platform/dialogs.h"
+#include "desktop/platform/drag_drop.h"
 #include "desktop/platform/shell.h"
 #include "desktop/platform/win32/internal/win32_accessibility.h"
+
 #include <commctrl.h>
+
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -48,6 +51,23 @@ namespace GameWIP::Desktop::Platform
             {
                 routeEvent(state, Types::Events::FramebufferSizeChanged{state.framebufferSize});
             }
+        }
+
+        /// @brief Refreshes cached geometry and emits only changed geometry events.
+        void refreshGeometryAndEmitChanges(WindowState &state) noexcept
+        {
+            const Types::ScreenPosition previousPosition = state.clientPosition;
+            const Types::LogicalSize previousClient = state.clientSize;
+            const Types::PixelSize previousFramebuffer = state.framebufferSize;
+            const IO::Types::Status geometry = refreshCachedGeometry(state);
+
+            if(!geometry.ok())
+            {
+                recordPumpFailure(geometry);
+                return;
+            }
+
+            emitGeometryChanges(state, previousPosition, previousClient, previousFramebuffer);
         }
 
         /// @brief Maps a screen point near a resizable frame to a Win32 resize hit code.
@@ -232,6 +252,7 @@ namespace GameWIP::Desktop::Platform
 
         if(messageSink != nullptr)
         {
+            // Give the caller first observation before Desktop handles the message.
             IO::Types::Status messageStatus = messageSink(messageSinkContext, window, message, wParam, lParam);
 
             if(!messageStatus.ok())
@@ -261,6 +282,9 @@ namespace GameWIP::Desktop::Platform
 
         switch(message)
         {
+
+            // Accessibility, frame, and close policy.
+
         case WM_GETOBJECT:
         {
             LRESULT result = 0;
@@ -335,6 +359,9 @@ namespace GameWIP::Desktop::Platform
                 return 0;
             }
             break;
+
+            // Visibility, activation, and focus state.
+
         case WM_SHOWWINDOW:
         {
             const bool visible = wParam != FALSE;
@@ -420,6 +447,9 @@ namespace GameWIP::Desktop::Platform
         case WM_EXITSIZEMOVE:
             static_cast<void>(Internal::setInteractiveMoveResizeActive(*state, false));
             return 0;
+
+            // Presentation, geometry, and DPI changes.
+
         case WM_SIZE:
         {
             const Types::PresentationState previousPresentation = state->presentation;
@@ -431,19 +461,7 @@ namespace GameWIP::Desktop::Platform
             {
                 state->presentationPublication->publishPresentationState(state->presentation);
             }
-            const Types::ScreenPosition previousPosition = state->clientPosition;
-            const Types::LogicalSize previousClient = state->clientSize;
-            const Types::PixelSize previousFramebuffer = state->framebufferSize;
-            const IO::Types::Status geometry = refreshCachedGeometry(*state);
-
-            if(!geometry.ok())
-            {
-                recordPumpFailure(geometry);
-            }
-            else
-            {
-                emitGeometryChanges(*state, previousPosition, previousClient, previousFramebuffer);
-            }
+            refreshGeometryAndEmitChanges(*state);
 
             if(state->presentation != previousPresentation)
             {
@@ -461,19 +479,7 @@ namespace GameWIP::Desktop::Platform
 
         case WM_MOVE:
         {
-            const Types::ScreenPosition previousPosition = state->clientPosition;
-            const Types::LogicalSize previousClient = state->clientSize;
-            const Types::PixelSize previousFramebuffer = state->framebufferSize;
-            const IO::Types::Status geometry = refreshCachedGeometry(*state);
-
-            if(!geometry.ok())
-            {
-                recordPumpFailure(geometry);
-            }
-            else
-            {
-                emitGeometryChanges(*state, previousPosition, previousClient, previousFramebuffer);
-            }
+            refreshGeometryAndEmitChanges(*state);
             updateCurrentMonitor(*state);
             const IO::Types::Status cursorStatus = applyCursorState(*state);
 
@@ -591,6 +597,8 @@ namespace GameWIP::Desktop::Platform
             return 0;
         }
 
+            // Native size limits and aspect-ratio policy.
+
         case WM_GETMINMAXINFO:
         {
             auto *info = reinterpret_cast<MINMAXINFO *>(lParam);
@@ -683,6 +691,8 @@ namespace GameWIP::Desktop::Platform
             return TRUE;
         }
 
+            // Cursor presence and pointer input.
+
         case WM_SETCURSOR:
             if(LOWORD(lParam) == HTCLIENT)
             {
@@ -720,6 +730,8 @@ namespace GameWIP::Desktop::Platform
             }
 
             return 0;
+            // Shell-delivered file drops and display updates.
+
         case WM_DROPFILES:
         {
             HDROP drop = reinterpret_cast<HDROP>(wParam);
@@ -794,6 +806,8 @@ namespace GameWIP::Desktop::Platform
                 return TRUE;
             }
             break;
+            // Keep portable state alive until WM_NCDESTROY completes cleanup.
+
         case WM_DESTROY:
             accessibilityWindowDestroyed(*state, window);
             state->visible = false;

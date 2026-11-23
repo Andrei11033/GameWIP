@@ -2,14 +2,14 @@
 /// @brief Portable custom native cursor resource and validation implementation.
 
 #include "desktop/cursor.h"
-#include "base/checked_arithmetic.h"
 
-#include "desktop/platform/cursor.h"
+#include "base/checked_arithmetic.h"
+#include "desktop/internal/desktop_test_hooks.h"
 #include "desktop/internal/cursor_selection.h"
 #include "desktop/internal/cursor_state.h"
-#include "desktop/platform/window.h"
 #include "desktop/internal/window_state.h"
-#include "desktop/internal/desktop_test_hooks.h"
+#include "desktop/platform/cursor.h"
+#include "desktop/platform/window.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -168,6 +168,7 @@ namespace GameWIP::Desktop
 
     Types::Result<Cursor> createCursor(std::span<const Types::Cursor::ImageView> variants) noexcept
     {
+        // Validate every image before creating native resources.
         IO::Types::Status status = validateVariants(variants);
         if(!status.ok())
         {
@@ -178,6 +179,7 @@ namespace GameWIP::Desktop
 
         try
         {
+            // Create native variants and retain ownership locally until state creation succeeds.
             if(Internal::consumeFailure(Internal::TestHooks::FailurePoint::Allocation))
             {
                 throw std::bad_alloc{};
@@ -195,6 +197,8 @@ namespace GameWIP::Desktop
             {
                 throw std::bad_alloc{};
             }
+
+            // Publish the immutable resource state to the public Cursor wrapper.
             auto state = std::make_shared<Internal::CursorState>(std::move(nativeVariants));
             return {.status = IO::successStatus(), .value = Internal::CursorAccess::make(std::move(state))};
         }

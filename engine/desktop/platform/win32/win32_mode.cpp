@@ -221,6 +221,7 @@ namespace GameWIP::Desktop::Platform
             WindowData &data = *state.platform;
             IO::Types::Status rollback = IO::successStatus();
 
+            // Restore the display mode before restoring window state.
             if(data.hasSavedDisplayMode && !data.exclusiveSuspended)
             {
                 const LONG result = ChangeDisplaySettingsExW(data.exclusiveDevice.c_str(), &data.savedDisplayMode, nullptr, 0, nullptr);
@@ -341,6 +342,7 @@ namespace GameWIP::Desktop::Platform
 
     IO::Types::Status applyWindowMode(WindowState &state, const Types::WindowModeRequest &request) noexcept
     {
+        // Validate the Window and reject overlapping transitions.
         if(!state.platform || state.platform->handle == nullptr)
         {
             return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
@@ -361,6 +363,8 @@ namespace GameWIP::Desktop::Platform
             {
                 return IO::successStatus();
             }
+
+            // Resolve the target monitor and validate any requested display mode.
             HMONITOR monitor = nullptr;
             Types::Result<Types::Display::Info> monitorInfo;
             std::wstring requestedDevice;
@@ -406,6 +410,7 @@ namespace GameWIP::Desktop::Platform
                 }
             }
 
+            // Save enough native and portable state to roll back partial changes.
             RECT previousRect{};
 
             if(GetWindowRect(data.handle, &previousRect) == FALSE)
@@ -432,6 +437,7 @@ namespace GameWIP::Desktop::Platform
             }
             ModeTransitionScope transition(data);
 
+            // Apply the requested windowed or fullscreen state.
             if(resolved.mode == Types::WindowMode::Windowed)
             {
                 IO::Types::Status status = leaveExclusive(state);
@@ -573,11 +579,103 @@ namespace GameWIP::Desktop::Platform
     }
 
     /// ------------------------------------------------------------
+    /// Exclusive-mode cleanup
+    /// ------------------------------------------------------------
+
+    /// @brief Leaves exclusive mode and restores the saved desktop display mode.
+    IO::Types::Status leaveExclusive(WindowState &state) noexcept
+    {
+        if(state.platform && state.mode != Types::WindowMode::Windowed &&
+           Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::DisplayRestoration))
+        {
+            return IO::makeStatus(IO::Types::ErrorCode::NativeFailure);
+        }
+
+        if(!state.platform || !state.platform->hasSavedDisplayMode)
+        {
+            state.fullscreen = {};
+            return IO::successStatus();
+        }
+        WindowData &data = *state.platform;
+
+        if(!data.exclusiveSuspended)
+        {
+            const LONG result = ChangeDisplaySettingsExW(data.exclusiveDevice.c_str(), &data.savedDisplayMode, nullptr, 0, nullptr);
+
+            if(result != DISP_CHANGE_SUCCESSFUL)
+            {
+                return statusFromDisplayChange(result, "restore desktop display mode");
+            }
+        }
+        data.hasSavedDisplayMode = false;
+        data.exclusiveSuspended = false;
+        data.exclusiveDevice.clear();
+        data.activeDisplayMode = {};
+        data.activeNativeDisplayMode = {};
+        state.fullscreen = {};
+        return IO::successStatus();
+    }
+
+    /// @brief Temporarily releases exclusive mode while another process is active.
+    IO::Types::Status suspendExclusive(WindowState &state) noexcept
+    {
+        if(!state.platform || state.platform->modeTransitionDepth != 0 || !state.platform->hasSavedDisplayMode || state.platform->exclusiveSuspended)
+        {
+            return IO::successStatus();
+        }
+
+        const LONG result = ChangeDisplaySettingsExW(state.platform->exclusiveDevice.c_str(), &state.platform->savedDisplayMode, nullptr, 0, nullptr);
+
+        if(result != DISP_CHANGE_SUCCESSFUL)
+        {
+            return statusFromDisplayChange(result, "suspend exclusive fullscreen");
+        }
+
+        state.platform->exclusiveSuspended = true;
+        state.fullscreen.suspended = true;
+        return IO::successStatus();
+    }
+
+    /// @brief Reclaims exclusive mode after this process becomes active again.
+    IO::Types::Status resumeExclusive(WindowState &state) noexcept
+    {
+        if(!state.platform || state.platform->modeTransitionDepth != 0 || !state.platform->hasSavedDisplayMode || !state.platform->exclusiveSuspended)
+        {
+            return IO::successStatus();
+        }
+
+        const LONG validationResult =
+            ChangeDisplaySettingsExW(state.platform->exclusiveDevice.c_str(), &state.platform->activeNativeDisplayMode, nullptr, CDS_TEST, nullptr);
+
+        if(validationResult != DISP_CHANGE_SUCCESSFUL)
+        {
+            return statusFromDisplayChange(validationResult, "validate resumed exclusive fullscreen display mode");
+        }
+
+        const LONG result = ChangeDisplaySettingsExW(
+            state.platform->exclusiveDevice.c_str(),
+            &state.platform->activeNativeDisplayMode,
+            nullptr,
+            CDS_FULLSCREEN,
+            nullptr);
+
+        if(result != DISP_CHANGE_SUCCESSFUL)
+        {
+            return statusFromDisplayChange(result, "resume exclusive fullscreen");
+        }
+
+        state.platform->exclusiveSuspended = false;
+        state.fullscreen.suspended = false;
+        return IO::successStatus();
+    }
+
+    /// ------------------------------------------------------------
     /// Display-change recovery
     /// ------------------------------------------------------------
 
     IO::Types::Status recoverAfterDisplayChange(WindowState &state, bool forceRemovedMonitor) noexcept
     {
+        // Keep the current geometry and monitor state for change events.
         if(!state.platform || state.platform->handle == nullptr)
         {
             return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
@@ -599,6 +697,7 @@ namespace GameWIP::Desktop::Platform
             return IO::successStatus();
         }
 
+        // Resolve the primary monitor as the fallback after losing fullscreen output.
         HMONITOR primary = MonitorFromPoint(POINT{}, MONITOR_DEFAULTTOPRIMARY);
         MONITORINFO primaryInfo{};
         primaryInfo.cbSize = sizeof(primaryInfo);
@@ -651,6 +750,8 @@ namespace GameWIP::Desktop::Platform
 
         const bool previousSuppression = state.suppressEvents;
         state.suppressEvents = true;
+
+        // Clear exclusive state and move the Window to a usable primary-monitor area.
         IO::Types::Status firstFailure = leaveExclusive(state);
         // A disconnected target can reject restoration because it no longer exists. The
         // topology change has already removed that mode, so the failed restore is not an
@@ -704,6 +805,7 @@ namespace GameWIP::Desktop::Platform
         }
         state.suppressEvents = previousSuppression;
 
+        // Publish only the final recovered state.
         routeEvent(state, Types::Events::DisplayConfigurationChanged{});
         routeEvent(state, Types::Events::WindowModeChanged{previousMode, state.mode});
 

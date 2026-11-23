@@ -4,14 +4,14 @@
 #include "desktop/internal/desktop_test_hooks.h"
 
 #include "desktop/internal/child_surface_state.h"
-#include "desktop/platform/cursor.h"
 #include "desktop/internal/cursor_state.h"
 #include "desktop/internal/drag_drop_state.h"
-#include "desktop/platform/drag_drop.h"
 #include "desktop/internal/shell_state.h"
+#include "desktop/internal/window_state.h"
+#include "desktop/platform/cursor.h"
+#include "desktop/platform/drag_drop.h"
 #include "desktop/platform/shell.h"
 #include "desktop/platform/window.h"
-#include "desktop/internal/window_state.h"
 
 #include <atomic>
 #include <limits>
@@ -113,16 +113,6 @@ namespace GameWIP::Desktop::Internal::TestHooks
     void failNext(FailurePoint point) noexcept
     {
         armedFailure = point;
-    }
-
-    void enqueueShellEvent(ShellEventQueue &queue, Types::Shell::Events::Payload payload) noexcept
-    {
-        Internal::ShellEventQueueState *state = Internal::ShellEventQueueAccess::state(queue);
-
-        if(state != nullptr)
-        {
-            Internal::publishShellEvent(*state, std::move(payload));
-        }
     }
 
     void resetFailures() noexcept
@@ -292,6 +282,7 @@ namespace GameWIP::Desktop::Internal::TestHooks
 
     IO::Types::Status openPortable(Window &window, std::span<Types::Event> storage) noexcept
     {
+        // Validate the wrapper and caller-owned event storage.
         if(Internal::WindowAccess::state(window) != nullptr)
         {
             return IO::makeStatus(IO::Types::ErrorCode::AlreadyOpen);
@@ -304,6 +295,7 @@ namespace GameWIP::Desktop::Internal::TestHooks
 
         try
         {
+            // Build state and bind stable storage before publishing it to the wrapper.
             auto state = std::make_unique<Internal::WindowState>();
             state->ownerThread = std::this_thread::get_id();
             state->id = {1};
@@ -350,7 +342,7 @@ namespace GameWIP::Desktop::Internal::TestHooks
         {
             return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
         }
-        static_cast<void>(Internal::enqueueChildSurfaceEvent(*state, data));
+        static_cast<void>(Internal::enqueueChildSurfaceEvent(*state, std::move(data)));
         return IO::successStatus();
     }
 
@@ -432,5 +424,20 @@ namespace GameWIP::Desktop::Internal::TestHooks
              .maximumLuminanceNits = snapshot.maximumLuminanceNits,
              .maximumFullFrameLuminanceNits = snapshot.maximumFullFrameLuminanceNits,
              .sdrWhiteLevelMilli80Nits = snapshot.sdrWhiteLevelMilli80Nits});
+    }
+
+    /// ------------------------------------------------------------
+    /// Shell event hooks
+    /// ------------------------------------------------------------
+
+    /// @brief Publishes one synthetic shell event through the queue's normal fixed-capacity path.
+    void enqueueShellEvent(ShellEventQueue &queue, Types::Shell::Events::Payload payload) noexcept
+    {
+        Internal::ShellEventQueueState *state = Internal::ShellEventQueueAccess::state(queue);
+
+        if(state != nullptr)
+        {
+            Internal::publishShellEvent(*state, std::move(payload));
+        }
     }
 } // namespace GameWIP::Desktop::Internal::TestHooks

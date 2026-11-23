@@ -49,12 +49,7 @@ namespace GameWIP::Desktop::Platform
 
             HKEY *put() noexcept
             {
-                if(value_ != nullptr)
-                {
-                    RegCloseKey(value_);
-                    value_ = nullptr;
-                }
-
+                reset();
                 return &value_;
             }
 
@@ -394,7 +389,7 @@ namespace GameWIP::Desktop::Platform
             {
                 try
                 {
-                    // Restore prior target, program, and application state.
+                    // Restore each captured tree.
                     static_cast<void>(restoreTree(programPath_, L"Program", programCaptured_));
                     static_cast<void>(restoreTree(targetPath_, L"Target", targetCaptured_));
 
@@ -405,7 +400,7 @@ namespace GameWIP::Desktop::Platform
                 }
                 catch(...)
                 {
-                    active_ = false;
+                    // Continue cleanup if restoring a captured tree throws.
                 }
                 active_ = false;
 
@@ -487,7 +482,8 @@ namespace GameWIP::Desktop::Platform
                 }
 
                 // Reject invalid characters and malformed URI scheme starts.
-                if(normalizedUtf8.empty() || normalizedUtf8.find_first_of("\\/:*?\"<>|\0") != std::string::npos)
+                if(normalizedUtf8.empty() || normalizedUtf8.find_first_of("\\/:*?\"<>|") != std::string::npos ||
+                   normalizedUtf8.find('\0') != std::string::npos)
                 {
                     return IO::makeStatus(ErrorCode::InvalidArgument);
                 }
@@ -675,7 +671,6 @@ namespace GameWIP::Desktop::Platform
         }
 
         [[nodiscard]] IO::Types::Status writeApplicationRegistration(
-            const std::wstring &applicationName,
             const std::wstring &applicationPath,
             std::string_view ownerKey,
             std::string_view displayName,
@@ -846,7 +841,6 @@ namespace GameWIP::Desktop::Platform
                     return status;
                 }
             }
-            static_cast<void>(applicationName);
             return IO::successStatus();
         }
 
@@ -1663,7 +1657,6 @@ namespace GameWIP::Desktop::Platform
             if(description.defaultAction.has_value())
             {
                 status = writeApplicationRegistration(
-                    applicationName,
                     applicationPath,
                     description.ownerKey,
                     description.displayName,

@@ -199,6 +199,38 @@ namespace GameWIP::Desktop::Platform
             return IO::successStatus();
         }
 
+        [[nodiscard]] IO::Types::Status applyNotification(
+            NotificationCenterState &state,
+            std::uint64_t id,
+            const OwnedNotificationDescription &description,
+            bool add) noexcept
+        {
+            if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ShellNativeApply))
+            {
+                return IO::makeStatus(ErrorCode::NativeFailure);
+            }
+
+            auto *native = static_cast<NotificationNative *>(state.platform);
+
+            if(native == nullptr || native->window == nullptr)
+            {
+                return IO::makeStatus(ErrorCode::NotOpen);
+            }
+
+            try
+            {
+                return showBasicNotification(*native, id, description, add);
+            }
+            catch(const std::bad_alloc &)
+            {
+                return IO::makeStatus(ErrorCode::OutOfMemory);
+            }
+            catch(...)
+            {
+                return IO::makeStatus(ErrorCode::Unknown);
+            }
+        }
+
     } // namespace
 
     /// ------------------------------------------------------------
@@ -260,58 +292,12 @@ namespace GameWIP::Desktop::Platform
 
     IO::Types::Status publishNotification(NotificationCenterState &state, std::uint64_t id, const OwnedNotificationDescription &description) noexcept
     {
-        if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ShellNativeApply))
-        {
-            return IO::makeStatus(ErrorCode::NativeFailure);
-        }
-
-        auto *native = static_cast<NotificationNative *>(state.platform);
-
-        if(native == nullptr || native->window == nullptr)
-        {
-            return IO::makeStatus(ErrorCode::NotOpen);
-        }
-
-        try
-        {
-            return showBasicNotification(*native, id, description, true);
-        }
-        catch(const std::bad_alloc &)
-        {
-            return IO::makeStatus(ErrorCode::OutOfMemory);
-        }
-        catch(...)
-        {
-            return IO::makeStatus(ErrorCode::Unknown);
-        }
+        return applyNotification(state, id, description, true);
     }
 
     IO::Types::Status updateNotification(NotificationCenterState &state, std::uint64_t id, const OwnedNotificationDescription &description) noexcept
     {
-        if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ShellNativeApply))
-        {
-            return IO::makeStatus(ErrorCode::NativeFailure);
-        }
-
-        auto *native = static_cast<NotificationNative *>(state.platform);
-
-        if(native == nullptr || native->window == nullptr)
-        {
-            return IO::makeStatus(ErrorCode::NotOpen);
-        }
-
-        try
-        {
-            return showBasicNotification(*native, id, description, false);
-        }
-        catch(const std::bad_alloc &)
-        {
-            return IO::makeStatus(ErrorCode::OutOfMemory);
-        }
-        catch(...)
-        {
-            return IO::makeStatus(ErrorCode::Unknown);
-        }
+        return applyNotification(state, id, description, false);
     }
 
     IO::Types::Status dismissNotification(NotificationCenterState &state, std::uint64_t id) noexcept

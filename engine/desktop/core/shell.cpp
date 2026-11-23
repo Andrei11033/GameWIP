@@ -4,13 +4,14 @@
 #include "desktop/shell.h"
 
 #include "desktop/internal/shell_helpers.h"
-#include "desktop/platform/shell.h"
 #include "desktop/internal/shell_state.h"
+#include "desktop/platform/shell.h"
 
 #include <algorithm>
 #include <memory>
 #include <mutex>
 #include <new>
+#include <optional>
 #include <span>
 #include <string_view>
 #include <thread>
@@ -108,6 +109,58 @@ namespace GameWIP::Desktop::Internal
 
             return IO::successStatus();
         }
+
+        /// @brief Validates one jump-list task shared by direct and categorized entries.
+        [[nodiscard]] IO::Types::Status validateJumpListTask(const Types::JumpLists::Task &task) noexcept
+        {
+            if(!validText(task.title, true) || !validText(task.description))
+            {
+                return error(ErrorCode::InvalidArgument);
+            }
+
+            return validateLaunchAction(task.action, false);
+        }
+
+        /// @brief Validates shared file/URI registration fields and launch actions.
+        [[nodiscard]] IO::Types::Status validateRegistration(
+            std::string_view ownerKey,
+            std::string_view identity,
+            std::string_view displayName,
+            const std::optional<Types::Shell::LaunchActionView> &defaultAction,
+            std::span<const Types::Registration::Verb> verbs) noexcept
+        {
+            if(!validText(ownerKey, true) || !validText(identity, true) || !validText(displayName, true))
+            {
+                return error(ErrorCode::InvalidArgument);
+            }
+
+            if(defaultAction.has_value())
+            {
+                IO::Types::Status status = validateLaunchAction(*defaultAction, true);
+
+                if(!status.ok())
+                {
+                    return status;
+                }
+            }
+
+            for(const Types::Registration::Verb &verb : verbs)
+            {
+                if(!validText(verb.name, true) || !validText(verb.label, true))
+                {
+                    return error(ErrorCode::InvalidArgument);
+                }
+
+                IO::Types::Status status = validateLaunchAction(verb.action, true);
+
+                if(!status.ok())
+                {
+                    return status;
+                }
+            }
+
+            return IO::successStatus();
+        }
     } // namespace
 
     /// @brief Appends one native shell callback payload under the queue lock.
@@ -163,12 +216,7 @@ namespace GameWIP::Desktop
             // Validate direct tasks and category entries.
             for(const Types::JumpLists::Task &task : description.tasks)
             {
-                if(!Internal::validText(task.title, true) || !Internal::validText(task.description))
-                {
-                    return error(ErrorCode::InvalidArgument);
-                }
-
-                IO::Types::Status status = Internal::validateLaunchAction(task.action, false);
+                IO::Types::Status status = Internal::validateJumpListTask(task);
 
                 if(!status.ok())
                 {
@@ -185,12 +233,7 @@ namespace GameWIP::Desktop
 
                 for(const Types::JumpLists::Task &task : category.tasks)
                 {
-                    if(!Internal::validText(task.title, true) || !Internal::validText(task.description))
-                    {
-                        return error(ErrorCode::InvalidArgument);
-                    }
-
-                    IO::Types::Status status = Internal::validateLaunchAction(task.action, false);
+                    IO::Types::Status status = Internal::validateJumpListTask(task);
 
                     if(!status.ok())
                     {
@@ -227,90 +270,43 @@ namespace GameWIP::Desktop
     }
 
     /// ------------------------------------------------------------
-    /// Jump lists and registration
-    /// ------------------------------------------------------------
-
-    /// ------------------------------------------------------------
     /// File and URI registration
     /// ------------------------------------------------------------
 
     Types::Registration::Result Registration::registerFileExtension(const Types::Registration::FileExtensionDescription &description) noexcept
     {
-        Types::Registration::Result result{error(ErrorCode::InvalidArgument), {}, false};
+        IO::Types::Status status = Internal::validateRegistration(
+            description.ownerKey,
+            description.extension,
+            description.displayName,
+            description.defaultAction,
+            description.verbs);
 
-        if(!Internal::validText(description.ownerKey, true) || !Internal::validText(description.extension, true) ||
-           !Internal::validText(description.displayName, true) || !Internal::validText(description.contentType))
+        if(status.ok() && !Internal::validText(description.contentType))
         {
-            return result;
+            status = error(ErrorCode::InvalidArgument);
         }
 
-        if(description.defaultAction.has_value())
+        if(!status.ok())
         {
-            IO::Types::Status status = Internal::validateLaunchAction(*description.defaultAction, true);
-
-            if(!status.ok())
-            {
-                result.status = std::move(status);
-                return result;
-            }
+            return {std::move(status), {}, false};
         }
-
-        for(const Types::Registration::Verb &verb : description.verbs)
-        {
-            if(!Internal::validText(verb.name, true) || !Internal::validText(verb.label, true))
-            {
-                return result;
-            }
-
-            IO::Types::Status status = Internal::validateLaunchAction(verb.action, true);
-
-            if(!status.ok())
-            {
-                result.status = std::move(status);
-                return result;
-            }
-        }
-
         return Platform::registerFileExtension(description);
     }
 
     Types::Registration::Result Registration::registerUriScheme(const Types::Registration::UriSchemeDescription &description) noexcept
     {
-        Types::Registration::Result result{error(ErrorCode::InvalidArgument), {}, false};
+        IO::Types::Status status = Internal::validateRegistration(
+            description.ownerKey,
+            description.scheme,
+            description.displayName,
+            description.defaultAction,
+            description.verbs);
 
-        if(!Internal::validText(description.ownerKey, true) || !Internal::validText(description.scheme, true) ||
-           !Internal::validText(description.displayName, true))
+        if(!status.ok())
         {
-            return result;
+            return {std::move(status), {}, false};
         }
-
-        if(description.defaultAction.has_value())
-        {
-            IO::Types::Status status = Internal::validateLaunchAction(*description.defaultAction, true);
-
-            if(!status.ok())
-            {
-                result.status = std::move(status);
-                return result;
-            }
-        }
-
-        for(const Types::Registration::Verb &verb : description.verbs)
-        {
-            if(!Internal::validText(verb.name, true) || !Internal::validText(verb.label, true))
-            {
-                return result;
-            }
-
-            IO::Types::Status status = Internal::validateLaunchAction(verb.action, true);
-
-            if(!status.ok())
-            {
-                result.status = std::move(status);
-                return result;
-            }
-        }
-
         return Platform::registerUriScheme(description);
     }
 

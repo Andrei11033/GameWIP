@@ -8,6 +8,10 @@
 #include "desktop/internal/progress_dialog_state.h"
 #include "desktop/internal/window_state.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <optional>
+#include <span>
 #include <utility>
 
 namespace
