@@ -31,6 +31,15 @@ namespace GameWIP::TestSupport::Internal::Platform::Win32
 
         [[nodiscard]] int compareEnvironmentNames(std::wstring_view left, std::wstring_view right) noexcept
         {
+            if(left.empty())
+            {
+                return right.empty() ? CSTR_EQUAL : CSTR_LESS_THAN;
+            }
+            if(right.empty())
+            {
+                return CSTR_GREATER_THAN;
+            }
+
             constexpr std::size_t maximumLength = static_cast<std::size_t>(std::numeric_limits<int>::max());
             if(left.size() > maximumLength || right.size() > maximumLength)
             {
