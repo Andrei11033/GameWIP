@@ -154,7 +154,7 @@ Build benchmark registration and run the Unicode family:
 
 ```powershell
 .\gamewip.bat bench
-.\build\benchmark\GameWIPBenchmarks.exe --benchmark_filter=BM_Unicode
+.\build\windows-x64\benchmark\GameWIPBenchmarks.exe --benchmark_filter=BM_Unicode
 ```
 
 The Unicode benchmark family covers representative UTF-8 decoding, validation, scalar encoding, sequential and table-wide scattered property lookup,
