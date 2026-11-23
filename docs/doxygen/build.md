@@ -330,7 +330,8 @@ directories so UCRT64 and LLVM-MinGW files are not mixed accidentally.
 
 Every configure reports the generated GameWIP display version. The root numeric
 `PROJECT_VERSION` identifies the milestone or published correction. Untagged
-builds add the first-parent build count, abbreviated Git commit, and dirty state.
+builds add the first-parent build count, abbreviated Git commit, and dirty state
+for tracked changes or non-ignored untracked files.
 
 Doxygen uses the generated display version as its project number. Runtime
 diagnostics use the same identity. See `docs/versioning.md` for source-version,

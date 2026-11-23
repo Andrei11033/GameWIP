@@ -102,9 +102,9 @@ function(gamewip_detect_version output_prefix)
                 string(TOLOWER "${detected_git_commit}" git_commit)
             endif()
 
-            # Mark tracked-file changes as dirty.
+            # Mark tracked changes and untracked files as dirty.
             execute_process(
-                COMMAND "${GIT_EXECUTABLE}" -C "${VERSION_SOURCE_DIR}" status --porcelain --untracked-files=no
+                COMMAND "${GIT_EXECUTABLE}" -C "${VERSION_SOURCE_DIR}" status --porcelain --untracked-files=normal
                 RESULT_VARIABLE dirty_result
                 OUTPUT_VARIABLE dirty_output
                 OUTPUT_STRIP_TRAILING_WHITESPACE

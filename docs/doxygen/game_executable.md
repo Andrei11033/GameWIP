@@ -267,7 +267,7 @@ project configuration and refreshes it before building the game executable.
 | `productDisplay` | Complete product line printed by `--version`. |
 | `buildNumber` | Repository-derived build count or configured fallback. |
 | `gitCommit` | Generation-time abbreviated commit or fallback. |
-| `dirty` | Whether tracked source changes were detected when identity was generated. |
+| `dirty` | Whether tracked changes or non-ignored untracked files were detected when identity was generated. |
 | `release` | Whether generation observed the expected clean annotated release tag. |
 
 Configuration creates the initial values, and the game version-header target

@@ -169,6 +169,7 @@ endif()
 
 cmake_path(GET CXX_COMPILER PARENT_PATH compiler_runtime_directory)
 set(runtime_path "${INSTALL_PREFIX}/bin;${compiler_runtime_directory};$ENV{PATH}")
+cmake_path(CONVERT "${runtime_path}" TO_NATIVE_PATH_LIST native_runtime_path)
 
 function(
     run_installed_consumer
@@ -235,7 +236,7 @@ function(
         set(consumer_executable "${build_dir}/${executable_name}${EXECUTABLE_SUFFIX}")
     endif()
     execute_process(
-        COMMAND "${CMAKE_COMMAND}" -E env "PATH=${runtime_path}" "${consumer_executable}"
+        COMMAND "${CMAKE_COMMAND}" -E env "PATH=${native_runtime_path}" "${consumer_executable}"
         RESULT_VARIABLE run_result
         OUTPUT_VARIABLE run_output
         ERROR_VARIABLE run_error

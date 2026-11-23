@@ -80,7 +80,8 @@ Intended display forms:
 0.1.0
 ```
 
-An untagged commit uses the `-dev.<build>` form. A build with tracked worktree modifications adds `dirty` to its build metadata. A clean commit
+An untagged commit uses the `-dev.<build>` form. Tracked changes and
+non-ignored untracked files add `dirty` to the build metadata. A clean commit
 carrying the exact annotated `v<PROJECT_VERSION>` tag uses the release form.
 
 Development identifiers are diagnostics. They must not be published or treated
