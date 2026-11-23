@@ -342,7 +342,7 @@ namespace GameWIP::Debug::Assert::Internal
     { \
         if(!(condition)) [[unlikely]] \
         { \
-            ASSERT_INTERNAL_ASSERT_FAILURE(condition, ASSERT_INTERNAL_MESSAGE_TEXT(message)); \
+            ASSERT_INTERNAL_ASSERT_FAILURE(condition, message); \
         } \
     } while(false)
 
@@ -534,7 +534,7 @@ namespace GameWIP::Debug::Assert::Internal
     { \
         if(!(condition)) [[unlikely]] \
         { \
-            ASSERT_INTERNAL_CHECK_FAILURE(condition, ASSERT_INTERNAL_MESSAGE_TEXT(message)); \
+            ASSERT_INTERNAL_CHECK_FAILURE(condition, message); \
         } \
     } while(false)
 
@@ -571,7 +571,7 @@ namespace GameWIP::Debug::Assert::Internal
             static std::atomic_bool assertCheckReported_{false}; \
             if(!assertCheckReported_.load(std::memory_order_relaxed) && !assertCheckReported_.exchange(true, std::memory_order_relaxed)) \
             { \
-                ASSERT_INTERNAL_CHECK_FAILURE(condition, ASSERT_INTERNAL_MESSAGE_TEXT(message)); \
+                ASSERT_INTERNAL_CHECK_FAILURE(condition, message); \
             } \
         } \
     } while(false)
