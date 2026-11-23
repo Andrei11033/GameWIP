@@ -35,7 +35,7 @@ namespace
     /// @brief Verifies standard and extended Win32 keyboard scan-code mappings.
     void testKeyboardMapping(TestSupport::Context &context)
     {
-        using Input::Platform::Win32::Detail::keyboardUsageForScanCode;
+        using Input::Platform::Win32::keyboardUsageForScanCode;
 
         // Modifiers
         static_cast<void>(context.expectEq("left Shift maps to HID Left Shift", std::uint32_t{0xE1}, keyboardUsageForScanCode(0x2A, false, false)));
