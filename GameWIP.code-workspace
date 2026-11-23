@@ -11,9 +11,7 @@
     "C_Cpp.codeAnalysis.exclude": {
       "**/*": true
     },
-    "C_Cpp.clang_format_path": "C:/MSYS2/ucrt64/bin/clang-format.exe",
     "C_Cpp.clang_format_style": "file",
-    "clang-format.executable": "C:/MSYS2/ucrt64/bin/clang-format.exe",
     "clang-format.style": "file",
     "editor.formatOnSave": true,
     "[cpp]": {
