@@ -63,7 +63,7 @@ namespace
         for(char ch : text)
         {
             const unsigned char value = static_cast<unsigned char>(ch);
-            output.push_back(value >= 0x20 && value < 0x80 ? static_cast<wchar_t>(value) : L'?');
+            output.push_back(value >= 0x20 && value < 0x7F ? static_cast<wchar_t>(value) : L'?');
         }
 
         return output;
