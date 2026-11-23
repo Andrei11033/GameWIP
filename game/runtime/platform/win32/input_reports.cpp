@@ -36,6 +36,25 @@ namespace GameWIP::Game::Runtime::Platform
         using LogArea = GameWIP::Game::Logging::Area;
 
         /// ------------------------------------------------------------
+        /// Shared Raw Input decoding
+        /// ------------------------------------------------------------
+
+        [[nodiscard]] bool copyRawInput(const Types::RawReport &report, std::size_t requiredSize, RAWINPUT &raw)
+        {
+            if(report.backend != Types::BackendKind::Win32RawInput || report.bytes.size() < requiredSize)
+            {
+                return false;
+            }
+
+            raw = {};
+            const std::span<const std::byte> reportBytes{report.bytes};
+            const std::size_t copySize = std::min(reportBytes.size(), sizeof(raw));
+            const std::span<std::byte> rawBytes = std::as_writable_bytes(std::span{&raw, std::size_t{1}});
+            std::ranges::copy(reportBytes.first(copySize), rawBytes.begin());
+            return true;
+        }
+
+        /// ------------------------------------------------------------
         /// Keyboard details
         /// ------------------------------------------------------------
 
@@ -50,16 +69,12 @@ namespace GameWIP::Game::Runtime::Platform
 
         void logRawKeyboardReport(const Types::RawReport &report, std::uint64_t captureSequence)
         {
-            if(report.backend != Types::BackendKind::Win32RawInput || report.bytes.size() < offsetof(RAWINPUT, data.keyboard) + sizeof(RAWKEYBOARD))
+            RAWINPUT raw;
+            if(!copyRawInput(report, offsetof(RAWINPUT, data.keyboard) + sizeof(RAWKEYBOARD), raw))
             {
                 return;
             }
 
-            RAWINPUT raw{};
-            const std::span<const std::byte> reportBytes{report.bytes};
-            const std::size_t copySize = std::min(reportBytes.size(), sizeof(raw));
-            const std::span<std::byte> rawBytes = std::as_writable_bytes(std::span{&raw, std::size_t{1}});
-            std::ranges::copy(reportBytes.first(copySize), rawBytes.begin());
             if(raw.header.dwType != RIM_TYPEKEYBOARD)
             {
                 return;
@@ -112,16 +127,12 @@ namespace GameWIP::Game::Runtime::Platform
                                            RI_MOUSE_RIGHT_BUTTON_UP | RI_MOUSE_MIDDLE_BUTTON_DOWN | RI_MOUSE_MIDDLE_BUTTON_UP |
                                            RI_MOUSE_BUTTON_4_DOWN | RI_MOUSE_BUTTON_4_UP | RI_MOUSE_BUTTON_5_DOWN | RI_MOUSE_BUTTON_5_UP;
 
-            if(report.backend != Types::BackendKind::Win32RawInput || report.bytes.size() < offsetof(RAWINPUT, data.mouse) + sizeof(RAWMOUSE))
+            RAWINPUT raw;
+            if(!copyRawInput(report, offsetof(RAWINPUT, data.mouse) + sizeof(RAWMOUSE), raw))
             {
                 return;
             }
 
-            RAWINPUT raw{};
-            const std::span<const std::byte> reportBytes{report.bytes};
-            const std::size_t copySize = std::min(reportBytes.size(), sizeof(raw));
-            const std::span<std::byte> rawBytes = std::as_writable_bytes(std::span{&raw, std::size_t{1}});
-            std::ranges::copy(reportBytes.first(copySize), rawBytes.begin());
             if(raw.header.dwType != RIM_TYPEMOUSE || (raw.data.mouse.usButtonFlags & buttonFlags) == 0)
             {
                 return;
