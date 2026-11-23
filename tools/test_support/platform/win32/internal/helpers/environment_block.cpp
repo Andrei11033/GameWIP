@@ -15,7 +15,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cwchar>
-#include <cwctype>
+#include <limits>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -29,16 +29,15 @@ namespace GameWIP::TestSupport::Internal::Platform::Win32
         /// Child environment entries
         /// ------------------------------------------------------------
 
-        [[nodiscard]] std::wstring lowerEnvironmentName(std::wstring_view text)
+        [[nodiscard]] int compareEnvironmentNames(std::wstring_view left, std::wstring_view right) noexcept
         {
-            std::wstring lowered(text);
-
-            for(wchar_t &ch : lowered)
+            constexpr std::size_t maximumLength = static_cast<std::size_t>(std::numeric_limits<int>::max());
+            if(left.size() > maximumLength || right.size() > maximumLength)
             {
-                ch = static_cast<wchar_t>(std::towlower(ch));
+                return 0;
             }
 
-            return lowered;
+            return CompareStringOrdinal(left.data(), static_cast<int>(left.size()), right.data(), static_cast<int>(right.size()), TRUE);
         }
 
         [[nodiscard]] std::wstring environmentEntryName(std::wstring_view entry)
@@ -54,7 +53,7 @@ namespace GameWIP::TestSupport::Internal::Platform::Win32
 
         [[nodiscard]] bool sameEnvironmentName(std::wstring_view left, std::wstring_view right)
         {
-            return lowerEnvironmentName(left) == lowerEnvironmentName(right);
+            return compareEnvironmentNames(left, right) == CSTR_EQUAL;
         }
 
         void applyEnvironmentOverride(std::vector<std::wstring> &entries, const Types::Process::EnvironmentOverride &variable)
@@ -147,7 +146,7 @@ namespace GameWIP::TestSupport::Internal::Platform::Win32
             entries.end(),
             [](const std::wstring &left, const std::wstring &right)
             {
-                return lowerEnvironmentName(environmentEntryName(left)) < lowerEnvironmentName(environmentEntryName(right));
+                return compareEnvironmentNames(environmentEntryName(left), environmentEntryName(right)) == CSTR_LESS_THAN;
             });
 
         std::wstring block;

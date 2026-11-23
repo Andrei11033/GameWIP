@@ -186,6 +186,15 @@ namespace GameWIP::TestSupport
             {
                 return Internal::failureStatus(Types::InfrastructureError::FileOperationFailed, static_cast<std::uint64_t>(errno));
             }
+
+            // Report delayed filesystem errors from closing the destination.
+            errno = 0;
+            file.close();
+
+            if(file.fail())
+            {
+                return Internal::failureStatus(Types::InfrastructureError::FileOperationFailed, static_cast<std::uint64_t>(errno));
+            }
             return {};
         }
         catch(const std::bad_alloc &)
