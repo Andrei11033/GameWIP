@@ -68,7 +68,7 @@ to catch accidental extra allocation/copying in the caller-owned buffering path;
 Automated runs leave human interaction disabled. From a real Windows Terminal session, run:
 
 ```powershell
-.\build\test\GameWIPTests.exe --test-module=terminal --manual-tests
+.\build\windows-x64\test\GameWIPTests.exe --test-module=terminal --manual-tests
 ```
 
 The opt-in suite requests human confirmation for Unicode rendering, colors and styles, cursor save/restore, alternate-screen restoration, managed line

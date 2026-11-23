@@ -49,9 +49,9 @@ the synchronization, Session/direct-read conflict detection, and output scope-ne
 privately embedding separate Terminal runtimes would not provide one shared coordination domain.
 
 `Session`'s private state keeps native-mode snapshots and ownership identity, lifecycle/input synchronization, persistent output-restoration
-obligations, decoder/parser state, and later backend-specific buffers out of the installed header. Process-wide backend state owns the standard
-endpoint handles. Move construction transfers the same Session state allocation, preserving managed input ownership identity and output cleanup
-obligations without exposing implementation layout.
+obligations, and line-editing scratch storage out of the installed header. Backend-specific buffers and decoder state stay behind the private backend
+contract. Move construction transfers the same Session state allocation, preserving managed input ownership identity and output cleanup obligations
+without exposing implementation layout.
 
 ## Exported template bridges
 
