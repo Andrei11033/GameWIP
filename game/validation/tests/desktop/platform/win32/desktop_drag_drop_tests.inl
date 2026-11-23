@@ -66,8 +66,6 @@ void testDragDrop(TestSupport::Context &context)
         ErrorCode::NativeFailure,
         Win32TestHooks::droppedDragDropSourceResult(DD::Effect::Move, DD::Effect::Copy).status.code));
 
-    // Validate source payloads before opening a native target, including encoding and allocation failures.
-
     // Validate text payloads.
     std::array<Transfer::ItemView, 1> validTextItems{{Transfer::TextView{"text"}}};
     const DD::Description validSource{validTextItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left};

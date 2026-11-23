@@ -1,9 +1,14 @@
 /// @file desktop_event_tests.inl
 /// @brief Window event-queue and dispatch validation cases.
 
+/// ------------------------------------------------------------
+/// Synthetic event-queue contracts
+/// ------------------------------------------------------------
+
 #if DESKTOP_INTERNAL_TEST_HOOKS
 void testFixedEventQueue(TestSupport::Context &context)
 {
+    // Verify queue ownership and event coalescing.
     std::array<Desktop::Types::Event, 3> storage;
     Desktop::Window window;
     static_cast<void>(context.expectTrue("portable queue hook opens", Desktop::Internal::TestHooks::openPortable(window, storage).ok()));
@@ -52,6 +57,7 @@ void testFixedEventQueue(TestSupport::Context &context)
     static_cast<void>(Desktop::Internal::TestHooks::enqueue(window, Desktop::Types::Events::ClientPositionChanged{{5, 6}}));
     static_cast<void>(context.expectEq("noncoalescible event is a barrier", std::size_t{3}, window.eventQueueInfo().pendingEvents));
 
+    // Preserve ordering and account for dropped events.
     static_cast<void>(Desktop::Internal::TestHooks::enqueue(window, Desktop::Types::Events::RedrawRequested{}));
     static_cast<void>(context.expectEq("full queue evicts oldest coalescible event", std::uint64_t{1}, window.eventQueueInfo().droppedEvents));
 
@@ -72,6 +78,7 @@ void testFixedEventQueue(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("new noncoalescible event remains", third.getIf<Desktop::Types::Events::RedrawRequested>() != nullptr));
     static_cast<void>(context.expectTrue("retained sequences are increasing", first.sequence < second.sequence && second.sequence < third.sequence));
 
+    // Release borrowed payload storage on pop and close.
     window.clearDroppedEventCount();
     static_cast<void>(context.expectEq("drop count clears", std::uint64_t{0}, window.eventQueueInfo().droppedEvents));
     static_cast<void>(context.expectTrue("hook queue closes", window.close().ok()));
@@ -116,8 +123,13 @@ void testStickyClose(TestSupport::Context &context)
 
 #endif
 
+/// ------------------------------------------------------------
+/// Native event translation
+/// ------------------------------------------------------------
+
 void testNativeEventTranslation(TestSupport::Context &context)
 {
+    // Open a hidden Window and capture native event dispatch.
     Desktop::Types::Description description;
     description.title = "Window native event validation";
     description.windowed.clientSize = {260, 170};
@@ -139,6 +151,7 @@ void testNativeEventTranslation(TestSupport::Context &context)
         static_cast<void>(window.close());
         return;
     }
+    // Translate size and fullscreen changes.
     window.clearEvents();
     static_cast<void>(window.setClientSize({300, 210}));
     static_cast<void>(context.expectTrue(
@@ -174,6 +187,7 @@ void testNativeEventTranslation(TestSupport::Context &context)
         "windowed restoration translates to WindowModeChangedEvent",
         consumeEventOfType<Desktop::Types::Events::WindowModeChanged>(window)));
 
+    // Translate visibility changes.
     static_cast<void>(SendMessageW(handle->window, WM_SHOWWINDOW, FALSE, 0));
     window.clearEvents();
     static_cast<void>(SendMessageW(handle->window, WM_SHOWWINDOW, TRUE, 0));
@@ -186,6 +200,7 @@ void testNativeEventTranslation(TestSupport::Context &context)
     static_cast<void>(context.expectFalse("synthetic hide restores visibility cache", window.visible()));
     static_cast<void>(consumeEventOfType<Desktop::Types::Events::VisibilityChanged>(window));
 
+    // Translate presentation and focus changes.
     window.clearEvents();
     static_cast<void>(SendMessageW(handle->window, WM_SIZE, SIZE_MINIMIZED, MAKELPARAM(300, 210)));
     static_cast<void>(context.expectTrue("WM_SIZE minimize updates presentation cache", window.minimized()));
@@ -209,6 +224,7 @@ void testNativeEventTranslation(TestSupport::Context &context)
     static_cast<void>(
         context.expectTrue("WM_KILLFOCUS translates to FocusChangedEvent", consumeEventOfType<Desktop::Types::Events::FocusChanged>(window)));
 
+    // Translate pointer and display changes.
     window.clearEvents();
     static_cast<void>(SendMessageW(handle->window, WM_MOUSEMOVE, 0, MAKELPARAM(2, 2)));
     static_cast<void>(context.expectTrue("WM_MOUSEMOVE updates cursor-presence cache", window.cursorInside()));
@@ -228,6 +244,7 @@ void testNativeEventTranslation(TestSupport::Context &context)
         "WM_DISPLAYCHANGE translates to DisplayConfigurationChangedEvent",
         consumeEventOfType<Desktop::Types::Events::DisplayConfigurationChanged>(window)));
 
+    // Translate file drops and redraw requests.
     window.clearEvents();
     const std::wstring droppedPath = L"C:/GameWIP/window-drop-test.txt";
     const std::size_t dropBytes = sizeof(DROPFILES) + (droppedPath.size() + 2) * sizeof(wchar_t);
@@ -274,6 +291,7 @@ void testNativeEventTranslation(TestSupport::Context &context)
     static_cast<void>(
         context.expectTrue("WM_PAINT translates to RedrawRequestedEvent", consumeEventOfType<Desktop::Types::Events::RedrawRequested>(window)));
 
+    // Translate close intent and release the fixture.
     window.clearEvents();
     static_cast<void>(SendMessageW(handle->window, WM_CLOSE, 0, 0));
     static_cast<void>(context.expectTrue("WM_CLOSE sets sticky close intent", window.hasCloseRequest()));

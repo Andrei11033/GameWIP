@@ -1,233 +1,12 @@
-/// @file desktop_manual_transfer_tests.inl
-/// @brief Shell and Window file-drop manual validation cases.
+/// @file desktop_manual_shell_tests.inl
+/// @brief Manual validation for native shell integrations.
 
 /// ------------------------------------------------------------
-/// Shell launch probe
+/// Shell integration behavior
 /// ------------------------------------------------------------
 
-[[nodiscard]] std::filesystem::path shellLaunchReceiptPath(std::string_view token)
+[[nodiscard]] bool testManualShellIntegrations(TestSupport::Context &context, Desktop::Window &window, bool includeShell)
 {
-    return std::filesystem::temp_directory_path() / std::format("GameWIP-shell-launch-{}.txt", token);
-}
-
-[[nodiscard]] std::filesystem::path shellGenericLaunchReceiptPath(const std::filesystem::path &targetPath)
-{
-    return targetPath.parent_path() / ".gamewip-generic-launch-receipt.txt";
-}
-
-/// @brief Confirms a controlled shell launch without starting the full validation runner again.
-[[nodiscard]] int runShellLaunchProbeChild(int argc, char **argv)
-{
-    constexpr std::string_view prefix = "--desktop-shell-launch-token=";
-    constexpr std::string_view receiptPrefix = "--desktop-shell-launch-receipt=";
-    constexpr std::string_view targetPrefix = "--desktop-shell-launch-expected-target=";
-    const auto arguments = GameWIP::Validation::processArguments(argc, argv);
-    std::string_view expectedTarget;
-    std::filesystem::path receiptPath;
-
-    for(const char *argument : arguments)
-    {
-        if(argument != nullptr && std::string_view{argument}.starts_with(targetPrefix))
-        {
-            expectedTarget = std::string_view{argument}.substr(targetPrefix.size());
-        }
-
-        if(argument != nullptr && std::string_view{argument}.starts_with(receiptPrefix))
-        {
-            receiptPath = std::filesystem::path(std::string_view{argument}.substr(receiptPrefix.size()));
-        }
-    }
-
-    for(const char *argument : arguments)
-    {
-        if(argument == nullptr || !std::string_view{argument}.starts_with(prefix))
-        {
-            continue;
-        }
-        const std::string_view token = std::string_view{argument}.substr(prefix.size());
-
-        if(token.empty() || token.size() > 64 ||
-           !std::ranges::all_of(
-               token,
-               [](char value)
-               {
-                   return (value >= '0' && value <= '9') || value == '-';
-               }))
-        {
-            return 2;
-        }
-
-        if(!expectedTarget.empty())
-        {
-            std::string receivedArguments;
-
-            for(const char *received : arguments)
-            {
-                receivedArguments += received == nullptr ? "<null>" : received;
-                receivedArguments.push_back('\n');
-            }
-            const std::filesystem::path expectedArgumentsPath = receiptPath.empty() ? shellLaunchReceiptPath(token) : receiptPath;
-            static_cast<void>(TestSupport::writeTextFile(expectedArgumentsPath.string() + ".arguments", receivedArguments));
-
-            if(arguments.size() < 5 || arguments.back() == nullptr || std::string_view{arguments.back()} != expectedTarget)
-            {
-                return 4;
-            }
-        }
-
-        if(receiptPath.empty())
-        {
-            receiptPath = shellLaunchReceiptPath(token);
-        }
-
-        return TestSupport::writeTextFile(receiptPath, token).ok() ? 0 : 3;
-    }
-
-    return 0;
-}
-
-/// @brief Exercises independently selectable file/Window and native shell checks.
-void testManualFilesAndShell(
-    TestSupport::Context &context,
-    const GameWIP::Test::DesktopTestOptions &options,
-    bool includeWindow = true,
-    bool includeShell = true)
-{
-    if(!beginManualSuite(context, options, "Window files and shell behavior"))
-    {
-        return;
-    }
-
-    const auto capabilitiesResult = Desktop::getCapabilities();
-    const Desktop::Types::Capabilities capabilities = capabilitiesResult.value_or({});
-    Desktop::Types::Description description;
-    description.fileDropEnabled = includeWindow && capabilities.supports(Desktop::Types::Capability::FileDrop);
-    Desktop::Window window;
-
-    if(!openManualWindow(context, window, "GameWIP file and shell validation", description))
-    {
-        return;
-    }
-
-    // Validate Window file-drop and icon behavior.
-    if(includeWindow)
-    {
-        if(capabilities.supports(Desktop::Types::Capability::FileDrop))
-        {
-            const auto runDrop = [&](std::string_view name, std::string_view instruction, std::size_t minimumPaths)
-            {
-                window.clearEvents();
-                std::size_t groupedEvents = 0;
-                std::size_t pathCount = 0;
-                const auto observeDrops = [&]
-                {
-                    Desktop::Types::Event event;
-
-                    while(window.popEvent(event))
-                    {
-                        if(const auto *drop = event.getIf<Desktop::Types::Events::FilesDropped>())
-                        {
-                            ++groupedEvents;
-                            pathCount += drop->paths.size();
-                            std::string pathList;
-
-                            for(const auto &path : drop->paths)
-                            {
-                                const std::u8string utf8 = path.generic_u8string();
-
-                                if(!pathList.empty())
-                                {
-                                    pathList.append("\r\n");
-                                }
-                                pathList.append(reinterpret_cast<const char *>(utf8.data()), utf8.size());
-                            }
-                            const std::string observation = std::format(
-                                "Received FilesDroppedEvent: groupedEvents={} paths={} clientPosition={}\r\n{}",
-                                groupedEvents,
-                                pathCount,
-                                drop->clientPosition.has_value(),
-                                pathList);
-
-                            if(manualStatusWindow != nullptr)
-                            {
-                                manualStatusWindow->setObservation(observation);
-                            }
-                            static_cast<void>(window.setTitle(std::format("Drop received: {} path(s)", pathCount)));
-                        }
-                    }
-                };
-                static_cast<void>(window.setTitle("Waiting for file drop..."));
-
-                if(manualStatusWindow != nullptr)
-                {
-                    manualStatusWindow->setObservation("Waiting for FilesDroppedEvent.");
-                }
-                const TestSupport::Types::Reporting::ManualAnswer answer = recordManualCheck(context, window, name, instruction, observeDrops);
-
-                if(answer != TestSupport::Types::Reporting::ManualAnswer::Yes)
-                {
-                    return;
-                }
-
-                static_cast<void>(context.expectEq("file drop produces one grouped event", std::size_t{1}, groupedEvents));
-                static_cast<void>(context.expectTrue("file drop retains expected paths", pathCount >= minimumPaths));
-            };
-
-            runDrop("single-file drop", "Drag one ordinary file into the Window, then answer yes if one drop was accepted.", 1);
-            runDrop("multiple-file drop", "Drag at least two files together into the Window, then answer yes if one grouped drop was accepted.", 2);
-            runDrop("Unicode-path drop", "Drag a file whose path contains non-ASCII characters, then answer yes if it was accepted intact.", 1);
-            runDrop("space-containing-path drop", "Drag a file whose path contains spaces, then answer yes if it was accepted intact.", 1);
-
-            static_cast<void>(context.expectTrue("file drops disable", window.setFileDropEnabled(false).ok()));
-            window.clearEvents();
-            const TestSupport::Types::Reporting::ManualAnswer disabledAnswer =
-                recordManualCheck(context, window, "disabled file drops", "Try dropping a file. Was it rejected with no observable drop behavior?");
-
-            if(disabledAnswer == TestSupport::Types::Reporting::ManualAnswer::Yes)
-            {
-                static_cast<void>(
-                    context.expectFalse("disabled file drops queue no event", consumeEventOfType<Desktop::Types::Events::FilesDropped>(window)));
-            }
-        }
-        else
-        {
-            context.skip("Window file drops", "backend does not advertise FileDrop");
-        }
-
-        if(capabilities.supports(Desktop::Types::Capability::WindowIcon))
-        {
-            const auto makeIcon = [](std::uint32_t extent)
-            {
-                std::vector<std::byte> pixels(static_cast<std::size_t>(extent) * extent * 4u);
-
-                for(std::uint32_t y = 0; y < extent; ++y)
-                {
-                    for(std::uint32_t x = 0; x < extent; ++x)
-                    {
-                        const bool cyan = x < std::max(2u, extent / 5u) || y < std::max(2u, extent / 5u) || x == y || x + y + 1u == extent;
-                        const std::size_t offset = (static_cast<std::size_t>(y) * extent + x) * 4u;
-                        pixels[offset] = cyan ? std::byte{70} : std::byte{22};
-                        pixels[offset + 1u] = cyan ? std::byte{210} : std::byte{70};
-                        pixels[offset + 2u] = cyan ? std::byte{255} : std::byte{126};
-                        pixels[offset + 3u] = std::byte{255};
-                    }
-                }
-
-                return pixels;
-            };
-            std::vector<std::byte> smallPixels = makeIcon(16u);
-            std::vector<std::byte> largePixels = makeIcon(32u);
-            const std::array images{Desktop::Types::IconImageView{{16, 16}, smallPixels}, Desktop::Types::IconImageView{{32, 32}, largePixels}};
-            static_cast<void>(context.expectTrue("custom shell icons apply", window.setIcon(images).ok()));
-            recordManualCheck(
-                context,
-                window,
-                "custom shell icons",
-                "Does the blue/cyan GameWIP validation icon appear clearly at the appropriate small title-bar and larger taskbar shell sizes?");
-            static_cast<void>(window.clearIcon());
-        }
-    }
-
     // Exercise shell integrations through one event queue.
     if(includeShell)
     {
@@ -235,7 +14,7 @@ void testManualFilesAndShell(
 
         if(!requireManualStatus(context, "shell capability query", shellCapabilityResult.status))
         {
-            return;
+            return false;
         }
         const auto &shellCapabilities = *shellCapabilityResult;
         Desktop::ShellEventQueue shellQueue;
@@ -429,7 +208,7 @@ void testManualFilesAndShell(
 
             if(!context.expectTrue("shell launch executable resolves", executableLength > 0 && executableLength < executableText.size()))
             {
-                return;
+                return false;
             }
             const std::filesystem::path executable{executableText.data()};
             const std::string launchToken = std::format("{}-{}", GetCurrentProcessId(), GetTickCount64());
@@ -472,10 +251,7 @@ void testManualFilesAndShell(
                     return true;
                 }
 
-                // The generic Applications command is a separate process.  A
-                // successful launch is established by a non-empty receipt;
-                // tolerate a transient read result while that child is still
-                // closing its file handle and let waitForLaunch poll again.
+                // Retry transient reads while the launched child closes its receipt.
                 std::error_code fileError;
                 return std::filesystem::is_regular_file(genericLaunchReceipt, fileError) &&
                        std::filesystem::file_size(genericLaunchReceipt, fileError) > 0;
@@ -546,7 +322,7 @@ void testManualFilesAndShell(
 
             if(!context.expectTrue("shell registration fixtures create", registrationFixtures.status().ok()))
             {
-                return;
+                return false;
             }
             const auto fileProbe = registrationFixtures.path() / ("probe with spaces" + extension);
             const auto uriProbe = registrationFixtures.path() / "uri-launch.html";
@@ -570,7 +346,7 @@ void testManualFilesAndShell(
                            scheme))
                        .ok()))
             {
-                return;
+                return false;
             }
 
             const std::array<Desktop::Types::Shell::LaunchArgumentView, 4> fileLaunchArguments{
@@ -693,100 +469,5 @@ void testManualFilesAndShell(
             static_cast<void>(shellQueue.close());
         }
     }
-
-    if(!includeWindow)
-    {
-        static_cast<void>(window.close());
-        return;
-    }
-
-    static_cast<void>(context.expectTrue("attention request succeeds", window.requestAttention().ok()));
-    recordManualCheck(context, window, "attention indication", "Did Windows show its normal taskbar/native attention indication?");
-
-    static_cast<void>(context.expectTrue("focusability disables", window.setFocusable(false).ok()));
-    static_cast<void>(context.expectTrue("interaction disables", window.setUserInteractionEnabled(false).ok()));
-    recordManualCheck(
-        context,
-        window,
-        "disabled focus and interaction",
-        "Is the Window visibly disabled and unable to acquire focus or interaction?");
-    static_cast<void>(window.setUserInteractionEnabled(true));
-    static_cast<void>(window.setFocusable(true));
-    static_cast<void>(context.expectTrue("topmost enables", window.setAlwaysOnTop(true).ok()));
-    recordManualCheck(context, window, "topmost policy", "Does the Window remain above ordinary Windows without breaking activation?");
-    static_cast<void>(window.setAlwaysOnTop(false));
-
-    for(const bool resizable : {false, true})
-    {
-        for(const bool maximizable : {false, true})
-        {
-            static_cast<void>(window.setResizable(true));
-            Desktop::Types::Controls controls = window.controls();
-            controls.maximizable = maximizable;
-            const IO::Types::Status controlsStatus = window.setControls(controls);
-            const IO::Types::Status resizeStatus = window.setResizable(resizable);
-
-            if(!resizable && maximizable)
-            {
-                static_cast<void>(
-                    context.expectTrue("invalid nonresizable/maximizable combination is rejected", !controlsStatus.ok() || !resizeStatus.ok()));
-            }
-            else
-            {
-                static_cast<void>(context.expectTrue("valid resize/control combination applies", controlsStatus.ok() && resizeStatus.ok()));
-            }
-        }
-    }
-    static_cast<void>(window.setResizable(true));
-    Desktop::Types::Controls maximizableControls = window.controls();
-    maximizableControls.maximizable = true;
-    static_cast<void>(window.setControls(maximizableControls));
-    static_cast<void>(context.expectTrue("maximizable-then-nonresizable transition is rejected", !window.setResizable(false).ok()));
-    static_cast<void>(window.setControls({.closable = true, .minimizable = true, .maximizable = false}));
-    static_cast<void>(window.setResizable(false));
-    maximizableControls = window.controls();
-    maximizableControls.maximizable = true;
-    static_cast<void>(context.expectTrue("nonresizable-then-maximizable transition is rejected", !window.setControls(maximizableControls).ok()));
-    static_cast<void>(window.setResizable(true));
-    static_cast<void>(window.setControls({}));
-    Desktop::Types::Controls independentControls = window.controls();
-    independentControls.closable = false;
-    independentControls.minimizable = false;
-    static_cast<void>(context.expectTrue("close and minimize controls disable independently", window.setControls(independentControls).ok()));
-    static_cast<void>(context.expectFalse("close control cached disabled", window.controls().closable));
-    static_cast<void>(context.expectFalse("minimize control cached disabled", window.controls().minimizable));
-    recordManualCheck(
-        context,
-        window,
-        "standard control combinations",
-        "The diagnostics must show close=false, minimize=false, maximize=true, resizable=true. Are only the close and minimize controls disabled "
-        "in the native frame?");
-    static_cast<void>(window.setControls({}));
-
-    Desktop::Types::Description ownedDescription;
-    ownedDescription.owner = window.id();
-    Desktop::Window owned;
-
-    if(openManualWindow(context, owned, "GameWIP owned taskbar validation", ownedDescription))
-    {
-        recordManualCheck(
-            context,
-            owned,
-            "owned taskbar default",
-            "The diagnostics must show a nonzero ownerId. Does the owned Window have no independent taskbar entry?");
-        static_cast<void>(owned.setOwner(std::nullopt));
-        recordManualCheck(
-            context,
-            owned,
-            "owned taskbar removal",
-            "The diagnostics must show ownerId=0. After removing ownership, does an independent taskbar entry appear?");
-        static_cast<void>(owned.setOwner(window.id()));
-        recordManualCheck(
-            context,
-            owned,
-            "owned taskbar restoration",
-            "The diagnostics must again show a nonzero ownerId. After restoring ownership, does the independent taskbar entry disappear again?");
-        static_cast<void>(owned.close());
-    }
-    static_cast<void>(window.close());
+    return true;
 }

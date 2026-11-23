@@ -59,8 +59,11 @@ struct ManualNativeWindowState
 /// @brief Selects independently repeatable parts of fullscreen and topology validation.
 struct ManualFullscreenSections
 {
+    // Fullscreen modes
     bool borderless = true;
     bool exclusive = true;
+
+    // Display topology
     bool topology = true;
 };
 

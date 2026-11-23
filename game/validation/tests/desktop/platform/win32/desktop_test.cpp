@@ -78,395 +78,91 @@ namespace
     namespace RegistrationTypes = Desktop::Types::Registration;
     using IO::Types::ErrorCode;
 
-    /// ------------------------------------------------------------
-    /// Process-isolated child modes
-    /// ------------------------------------------------------------
-
-    inline constexpr wchar_t kManualTestAppUserModelId[] = L"GameWIP.Validation.DesktopManualTests";
-    inline constexpr std::string_view kStandaloneColorChildArgument = "--desktop-test-child=standalone-color-shutdown";
-    inline constexpr std::string_view kWindowColorChildArgument = "--desktop-test-child=window-color-shutdown";
-    inline constexpr std::string_view kOwnerExitColorChildArgument = "--desktop-test-child=owner-exit-color-shutdown";
-    inline constexpr std::string_view kOwnerExitDragDropChildArgument = "--desktop-test-child=owner-exit-drag-drop-shutdown";
-    inline constexpr std::string_view kOwnerExitDragDropFailureChildArgument = "--desktop-test-child=owner-exit-drag-drop-revocation-failure";
-    inline constexpr std::string_view kOwnerExitProgressChildArgument = "--desktop-test-child=owner-exit-progress-shutdown";
-    inline constexpr std::string_view kOwnerExitProgressFailureChildArgument = "--desktop-test-child=owner-exit-progress-close-failure";
-    inline constexpr std::string_view kDeferredPumpFailureWaitChildArgument = "--desktop-test-child=deferred-pump-failure-wait";
-#if DESKTOP_INTERNAL_TEST_HOOKS
-    inline constexpr std::string_view kProgressRestoreMessageLazinessChildArgument = "--desktop-test-child=progress-restore-message-laziness";
-#endif
-
-    static_assert(!std::is_move_constructible_v<Desktop::Window>);
-    static_assert(!std::is_move_assignable_v<Desktop::Window>);
-    static_assert(!std::is_copy_constructible_v<Desktop::Window>);
-    static_assert(!std::is_copy_assignable_v<Desktop::Window>);
-    static_assert(!std::is_move_constructible_v<Desktop::ChildSurface>);
-    static_assert(!std::is_move_assignable_v<Desktop::ChildSurface>);
-    static_assert(!std::is_copy_constructible_v<Desktop::ChildSurface>);
-    static_assert(!std::is_copy_assignable_v<Desktop::ChildSurface>);
-    static_assert(!std::is_move_constructible_v<Desktop::ProgressDialog>);
-    static_assert(!std::is_copy_constructible_v<Desktop::ProgressDialog>);
-    static_assert(noexcept(Desktop::Events::poll()));
-    static_assert(noexcept(Desktop::Events::wait()));
-    static_assert(noexcept(std::declval<Desktop::Window &>().close()));
-    static_assert(noexcept(Desktop::Display::getColorInfo(Desktop::Types::Display::MonitorId::invalid())));
-    static_assert(noexcept(Desktop::Display::getColorInfo(std::declval<const Desktop::Window &>())));
-    static_assert(std::is_same_v<decltype(Desktop::Types::Events::FilesDropped{}.paths)::value_type, GameWIP::FileSystem::Types::Path>);
-
-    [[nodiscard]] bool hasArgument(int argc, char **argv, std::string_view expected) noexcept
-    {
-        const auto arguments = GameWIP::Validation::processArguments(argc, argv);
-        return std::ranges::any_of(
-            arguments.subspan(std::min<std::size_t>(1, arguments.size())),
-            [expected](const char *value)
-            {
-                return value != nullptr && std::string_view(value) == expected;
-            });
-    }
-
-    [[nodiscard]] int runStandaloneColorShutdownChild() noexcept
-    {
-        const auto primary = Desktop::Display::getPrimaryMonitor();
-        if(!primary.ok())
-        {
-            return 2;
-        }
-        return Desktop::Display::getColorInfo(primary->id).ok() ? 0 : 3;
-    }
-
-    [[nodiscard]] int runWindowColorShutdownChild() noexcept
-    {
-        const auto primary = Desktop::Display::getPrimaryMonitor();
-        if(!primary.ok() || !Desktop::Display::getColorInfo(primary->id).ok())
-        {
-            return 2;
-        }
-        Desktop::Types::Description description;
-        description.title = "Desktop color shutdown child";
-        description.windowed.clientSize = {160, 100};
-        description.activation.visible = false;
-        Desktop::Window window;
-
-        if(!window.open(description, Desktop::Events::owned(4)).ok())
-        {
-            return 3;
-        }
-
-        if(!Desktop::Display::getColorInfo(window).ok())
-        {
-            return 4;
-        }
-        const auto handle = Desktop::Native::Win32::getHandle(window);
-        if(!handle.status.ok() || handle->window == nullptr || PostMessageW(static_cast<HWND>(handle->window), WM_CLOSE, 0, 0) == FALSE)
-        {
-            return 5;
-        }
-
-        if(!Desktop::Events::poll().status.ok() || !window.hasCloseRequest())
-        {
-            return 6;
-        }
-        return window.close().ok() ? 0 : 7;
-    }
-
-    [[nodiscard]] int runOwnerExitColorShutdownChild() noexcept
-    {
-        std::unique_ptr<Desktop::Window> survivingWindow;
-        int workerResult = 0;
-        std::thread owner(
-            [&]
-            {
-                auto window = std::make_unique<Desktop::Window>();
-                Desktop::Types::Description description;
-                description.title = "Desktop owner-exit color shutdown child";
-                description.windowed.clientSize = {160, 100};
-                description.activation.visible = false;
-
-                if(!window->open(description, Desktop::Events::owned(4)).ok())
-                {
-                    workerResult = 2;
-                    return;
-                }
-
-                if(!Desktop::Display::getColorInfo(*window).status.ok())
-                {
-                    workerResult = 3;
-                    return;
-                }
-                survivingWindow = std::move(window);
-            });
-        owner.join();
-
-        if(workerResult != 0)
-        {
-            return workerResult;
-        }
-
-        if(!survivingWindow || survivingWindow->lifetimeState() != Desktop::Types::LifetimeState::Closed)
-        {
-            return 4;
-        }
-        survivingWindow.reset();
-        return 0;
-    }
-
-    [[nodiscard]] int runOwnerExitDragDropShutdownChild(bool forceRepeatedRevocationFailure) noexcept
-    {
-        std::unique_ptr<Desktop::Window> survivingWindow;
-        std::unique_ptr<Desktop::DragDropTarget> survivingTarget;
-        Desktop::Types::WindowId retainedWindowId;
-        int workerResult = 0;
-        std::thread owner(
-            [&]
-            {
-                auto window = std::make_unique<Desktop::Window>();
-                auto target = std::make_unique<Desktop::DragDropTarget>();
-                Desktop::Types::Description description;
-                description.title = "Desktop owner-exit DragDrop shutdown child";
-                description.windowed.clientSize = {160, 100};
-                description.activation.visible = false;
-
-                if(!window->open(description, Desktop::Events::owned(4)).ok())
-                {
-                    workerResult = 2;
-                    return;
-                }
-                namespace DD = Desktop::Types::DragDrop;
-                namespace Transfer = Desktop::Types::DataTransfer;
-                std::array formats{Transfer::FormatView::text()};
-                std::array regions{DD::RegionDescription{DD::RegionId{1}, std::nullopt, formats, DD::EffectPolicy::copy()}};
-
-                if(!target->open(*window, DD::TargetDescription{regions}, DD::QueueConfiguration::owned(2)).ok())
-                {
-                    workerResult = 3;
-                    return;
-                }
-
-#if DESKTOP_INTERNAL_TEST_HOOKS
-                if(forceRepeatedRevocationFailure)
-                {
-                    Desktop::Internal::TestHooks::failDragDropRevocations(64);
-                }
-#else
-                static_cast<void>(forceRepeatedRevocationFailure);
-#endif
-                retainedWindowId = window->id();
-                survivingWindow = std::move(window);
-                survivingTarget = std::move(target);
-            });
-        owner.join();
-
-        if(workerResult != 0)
-        {
-            return workerResult;
-        }
-
-        if(!survivingWindow || !survivingTarget)
-        {
-            return 4;
-        }
-
-        if(survivingTarget->isOpen() || survivingTarget->lifetimeState() != Desktop::Types::LifetimeState::NativeDestroyedPendingFinalize ||
-           survivingTarget->windowId() != retainedWindowId)
-        {
-            return 5;
-        }
-
-        if(survivingWindow->lifetimeState() != Desktop::Types::LifetimeState::Closed)
-        {
-            return 6;
-        }
-
-        if(!survivingTarget->close().ok())
-        {
-            return 7;
-        }
-        survivingTarget.reset();
-        survivingWindow.reset();
-        return 0;
-    }
-
-    [[nodiscard]] int runOwnerExitProgressShutdownChild(bool forceCloseFailure) noexcept
-    {
-        std::unique_ptr<Desktop::ProgressDialog> survivingProgress;
-        int workerResult = 0;
-        std::thread owner(
-            [&]
-            {
-                auto progress = std::make_unique<Desktop::ProgressDialog>();
-                Desktop::Types::Dialogs::Progress::Description description;
-                description.title = "Desktop owner-exit ProgressDialog child";
-                description.message = "Dispatcher teardown must finalize this presentation";
-
-                if(!progress->open(description).ok())
-                {
-                    workerResult = 2;
-                    return;
-                }
-
-#if DESKTOP_INTERNAL_TEST_HOOKS
-                if(forceCloseFailure)
-                {
-                    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::Close);
-                }
-#else
-                static_cast<void>(forceCloseFailure);
-#endif
-                survivingProgress = std::move(progress);
-            });
-        owner.join();
-
-        if(workerResult != 0)
-        {
-            return workerResult;
-        }
-
-        if(!survivingProgress || survivingProgress->ownedByCurrentThread() || survivingProgress->isOpen())
-        {
-            return 3;
-        }
-        survivingProgress.reset();
-        return 0;
-    }
-
-    [[nodiscard]] int runDeferredPumpFailureWaitChild() noexcept
-    {
-#if !DESKTOP_INTERNAL_TEST_HOOKS
-        return 6;
-#else
-        Desktop::Window owner;
-        Desktop::Types::Description windowDescription;
-        windowDescription.title = "Deferred pump failure owner";
-        windowDescription.windowed.clientSize = {160, 100};
-        windowDescription.activation.visible = false;
-
-        if(!owner.open(windowDescription, Desktop::Events::owned(4)).ok())
-        {
-            return 2;
-        }
-        Desktop::ProgressDialog progress;
-        Desktop::Types::Dialogs::Progress::Description progressDescription;
-        progressDescription.title = "Deferred pump failure progress";
-        progressDescription.message = "The wait must return the already-recorded error.";
-        progressDescription.owner = &owner;
-        progressDescription.blocksOwner = true;
-
-        if(!progress.open(progressDescription).ok())
-        {
-            static_cast<void>(owner.close());
-            return 3;
-        }
-
-        Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::ProgressOwnerRestoreWake);
-
-        if(!Win32TestHooks::destroyNativeProgressDialog(progress).ok())
-        {
-            static_cast<void>(progress.close());
-            static_cast<void>(owner.close());
-            return 4;
-        }
-        const Desktop::Types::Events::PumpResult waitResult = Desktop::Events::wait();
-        static_cast<void>(progress.close());
-        static_cast<void>(owner.close());
-        return waitResult.status.ok() ? 5 : 0;
-#endif
-    }
-
-#if DESKTOP_INTERNAL_TEST_HOOKS
-    [[nodiscard]] int runProgressRestoreMessageLazinessChild() noexcept
-    {
-        if(Win32TestHooks::progressOwnerRestoreMessageRegistrationAttempted())
-        {
-            return 2;
-        }
-        Desktop::Window window;
-        Desktop::Types::Description description;
-        description.title = "Progress restore registration laziness";
-        description.windowed.clientSize = {160, 100};
-        description.activation.visible = false;
-
-        if(!window.open(description, Desktop::Events::owned(4)).ok())
-        {
-            return 3;
-        }
-
-        if(!Desktop::Events::poll().status.ok())
-        {
-            return 4;
-        }
-
-        if(!window.close().ok())
-        {
-            return 5;
-        }
-
-        return Win32TestHooks::progressOwnerRestoreMessageRegistrationAttempted() ? 6 : 0;
-    }
-
-#endif
-
-    void testDesktopProcessShutdown(TestSupport::Context &context, const std::filesystem::path &executablePath)
-    {
-        constexpr std::array childArguments{
-            std::string_view{"--desktop-test-child=accessibility-client"},
-            kStandaloneColorChildArgument,
-            kWindowColorChildArgument,
-            kOwnerExitColorChildArgument,
-            kOwnerExitDragDropChildArgument,
-            kOwnerExitDragDropFailureChildArgument,
-            kOwnerExitProgressChildArgument,
-            kOwnerExitProgressFailureChildArgument,
-            kDeferredPumpFailureWaitChildArgument,
-#if DESKTOP_INTERNAL_TEST_HOOKS
-            kProgressRestoreMessageLazinessChildArgument,
-#endif
-        };
-
-        for(const std::string_view argument : childArguments)
-        {
-            TestSupport::Types::Process::Options child;
-            child.executablePath = executablePath;
-            child.arguments = {std::string(argument)};
-            child.waitTimeout = std::chrono::seconds(30);
-            child.captureOutput = true;
-            const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(child);
-            const std::string name = std::format("{} exits cleanly", argument);
-
-            if(!result.status.ok())
-            {
-                context.fail(name, TestSupport::formatInfrastructureStatus(result.status));
-                continue;
-            }
-            static_cast<void>(
-                context.expectEq(std::format("{} reports an exact exit", argument), TestSupport::Types::Process::Outcome::Exited, result.outcome));
-            static_cast<void>(context.expectEq(name, std::uint32_t{0}, result.exitCode));
-        }
-    }
+#include "validation/tests/desktop/platform/win32/desktop_process_tests.inl"
 
     /// ------------------------------------------------------------
-    /// Validation case implementations
+    /// Manual scenario support
     /// ------------------------------------------------------------
 
 #include "validation/tests/desktop/platform/win32/desktop_manual_fullscreen_support.inl"
-#include "validation/tests/desktop/platform/win32/desktop_manual_support.inl"
-#include "validation/tests/desktop/platform/win32/desktop_manual_window_tests.inl"
+#include "validation/tests/desktop/platform/win32/desktop_manual_status.inl"
+#include "validation/tests/desktop/platform/win32/desktop_manual_transfer_support.inl"
+#include "validation/tests/desktop/platform/win32/desktop_manual_surface.inl"
+#include "validation/tests/desktop/platform/win32/desktop_manual_interaction.inl"
+#include "validation/tests/desktop/platform/win32/desktop_manual_window_setup.inl"
+#include "validation/tests/desktop/platform/win32/desktop_manual_drag_drop_support.inl"
+#include "validation/tests/desktop/platform/win32/desktop_manual_shell_launch_support.inl"
+
+    /// ------------------------------------------------------------
+    /// Manual scenario tests
+    /// ------------------------------------------------------------
+
+#include "validation/tests/desktop/platform/win32/desktop_manual_lifecycle_tests.inl"
+#include "validation/tests/desktop/platform/win32/desktop_manual_chrome_tests.inl"
+#include "validation/tests/desktop/platform/win32/desktop_manual_dpi_cursor_tests.inl"
 #include "validation/tests/desktop/platform/win32/desktop_manual_accessibility_tests.inl"
-#include "validation/tests/desktop/platform/win32/desktop_manual_transfer_tests.inl"
+#include "validation/tests/desktop/platform/win32/desktop_manual_file_drop_tests.inl"
+#include "validation/tests/desktop/platform/win32/desktop_manual_shell_tests.inl"
+#include "validation/tests/desktop/platform/win32/desktop_manual_window_policy_tests.inl"
+#include "validation/tests/desktop/platform/win32/desktop_manual_files_shell_tests.inl"
 #include "validation/tests/desktop/platform/win32/desktop_manual_drag_drop_tests.inl"
-#include "validation/tests/desktop/platform/win32/desktop_manual_display_tests.inl"
-#include "validation/tests/desktop/platform/win32/desktop_dialog_tests.inl"
+#include "validation/tests/desktop/platform/win32/desktop_manual_fullscreen_tests.inl"
+#include "validation/tests/desktop/platform/win32/desktop_manual_color_tests.inl"
+#include "validation/tests/desktop/platform/win32/desktop_manual_modern_capability_tests.inl"
+#include "validation/tests/desktop/platform/win32/desktop_manual_child_surface_tests.inl"
+
+    /// ------------------------------------------------------------
+    /// Dialog validation
+    /// ------------------------------------------------------------
+
+#include "validation/tests/desktop/platform/win32/desktop_file_dialog_tests.inl"
+#include "validation/tests/desktop/platform/win32/desktop_apartment_tests.inl"
+#include "validation/tests/desktop/platform/win32/desktop_message_dialog_tests.inl"
+#include "validation/tests/desktop/platform/win32/desktop_prompt_dialog_tests.inl"
+#include "validation/tests/desktop/platform/win32/desktop_progress_dialog_support.inl"
 #include "validation/tests/desktop/platform/win32/desktop_progress_dialog_tests.inl"
+#include "validation/tests/desktop/platform/win32/desktop_progress_dialog_ownership_tests.inl"
+#include "validation/tests/desktop/platform/win32/desktop_manual_focused_dialog_tests.inl"
 #include "validation/tests/desktop/platform/win32/desktop_manual_dialog_tests.inl"
+
+    /// ------------------------------------------------------------
+    /// Window contract tests
+    /// ------------------------------------------------------------
+
+#include "validation/tests/desktop/platform/win32/desktop_values_tests.inl"
 #include "validation/tests/desktop/platform/win32/desktop_lifecycle_tests.inl"
+#include "validation/tests/desktop/platform/win32/desktop_native_window_tests.inl"
 #include "validation/tests/desktop/platform/win32/desktop_event_tests.inl"
-#include "validation/tests/desktop/platform/win32/desktop_renderer_tests.inl"
-#include "validation/tests/desktop/platform/win32/desktop_display_tests.inl"
-#include "validation/tests/desktop/platform/win32/desktop_cursor_tests.inl"
 #include "validation/tests/desktop/platform/win32/desktop_child_surface_tests.inl"
-#include "validation/tests/desktop/platform/win32/desktop_clipboard_tests.inl"
+
+    /// ------------------------------------------------------------
+    /// Renderer, display, and cursor tests
+    /// ------------------------------------------------------------
+
+#include "validation/tests/desktop/platform/win32/desktop_presentation_tests.inl"
+#include "validation/tests/desktop/platform/win32/desktop_pointer_hit_mask_tests.inl"
+#include "validation/tests/desktop/platform/win32/desktop_renderer_occlusion_tests.inl"
+#include "validation/tests/desktop/platform/win32/desktop_display_tests.inl"
+#include "validation/tests/desktop/platform/win32/desktop_cursor_support.inl"
+#include "validation/tests/desktop/platform/win32/desktop_cursor_selection_tests.inl"
+#include "validation/tests/desktop/platform/win32/desktop_cursor_native_tests.inl"
+
+    /// ------------------------------------------------------------
+    /// Clipboard, drag-and-drop, and shell tests
+    /// ------------------------------------------------------------
+
+#include "validation/tests/desktop/platform/win32/desktop_clipboard_support.inl"
 #include "validation/tests/desktop/platform/win32/desktop_manual_clipboard_tests.inl"
+#include "validation/tests/desktop/platform/win32/desktop_clipboard_contract_tests.inl"
+#include "validation/tests/desktop/platform/win32/desktop_clipboard_roundtrip_tests.inl"
+#include "validation/tests/desktop/platform/win32/desktop_clipboard_failure_tests.inl"
 #include "validation/tests/desktop/platform/win32/desktop_drag_drop_tests.inl"
 #include "validation/tests/desktop/platform/win32/desktop_shell_event_tests.inl"
+#include "validation/tests/desktop/platform/win32/desktop_shell_lifecycle_tests.inl"
+#include "validation/tests/desktop/platform/win32/desktop_jump_list_tests.inl"
 #include "validation/tests/desktop/platform/win32/desktop_shell_registration_tests.inl"
+#include "validation/tests/desktop/platform/win32/desktop_shell_application_registration_tests.inl"
+#include "validation/tests/desktop/platform/win32/desktop_shell_launch_tests.inl"
 } // namespace
 
 namespace GameWIP::Test

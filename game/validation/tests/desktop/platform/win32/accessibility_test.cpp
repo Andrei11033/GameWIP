@@ -103,7 +103,9 @@ namespace
 #if DESKTOP_INTERNAL_TEST_HOOKS
 #include "validation/tests/desktop/platform/win32/accessibility_transport_tests.inl"
 #include "validation/tests/desktop/platform/win32/accessibility_provider_tests.inl"
-#include "validation/tests/desktop/platform/win32/accessibility_text_tests.inl"
+#include "validation/tests/desktop/platform/win32/accessibility_text_ranges_tests.inl"
+#include "validation/tests/desktop/platform/win32/accessibility_text_semantics_tests.inl"
+#include "validation/tests/desktop/platform/win32/accessibility_text_attributes_tests.inl"
 #include "validation/tests/desktop/platform/win32/accessibility_retained_tests.inl"
 #include "validation/tests/desktop/platform/win32/accessibility_control_tests.inl"
 #include "validation/tests/desktop/platform/win32/accessibility_geometry_tests.inl"

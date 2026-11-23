@@ -5,6 +5,7 @@ void testDisplayColorInformation(TestSupport::Context &context)
 {
     namespace Feedback = Desktop::Display;
 
+    // Reject invalid and disconnected display queries.
     const Desktop::Window closed;
     static_cast<void>(context.expectEq("closed Window rejects display-color query", ErrorCode::NotOpen, Feedback::getColorInfo(closed).status.code));
     static_cast<void>(context.expectEq(
@@ -23,6 +24,8 @@ void testDisplayColorInformation(TestSupport::Context &context)
     {
         return;
     }
+
+    // Validate available monitor metadata.
     const auto primaryColor = Feedback::getColorInfo(primary->id);
     static_cast<void>(context.expectTrue("native display-color query succeeds", primaryColor.ok()));
 
@@ -40,6 +43,7 @@ void testDisplayColorInformation(TestSupport::Context &context)
                 (!primaryColor->sdrWhiteLevelNits || *primaryColor->sdrWhiteLevelNits >= 0.0F)));
     }
 
+    // Check Window ownership and thread affinity.
     Desktop::Types::Description description;
     description.title = "Window display-color validation";
     description.windowed.clientSize = {240, 160};
@@ -69,6 +73,7 @@ void testDisplayColorInformation(TestSupport::Context &context)
     static_cast<void>(context.expectEq("wrong-thread Window color query is rejected", ErrorCode::ResourceBusy, wrongThreadCode));
 
 #if DESKTOP_INTERNAL_TEST_HOOKS
+    // Normalize native metadata and translate query failures.
     Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::DisplayColorQuery);
     static_cast<void>(context.expectEq(
         "display-color native failure is translated",
@@ -139,6 +144,7 @@ void testDisplayColorInformation(TestSupport::Context &context)
         context.expectEq("advanced-color SDR remains wide-gamut", Desktop::Types::Display::ColorSpace::WideColorGamut, wideColor.activeColorSpace));
     static_cast<void>(context.expectFalse("wide-gamut SDR is not inferred as HDR", wideColor.hdrEnabled));
 
+    // Verify display changes use the shared event contract.
     window.clearEvents();
     Desktop::Internal::TestHooks::simulateDisplayColorConfigurationChange();
     static_cast<void>(context.expectTrue("display-color transition pump succeeds", Desktop::Events::poll().status.ok()));
@@ -150,10 +156,21 @@ void testDisplayColorInformation(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("display-color Window fixture closes", window.close().ok()));
 }
 
+/// ------------------------------------------------------------
+/// Monitor and mode queries
+/// ------------------------------------------------------------
+
 void testMonitors(TestSupport::Context &context)
 {
+    // Resolve the primary display and inspect its available modes.
     const auto monitors = Desktop::Display::getMonitors();
     static_cast<void>(context.expectTrue("monitor enumeration succeeds", monitors.ok()));
+
+    if(!monitors.ok())
+    {
+        return;
+    }
+
     static_cast<void>(context.expectFalse("monitor enumeration is nonempty", monitors->empty()));
     const auto primary = Desktop::Display::getPrimaryMonitor();
     static_cast<void>(context.expectTrue("primary monitor query succeeds", primary.ok()));
@@ -162,11 +179,18 @@ void testMonitors(TestSupport::Context &context)
     {
         return;
     }
+
     static_cast<void>(context.expectTrue("primary monitor id is valid", primary->id.isValid()));
     static_cast<void>(context.expectTrue("primary monitor is marked primary", primary->primary));
     static_cast<void>(context.expectTrue("monitor identity resolves", Desktop::Display::getMonitor(primary->id).ok()));
     const auto modes = Desktop::Display::getModes(primary->id);
     static_cast<void>(context.expectTrue("display-mode enumeration succeeds", modes.ok()));
+
+    if(!modes.ok())
+    {
+        return;
+    }
+
     static_cast<void>(context.expectFalse("display-mode enumeration is nonempty", modes->empty()));
     static_cast<void>(context.expectTrue("current display mode succeeds", Desktop::Display::getCurrentMode(primary->id).ok()));
     const auto preferred = Desktop::Display::getPreferredMode(primary->id);
