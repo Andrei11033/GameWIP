@@ -1,4 +1,11 @@
-# Stages the resolved runtime dependency closure beside one built executable.
+# Copies the resolved Windows runtime dependency closure beside one executable.
+
+if(
+    NOT GAMEWIP_TARGET_PLATFORM STREQUAL "windows"
+    AND (GAMEWIP_TARGET_PLATFORM STREQUAL "linux" OR CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
+)
+    message(FATAL_ERROR "Linux runtime dependencies are resolved by the system loader; this copy script is Windows-only.")
+endif()
 
 if(NOT DEFINED GAMEWIP_EXECUTABLE)
     message(FATAL_ERROR "GAMEWIP_EXECUTABLE was not provided.")
@@ -24,8 +31,6 @@ set(gamewip_target_is_windows OFF)
 if(GAMEWIP_TARGET_PLATFORM STREQUAL "windows")
     set(gamewip_target_is_windows ON)
     set(CMAKE_GET_RUNTIME_DEPENDENCIES_PLATFORM "windows+pe")
-elseif(GAMEWIP_TARGET_PLATFORM STREQUAL "linux")
-    set(CMAKE_GET_RUNTIME_DEPENDENCIES_PLATFORM "linux+elf")
 elseif(WIN32)
     set(gamewip_target_is_windows ON)
     set(CMAKE_GET_RUNTIME_DEPENDENCIES_PLATFORM "windows+pe")

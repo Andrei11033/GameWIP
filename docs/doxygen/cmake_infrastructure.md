@@ -37,8 +37,8 @@ concepts.
 | `cmake/LibraryDoxygen.cmake` | Doxygen input registration and generated documentation target creation. |
 | `cmake/GameWIPDocumentation.cmake` | Project-level Doxygen page registration. |
 | `cmake/GameWIPValidationModules.cmake` | Validation and benchmark module registration helpers. |
-| `cmake/GameWIPRuntimeDependencies.cmake` | Runtime dependency staging and validation registration for executable targets. |
-| `cmake/copy_runtime_dependencies.cmake` | Clean-shadow runtime dependency discovery and app-local DLL staging. |
+| `cmake/GameWIPRuntimeDependencies.cmake` | Windows runtime dependency staging and validation registration for executables. |
+| `cmake/copy_runtime_dependencies.cmake` | Clean-shadow Windows DLL discovery and app-local staging. |
 | `cmake/ValidateRuntimeDependencies.cmake` | Windows/MSYS2 regression contract for compiler-runtime replacement and executable launch. |
 | `cmake/GameWIPCoverage.cmake` | Coverage instrumentation and report target. |
 | `cmake/GameWIPStaticAnalysis.cmake` | clang-tidy and clang-format validation targets. |
@@ -234,18 +234,15 @@ Platform backend behavior is governed by @ref project_platform_backend_contract.
 
 ## Runtime dependencies
 
-Use `gamewip_copy_runtime_dependencies(<target>)` for executable targets that
-must run directly from the build tree on the supported Windows/MSYS2
-environment.
+Windows executable targets use `gamewip_copy_runtime_dependencies(<target>)` to resolve
+runtime DLLs and copy them beside the executable. Discovery scans a clean shadow
+copy so stale compiler DLLs cannot override the active toolchain runtime.
+Project DLLs remain available to the scan, compiler-owned DLLs resolve from the
+active compiler directory, and the temporary shadow directory is removed.
 
-The helper adds a post-build step that resolves runtime DLLs and copies them
-beside the target executable. It lets validation executables and the game run
-without asking users to copy compiler runtime dependencies manually.
-
-On Windows, discovery scans a clean shadow copy so a stale compiler DLL already
-beside the executable cannot override the active toolchain runtime. Project DLLs
-remain available to the scan, compiler-owned DLLs are resolved from the active
-compiler directory, and the temporary shadow directory is removed afterward.
+Linux targets skip this copy step. The ELF loader resolves system libraries
+through host library paths, while CMake uses `$ORIGIN` build RPATH entries for
+project-built shared libraries.
 Unresolved dependencies are warnings by default and become errors when the
 caller sets `GAMEWIP_FAIL_ON_UNRESOLVED_DEPENDENCIES`.
 

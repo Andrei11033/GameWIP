@@ -1,10 +1,10 @@
-# Provides post-build runtime dependency discovery and copying for binaries that
-# need toolchain DLLs beside the target. The helper uses the active compiler
-# search directory and fails through the generated dependency script when
-# resolution is unsafe.
+# Provides post-build runtime dependency discovery and copying for Windows
+# executable targets.
 
 function(gamewip_copy_runtime_dependencies target_name)
-    if(GAMEWIP_TARGET_PLATFORM STREQUAL "linux" AND NOT GAMEWIP_TARGET_NATIVE_ARCHITECTURE)
+    if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        # Keep project library paths relative so Linux executables run from the build tree.
+        set_property(TARGET "${target_name}" PROPERTY BUILD_RPATH_USE_ORIGIN TRUE)
         return()
     endif()
 
