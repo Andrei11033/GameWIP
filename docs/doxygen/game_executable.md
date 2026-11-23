@@ -30,7 +30,8 @@ integration code and reusable libraries.
 | `game/runtime/diagnostics/runtime_diagnostics.h` | Internal runtime status, input-device, and window-event reporting helpers. |
 | `game/runtime/diagnostics/runtime_status.cpp` | Emergency output and structured operation-status reporting. |
 | `game/runtime/diagnostics/window_reports.cpp` | Window event labels, event details, and startup-state reporting. |
-| `game/runtime/diagnostics/input_devices.cpp` | Input device inventory at Debug and grouped descriptors at Trace. |
+| `game/runtime/diagnostics/input_devices.cpp` | Connected device count at Info and per-device inventory at Debug. |
+| `game/runtime/diagnostics/input_device_trace.cpp` | Bounded device descriptors and native source details at Trace. |
 | `game/runtime/diagnostics/input_control_events.h` | Internal entry points for opt-in control logging. |
 | `game/runtime/diagnostics/input_control_changes.cpp` | Compact control and raw value changes at Debug. |
 | `game/runtime/diagnostics/input_control_trace.cpp` | Detailed control and text events at Trace. |
