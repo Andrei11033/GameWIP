@@ -1,23 +1,31 @@
 /// @file process_test.inl
 /// @brief Private Assert correctness cases for isolated crash, break, and child-process behavior.
 
-/// @brief Child-process body that intentionally triggers a failed ASSERT.
-int runAssertFailureChild()
+/// @brief Configures isolated child logging and suppresses native crash dialogs.
+void initializeChildLogger()
 {
     GameWIP::Validation::PlatformTests::suppressCrashDialogs();
+
     Logger::Types::Config config;
     config.output = Logger::Types::OutputMode::None;
     config.minLevel = Logger::Types::Level::Trace;
     config.enableDebugOutput = false;
     config.enableFatalPopup = false;
 
-    if(const char *childLogDirectory = std::getenv(std::string(kChildLogDirectoryEnvironmentVariable).c_str()))
+    // Route output to the parent-owned fixture directory when requested.
+    if(const char *childLogDirectory = std::getenv(kChildLogDirectoryEnvironmentVariable.data()))
     {
         config.output = Logger::Types::OutputMode::File;
         config.logDirectory = childLogDirectory;
         config.fallbackToConsoleOnFileFailure = false;
     }
-    Logger::init(config);
+    static_cast<void>(Logger::init(config));
+}
+
+/// @brief Child-process body that intentionally triggers a failed ASSERT.
+int runAssertFailureChild()
+{
+    initializeChildLogger();
     ASSERT_MSG(false, kAssertFailureChildMessage);
     Logger::shutdown();
     return 0;
@@ -26,20 +34,7 @@ int runAssertFailureChild()
 /// @brief Executes the interactive Abort child protocol; correct behavior terminates the process.
 int runInteractiveAbortChild()
 {
-    GameWIP::Validation::PlatformTests::suppressCrashDialogs();
-    Logger::Types::Config config;
-    config.output = Logger::Types::OutputMode::None;
-    config.minLevel = Logger::Types::Level::Trace;
-    config.enableDebugOutput = false;
-    config.enableFatalPopup = false;
-
-    if(const char *childLogDirectory = std::getenv(std::string(kChildLogDirectoryEnvironmentVariable).c_str()))
-    {
-        config.output = Logger::Types::OutputMode::File;
-        config.logDirectory = childLogDirectory;
-        config.fallbackToConsoleOnFileFailure = false;
-    }
-    Logger::init(config);
+    initializeChildLogger();
     ASSERT_INTERACTIVE_MSG(false, "interactive abort child");
     Logger::shutdown();
     return 0;
@@ -48,20 +43,7 @@ int runInteractiveAbortChild()
 /// @brief Executes the interactive Break child protocol under the test action environment.
 int runInteractiveBreakChild()
 {
-    GameWIP::Validation::PlatformTests::suppressCrashDialogs();
-    Logger::Types::Config config;
-    config.output = Logger::Types::OutputMode::None;
-    config.minLevel = Logger::Types::Level::Trace;
-    config.enableDebugOutput = false;
-    config.enableFatalPopup = false;
-
-    if(const char *childLogDirectory = std::getenv(std::string(kChildLogDirectoryEnvironmentVariable).c_str()))
-    {
-        config.output = Logger::Types::OutputMode::File;
-        config.logDirectory = childLogDirectory;
-        config.fallbackToConsoleOnFileFailure = false;
-    }
-    Logger::init(config);
+    initializeChildLogger();
     ASSERT_INTERACTIVE_MSG(false, "interactive break child");
     Logger::shutdown();
     return 0;

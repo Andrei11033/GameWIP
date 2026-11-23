@@ -24,6 +24,7 @@ void testInteractiveIgnoreOnce(TestContext &context)
         context.fail("interactive ignore once logger init", "Logger::init failed");
         return;
     }
+
     const ScopedEnvironmentVariable testAction(context.processState, kTestActionEnvironmentVariable, "ignore_once");
 
     if(!requireInfrastructure(context, "set interactive ignore-once action", testAction.status()))
@@ -66,6 +67,7 @@ void testInteractiveAlwaysIgnore(TestContext &context)
         context.fail("interactive always ignore logger init", "Logger::init failed");
         return;
     }
+
     const ScopedEnvironmentVariable testAction(context.processState, kTestActionEnvironmentVariable, "always_ignore");
 
     if(!requireInfrastructure(context, "set interactive always-ignore action", testAction.status()))

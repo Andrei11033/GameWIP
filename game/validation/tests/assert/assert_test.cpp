@@ -59,11 +59,14 @@ namespace
         {
         }
 
+        // Shared reporting state
         TestSupport::Context &testContext;
+        TestSupport::Types::Reporting::Summary manualObservations;
+
+        // Process scope and test paths
         TestSupport::ScopedProcessState processState;
         std::filesystem::path logRoot;
         std::filesystem::path executablePath;
-        TestSupport::Types::Reporting::Summary manualObservations;
 
         [[nodiscard]] TestSupport::Types::Reporting::Summary result() const noexcept
         {
@@ -341,7 +344,9 @@ namespace
         {
             return false;
         }
+
         const std::string directoryText = pathText(context, directory);
+
         if(directoryText.empty())
         {
             return false;
