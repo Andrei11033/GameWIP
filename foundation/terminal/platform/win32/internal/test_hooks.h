@@ -1,4 +1,4 @@
-/// @file win32_terminal_test_hooks.h
+/// @file test_hooks.h
 /// @brief Win32-specific deterministic test hooks for Terminal input.
 
 #pragma once
@@ -9,7 +9,7 @@
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
 #include "io/status.h"
-#include "terminal/internal/terminal_test_export.h"
+#include "terminal/internal/test_export.h"
 #include "terminal/input.h"
 
 #include <chrono>
@@ -18,12 +18,12 @@
 #include <optional>
 #include <stop_token>
 
-namespace GameWIP::Terminal::TestHooks
+namespace GameWIP::Terminal::Internal::TestHooks::Win32
 {
     struct Win32KeyDecodeResult;
 }
 
-namespace GameWIP::Terminal::Detail::Platform::TestHooks
+namespace GameWIP::Terminal::Platform::Win32::Internal::TestHooks
 {
     /// ------------------------------------------------------------
     /// Win32 input state
@@ -53,7 +53,7 @@ namespace GameWIP::Terminal::Detail::Platform::TestHooks
     TERMINAL_TEST_EXPORT void resetWin32KeyDecoder() noexcept;
 
     /// @brief Decodes one synthetic console key record.
-    [[nodiscard]] TERMINAL_TEST_EXPORT GameWIP::Terminal::TestHooks::Win32KeyDecodeResult decodeWin32KeyRecord(
+    [[nodiscard]] TERMINAL_TEST_EXPORT GameWIP::Terminal::Internal::TestHooks::Win32::Win32KeyDecodeResult decodeWin32KeyRecord(
         bool keyDown,
         std::uint16_t virtualKey,
         char16_t unicodeCharacter,
@@ -73,9 +73,9 @@ namespace GameWIP::Terminal::Detail::Platform::TestHooks
 
     /// @brief Returns whether the current input endpoint retains a high surrogate.
     [[nodiscard]] TERMINAL_TEST_EXPORT bool hasPendingHighSurrogate(GameWIP::Terminal::Types::Input::Stream stream) noexcept;
-} // namespace GameWIP::Terminal::Detail::Platform::TestHooks
+} // namespace GameWIP::Terminal::Platform::Win32::Internal::TestHooks
 
-namespace GameWIP::Terminal::TestHooks
+namespace GameWIP::Terminal::Internal::TestHooks::Win32
 {
     /// ------------------------------------------------------------
     /// Win32 key decoding
@@ -125,5 +125,5 @@ namespace GameWIP::Terminal::TestHooks
 
     /// @brief Returns whether the current Win32 input endpoint retains a high surrogate.
     [[nodiscard]] TERMINAL_TEST_EXPORT bool hasPendingHighSurrogate(GameWIP::Terminal::Types::Input::Stream stream) noexcept;
-} // namespace GameWIP::Terminal::TestHooks
+} // namespace GameWIP::Terminal::Internal::TestHooks::Win32
 #endif

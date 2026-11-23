@@ -3,9 +3,10 @@
 
 #include "terminal/session.h"
 
-#include "terminal/internal/terminal_input.h"
-#include "terminal/internal/terminal_platform.h"
-#include "terminal/internal/terminal_status.h"
+#include "terminal/internal/input.h"
+#include "terminal/platform/backend.h"
+#include "terminal/internal/status.h"
+#include "terminal/internal/session_state.h"
 #include <array>
 #include <atomic>
 #include <chrono>
@@ -24,11 +25,25 @@
 
 namespace GameWIP::Terminal
 {
-    namespace Detail
+    namespace Internal
     {
+        IO::Types::Status invalidArgumentStatus() noexcept
+        {
+            return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
+        }
+
+        IO::Types::Status notOpenStatus() noexcept
+        {
+            return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
+        }
+
         [[nodiscard]] IO::Types::Status claimDirectInput(Types::Input::Stream stream) noexcept;
         void releaseDirectInput(Types::Input::Stream stream) noexcept;
-    } // namespace Detail
+    } // namespace Internal
+
+    using Internal::invalidArgumentStatus;
+    using Internal::notOpenStatus;
+    using Internal::PreparedInputOwnership;
 
     namespace
     {
@@ -48,15 +63,6 @@ namespace GameWIP::Terminal
             std::mutex ioMutex;
             const void *owner = nullptr;
             bool directLease = false;
-        };
-
-        struct PreparedInputOwnership
-        {
-            Types::Input::Capabilities capabilities{};
-            Detail::Platform::InputModeSnapshot previousMode{};
-            bool hasPreviousMode = false;
-            bool claimed = false;
-            bool directClaimed = false;
         };
 
         struct ReadDecision
@@ -97,19 +103,9 @@ namespace GameWIP::Terminal
                    mode == Types::Input::LineEndingMode::NormalizeToLf;
         }
 
-        [[nodiscard]] IO::Types::Status invalidArgumentStatus() noexcept
-        {
-            return IO::makeStatus(ErrorCode::InvalidArgument);
-        }
-
         [[nodiscard]] IO::Types::Status unsupportedStatus() noexcept
         {
             return IO::makeStatus(ErrorCode::Unsupported);
-        }
-
-        [[nodiscard]] IO::Types::Status notOpenStatus() noexcept
-        {
-            return IO::makeStatus(ErrorCode::NotOpen);
         }
 
         [[nodiscard]] bool operationSupported(const Types::Input::Capabilities &capabilities, ReadOperation operation) noexcept
@@ -212,12 +208,12 @@ namespace GameWIP::Terminal
             return decision;
         }
 
-        [[nodiscard]] Detail::Platform::InputMode managedMode(
+        [[nodiscard]] Platform::InputMode managedMode(
             const Types::SessionOptions &options,
-            Detail::Platform::InputMode previousMode,
+            Platform::InputMode previousMode,
             const Types::Input::Capabilities &capabilities) noexcept
         {
-            Detail::Platform::InputMode mode = previousMode;
+            Platform::InputMode mode = previousMode;
             mode.processControlKeys = options.controlKeyMode == Types::Input::ControlKeyMode::NativeProcessing;
 
             // Event delivery, and Stream delivery on event-capable terminals, use one immediate native engine.
@@ -277,8 +273,8 @@ namespace GameWIP::Terminal
             {
                 if(ownership.hasPreviousMode)
                 {
-                    std::lock_guard lock(Detail::inputIoMutex(stream));
-                    restoration = Detail::Platform::restoreInputMode(stream, ownership.previousMode);
+                    std::lock_guard lock(Internal::inputIoMutex(stream));
+                    restoration = Platform::restoreInputMode(stream, ownership.previousMode);
                 }
             }
             catch(const std::bad_alloc &)
@@ -300,12 +296,12 @@ namespace GameWIP::Terminal
             {
                 if(ownership.directClaimed)
                 {
-                    Detail::releaseDirectInput(stream);
+                    Internal::releaseDirectInput(stream);
                     ownership.directClaimed = false;
                 }
                 else
                 {
-                    Detail::releaseInput(stream, owner);
+                    Internal::releaseInput(stream, owner);
                 }
                 ownership.claimed = false;
             }
@@ -328,7 +324,7 @@ namespace GameWIP::Terminal
             ownership = {};
 
             const bool directClaim = owner == nullptr;
-            IO::Types::Status status = directClaim ? Detail::claimDirectInput(options.input) : Detail::claimInput(options.input, owner);
+            IO::Types::Status status = directClaim ? Internal::claimDirectInput(options.input) : Internal::claimInput(options.input, owner);
 
             if(!status.ok())
             {
@@ -342,8 +338,8 @@ namespace GameWIP::Terminal
             try
             {
                 {
-                    std::lock_guard lock(Detail::inputIoMutex(options.input));
-                    Types::Input::CapabilitiesResult capabilityResult = Detail::Platform::getInputCapabilities(options.input);
+                    std::lock_guard lock(Internal::inputIoMutex(options.input));
+                    Types::Input::CapabilitiesResult capabilityResult = Platform::getInputCapabilities(options.input);
 
                     if(!capabilityResult.status.ok())
                     {
@@ -363,16 +359,15 @@ namespace GameWIP::Terminal
                         }
                         else if(ownership.capabilities.kind == Types::StreamKind::Terminal)
                         {
-                            Detail::Platform::InputModeSnapshotResult snapshot = Detail::Platform::captureInputMode(options.input);
+                            Platform::InputModeSnapshotResult snapshot = Platform::captureInputMode(options.input);
                             status = snapshot.status;
 
                             if(status.ok())
                             {
                                 ownership.previousMode = snapshot.snapshot;
                                 ownership.hasPreviousMode = true;
-                                status = Detail::Platform::setInputMode(
-                                    options.input,
-                                    managedMode(options, ownership.previousMode.mode, ownership.capabilities));
+                                status =
+                                    Platform::setInputMode(options.input, managedMode(options, ownership.previousMode.mode, ownership.capabilities));
                             }
                         }
                     }
@@ -480,7 +475,7 @@ namespace GameWIP::Terminal
 
     } // namespace
 
-    namespace Detail
+    namespace Internal
     {
         std::mutex &inputIoMutex(Types::Input::Stream stream) noexcept
         {
@@ -580,165 +575,7 @@ namespace GameWIP::Terminal
                 return;
             }
         }
-    } // namespace Detail
-
-    struct Session::State
-    {
-        enum class PersistentOutputState : std::uint8_t
-        {
-            CursorHidden,
-            AlternateScreen
-        };
-
-        // Lifecycle coordination
-        // Operations retain the open binding through a lightweight count without holding this mutex while backend
-        // work or user formatters execute. Lifecycle mutation closes the admission gate and waits for the count.
-        std::mutex lifecycleMutex;
-        std::condition_variable lifecycleCondition;
-        bool lifecycleMutation = false;
-        std::size_t activeOperations = 0;
-
-        // Input and output synchronization
-        std::mutex inputOperationMutex;
-        std::mutex persistentOutputMutex;
-
-        // Active session binding
-        std::atomic_bool open = false;
-        Types::SessionOptions options{};
-        PreparedInputOwnership ownership{};
-
-        // Retain Unicode boundary capacity across line reads.
-        std::vector<std::size_t> lineBoundaryStorage;
-
-        // Persistent output restoration
-        CursorHiddenScope cursorHiddenScope;
-        AlternateScreenScope alternateScreenScope;
-        std::array<PersistentOutputState, 2> outputRestoreOrder{};
-        std::size_t outputRestoreCount = 0;
-
-        class Operation final
-        {
-        public:
-            explicit Operation(State &requested)
-                : previous_(current_)
-            {
-                bool reentrant = false;
-
-                for(const Operation *operation = current_; operation != nullptr; operation = operation->previous_)
-                {
-                    if(operation->state_ == &requested)
-                    {
-                        reentrant = true;
-                        break;
-                    }
-                }
-
-                std::unique_lock lock(requested.lifecycleMutex);
-
-                if(!reentrant)
-                {
-                    requested.lifecycleCondition.wait(
-                        lock,
-                        [&requested]
-                        {
-                            return !requested.lifecycleMutation;
-                        });
-                }
-
-                if(!requested.open.load(std::memory_order_acquire))
-                {
-                    return;
-                }
-                ++requested.activeOperations;
-                state_ = &requested;
-                current_ = this;
-            }
-
-            Operation(const Operation &) = delete;
-            Operation &operator=(const Operation &) = delete;
-
-            ~Operation()
-            {
-                if(state_ == nullptr)
-                {
-                    return;
-                }
-
-                current_ = previous_;
-                std::lock_guard lock(state_->lifecycleMutex);
-                --state_->activeOperations;
-
-                if(state_->activeOperations == 0)
-                {
-                    state_->lifecycleCondition.notify_all();
-                }
-            }
-
-            [[nodiscard]] static bool activeOnCurrentThread(const State &state) noexcept
-            {
-                for(const Operation *operation = current_; operation != nullptr; operation = operation->previous_)
-                {
-                    if(operation->state_ == &state)
-                    {
-                        return true;
-                    }
-                }
-
-                return false;
-            }
-
-        private:
-            inline static thread_local Operation *current_ = nullptr;
-            State *state_ = nullptr;
-            Operation *previous_ = nullptr;
-        };
-
-        class Mutation final
-        {
-        public:
-            explicit Mutation(State &state)
-                : state_(state)
-                , lock_(state.lifecycleMutex)
-            {
-                state_.lifecycleCondition.wait(
-                    lock_,
-                    [this]
-                    {
-                        return !state_.lifecycleMutation;
-                    });
-                state_.lifecycleMutation = true;
-                try
-                {
-                    state_.lifecycleCondition.wait(
-                        lock_,
-                        [this]
-                        {
-                            return state_.activeOperations == 0;
-                        });
-                }
-                catch(...)
-                {
-                    state_.lifecycleMutation = false;
-                    state_.lifecycleCondition.notify_all();
-                    throw;
-                }
-            }
-
-            Mutation(const Mutation &) = delete;
-            Mutation &operator=(const Mutation &) = delete;
-
-            ~Mutation()
-            {
-                state_.lifecycleMutation = false;
-                lock_.unlock();
-                state_.lifecycleCondition.notify_all();
-            }
-
-        private:
-            State &state_;
-            std::unique_lock<std::mutex> lock_;
-        };
-    };
+    } // namespace Internal
 
     Session::Session() noexcept = default;
 
@@ -837,7 +674,7 @@ namespace GameWIP::Terminal
         catch(...)
         {
             static_cast<void>(restoreOutputState(false));
-            Detail::releaseInput(state_->options.input, state_.get());
+            Internal::releaseInput(state_->options.input, state_.get());
             state_->open.store(false, std::memory_order_release);
         }
     }
@@ -983,8 +820,8 @@ namespace GameWIP::Terminal
             {
                 return cancelledResult<Types::Input::EventResult>();
             }
-            std::lock_guard inputLock(Detail::inputIoMutex(state_->options.input));
-            return Detail::Platform::readEvent(state_->options.input, state_->options.output, options);
+            std::lock_guard inputLock(Internal::inputIoMutex(state_->options.input));
+            return Platform::readEvent(state_->options.input, state_->options.output, options);
         }
         catch(const std::bad_alloc &)
         {
@@ -1029,8 +866,8 @@ namespace GameWIP::Terminal
             {
                 return cancelledResult<Types::Input::ByteResult>();
             }
-            std::lock_guard inputLock(Detail::inputIoMutex(state_->options.input));
-            return Detail::Platform::readBytes(state_->options.input, outputBuffer, options);
+            std::lock_guard inputLock(Internal::inputIoMutex(state_->options.input));
+            return Platform::readBytes(state_->options.input, outputBuffer, options);
         }
         catch(const std::bad_alloc &)
         {
@@ -1080,8 +917,8 @@ namespace GameWIP::Terminal
             {
                 return cancelledResult<Types::Input::TextResult>();
             }
-            std::lock_guard inputLock(Detail::inputIoMutex(state_->options.input));
-            return Detail::Platform::readText(state_->options.input, options);
+            std::lock_guard inputLock(Internal::inputIoMutex(state_->options.input));
+            return Platform::readText(state_->options.input, options);
         }
         catch(const std::bad_alloc &)
         {
@@ -1134,10 +971,10 @@ namespace GameWIP::Terminal
 
             if(state_->ownership.capabilities.kind == Types::StreamKind::Terminal && state_->ownership.capabilities.supportsEventInput)
             {
-                return Detail::managedTerminalLineRead(state_->options.input, state_->options.output, options, state_->lineBoundaryStorage);
+                return Internal::managedTerminalLineRead(state_->options.input, state_->options.output, options, state_->lineBoundaryStorage);
             }
-            std::lock_guard inputLock(Detail::inputIoMutex(state_->options.input));
-            return Detail::Platform::readLine(state_->options.input, options);
+            std::lock_guard inputLock(Internal::inputIoMutex(state_->options.input));
+            return Platform::readLine(state_->options.input, options);
         }
         catch(const std::bad_alloc &)
         {
@@ -1169,656 +1006,10 @@ namespace GameWIP::Terminal
         }
         catch(...)
         {
-            return {.status = Detail::exceptionStatus(), .capabilities = {}};
+            return {.status = Internal::exceptionStatus(), .capabilities = {}};
         }
     }
 
-    Types::Output::CapabilitiesResult Session::getOutputCapabilities() const noexcept
-    {
-        if(!state_)
-        {
-            return {.status = notOpenStatus(), .capabilities = {}};
-        }
-
-        try
-        {
-            State::Operation operation(*state_);
-
-            if(!state_->open.load(std::memory_order_acquire))
-            {
-                return {.status = notOpenStatus(), .capabilities = {}};
-            }
-            return Terminal::getOutputCapabilities(state_->options.output);
-        }
-        catch(...)
-        {
-            return {.status = Detail::exceptionStatus(), .capabilities = {}};
-        }
-    }
-
-    /// ------------------------------------------------------------
-    /// Output
-    /// ------------------------------------------------------------
-
-    Types::Output::CapabilitiesResult Session::prepareOutput() noexcept
-    {
-        if(!state_)
-        {
-            return {.status = notOpenStatus(), .capabilities = {}};
-        }
-
-        try
-        {
-            State::Operation operation(*state_);
-
-            if(!state_->open.load(std::memory_order_acquire))
-            {
-                return {.status = notOpenStatus(), .capabilities = {}};
-            }
-
-            return Terminal::prepareOutput(state_->options.output);
-        }
-        catch(...)
-        {
-            return {.status = Detail::exceptionStatus(), .capabilities = {}};
-        }
-    }
-
-    Types::SizeResult Session::getTerminalSize() const noexcept
-    {
-        if(!state_)
-        {
-            return {.status = notOpenStatus(), .size = {}};
-        }
-
-        try
-        {
-            State::Operation operation(*state_);
-
-            if(!state_->open.load(std::memory_order_acquire))
-            {
-                return {.status = notOpenStatus(), .size = {}};
-            }
-            return Terminal::getTerminalSize(state_->options.output);
-        }
-        catch(...)
-        {
-            return {.status = Detail::exceptionStatus(), .size = {}};
-        }
-    }
-
-    IO::Types::Status Session::writeText(std::string_view utf8Text, const Types::Output::TextOptions &options) noexcept
-    {
-        if(!state_)
-        {
-            return notOpenStatus();
-        }
-
-        try
-        {
-            State::Operation operation(*state_);
-
-            if(!state_->open.load(std::memory_order_acquire))
-            {
-                return notOpenStatus();
-            }
-            return Terminal::writeText(state_->options.output, utf8Text, options);
-        }
-        catch(...)
-        {
-            return Detail::exceptionStatus();
-        }
-    }
-
-    IO::Types::Status Session::writeLine(std::string_view utf8Text, const Types::Output::LineOptions &options) noexcept
-    {
-        if(!state_)
-        {
-            return notOpenStatus();
-        }
-
-        try
-        {
-            State::Operation operation(*state_);
-
-            if(!state_->open.load(std::memory_order_acquire))
-            {
-                return notOpenStatus();
-            }
-            return Terminal::writeLine(state_->options.output, utf8Text, options);
-        }
-        catch(...)
-        {
-            return Detail::exceptionStatus();
-        }
-    }
-
-    IO::Types::WriteResult Session::writeBytes(std::span<const std::byte> bytes, const Types::Output::ByteOptions &options) noexcept
-    {
-        if(!state_)
-        {
-            return {.status = notOpenStatus(), .bytesWritten = 0};
-        }
-
-        try
-        {
-            State::Operation operation(*state_);
-
-            if(!state_->open.load(std::memory_order_acquire))
-            {
-                return {.status = notOpenStatus(), .bytesWritten = 0};
-            }
-            return Terminal::writeBytes(state_->options.output, bytes, options);
-        }
-        catch(...)
-        {
-            return {.status = Detail::exceptionStatus(), .bytesWritten = 0};
-        }
-    }
-
-    IO::Types::Status Session::writeSegments(std::span<const Types::Output::Segment> segments, const Types::Output::SegmentOptions &options) noexcept
-    {
-        if(!state_)
-        {
-            return notOpenStatus();
-        }
-
-        try
-        {
-            State::Operation operation(*state_);
-
-            if(!state_->open.load(std::memory_order_acquire))
-            {
-                return notOpenStatus();
-            }
-            return Terminal::writeSegments(state_->options.output, segments, options);
-        }
-        catch(...)
-        {
-            return Detail::exceptionStatus();
-        }
-    }
-
-    IO::Types::Status Session::vprint(const Types::Output::TextOptions &options, std::string_view format, std::format_args arguments) noexcept
-    {
-        if(!state_)
-        {
-            return notOpenStatus();
-        }
-
-        try
-        {
-            State::Operation operation(*state_);
-
-            if(!state_->open.load(std::memory_order_acquire))
-            {
-                return notOpenStatus();
-            }
-            return Detail::vprint(state_->options.output, options, format, arguments);
-        }
-        catch(...)
-        {
-            return Detail::exceptionStatus();
-        }
-    }
-
-    IO::Types::Status Session::vprintln(const Types::Output::LineOptions &options, std::string_view format, std::format_args arguments) noexcept
-    {
-        if(!state_)
-        {
-            return notOpenStatus();
-        }
-
-        try
-        {
-            State::Operation operation(*state_);
-
-            if(!state_->open.load(std::memory_order_acquire))
-            {
-                return notOpenStatus();
-            }
-            return Detail::vprintln(state_->options.output, options, format, arguments);
-        }
-        catch(...)
-        {
-            return Detail::exceptionStatus();
-        }
-    }
-
-    IO::Types::Status Session::flush(IO::Types::FlushMode mode) noexcept
-    {
-        if(!state_)
-        {
-            return notOpenStatus();
-        }
-
-        try
-        {
-            State::Operation operation(*state_);
-
-            if(!state_->open.load(std::memory_order_acquire))
-            {
-                return notOpenStatus();
-            }
-            return Terminal::flush(state_->options.output, mode);
-        }
-        catch(...)
-        {
-            return Detail::exceptionStatus();
-        }
-    }
-
-    /// ------------------------------------------------------------
-    /// Terminal controls
-    /// ------------------------------------------------------------
-
-    IO::Types::Status Session::resetStyle(const Types::Output::ControlOptions &options) noexcept
-    {
-        if(!state_)
-        {
-            return notOpenStatus();
-        }
-
-        try
-        {
-            State::Operation operation(*state_);
-
-            if(!state_->open.load(std::memory_order_acquire))
-            {
-                return notOpenStatus();
-            }
-            return Terminal::resetStyle(state_->options.output, options);
-        }
-        catch(...)
-        {
-            return Detail::exceptionStatus();
-        }
-    }
-
-    IO::Types::Status Session::moveCursor(
-        Types::Cursor::MoveDirection direction,
-        std::uint32_t amount,
-        const Types::Output::ControlOptions &options) noexcept
-    {
-        if(!state_)
-        {
-            return notOpenStatus();
-        }
-
-        try
-        {
-            State::Operation operation(*state_);
-
-            if(!state_->open.load(std::memory_order_acquire))
-            {
-                return notOpenStatus();
-            }
-            return Terminal::moveCursor(state_->options.output, direction, amount, options);
-        }
-        catch(...)
-        {
-            return Detail::exceptionStatus();
-        }
-    }
-
-    IO::Types::Status Session::setCursorPosition(Types::Cursor::Position position, const Types::Output::ControlOptions &options) noexcept
-    {
-        if(!state_)
-        {
-            return notOpenStatus();
-        }
-
-        try
-        {
-            State::Operation operation(*state_);
-
-            if(!state_->open.load(std::memory_order_acquire))
-            {
-                return notOpenStatus();
-            }
-            return Terminal::setCursorPosition(state_->options.output, position, options);
-        }
-        catch(...)
-        {
-            return Detail::exceptionStatus();
-        }
-    }
-
-    Types::Cursor::PositionResult Session::getCursorPosition(const Types::Cursor::QueryOptions &options) noexcept
-    {
-        if(!state_)
-        {
-            return {.status = notOpenStatus(), .position = {}};
-        }
-
-        try
-        {
-            State::Operation operation(*state_);
-            std::lock_guard inputOperationLock(state_->inputOperationMutex);
-
-            if(!state_->open.load(std::memory_order_acquire))
-            {
-                return {.status = notOpenStatus(), .position = {}};
-            }
-            return Terminal::getCursorPosition(state_->options.output, state_->options.input, options);
-        }
-        catch(...)
-        {
-            return {.status = Detail::exceptionStatus(), .position = {}};
-        }
-    }
-
-    IO::Types::Status Session::saveCursorPosition(const Types::Output::ControlOptions &options) noexcept
-    {
-        if(!state_)
-        {
-            return notOpenStatus();
-        }
-
-        try
-        {
-            State::Operation operation(*state_);
-
-            if(!state_->open.load(std::memory_order_acquire))
-            {
-                return notOpenStatus();
-            }
-            return Terminal::saveCursorPosition(state_->options.output, options);
-        }
-        catch(...)
-        {
-            return Detail::exceptionStatus();
-        }
-    }
-
-    IO::Types::Status Session::restoreCursorPosition(const Types::Output::ControlOptions &options) noexcept
-    {
-        if(!state_)
-        {
-            return notOpenStatus();
-        }
-
-        try
-        {
-            State::Operation operation(*state_);
-
-            if(!state_->open.load(std::memory_order_acquire))
-            {
-                return notOpenStatus();
-            }
-            return Terminal::restoreCursorPosition(state_->options.output, options);
-        }
-        catch(...)
-        {
-            return Detail::exceptionStatus();
-        }
-    }
-
-    IO::Types::Status Session::setCursorVisible(bool visible, const Types::Output::ControlOptions &options) noexcept
-    {
-        if(!state_)
-        {
-            return notOpenStatus();
-        }
-
-        try
-        {
-            State::Operation operation(*state_);
-
-            if(!state_->open.load(std::memory_order_acquire))
-            {
-                return notOpenStatus();
-            }
-
-            if(!IO::isValidFlushMode(options.flushMode))
-            {
-                return invalidArgumentStatus();
-            }
-            std::lock_guard persistentLock(state_->persistentOutputMutex);
-
-            if(!visible)
-            {
-                if(state_->cursorHiddenScope.active())
-                {
-                    return IO::successStatus();
-                }
-                CursorHiddenScope scope = scopedCursorHidden(state_->options.output, options);
-
-                if(scope.active())
-                {
-                    state_->cursorHiddenScope = std::move(scope);
-                    state_->outputRestoreOrder[state_->outputRestoreCount++] = State::PersistentOutputState::CursorHidden;
-                    return state_->cursorHiddenScope.status();
-                }
-                return scope.status();
-            }
-
-            if(!state_->cursorHiddenScope.active())
-            {
-                return Terminal::setCursorVisible(state_->options.output, true, options);
-            }
-            state_->cursorHiddenScope.options_ = options;
-            IO::Types::Status status = state_->cursorHiddenScope.restore();
-
-            if(!status.ok())
-            {
-                return status;
-            }
-
-            for(std::size_t index = 0; index < state_->outputRestoreCount; ++index)
-            {
-                if(state_->outputRestoreOrder[index] == State::PersistentOutputState::CursorHidden)
-                {
-                    for(std::size_t next = index + 1; next < state_->outputRestoreCount; ++next)
-                    {
-                        state_->outputRestoreOrder[next - 1] = state_->outputRestoreOrder[next];
-                    }
-                    --state_->outputRestoreCount;
-                    break;
-                }
-            }
-
-            return IO::successStatus();
-        }
-        catch(...)
-        {
-            return Detail::exceptionStatus();
-        }
-    }
-
-    IO::Types::Status Session::clear(Types::Output::ClearTarget target, const Types::Output::ControlOptions &options) noexcept
-    {
-        if(!state_)
-        {
-            return notOpenStatus();
-        }
-
-        try
-        {
-            State::Operation operation(*state_);
-
-            if(!state_->open.load(std::memory_order_acquire))
-            {
-                return notOpenStatus();
-            }
-            return Terminal::clear(state_->options.output, target, options);
-        }
-        catch(...)
-        {
-            return Detail::exceptionStatus();
-        }
-    }
-
-    IO::Types::Status Session::scroll(
-        Types::Output::ScrollDirection direction,
-        std::uint32_t lines,
-        const Types::Output::ControlOptions &options) noexcept
-    {
-        if(!state_)
-        {
-            return notOpenStatus();
-        }
-
-        try
-        {
-            State::Operation operation(*state_);
-
-            if(!state_->open.load(std::memory_order_acquire))
-            {
-                return notOpenStatus();
-            }
-            return Terminal::scroll(state_->options.output, direction, lines, options);
-        }
-        catch(...)
-        {
-            return Detail::exceptionStatus();
-        }
-    }
-
-    IO::Types::Status Session::enterAlternateScreen(const Types::Output::ControlOptions &options) noexcept
-    {
-        if(!state_)
-        {
-            return notOpenStatus();
-        }
-
-        try
-        {
-            State::Operation operation(*state_);
-
-            if(!state_->open.load(std::memory_order_acquire))
-            {
-                return notOpenStatus();
-            }
-
-            if(!IO::isValidFlushMode(options.flushMode))
-            {
-                return invalidArgumentStatus();
-            }
-            std::lock_guard persistentLock(state_->persistentOutputMutex);
-
-            if(state_->alternateScreenScope.active())
-            {
-                return IO::successStatus();
-            }
-            AlternateScreenScope scope = scopedAlternateScreen(state_->options.output, options);
-
-            if(scope.active())
-            {
-                state_->alternateScreenScope = std::move(scope);
-                state_->outputRestoreOrder[state_->outputRestoreCount++] = State::PersistentOutputState::AlternateScreen;
-                return state_->alternateScreenScope.status();
-            }
-            return scope.status();
-        }
-        catch(...)
-        {
-            return Detail::exceptionStatus();
-        }
-    }
-
-    IO::Types::Status Session::leaveAlternateScreen(const Types::Output::ControlOptions &options) noexcept
-    {
-        if(!state_)
-        {
-            return notOpenStatus();
-        }
-
-        try
-        {
-            State::Operation operation(*state_);
-
-            if(!state_->open.load(std::memory_order_acquire))
-            {
-                return notOpenStatus();
-            }
-
-            if(!IO::isValidFlushMode(options.flushMode))
-            {
-                return invalidArgumentStatus();
-            }
-            std::lock_guard persistentLock(state_->persistentOutputMutex);
-
-            if(!state_->alternateScreenScope.active())
-            {
-                return Terminal::leaveAlternateScreen(state_->options.output, options);
-            }
-            state_->alternateScreenScope.options_ = options;
-            IO::Types::Status status = state_->alternateScreenScope.leave();
-
-            if(!status.ok())
-            {
-                return status;
-            }
-
-            for(std::size_t index = 0; index < state_->outputRestoreCount; ++index)
-            {
-                if(state_->outputRestoreOrder[index] == State::PersistentOutputState::AlternateScreen)
-                {
-                    for(std::size_t next = index + 1; next < state_->outputRestoreCount; ++next)
-                    {
-                        state_->outputRestoreOrder[next - 1] = state_->outputRestoreOrder[next];
-                    }
-                    --state_->outputRestoreCount;
-                    break;
-                }
-            }
-
-            return IO::successStatus();
-        }
-        catch(...)
-        {
-            return Detail::exceptionStatus();
-        }
-    }
-
-    IO::Types::Status Session::setTitle(std::string_view utf8Title, const Types::Output::ControlOptions &options) noexcept
-    {
-        if(!state_)
-        {
-            return notOpenStatus();
-        }
-
-        try
-        {
-            State::Operation operation(*state_);
-
-            if(!state_->open.load(std::memory_order_acquire))
-            {
-                return notOpenStatus();
-            }
-            return Terminal::setTitle(state_->options.output, utf8Title, options);
-        }
-        catch(...)
-        {
-            return Detail::exceptionStatus();
-        }
-    }
-
-    IO::Types::Status Session::ringBell(const Types::Output::ControlOptions &options) noexcept
-    {
-        if(!state_)
-        {
-            return notOpenStatus();
-        }
-
-        try
-        {
-            State::Operation operation(*state_);
-
-            if(!state_->open.load(std::memory_order_acquire))
-            {
-                return notOpenStatus();
-            }
-            return Terminal::ringBell(state_->options.output, options);
-        }
-        catch(...)
-        {
-            return Detail::exceptionStatus();
-        }
-    }
-
-    /// ------------------------------------------------------------
     /// Temporary managed input
     /// ------------------------------------------------------------
 
@@ -1872,8 +1063,8 @@ namespace GameWIP::Terminal
             }
             Types::Input::EventResult result;
             {
-                std::lock_guard lock(Detail::inputIoMutex(stream));
-                result = Detail::Platform::readEvent(stream, Types::Output::Stream::Stdout, options);
+                std::lock_guard lock(Internal::inputIoMutex(stream));
+                result = Platform::readEvent(stream, Types::Output::Stream::Stdout, options);
             }
             result.status = lease.finish(std::move(result.status));
             return result;
@@ -1934,8 +1125,8 @@ namespace GameWIP::Terminal
             }
             Types::Input::ByteResult result;
             {
-                std::lock_guard lock(Detail::inputIoMutex(stream));
-                result = Detail::Platform::readBytes(stream, outputBuffer, options);
+                std::lock_guard lock(Internal::inputIoMutex(stream));
+                result = Platform::readBytes(stream, outputBuffer, options);
             }
             result.status = lease.finish(std::move(result.status));
             return result;
@@ -1993,8 +1184,8 @@ namespace GameWIP::Terminal
             }
             Types::Input::TextResult result;
             {
-                std::lock_guard lock(Detail::inputIoMutex(stream));
-                result = Detail::Platform::readText(stream, options);
+                std::lock_guard lock(Internal::inputIoMutex(stream));
+                result = Platform::readText(stream, options);
             }
             result.status = lease.finish(std::move(result.status));
             return result;
@@ -2055,12 +1246,12 @@ namespace GameWIP::Terminal
             if(lease.capabilities().kind == Types::StreamKind::Terminal && lease.capabilities().supportsEventInput)
             {
                 std::vector<std::size_t> graphemeStorage;
-                result = Detail::managedTerminalLineRead(stream, Types::Output::Stream::Stdout, options, graphemeStorage);
+                result = Internal::managedTerminalLineRead(stream, Types::Output::Stream::Stdout, options, graphemeStorage);
             }
             else
             {
-                std::lock_guard lock(Detail::inputIoMutex(stream));
-                result = Detail::Platform::readLine(stream, options);
+                std::lock_guard lock(Internal::inputIoMutex(stream));
+                result = Platform::readLine(stream, options);
             }
 
             result.status = lease.finish(std::move(result.status));

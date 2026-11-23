@@ -1,11 +1,11 @@
-/// @file win32_terminal.cpp
+/// @file terminal.cpp
 /// @brief Win32 backend for the Terminal library.
 
-#include "terminal/internal/terminal_platform.h"
+#include "terminal/platform/backend.h"
 #include "base/platform/win32/dynamic_library.h"
-#include "terminal/internal/terminal_test_hooks.h"
-#include "terminal/platform/win32/internal/win32_terminal_events.h"
-#include "terminal/platform/win32/internal/win32_terminal_test_hooks.h"
+#include "terminal/internal/test_hooks.h"
+#include "terminal/platform/win32/internal/events.h"
+#include "terminal/platform/win32/internal/test_hooks.h"
 #include "unicode/unicode.h"
 
 #ifndef WIN32_LEAN_AND_MEAN
@@ -39,7 +39,7 @@
 #include <utility>
 #include <vector>
 
-namespace GameWIP::Terminal::Detail::Platform
+namespace GameWIP::Terminal::Platform
 {
     namespace
     {
@@ -48,9 +48,10 @@ namespace GameWIP::Terminal::Detail::Platform
         using OutputStream = Terminal::Types::Output::Stream;
         using Terminal::Types::StreamKind;
         using Terminal::Types::Input::ReadOutcome;
+        namespace Events = Win32::Internal::Events;
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
-        namespace HookDetail = GameWIP::Terminal::Detail::TestHooks;
+        namespace HookState = GameWIP::Terminal::Internal::TestHooks::State;
         std::atomic_size_t consoleWaitCalls = 0;
 #endif
 
@@ -163,7 +164,7 @@ namespace GameWIP::Terminal::Detail::Platform
             // Cancellation and buffered input
             HANDLE cancellationEvent = nullptr;
             PendingInputBuffer pendingBytes;
-            Win32Events::DecoderState eventDecoder;
+            Events::DecoderState eventDecoder;
 
             // Pending native console records
             std::array<INPUT_RECORD, kNativeRecordBatchSize> nativeRecords{};
@@ -305,7 +306,7 @@ namespace GameWIP::Terminal::Detail::Platform
         bool observeInputEndpoint(InputState &state, HANDLE currentHandle) noexcept
         {
 #if TERMINAL_INTERNAL_TEST_HOOKS
-            if(const auto failure = HookDetail::consumeFailure(HookDetail::terminalTestHookState.nextEndpointIdentityFailure))
+            if(const auto failure = HookState::consumeFailure(HookState::terminalTestHookState.nextEndpointIdentityFailure))
             {
                 if(state.endpointIdentityState != InputState::EndpointIdentityState::Confirmed)
                 {
@@ -410,9 +411,9 @@ namespace GameWIP::Terminal::Detail::Platform
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
         /// @brief Converts a consumed one-shot hook failure into an operation status.
-        [[nodiscard]] std::optional<IO::Types::Status> consumeHookFailure(HookDetail::HookFailure &failure, std::string_view message)
+        [[nodiscard]] std::optional<IO::Types::Status> consumeHookFailure(HookState::HookFailure &failure, std::string_view message)
         {
-            if(const std::optional<ErrorCode> code = HookDetail::consumeFailure(failure))
+            if(const std::optional<ErrorCode> code = HookState::consumeFailure(failure))
             {
                 return IO::makeStatus(*code, 0, std::string(message));
             }
@@ -422,7 +423,7 @@ namespace GameWIP::Terminal::Detail::Platform
         /// @brief Appends raw bytes to hook capture while the hook mutex is held by the caller.
         void appendCapturedOutput(OutputStream stream, std::span<const std::byte> bytes)
         {
-            HookDetail::OutputHookState &state = HookDetail::terminalTestHookState.outputStreams[HookDetail::outputIndex(stream)];
+            HookState::OutputHookState &state = HookState::terminalTestHookState.outputStreams[HookState::outputIndex(stream)];
             state.capturedOutput.insert(state.capturedOutput.end(), bytes.begin(), bytes.end());
         }
 
@@ -433,7 +434,7 @@ namespace GameWIP::Terminal::Detail::Platform
         }
 
         /// @brief Advances the deterministic ASCII rendering cursor while the hook mutex is held.
-        void advanceCursorRenderingSimulation(HookDetail::OutputHookState &state, std::string_view text) noexcept
+        void advanceCursorRenderingSimulation(HookState::OutputHookState &state, std::string_view text) noexcept
         {
             if(!state.cursorRenderingSimulationEnabled || state.terminalSizeOverride.columns == 0 || state.terminalSizeOverride.rows == 0)
             {
@@ -486,7 +487,7 @@ namespace GameWIP::Terminal::Detail::Platform
         }
 
         /// @brief Applies deterministic row-major resize reflow while the hook mutex is held.
-        void resizeCursorRenderingSimulation(HookDetail::OutputHookState &state, Terminal::Types::Size size) noexcept
+        void resizeCursorRenderingSimulation(HookState::OutputHookState &state, Terminal::Types::Size size) noexcept
         {
             if(!state.cursorRenderingSimulationEnabled || size.columns == 0 || size.rows == 0)
             {
@@ -524,9 +525,9 @@ namespace GameWIP::Terminal::Detail::Platform
             std::chrono::milliseconds timeout,
             std::size_t requestedBytesHint)
         {
-            std::lock_guard lock(HookDetail::terminalTestHookState.mutex);
+            std::lock_guard lock(HookState::terminalTestHookState.mutex);
 
-            HookDetail::InputHookState &state = HookDetail::terminalTestHookState.inputStreams[HookDetail::inputIndex(stream)];
+            HookState::InputHookState &state = HookState::terminalTestHookState.inputStreams[HookState::inputIndex(stream)];
 
             if(!state.inputBytesOverrideEnabled)
             {
@@ -854,7 +855,7 @@ namespace GameWIP::Terminal::Detail::Platform
                 if(event != nullptr && event != INVALID_HANDLE_VALUE)
                 {
 #if TERMINAL_INTERNAL_TEST_HOOKS
-                    if(HookDetail::consumeFailure(HookDetail::terminalTestHookState.nextCancellationSignalFailure))
+                    if(HookState::consumeFailure(HookState::terminalTestHookState.nextCancellationSignalFailure))
                     {
                         return;
                     }
@@ -906,7 +907,7 @@ namespace GameWIP::Terminal::Detail::Platform
                 }
                 bool forcedResetFailure = false;
 #if TERMINAL_INTERNAL_TEST_HOOKS
-                forcedResetFailure = HookDetail::consumeFailure(HookDetail::terminalTestHookState.nextCancellationResetFailure).has_value();
+                forcedResetFailure = HookState::consumeFailure(HookState::terminalTestHookState.nextCancellationResetFailure).has_value();
 
                 if(forcedResetFailure)
                 {
@@ -1100,7 +1101,7 @@ namespace GameWIP::Terminal::Detail::Platform
                 return result;
             }
 
-            if(std::optional<Terminal::Types::Event> pending = Win32Events::takePendingEvent(state.eventDecoder))
+            if(std::optional<Terminal::Types::Event> pending = Events::takePendingEvent(state.eventDecoder))
             {
                 result.event = std::move(*pending);
                 return result;
@@ -1110,7 +1111,7 @@ namespace GameWIP::Terminal::Detail::Platform
 
             while(true)
             {
-                if(std::optional<Terminal::Types::Event> pending = Win32Events::takePendingEvent(state.eventDecoder))
+                if(std::optional<Terminal::Types::Event> pending = Events::takePendingEvent(state.eventDecoder))
                 {
                     result.event = std::move(*pending);
                     return result;
@@ -1152,15 +1153,15 @@ namespace GameWIP::Terminal::Detail::Platform
                 {
                 case KEY_EVENT:
                 {
-                    Win32Events::KeyDecodeResult decoded = Win32Events::decodeKeyRecord(record.Event.KeyEvent, state.eventDecoder);
+                    Events::KeyDecodeResult decoded = Events::decodeKeyRecord(record.Event.KeyEvent, state.eventDecoder);
 
-                    if(!decoded.status.ok() || decoded.disposition == Win32Events::KeyDecodeDisposition::Failed)
+                    if(!decoded.status.ok() || decoded.disposition == Events::KeyDecodeDisposition::Failed)
                     {
                         result.status = std::move(decoded.status);
                         return result;
                     }
 
-                    if(decoded.disposition == Win32Events::KeyDecodeDisposition::Produced)
+                    if(decoded.disposition == Events::KeyDecodeDisposition::Produced)
                     {
                         result.event = std::move(decoded.event);
                         return result;
@@ -1482,10 +1483,10 @@ namespace GameWIP::Terminal::Detail::Platform
             }
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
-            HookDetail::waitAtBlock(HookDetail::terminalTestHookState.nextReadBlock);
+            HookState::waitAtBlock(HookState::terminalTestHookState.nextReadBlock);
 
             if(std::optional<IO::Types::Status> failure =
-                   consumeHookFailure(HookDetail::terminalTestHookState.nextReadFailure, "Forced terminal read failure."))
+                   consumeHookFailure(HookState::terminalTestHookState.nextReadFailure, "Forced terminal read failure."))
             {
                 return {.status = *failure, .outcome = ReadOutcome::Completed, .bytes = {}};
             }
@@ -1712,15 +1713,15 @@ namespace GameWIP::Terminal::Detail::Platform
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
         if(std::optional<IO::Types::Status> failure =
-               consumeHookFailure(HookDetail::terminalTestHookState.nextInputCapabilityFailure, "Forced terminal input capability failure."))
+               consumeHookFailure(HookState::terminalTestHookState.nextInputCapabilityFailure, "Forced terminal input capability failure."))
         {
             result.status = *failure;
             return result;
         }
 
         {
-            std::lock_guard lock(HookDetail::terminalTestHookState.mutex);
-            const HookDetail::InputHookState &state = HookDetail::terminalTestHookState.inputStreams[HookDetail::inputIndex(stream)];
+            std::lock_guard lock(HookState::terminalTestHookState.mutex);
+            const HookState::InputHookState &state = HookState::terminalTestHookState.inputStreams[HookState::inputIndex(stream)];
 
             if(state.capabilitiesOverrideEnabled)
             {
@@ -1777,15 +1778,15 @@ namespace GameWIP::Terminal::Detail::Platform
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
         if(std::optional<IO::Types::Status> failure =
-               consumeHookFailure(HookDetail::terminalTestHookState.nextOutputCapabilityFailure, "Forced terminal output capability failure."))
+               consumeHookFailure(HookState::terminalTestHookState.nextOutputCapabilityFailure, "Forced terminal output capability failure."))
         {
             result.status = *failure;
             return result;
         }
 
         {
-            std::lock_guard lock(HookDetail::terminalTestHookState.mutex);
-            const HookDetail::OutputHookState &state = HookDetail::terminalTestHookState.outputStreams[HookDetail::outputIndex(stream)];
+            std::lock_guard lock(HookState::terminalTestHookState.mutex);
+            const HookState::OutputHookState &state = HookState::terminalTestHookState.outputStreams[HookState::outputIndex(stream)];
 
             if(state.capabilitiesOverrideEnabled)
             {
@@ -1831,14 +1832,14 @@ namespace GameWIP::Terminal::Detail::Platform
     {
 #if TERMINAL_INTERNAL_TEST_HOOKS
         if(std::optional<IO::Types::Status> failure =
-               consumeHookFailure(HookDetail::terminalTestHookState.nextOutputPreparationFailure, "Forced terminal output preparation failure."))
+               consumeHookFailure(HookState::terminalTestHookState.nextOutputPreparationFailure, "Forced terminal output preparation failure."))
         {
             return {.status = *failure, .capabilities = {}};
         }
 
         {
-            std::lock_guard lock(HookDetail::terminalTestHookState.mutex);
-            HookDetail::OutputHookState &state = HookDetail::terminalTestHookState.outputStreams[HookDetail::outputIndex(stream)];
+            std::lock_guard lock(HookState::terminalTestHookState.mutex);
+            HookState::OutputHookState &state = HookState::terminalTestHookState.outputStreams[HookState::outputIndex(stream)];
 
             if(state.capabilitiesOverrideEnabled)
             {
@@ -1944,15 +1945,15 @@ namespace GameWIP::Terminal::Detail::Platform
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
         if(std::optional<IO::Types::Status> failure =
-               consumeHookFailure(HookDetail::terminalTestHookState.nextInputModeFailure, "Forced terminal input mode failure."))
+               consumeHookFailure(HookState::terminalTestHookState.nextInputModeFailure, "Forced terminal input mode failure."))
         {
             result.status = *failure;
             return result;
         }
 
         {
-            std::lock_guard lock(HookDetail::terminalTestHookState.mutex);
-            const HookDetail::InputHookState &state = HookDetail::terminalTestHookState.inputStreams[HookDetail::inputIndex(stream)];
+            std::lock_guard lock(HookState::terminalTestHookState.mutex);
+            const HookState::InputHookState &state = HookState::terminalTestHookState.inputStreams[HookState::inputIndex(stream)];
 
             if(state.inputModeOverrideEnabled)
             {
@@ -2009,14 +2010,14 @@ namespace GameWIP::Terminal::Detail::Platform
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
         if(std::optional<IO::Types::Status> failure =
-               consumeHookFailure(HookDetail::terminalTestHookState.nextInputModeFailure, "Forced terminal input mode failure."))
+               consumeHookFailure(HookState::terminalTestHookState.nextInputModeFailure, "Forced terminal input mode failure."))
         {
             return *failure;
         }
 
         {
-            std::lock_guard lock(HookDetail::terminalTestHookState.mutex);
-            HookDetail::InputHookState &state = HookDetail::terminalTestHookState.inputStreams[HookDetail::inputIndex(stream)];
+            std::lock_guard lock(HookState::terminalTestHookState.mutex);
+            HookState::InputHookState &state = HookState::terminalTestHookState.inputStreams[HookState::inputIndex(stream)];
 
             if(state.inputModeOverrideEnabled)
             {
@@ -2090,14 +2091,14 @@ namespace GameWIP::Terminal::Detail::Platform
     {
 #if TERMINAL_INTERNAL_TEST_HOOKS
         if(std::optional<IO::Types::Status> failure =
-               consumeHookFailure(HookDetail::terminalTestHookState.nextInputModeFailure, "Forced terminal input mode failure."))
+               consumeHookFailure(HookState::terminalTestHookState.nextInputModeFailure, "Forced terminal input mode failure."))
         {
             return *failure;
         }
 
         {
-            std::lock_guard lock(HookDetail::terminalTestHookState.mutex);
-            HookDetail::InputHookState &state = HookDetail::terminalTestHookState.inputStreams[HookDetail::inputIndex(stream)];
+            std::lock_guard lock(HookState::terminalTestHookState.mutex);
+            HookState::InputHookState &state = HookState::terminalTestHookState.inputStreams[HookState::inputIndex(stream)];
 
             if(state.inputModeOverrideEnabled)
             {
@@ -2148,15 +2149,15 @@ namespace GameWIP::Terminal::Detail::Platform
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
         if(std::optional<IO::Types::Status> failure =
-               consumeHookFailure(HookDetail::terminalTestHookState.nextTerminalSizeFailure, "Forced terminal size failure."))
+               consumeHookFailure(HookState::terminalTestHookState.nextTerminalSizeFailure, "Forced terminal size failure."))
         {
             result.status = *failure;
             return result;
         }
 
         {
-            std::lock_guard lock(HookDetail::terminalTestHookState.mutex);
-            const HookDetail::OutputHookState &state = HookDetail::terminalTestHookState.outputStreams[HookDetail::outputIndex(stream)];
+            std::lock_guard lock(HookState::terminalTestHookState.mutex);
+            const HookState::OutputHookState &state = HookState::terminalTestHookState.outputStreams[HookState::outputIndex(stream)];
 
             if(state.terminalSizeOverrideEnabled)
             {
@@ -2205,15 +2206,15 @@ namespace GameWIP::Terminal::Detail::Platform
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
         if(std::optional<IO::Types::Status> failure =
-               consumeHookFailure(HookDetail::terminalTestHookState.nextCursorPositionFailure, "Forced terminal cursor position failure."))
+               consumeHookFailure(HookState::terminalTestHookState.nextCursorPositionFailure, "Forced terminal cursor position failure."))
         {
             result.status = *failure;
             return result;
         }
 
         {
-            std::lock_guard lock(HookDetail::terminalTestHookState.mutex);
-            const HookDetail::OutputHookState &state = HookDetail::terminalTestHookState.outputStreams[HookDetail::outputIndex(stream)];
+            std::lock_guard lock(HookState::terminalTestHookState.mutex);
+            const HookState::OutputHookState &state = HookState::terminalTestHookState.outputStreams[HookState::outputIndex(stream)];
 
             if(state.cursorRenderingSimulationEnabled)
             {
@@ -2273,15 +2274,15 @@ namespace GameWIP::Terminal::Detail::Platform
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
         if(std::optional<IO::Types::Status> failure =
-               consumeHookFailure(HookDetail::terminalTestHookState.nextCursorPositionFailure, "Forced terminal cursor position failure."))
+               consumeHookFailure(HookState::terminalTestHookState.nextCursorPositionFailure, "Forced terminal cursor position failure."))
         {
             result.status = *failure;
             return result;
         }
 
         {
-            std::lock_guard lock(HookDetail::terminalTestHookState.mutex);
-            const HookDetail::OutputHookState &state = HookDetail::terminalTestHookState.outputStreams[HookDetail::outputIndex(stream)];
+            std::lock_guard lock(HookState::terminalTestHookState.mutex);
+            const HookState::OutputHookState &state = HookState::terminalTestHookState.outputStreams[HookState::outputIndex(stream)];
 
             if(state.cursorRenderingSimulationEnabled)
             {
@@ -2332,8 +2333,8 @@ namespace GameWIP::Terminal::Detail::Platform
     {
 #if TERMINAL_INTERNAL_TEST_HOOKS
         {
-            std::lock_guard lock(HookDetail::terminalTestHookState.mutex);
-            HookDetail::OutputHookState &state = HookDetail::terminalTestHookState.outputStreams[HookDetail::outputIndex(stream)];
+            std::lock_guard lock(HookState::terminalTestHookState.mutex);
+            HookState::OutputHookState &state = HookState::terminalTestHookState.outputStreams[HookState::outputIndex(stream)];
 
             if(state.cursorRenderingSimulationEnabled)
             {
@@ -2397,18 +2398,18 @@ namespace GameWIP::Terminal::Detail::Platform
         }
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
-        HookDetail::waitAtBlock(HookDetail::terminalTestHookState.nextReadBlock);
+        HookState::waitAtBlock(HookState::terminalTestHookState.nextReadBlock);
 
         if(std::optional<IO::Types::Status> failure =
-               consumeHookFailure(HookDetail::terminalTestHookState.nextReadFailure, "Forced terminal event read failure."))
+               consumeHookFailure(HookState::terminalTestHookState.nextReadFailure, "Forced terminal event read failure."))
         {
             result.status = *failure;
             return result;
         }
 
         {
-            std::lock_guard lock(HookDetail::terminalTestHookState.mutex);
-            HookDetail::InputHookState &state = HookDetail::terminalTestHookState.inputStreams[HookDetail::inputIndex(stream)];
+            std::lock_guard lock(HookState::terminalTestHookState.mutex);
+            HookState::InputHookState &state = HookState::terminalTestHookState.inputStreams[HookState::inputIndex(stream)];
 
             if(state.inputEventsOverrideEnabled)
             {
@@ -2418,8 +2419,8 @@ namespace GameWIP::Terminal::Detail::Platform
 
                     if(const auto *resize = result.event->getIf<Terminal::Types::Events::Resize>())
                     {
-                        HookDetail::OutputHookState &outputState =
-                            HookDetail::terminalTestHookState.outputStreams[HookDetail::outputIndex(outputStream)];
+                        HookState::OutputHookState &outputState =
+                            HookState::terminalTestHookState.outputStreams[HookState::outputIndex(outputStream)];
                         resizeCursorRenderingSimulation(outputState, resize->size);
                     }
 
@@ -2726,17 +2727,17 @@ namespace GameWIP::Terminal::Detail::Platform
     IO::Types::Status writeText(OutputStream stream, std::string_view utf8Text)
     {
 #if TERMINAL_INTERNAL_TEST_HOOKS
-        HookDetail::waitAtBlock(HookDetail::terminalTestHookState.nextTextWriteBlock);
+        HookState::waitAtBlock(HookState::terminalTestHookState.nextTextWriteBlock);
 
         if(std::optional<IO::Types::Status> failure =
-               consumeHookFailure(HookDetail::terminalTestHookState.nextTextWriteFailure, "Forced terminal text write failure."))
+               consumeHookFailure(HookState::terminalTestHookState.nextTextWriteFailure, "Forced terminal text write failure."))
         {
             return *failure;
         }
 
         {
-            std::lock_guard lock(HookDetail::terminalTestHookState.mutex);
-            HookDetail::OutputHookState &state = HookDetail::terminalTestHookState.outputStreams[HookDetail::outputIndex(stream)];
+            std::lock_guard lock(HookState::terminalTestHookState.mutex);
+            HookState::OutputHookState &state = HookState::terminalTestHookState.outputStreams[HookState::outputIndex(stream)];
 
             if(state.captureEnabled || state.cursorRenderingSimulationEnabled)
             {
@@ -2779,14 +2780,14 @@ namespace GameWIP::Terminal::Detail::Platform
     {
 #if TERMINAL_INTERNAL_TEST_HOOKS
         if(std::optional<IO::Types::Status> failure =
-               consumeHookFailure(HookDetail::terminalTestHookState.nextByteWriteFailure, "Forced terminal byte write failure."))
+               consumeHookFailure(HookState::terminalTestHookState.nextByteWriteFailure, "Forced terminal byte write failure."))
         {
             return {.status = *failure, .bytesWritten = 0};
         }
 
         {
-            std::lock_guard lock(HookDetail::terminalTestHookState.mutex);
-            const HookDetail::OutputHookState &state = HookDetail::terminalTestHookState.outputStreams[HookDetail::outputIndex(stream)];
+            std::lock_guard lock(HookState::terminalTestHookState.mutex);
+            const HookState::OutputHookState &state = HookState::terminalTestHookState.outputStreams[HookState::outputIndex(stream)];
 
             if(state.captureEnabled)
             {
@@ -2827,14 +2828,14 @@ namespace GameWIP::Terminal::Detail::Platform
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
         if(std::optional<IO::Types::Status> failure =
-               consumeHookFailure(HookDetail::terminalTestHookState.nextFlushFailure, "Forced terminal flush failure."))
+               consumeHookFailure(HookState::terminalTestHookState.nextFlushFailure, "Forced terminal flush failure."))
         {
             return *failure;
         }
 
         {
-            std::lock_guard lock(HookDetail::terminalTestHookState.mutex);
-            const HookDetail::OutputHookState &state = HookDetail::terminalTestHookState.outputStreams[HookDetail::outputIndex(stream)];
+            std::lock_guard lock(HookState::terminalTestHookState.mutex);
+            const HookState::OutputHookState &state = HookState::terminalTestHookState.outputStreams[HookState::outputIndex(stream)];
 
             if(state.captureEnabled)
             {
@@ -2868,11 +2869,11 @@ namespace GameWIP::Terminal::Detail::Platform
     }
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
-    namespace TestHooks
+    namespace Win32::Internal::TestHooks
     {
         namespace
         {
-            Win32Events::DecoderState testDecoderState;
+            Events::DecoderState testDecoderState;
         }
 
         /// ------------------------------------------------------------
@@ -2932,7 +2933,7 @@ namespace GameWIP::Terminal::Detail::Platform
             return {.status = result.status, .outcome = result.outcome};
         }
 
-        Terminal::TestHooks::Win32KeyDecodeResult decodeWin32KeyRecord(
+        Terminal::Internal::TestHooks::Win32::Win32KeyDecodeResult decodeWin32KeyRecord(
             bool keyDown,
             std::uint16_t virtualKey,
             char16_t unicodeCharacter,
@@ -2948,16 +2949,16 @@ namespace GameWIP::Terminal::Detail::Platform
             record.uChar.UnicodeChar = static_cast<wchar_t>(unicodeCharacter);
             record.dwControlKeyState = controlState;
 
-            Win32Events::KeyDecodeResult decoded = Win32Events::decodeKeyRecord(record, testDecoderState);
+            Events::KeyDecodeResult decoded = Events::decodeKeyRecord(record, testDecoderState);
             return {
                 .status = std::move(decoded.status),
-                .disposition = static_cast<Terminal::TestHooks::Win32KeyDecodeDisposition>(decoded.disposition),
+                .disposition = static_cast<Terminal::Internal::TestHooks::Win32::Win32KeyDecodeDisposition>(decoded.disposition),
                 .event = std::move(decoded.event)};
         }
 
         std::optional<Terminal::Types::Event> takePendingWin32KeyEvent() noexcept
         {
-            return Win32Events::takePendingEvent(testDecoderState);
+            return Events::takePendingEvent(testDecoderState);
         }
 
         void setPendingHighSurrogate(Terminal::Types::Input::Stream stream, std::uint16_t surrogate) noexcept
@@ -2973,6 +2974,6 @@ namespace GameWIP::Terminal::Detail::Platform
             static_cast<void>(stream);
             return inputStateStorage().eventDecoder.pendingHighSurrogate != u'\0';
         }
-    } // namespace TestHooks
+    } // namespace Win32::Internal::TestHooks
 #endif
-} // namespace GameWIP::Terminal::Detail::Platform
+} // namespace GameWIP::Terminal::Platform

@@ -13,7 +13,7 @@ int runCancellationSignalFailureChildMode()
     Hooks::reset();
     Hooks::forceNextCancellationSignalFailure();
     std::stop_source stopSource;
-    const std::size_t initialWaits = Hooks::consoleWaitCallCount();
+    const std::size_t initialWaits = Hooks::Win32::consoleWaitCallCount();
     PlatformHooks::Win32ConsoleWaitResult result;
     std::thread reader(
         [&]
@@ -22,12 +22,12 @@ int runCancellationSignalFailureChildMode()
         });
     const auto setupDeadline = std::chrono::steady_clock::now() + std::chrono::seconds{1};
 
-    while(Hooks::consoleWaitCallCount() == initialWaits && std::chrono::steady_clock::now() < setupDeadline)
+    while(Hooks::Win32::consoleWaitCallCount() == initialWaits && std::chrono::steady_clock::now() < setupDeadline)
     {
         std::this_thread::yield();
     }
 
-    if(Hooks::consoleWaitCallCount() == initialWaits)
+    if(Hooks::Win32::consoleWaitCallCount() == initialWaits)
     {
         stopSource.request_stop();
         reader.join();
@@ -93,7 +93,7 @@ void testCancellationSignalFailure(TestSupport::Context &context, const std::fil
             Hooks::forceNextCancellationSignalFailure();
         }
 
-        const std::size_t initialWaits = Hooks::consoleWaitCallCount();
+        const std::size_t initialWaits = Hooks::Win32::consoleWaitCallCount();
         PlatformHooks::Win32ConsoleWaitResult result;
         std::thread reader(
             [&]
@@ -102,12 +102,12 @@ void testCancellationSignalFailure(TestSupport::Context &context, const std::fil
             });
         const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds{2};
 
-        while(Hooks::consoleWaitCallCount() == initialWaits && std::chrono::steady_clock::now() < deadline)
+        while(Hooks::Win32::consoleWaitCallCount() == initialWaits && std::chrono::steady_clock::now() < deadline)
         {
             std::this_thread::yield();
         }
         static_cast<void>(
-            context.expectTrue(std::format("{} reaches a native wait before stop", label), Hooks::consoleWaitCallCount() != initialWaits));
+            context.expectTrue(std::format("{} reaches a native wait before stop", label), Hooks::Win32::consoleWaitCallCount() != initialWaits));
         stopSource.request_stop();
         reader.join();
         static_cast<void>(
@@ -136,12 +136,12 @@ void testCancellationResetFailure(TestSupport::Context &context)
     static_cast<void>(context.expectEq("ResetEvent failure is returned", ErrorCode::NativeFailure, failed.status.code));
     static_cast<void>(
         context.expectFalse("ResetEvent failure is not cancellation", failed.outcome == Terminal::Types::Input::ReadOutcome::Cancelled));
-    static_cast<void>(context.expectEq("ResetEvent failure enters no native wait", std::size_t{0}, Hooks::consoleWaitCallCount()));
+    static_cast<void>(context.expectEq("ResetEvent failure enters no native wait", std::size_t{0}, Hooks::Win32::consoleWaitCallCount()));
 
     const PlatformHooks::Win32ConsoleWaitResult retry =
         PlatformHooks::waitForConsoleRecordForTest(std::chrono::milliseconds{0}, stopSource.get_token());
     static_cast<void>(context.expectTrue("cancellation wait can be retried", retry.status.ok()));
-    static_cast<void>(context.expectTrue("next operation reaches normal wait path", Hooks::consoleWaitCallCount() > 0));
+    static_cast<void>(context.expectTrue("next operation reaches normal wait path", Hooks::Win32::consoleWaitCallCount() > 0));
     Hooks::reset();
 }
 #endif

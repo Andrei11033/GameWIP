@@ -2,8 +2,8 @@
 /// @brief Checked caller-owned Terminal text-buffer implementation.
 
 #include "terminal/output.h"
-#include "terminal/internal/terminal_platform.h"
-#include "terminal/internal/terminal_status.h"
+#include "terminal/platform/backend.h"
+#include "terminal/internal/status.h"
 #include "unicode/unicode.h"
 
 #include <cstddef>
@@ -40,7 +40,7 @@ namespace GameWIP::Terminal
             switch(lineEnding)
             {
             case Types::Output::LineEnding::Native:
-                return Detail::Platform::nativeLineEnding();
+                return Platform::nativeLineEnding();
             case Types::Output::LineEnding::Lf:
                 return "\n";
             case Types::Output::LineEnding::CrLf:
@@ -50,26 +50,9 @@ namespace GameWIP::Terminal
             return {};
         }
 
-        [[nodiscard]] IO::Types::Status statusWithMessage(ErrorCode code, std::string_view message) noexcept
-        {
-            if(message.empty())
-            {
-                return IO::makeStatus(code);
-            }
-
-            try
-            {
-                return IO::makeStatus(code, 0, std::string(message));
-            }
-            catch(...)
-            {
-                return IO::makeStatus(code);
-            }
-        }
-
         [[nodiscard]] IO::Types::Status invalidArgumentStatus(std::string_view message = {}) noexcept
         {
-            return statusWithMessage(ErrorCode::InvalidArgument, message);
+            return Internal::statusWithMessage(ErrorCode::InvalidArgument, message);
         }
 
         void rollbackString(std::string &text, std::size_t previousSize) noexcept
@@ -114,7 +97,7 @@ namespace GameWIP::Terminal
         }
         catch(...)
         {
-            return Detail::exceptionStatus();
+            return Internal::exceptionStatus();
         }
     }
 
@@ -154,7 +137,7 @@ namespace GameWIP::Terminal
         catch(...)
         {
             rollbackString(text_, previousSize);
-            return Detail::exceptionStatus();
+            return Internal::exceptionStatus();
         }
     }
 
@@ -175,7 +158,7 @@ namespace GameWIP::Terminal
         catch(...)
         {
             rollbackString(text_, previousSize);
-            return Detail::exceptionStatus();
+            return Internal::exceptionStatus();
         }
     }
 
@@ -201,7 +184,7 @@ namespace GameWIP::Terminal
         catch(...)
         {
             rollbackString(text_, previousSize);
-            return Detail::exceptionStatus();
+            return Internal::exceptionStatus();
         }
     }
 
@@ -218,7 +201,7 @@ namespace GameWIP::Terminal
         }
         catch(...)
         {
-            return Detail::exceptionStatus();
+            return Internal::exceptionStatus();
         }
     }
 

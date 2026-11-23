@@ -41,9 +41,10 @@ void testInputEndpointReplacement(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("retry after identity failure succeeds", retriedInitialIdentity.status.ok()));
     static_cast<void>(context.expectEq("zero-timeout poll reads ready input", std::string{"A"}, retriedInitialIdentity.text));
 
-    Hooks::setPendingHighSurrogate(Terminal::Types::Input::Stream::Stdin, UINT16_C(0xD83D));
-    static_cast<void>(
-        context.expectTrue("first endpoint retains seeded high surrogate", Hooks::hasPendingHighSurrogate(Terminal::Types::Input::Stream::Stdin)));
+    Hooks::Win32::setPendingHighSurrogate(Terminal::Types::Input::Stream::Stdin, UINT16_C(0xD83D));
+    static_cast<void>(context.expectTrue(
+        "first endpoint retains seeded high surrogate",
+        Hooks::Win32::hasPendingHighSurrogate(Terminal::Types::Input::Stream::Stdin)));
 
     HANDLE failedProbeRead = nullptr;
     HANDLE failedProbeWrite = nullptr;
@@ -66,21 +67,21 @@ void testInputEndpointReplacement(TestSupport::Context &context)
     static_cast<void>(context.expectEq("failed replacement probe is returned", ErrorCode::NativeFailure, failedReplacementProbe.status.code));
     static_cast<void>(context.expectTrue(
         "failed replacement probe preserves pending decoder state",
-        Hooks::hasPendingHighSurrogate(Terminal::Types::Input::Stream::Stdin)));
+        Hooks::Win32::hasPendingHighSurrogate(Terminal::Types::Input::Stream::Stdin)));
 
     static_cast<void>(context.expectTrue("restore confirmed stdin endpoint", SetStdHandle(STD_INPUT_HANDLE, firstRead) != FALSE));
     const Terminal::Types::Input::TextResult restoredEndpoint = Terminal::readText(oneByte);
     static_cast<void>(context.expectTrue("restored endpoint clears stale probe failure", restoredEndpoint.status.ok()));
     static_cast<void>(context.expectTrue(
         "restored endpoint preserves pending decoder state",
-        Hooks::hasPendingHighSurrogate(Terminal::Types::Input::Stream::Stdin)));
+        Hooks::Win32::hasPendingHighSurrogate(Terminal::Types::Input::Stream::Stdin)));
     static_cast<void>(context.expectTrue("retry failed-probe stdin endpoint", SetStdHandle(STD_INPUT_HANDLE, failedProbeRead) != FALSE));
     const Terminal::Types::Input::TextResult completedReplacementProbe = Terminal::readText(oneByte);
     static_cast<void>(context.expectEq("replacement after recovery reads normally", std::string{"Z"}, completedReplacementProbe.text));
     CloseHandle(failedProbeRead);
 
     static_cast<void>(context.expectTrue("restore first stdin endpoint before reuse", SetStdHandle(STD_INPUT_HANDLE, firstRead) != FALSE));
-    Hooks::setPendingHighSurrogate(Terminal::Types::Input::Stream::Stdin, UINT16_C(0xD83D));
+    Hooks::Win32::setPendingHighSurrogate(Terminal::Types::Input::Stream::Stdin, UINT16_C(0xD83D));
     const HANDLE reusedValue = firstRead;
     CloseHandle(firstRead);
 
@@ -124,7 +125,7 @@ void testInputEndpointReplacement(TestSupport::Context &context)
     static_cast<void>(context.expectEq("replacement endpoint discards stale byte", std::string{"C"}, replacement.text));
     static_cast<void>(context.expectFalse(
         "replacement endpoint discards stale high surrogate",
-        Hooks::hasPendingHighSurrogate(Terminal::Types::Input::Stream::Stdin)));
+        Hooks::Win32::hasPendingHighSurrogate(Terminal::Types::Input::Stream::Stdin)));
 
     static_cast<void>(context.expectTrue("detach stdin", SetStdHandle(STD_INPUT_HANDLE, nullptr) != FALSE));
     static_cast<void>(context.expectEq("detached stdin reports NotOpen after state reset", ErrorCode::NotOpen, Terminal::readText().status.code));

@@ -3,9 +3,9 @@
 
 #include "terminal/input.h"
 #include "terminal/output.h"
-#include "terminal/internal/terminal_input.h"
+#include "terminal/internal/input.h"
 #include "base/checked_arithmetic.h"
-#include "terminal/internal/terminal_platform.h"
+#include "terminal/platform/backend.h"
 #include "unicode/unicode.h"
 
 #include <algorithm>
@@ -533,12 +533,12 @@ namespace GameWIP::Terminal
             // Cursor queries and movement
             [[nodiscard]] Types::Cursor::PositionResult queryRenderingPosition() const
             {
-                return Detail::getLineRenderingCursorPosition(output_, input_);
+                return Internal::getLineRenderingCursorPosition(output_, input_);
             }
 
             [[nodiscard]] IO::Types::Status setRenderingPosition(Types::Cursor::Position position) const
             {
-                return Detail::setLineRenderingCursorPosition(output_, position);
+                return Internal::setLineRenderingCursorPosition(output_, position);
             }
 
             // Cursor-coordinate calculations
@@ -737,13 +737,13 @@ namespace GameWIP::Terminal
             Types::Output::Stream output,
             const Types::Input::EventOptions &options)
         {
-            std::lock_guard lock(Detail::inputIoMutex(input));
-            return Detail::Platform::readEvent(input, output, options);
+            std::lock_guard lock(Internal::inputIoMutex(input));
+            return Platform::readEvent(input, output, options);
         }
 
     } // namespace
 
-    Types::Input::LineResult Detail::managedTerminalLineRead(
+    Types::Input::LineResult Internal::managedTerminalLineRead(
         Types::Input::Stream input,
         Types::Output::Stream output,
         const Types::Input::LineOptions &options,

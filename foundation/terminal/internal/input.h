@@ -1,4 +1,4 @@
-/// @file terminal_input.h
+/// @file input.h
 /// @brief Internal managed-input ownership and serialization boundary for Terminal.
 
 #pragma once
@@ -9,7 +9,7 @@
 #include <mutex>
 #include <vector>
 
-namespace GameWIP::Terminal::Detail
+namespace GameWIP::Terminal::Internal
 {
     /// @brief Runs Terminal-owned grapheme-aware line editing through the active managed input owner.
     [[nodiscard]] Types::Input::LineResult managedTerminalLineRead(
@@ -38,4 +38,4 @@ namespace GameWIP::Terminal::Detail
     /// @brief Positions the cursor using the backend-stable coordinate used by managed line rendering.
     /// @details The call shares the normal output serialization domain.
     [[nodiscard]] IO::Types::Status setLineRenderingCursorPosition(Types::Output::Stream outputStream, Types::Cursor::Position position) noexcept;
-} // namespace GameWIP::Terminal::Detail
+} // namespace GameWIP::Terminal::Internal

@@ -1,4 +1,4 @@
-/// @file terminal_platform.h
+/// @file backend.h
 /// @brief Internal backend boundary used by the platform-neutral Terminal core.
 /// @details Native handles, encoding conversion, and endpoint-specific behavior stay behind this interface.
 
@@ -12,11 +12,7 @@
 #include <span>
 #include <string_view>
 
-#if TERMINAL_INTERNAL_TEST_HOOKS
-#include "terminal/internal/terminal_test_export.h"
-#endif
-
-namespace GameWIP::Terminal::Detail::Platform
+namespace GameWIP::Terminal::Platform
 {
     /// @brief Internal portable shape used only to configure and restore backend terminal input state.
     struct InputMode
@@ -177,16 +173,4 @@ namespace GameWIP::Terminal::Detail::Platform
     /// @return Success or portable/backend-native failure status.
     [[nodiscard]] IO::Types::Status flush(Terminal::Types::Output::Stream stream, IO::Types::FlushMode mode);
 
-#if TERMINAL_INTERNAL_TEST_HOOKS
-    /// ------------------------------------------------------------
-    /// Test hooks
-    /// ------------------------------------------------------------
-
-    namespace TestHooks
-    {
-        /// @brief Resets platform-owned input state between validation scenarios.
-        TERMINAL_TEST_EXPORT void resetInputState() noexcept;
-
-    } // namespace TestHooks
-#endif
-} // namespace GameWIP::Terminal::Detail::Platform
+} // namespace GameWIP::Terminal::Platform

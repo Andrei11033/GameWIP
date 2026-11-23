@@ -1,4 +1,4 @@
-/// @file terminal_test_export.h
+/// @file test_export.h
 /// @brief Source-tree-only visibility annotation for Terminal validation hooks.
 
 #pragma once

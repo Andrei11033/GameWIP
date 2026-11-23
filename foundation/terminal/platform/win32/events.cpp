@@ -1,7 +1,7 @@
-/// @file win32_terminal_events.cpp
+/// @file events.cpp
 /// @brief Allocation-free Win32 KEY_EVENT_RECORD normalization for Terminal.
 
-#include "terminal/platform/win32/internal/win32_terminal_events.h"
+#include "terminal/platform/win32/internal/events.h"
 
 #include "unicode/unicode.h"
 
@@ -12,7 +12,7 @@
 #include <utility>
 #include <variant>
 
-namespace GameWIP::Terminal::Detail::Platform::Win32Events
+namespace GameWIP::Terminal::Platform::Win32::Internal::Events
 {
     namespace
     {
@@ -558,4 +558,4 @@ namespace GameWIP::Terminal::Detail::Platform::Win32Events
         }
         return decodeCharacterRecord(record, state);
     }
-} // namespace GameWIP::Terminal::Detail::Platform::Win32Events
+} // namespace GameWIP::Terminal::Platform::Win32::Internal::Events

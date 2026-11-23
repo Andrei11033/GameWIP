@@ -25,7 +25,7 @@ set(TERMINAL_GENERATED_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
 file(MAKE_DIRECTORY "${TERMINAL_GENERATED_INCLUDE_DIR}/terminal")
 gamewip_generate_export_header(
     # TERMINAL_EXPORT is the installed production/runtime ABI. Source-tree
-    # validation hooks use terminal_test_export.h and are never installed.
+    # validation hooks use test_export.h and are never installed.
     TARGET Terminal
     OUTPUT "${TERMINAL_GENERATED_INCLUDE_DIR}/terminal/terminal_export.h"
     EXPORT_MACRO TERMINAL_EXPORT

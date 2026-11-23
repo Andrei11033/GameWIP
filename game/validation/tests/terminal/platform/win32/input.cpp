@@ -17,8 +17,8 @@
 #include "test_support/test_support.h"
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
-#include "terminal/internal/terminal_test_hooks.h"
-#include "terminal/platform/win32/internal/win32_terminal_test_hooks.h"
+#include "terminal/internal/test_hooks.h"
+#include "terminal/platform/win32/internal/test_hooks.h"
 #endif
 
 #include <array>
@@ -43,8 +43,8 @@ namespace GameWIP::Test::TerminalPlatform
     {
         namespace Terminal = GameWIP::Terminal;
         namespace TestSupport = GameWIP::TestSupport;
-        namespace Hooks = GameWIP::Terminal::TestHooks;
-        namespace PlatformHooks = GameWIP::Terminal::Detail::Platform::TestHooks;
+        namespace Hooks = GameWIP::Terminal::Internal::TestHooks;
+        namespace PlatformHooks = GameWIP::Terminal::Platform::Win32::Internal::TestHooks;
 
         using GameWIP::IO::Types::ErrorCode;
 

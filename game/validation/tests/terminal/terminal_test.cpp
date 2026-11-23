@@ -19,7 +19,7 @@
 #endif
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
-#include "terminal/internal/terminal_test_hooks.h"
+#include "terminal/internal/test_hooks.h"
 #endif
 
 #include <algorithm>
@@ -338,7 +338,7 @@ namespace
     }
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
-    namespace Hooks = GameWIP::Terminal::TestHooks;
+    namespace Hooks = GameWIP::Terminal::Internal::TestHooks;
 
     /// @brief Returns a fixture that enables every style capability.
     [[nodiscard]] Terminal::Types::Style::Capabilities allStyleCapabilities() noexcept

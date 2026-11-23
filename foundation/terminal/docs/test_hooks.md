@@ -15,12 +15,12 @@ Approved build-tree consumers receive `TERMINAL_INTERNAL_TEST_HOOKS=1`. Producti
 ## Include and link
 
 ```cpp
-#include "terminal/internal/terminal_test_hooks.h"
+#include "terminal/internal/test_hooks.h"
 ```
 
 Link the source-tree `Terminal` target. The header and hook exports are intentionally absent from installed packages.
 
-The source-tree hook namespace is `GameWIP::Terminal::TestHooks`.
+The source-tree hook namespace is `GameWIP::Terminal::Internal::TestHooks`. Win32-specific hooks are under `Internal::TestHooks::Win32`.
 
 ## Reset rule
 
@@ -49,7 +49,7 @@ Overrides persist until reset.
   origin, reflows on resize events, and records managed redraw positions. This narrowly models the distinction between Win32 screen-buffer and
   `srWindow`-relative coordinates without becoming production API.
 - `inputModeOverrideMatches()` and `inputManagedEventModeOverrideMatches()` verify the native flags managed by an open session.
-- Win32-specific endpoint and key-decoder hooks live in `platform/win32/internal/win32_terminal_test_hooks.h`.
+- Win32-specific endpoint and key-decoder hooks live in `Internal::TestHooks::Win32` and are declared in `platform/win32/internal/test_hooks.h`.
 
 The byte strings may intentionally contain invalid or incomplete UTF-8 to validate redirected text-read failures. Event fixtures are already-portable
 backend output and therefore obey the normal Event contract. Public consumers configure input through `SessionOptions`.
@@ -122,14 +122,14 @@ without depending on the process's physical console stdin.
 ## Example
 
 ```cpp
-#include "terminal/internal/terminal_test_hooks.h"
+#include "terminal/internal/test_hooks.h"
 
 #include <string>
 
 int main()
 {
     namespace Terminal = GameWIP::Terminal;
-    namespace Hooks = GameWIP::Terminal::TestHooks;
+    namespace Hooks = GameWIP::Terminal::Internal::TestHooks;
 
     Hooks::reset();
     Hooks::setOutputCapture(Terminal::Types::Output::Stream::Stdout, true);

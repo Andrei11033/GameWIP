@@ -845,7 +845,7 @@ namespace GameWIP::Terminal
 
     /// @}
     /// @cond INTERNAL_TERMINAL_DETAIL
-    namespace Detail
+    namespace Internal
     {
         /// @brief Exported ABI bridge used by the public print() templates.
         /// @warning Internal support symbol; consumers must call print() instead.
@@ -862,7 +862,7 @@ namespace GameWIP::Terminal
             const Types::Output::LineOptions &options,
             std::string_view format,
             std::format_args arguments) noexcept;
-    } // namespace Detail
+    } // namespace Internal
     /// @endcond
 
     template <class... Args> IO::Types::Status OutputBuffer::print(std::format_string<Args...> format, Args &&...args) noexcept
@@ -898,7 +898,7 @@ namespace GameWIP::Terminal
         std::format_string<Args...> format,
         Args &&...args) noexcept
     {
-        return Detail::vprint(stream, options, format.get(), std::make_format_args(args...));
+        return Internal::vprint(stream, options, format.get(), std::make_format_args(args...));
     }
 
     template <class... Args> IO::Types::Status println(std::format_string<Args...> format, Args &&...args) noexcept
@@ -924,6 +924,6 @@ namespace GameWIP::Terminal
         std::format_string<Args...> format,
         Args &&...args) noexcept
     {
-        return Detail::vprintln(stream, options, format.get(), std::make_format_args(args...));
+        return Internal::vprintln(stream, options, format.get(), std::make_format_args(args...));
     }
 } // namespace GameWIP::Terminal

@@ -1,10 +1,10 @@
-/// @file terminal_test_hooks.h
+/// @file test_hooks.h
 /// @brief Source-tree-only deterministic overrides, capture, and failure injection for Terminal validation.
 /// @warning This header is not installed and must not be used by production consumers.
 
 #pragma once
 
-#include "terminal/internal/terminal_test_export.h"
+#include "terminal/internal/test_export.h"
 #include "terminal/input.h"
 #include "terminal/output.h"
 
@@ -25,7 +25,7 @@
 #endif
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
-namespace GameWIP::Terminal::Detail::TestHooks
+namespace GameWIP::Terminal::Internal::TestHooks::State
 {
     /// ------------------------------------------------------------
     /// Failure and synchronization primitives
@@ -143,10 +143,13 @@ namespace GameWIP::Terminal::Detail::TestHooks
     void waitAtBlock(HookBlock &block);
     /// @brief Restores the complete process-wide hook state to deterministic defaults.
     void resetTerminalTestHooks() noexcept;
-} // namespace GameWIP::Terminal::Detail::TestHooks
+} // namespace GameWIP::Terminal::Internal::TestHooks::State
 
-namespace GameWIP::Terminal::TestHooks
+namespace GameWIP::Terminal::Internal::TestHooks
 {
+    /// @brief Resets backend-owned state between validation scenarios.
+    TERMINAL_TEST_EXPORT void resetBackendInputState() noexcept;
+
     /// ------------------------------------------------------------
     /// Capability and input overrides
     /// ------------------------------------------------------------
@@ -308,5 +311,5 @@ namespace GameWIP::Terminal::TestHooks
     TERMINAL_TEST_EXPORT void forceNextByteWriteFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::WriteFailed) noexcept;
     /// @brief Forces the next flush operation to fail with code.
     TERMINAL_TEST_EXPORT void forceNextFlushFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::FlushFailed) noexcept;
-} // namespace GameWIP::Terminal::TestHooks
+} // namespace GameWIP::Terminal::Internal::TestHooks
 #endif

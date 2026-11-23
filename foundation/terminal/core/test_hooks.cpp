@@ -1,14 +1,14 @@
 /// @file test_hooks.cpp
 /// @brief Source-tree deterministic Terminal overrides, capture, and one-shot failure injection.
 
-#include "terminal/internal/terminal_test_hooks.h"
-#include "terminal/internal/terminal_platform.h"
+#include "terminal/internal/test_hooks.h"
+#include "terminal/platform/backend.h"
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
 #include <algorithm>
 #include <cstddef>
 
-namespace GameWIP::Terminal::Detail::TestHooks
+namespace GameWIP::Terminal::Internal::TestHooks::State
 {
     TerminalTestHookState terminalTestHookState;
 
@@ -128,11 +128,11 @@ namespace GameWIP::Terminal::Detail::TestHooks
             failure.enabled.store(true, std::memory_order_release);
         }
     } // namespace
-} // namespace GameWIP::Terminal::Detail::TestHooks
+} // namespace GameWIP::Terminal::Internal::TestHooks::State
 
-namespace GameWIP::Terminal::TestHooks
+namespace GameWIP::Terminal::Internal::TestHooks
 {
-    using namespace Detail::TestHooks;
+    using namespace State;
 
     /// ------------------------------------------------------------
     /// Lifecycle and decoder state
@@ -141,7 +141,7 @@ namespace GameWIP::Terminal::TestHooks
     void reset() noexcept
     {
         resetTerminalTestHooks();
-        Detail::Platform::TestHooks::resetInputState();
+        resetBackendInputState();
     }
 
     /// ------------------------------------------------------------
@@ -450,5 +450,5 @@ namespace GameWIP::Terminal::TestHooks
     {
         forceFailure(terminalTestHookState.nextFlushFailure, code);
     }
-} // namespace GameWIP::Terminal::TestHooks
+} // namespace GameWIP::Terminal::Internal::TestHooks
 #endif

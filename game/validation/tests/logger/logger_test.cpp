@@ -27,7 +27,7 @@
 #endif
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
-#include "terminal/internal/terminal_test_hooks.h"
+#include "terminal/internal/test_hooks.h"
 #endif
 
 #include <algorithm>

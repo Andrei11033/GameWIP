@@ -340,16 +340,16 @@ void testConsoleThemeAndAreaColors(TestContext &context)
     const auto captureMessage = [&](bool rgbSupported, bool messageUsesSeverityColor, bool useCustomLayout)
     {
         static_cast<void>(Logger::shutdown());
-        GameWIP::Terminal::TestHooks::reset();
+        GameWIP::Terminal::Internal::TestHooks::reset();
         Capabilities capabilities{
             .kind = GameWIP::Terminal::Types::StreamKind::Terminal,
             .supportsUtf8Text = true,
             .supportsByteOutput = true,
             .supportsFlush = true,
             .style = {.basicColor = true, .rgbColor = rgbSupported}};
-        GameWIP::Terminal::TestHooks::setOutputCapabilitiesOverride(stream, capabilities);
-        GameWIP::Terminal::TestHooks::setPreparedOutputCapabilitiesOverride(stream, capabilities);
-        GameWIP::Terminal::TestHooks::setOutputCapture(stream, true);
+        GameWIP::Terminal::Internal::TestHooks::setOutputCapabilitiesOverride(stream, capabilities);
+        GameWIP::Terminal::Internal::TestHooks::setPreparedOutputCapabilitiesOverride(stream, capabilities);
+        GameWIP::Terminal::Internal::TestHooks::setOutputCapture(stream, true);
 
         Logger::Types::Config config = makeConsoleConfig();
         config.enableConsoleColor = true;
@@ -371,7 +371,7 @@ void testConsoleThemeAndAreaColors(TestContext &context)
         Logger::info(TestSource::Core, "base {} tail", Logger::code("marked"));
         context.expectTrue("themed console flush", flushCompleted(Logger::flush(2s)));
 
-        const std::string output = GameWIP::Terminal::TestHooks::capturedOutputText(stream);
+        const std::string output = GameWIP::Terminal::Internal::TestHooks::capturedOutputText(stream);
         static_cast<void>(Logger::shutdown());
         return output;
     };
@@ -403,7 +403,7 @@ void testConsoleThemeAndAreaColors(TestContext &context)
     context.expectContains("custom layout severity scope colors its bracketed label", customLayoutOutput, "\x1b[38;2;0;255;0m[INFO]\x1b[0m");
     context.expectContains("nested layout color scopes apply their inner role", customLayoutOutput, "\x1b[38;2;200;40;180mnested\x1b[0m");
     context.expectContains("message color scope preserves explicitly marked value colors", customLayoutOutput, "\x1b[38;2;200;40;180mmarked\x1b[0m");
-    GameWIP::Terminal::TestHooks::reset();
+    GameWIP::Terminal::Internal::TestHooks::reset();
 #else
     context.skip("console theme and area color test", "Logger or Terminal internal test hooks are disabled");
 #endif

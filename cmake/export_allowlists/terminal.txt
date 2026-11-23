@@ -14,8 +14,8 @@ GameWIP::Terminal::CursorHiddenScope::operator=
 GameWIP::Terminal::CursorHiddenScope::restore
 GameWIP::Terminal::CursorHiddenScope::status
 GameWIP::Terminal::defaultColor
-GameWIP::Terminal::Detail::vprint
-GameWIP::Terminal::Detail::vprintln
+GameWIP::Terminal::Internal::vprint
+GameWIP::Terminal::Internal::vprintln
 GameWIP::Terminal::enterAlternateScreen
 GameWIP::Terminal::flush
 GameWIP::Terminal::getCursorPosition

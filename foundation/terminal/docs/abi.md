@@ -55,7 +55,7 @@ obligations without exposing implementation layout.
 
 ## Exported template bridges
 
-Public free `print()` and `println()` templates package arguments into `std::format_args` and call exported `GameWIP::Terminal::Detail::vprint()` and
+Public free `print()` and `println()` templates package arguments into `std::format_args` and call exported `GameWIP::Terminal::Internal::vprint()` and
 `vprintln()` functions. Session formatting and `OutputBuffer` formatting similarly cross non-template exported member bridges before doing allocating
 work. These bridge symbols are ABI implementation support, not independent formatting APIs. Consumers must call the public templates instead of
 depending on bridge signatures directly.

@@ -1,4 +1,4 @@
-/// @file win32_terminal_events.h
+/// @file events.h
 /// @brief Internal Win32 console-record to portable Terminal event decoding.
 
 #pragma once
@@ -15,7 +15,7 @@
 #include <cstdint>
 #include <optional>
 
-namespace GameWIP::Terminal::Detail::Platform::Win32Events
+namespace GameWIP::Terminal::Platform::Win32::Internal::Events
 {
     /// @brief Result classification for one KEY_EVENT_RECORD decode attempt.
     enum class KeyDecodeDisposition : std::uint8_t
@@ -60,4 +60,4 @@ namespace GameWIP::Terminal::Detail::Platform::Win32Events
     /// @details UTF-16 surrogate pairs, key-down tracking, repeat normalization, modifiers, AltGr text,
     /// named/function/media keys, and location are normalized without implementation-owned allocation.
     [[nodiscard]] KeyDecodeResult decodeKeyRecord(const KEY_EVENT_RECORD &record, DecoderState &state) noexcept;
-} // namespace GameWIP::Terminal::Detail::Platform::Win32Events
+} // namespace GameWIP::Terminal::Platform::Win32::Internal::Events
