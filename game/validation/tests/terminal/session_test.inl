@@ -118,7 +118,8 @@ void testSessions(TestSupport::Context &context)
 
     static_cast<void>(context.expectEq("same session re-open reports AlreadyOpen", ErrorCode::AlreadyOpen, session.open(streamOptions).code));
 
-    // Test exclusive ownership and output-restoration failures.
+    // Check exclusive ownership and input validation.
+
     Terminal::Session competing;
     static_cast<void>(context.expectEq("competing session reports ResourceBusy", ErrorCode::ResourceBusy, competing.open(streamOptions).code));
     static_cast<void>(context.expectEq("direct read conflicts with session ownership", ErrorCode::ResourceBusy, Terminal::readText().status.code));
@@ -152,6 +153,8 @@ void testSessions(TestSupport::Context &context)
     static_cast<void>(context.expectEq("pre-cancelled read outcome", Terminal::Types::Input::ReadOutcome::Cancelled, cancelled.outcome));
     static_cast<void>(context.expectEq("pre-cancelled read consumes nothing", std::string{"cancelled"}, session.readText().text));
 
+    // Verify close restores input mode after a failed restoration.
+
     Hooks::clearCapturedOutput(Terminal::Types::Output::Stream::Stdout);
     static_cast<void>(context.expectTrue("session owns hidden cursor state", session.setCursorVisible(false).ok()));
     static_cast<void>(context.expectTrue("session owns alternate-screen state", session.enterAlternateScreen().ok()));
@@ -173,6 +176,8 @@ void testSessions(TestSupport::Context &context)
         "successful close restores exact managed-event flags",
         Hooks::inputManagedEventModeOverrideMatches(Terminal::Types::Input::Stream::Stdin, false, false, false)));
     static_cast<void>(context.expectEq("session output after close reports NotOpen", ErrorCode::NotOpen, session.writeText("closed").code));
+
+    // Verify output-state ownership and restoration retries.
 
     Hooks::clearCapturedOutput(Terminal::Types::Output::Stream::Stdout);
     Terminal::Session duplicateOutputState;
@@ -242,9 +247,10 @@ void testSessions(TestSupport::Context &context)
         std::string{"\x1b[?25l\x1b[?25h"},
         Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout)));
 
+    // Verify output binding to stderr.
+
     setupCapturedOutput(Terminal::Types::Output::Stream::Stderr);
     Hooks::setTerminalSizeOverride(Terminal::Types::Output::Stream::Stderr, {.columns = 72, .rows = 20});
-    // Verify a session bound to stderr.
     Hooks::setCursorPositionOverride(Terminal::Types::Output::Stream::Stderr, {.column = 11, .row = 6});
     Terminal::Types::SessionOptions stderrOptions = streamOptions;
     stderrOptions.output = Terminal::Types::Output::Stream::Stderr;
@@ -262,9 +268,11 @@ void testSessions(TestSupport::Context &context)
         stderrSession.getCursorPosition({.timeout = Terminal::kNoWait, .flushMode = IO::Types::FlushMode::None}).position.column));
     static_cast<void>(context.expectTrue("stderr-bound session closes", stderrSession.close().ok()));
 
+    // Verify serialized reads, writes, and close coordination.
+
     Hooks::clearCapturedOutput(Terminal::Types::Output::Stream::Stdout);
     Hooks::setInputBytes(Terminal::Types::Input::Stream::Stdin, "blocked-read");
-    // Exercise serialized reads, writes, and close coordination.
+
     Terminal::Session concurrencySession;
     static_cast<void>(context.expectTrue("concurrency fixture opens", concurrencySession.open(streamOptions).ok()));
 
@@ -368,7 +376,8 @@ void testSessions(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("close completes after active read", concurrentCloseStatus.ok()));
     static_cast<void>(context.expectFalse("concurrency fixture is closed", concurrencySession.isOpen()));
 
-    // Check move ownership and destructor cleanup.
+    // Verify move ownership and destructor cleanup.
+
     Terminal::Session movable;
     static_cast<void>(context.expectTrue("movable session opens", movable.open(streamOptions).ok()));
     Hooks::clearCapturedOutput(Terminal::Types::Output::Stream::Stdout);
@@ -384,6 +393,8 @@ void testSessions(TestSupport::Context &context)
         "move construction preserves pending output cleanup",
         std::string{"\x1b[?25l\x1b[?1049h\x1b[?1049l\x1b[?25h"},
         Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout)));
+
+    // Verify destructor recovery after an output cleanup failure.
 
     Hooks::clearCapturedOutput(Terminal::Types::Output::Stream::Stdout);
     {
@@ -429,7 +440,8 @@ void testSessions(TestSupport::Context &context)
         std::string{"\x1b[?1049h\x1b[?1049l"},
         Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout)));
 
-    // Test event delivery, cancellation, and invalid session options.
+    // Verify event delivery, cancellation, and option validation.
+
     Terminal::Session events;
     static_cast<void>(context.expectTrue("default event session opens with event-capable hook", events.open().ok()));
     static_cast<void>(context.expectEq("event session rejects stream reads", ErrorCode::Unsupported, events.readText().status.code));

@@ -7,6 +7,7 @@ void testInputReads(TestSupport::Context &context)
 {
     Hooks::reset();
 
+    // Read bytes and distinguish end-of-stream.
     setupInput("abcd");
     std::array<std::byte, 4> buffer{};
     Terminal::Types::Input::ByteOptions byteOptions;
@@ -22,6 +23,7 @@ void testInputReads(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("byte EOF status", eof.status.ok()));
     static_cast<void>(context.expectEq("byte EOF outcome", Terminal::Types::Input::ReadOutcome::EndOfStream, eof.outcome));
 
+    // Read lines while preserving or normalizing their endings.
     setupInput("one\r\ntwo\rc");
     Terminal::Types::Input::LineOptions keepOptions;
     keepOptions.lineEndingMode = Terminal::Types::Input::LineEndingMode::Keep;
@@ -42,6 +44,7 @@ void testInputReads(TestSupport::Context &context)
     static_cast<void>(context.expectEq("final line text", std::string{"c"}, finalLine.line));
     static_cast<void>(context.expectEq("final line outcome", Terminal::Types::Input::ReadOutcome::EndOfStream, finalLine.outcome));
 
+    // Reject invalid limits without consuming the pending input.
     setupInput("kept\n");
     Terminal::Types::Input::LineOptions invalidLineModeOptions;
     invalidLineModeOptions.lineEndingMode = static_cast<Terminal::Types::Input::LineEndingMode>(-1);
@@ -63,6 +66,7 @@ void testInputReads(TestSupport::Context &context)
         context.expectEq("zero text limit is rejected", ErrorCode::InvalidArgument, Terminal::readText(zeroTextLimitOptions).status.code));
     static_cast<void>(context.expectEq("zero text limit consumes no input", std::string{"text"}, Terminal::readText().text));
 
+    // Consume complete line endings when returned text is truncated.
     setupInput("abc\nnext\n");
     Terminal::Types::Input::LineOptions keepLimitedLfOptions;
     keepLimitedLfOptions.maxReturnedBytes = 3;
@@ -117,6 +121,7 @@ void testInputReads(TestSupport::Context &context)
         context.expectEq("long line detects CRLF across read chunks", Terminal::Types::Input::ConsumedLineEnding::CrLf, longLine.consumedLineEnding));
     static_cast<void>(context.expectEq("line after chunk-boundary CRLF", std::string{"next"}, Terminal::readLine().line));
 
+    // Preserve UTF-8 boundaries and report malformed text.
     setupInput("\xc3\xa9z");
     Terminal::Types::Input::TextOptions textOptions;
     textOptions.maxReturnedBytes = 2;
@@ -134,6 +139,7 @@ void testInputReads(TestSupport::Context &context)
     const Terminal::Types::Input::TextResult invalidText = Terminal::readText(textOptions);
     static_cast<void>(context.expectEq("invalid UTF-8 text fails", ErrorCode::EncodingFailed, invalidText.status.code));
 
+    // Distinguish would-block, timeout, and native read failure outcomes.
     setupInput("", false);
     const Terminal::Types::Input::ByteResult wouldBlock = Terminal::readBytes(std::span<std::byte>(buffer), byteOptions);
     static_cast<void>(context.expectTrue("would-block status", wouldBlock.status.ok()));

@@ -4,6 +4,7 @@
 /// @brief Verifies color/segment helpers, event alternatives, defaults, and formatting failures.
 void testPassiveHelpers(TestSupport::Context &context)
 {
+    // Check color helpers, session defaults, and key modifiers.
     const Terminal::Types::Style::Color defaultColor = Terminal::defaultColor();
     static_cast<void>(context.expectEq("defaultColor kind", Terminal::Types::Style::ColorKind::Default, defaultColor.kind()));
 
@@ -42,6 +43,7 @@ void testPassiveHelpers(TestSupport::Context &context)
         "key modifier bitmask reports absent alt",
         Terminal::Types::Events::hasModifier(modifiers, Terminal::Types::Events::KeyModifier::Alt)));
 
+    // Verify event variant access and replacement.
     Terminal::Types::Events::Key keyEvent;
     static_assert(Terminal::Types::Events::Key{}.repeatCount == 1);
     keyEvent.key = Terminal::Types::Events::CharacterKey{U'\u03BB'};
@@ -63,6 +65,7 @@ void testPassiveHelpers(TestSupport::Context &context)
     const Terminal::Types::Events::Resize *resize = event.getIf<Terminal::Types::Events::Resize>();
     static_cast<void>(context.expectTrue("event getIf returns resize event", resize != nullptr));
 
+    // Check output segments and formatting-error results.
     const Terminal::Types::Output::Segment text = Terminal::textSegment("text");
     static_cast<void>(context.expectEq("text segment kind", Terminal::Types::Output::SegmentKind::Text, text.kind()));
     static_cast<void>(context.expectEq("text segment view", std::string_view{"text"}, text.text()));
@@ -94,6 +97,7 @@ void testCapabilitiesAndQueries(TestSupport::Context &context)
 {
     Hooks::reset();
 
+    // Observe input capabilities and validate input queries.
     Hooks::setInputCapabilitiesOverride(Terminal::Types::Input::Stream::Stdin, terminalInputCapabilities());
     const Terminal::Types::Input::CapabilitiesResult inputCapabilities = Terminal::getInputCapabilities();
     static_cast<void>(context.expectTrue("input capabilities status", inputCapabilities.status.ok()));
@@ -112,6 +116,7 @@ void testCapabilitiesAndQueries(TestSupport::Context &context)
     static_cast<void>(
         context.expectEq("invalid input read stream is rejected", ErrorCode::InvalidArgument, Terminal::readText(invalidInputStream).status.code));
 
+    // Prepare output capabilities and reject unavailable streams.
     setupCapturedOutput(Terminal::Types::Output::Stream::Stdout);
     const Terminal::Types::Output::CapabilitiesResult outputCapabilities = Terminal::getOutputCapabilities();
     static_cast<void>(context.expectTrue("output capabilities status", outputCapabilities.status.ok()));
@@ -146,6 +151,7 @@ void testCapabilitiesAndQueries(TestSupport::Context &context)
         ErrorCode::NotOpen,
         Terminal::prepareOutput(Terminal::Types::Output::Stream::Stderr).status.code));
 
+    // Query terminal size and cursor position.
     Hooks::setTerminalSizeOverride(Terminal::Types::Output::Stream::Stdout, {.columns = 120, .rows = 40});
     const Terminal::Types::SizeResult size = Terminal::getTerminalSize();
     static_cast<void>(context.expectTrue("terminal size status", size.status.ok()));
@@ -166,6 +172,7 @@ void testCapabilitiesAndQueries(TestSupport::Context &context)
     static_cast<void>(context.expectEq("explicit cursor position column", std::uint32_t{7}, explicitPosition.position.column));
     static_cast<void>(context.expectEq("explicit cursor position row", std::uint32_t{9}, explicitPosition.position.row));
 
+    // Preserve native failures as status results.
     Hooks::forceNextTerminalSizeFailure(ErrorCode::StatFailed);
     static_cast<void>(context.expectEq("terminal size forced failure", ErrorCode::StatFailed, Terminal::getTerminalSize().status.code));
 

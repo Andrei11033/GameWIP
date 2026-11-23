@@ -489,8 +489,13 @@ namespace
 #include "validation/tests/terminal/controls_test.inl"
 #include "validation/tests/terminal/input_test.inl"
 #include "validation/tests/terminal/line_input_test.inl"
-#include "validation/tests/terminal/manual_test.inl"
-#include "validation/tests/terminal/output_test.inl"
+#include "validation/tests/terminal/manual_output_test.inl"
+#include "validation/tests/terminal/manual_screen_test.inl"
+#include "validation/tests/terminal/manual_input_test.inl"
+#include "validation/tests/terminal/manual_state_test.inl"
+#include "validation/tests/terminal/formatting_test.inl"
+#include "validation/tests/terminal/text_output_test.inl"
+#include "validation/tests/terminal/segment_output_test.inl"
 #include "validation/tests/terminal/session_test.inl"
 } // namespace
 

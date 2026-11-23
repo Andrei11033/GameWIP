@@ -5,6 +5,7 @@
 /// @brief Verifies the managed Unicode line editor over deterministic structured events.
 void testManagedLineEditing(TestSupport::Context &context)
 {
+    // Build the key events used by each editor scenario.
     const auto characterEvent =
         [](char32_t scalar, Terminal::Types::Events::KeyAction action = Terminal::Types::Events::KeyAction::Press, std::uint32_t repeat = 1)
     {
@@ -28,6 +29,7 @@ void testManagedLineEditing(TestSupport::Context &context)
         return Terminal::Types::Event{.data = key};
     };
 
+    // Run an edit without echo through a managed input session.
     const auto runLine = [&context](std::span<const Terminal::Types::Event> events, const Terminal::Types::Input::LineOptions &options)
     {
         Hooks::reset();
@@ -56,10 +58,13 @@ void testManagedLineEditing(TestSupport::Context &context)
     struct EchoRunResult
     {
         Terminal::Types::Input::LineResult line;
+
+        // Observed cursor rendering
         std::vector<Terminal::Types::Cursor::Position> cursorSets;
         Terminal::Types::Cursor::Position viewportOrigin{};
     };
 
+    // Capture cursor redraws for echoed input.
     const auto runEchoLine =
         [&context](std::span<const Terminal::Types::Event> events, Terminal::Types::Size size, Terminal::Types::Cursor::Position position)
     {
@@ -95,6 +100,7 @@ void testManagedLineEditing(TestSupport::Context &context)
     Terminal::Types::Input::LineOptions options;
     options.echo = false;
 
+    // Check insertion, cursor movement, and deletion.
     {
         const std::array<Terminal::Types::Event, 9> events{
             characterEvent(U'a'),
@@ -114,6 +120,7 @@ void testManagedLineEditing(TestSupport::Context &context)
         static_cast<void>(context.expectEq("managed edit text", std::string{"bXc"}, result.line));
     }
 
+    // Backspace and Delete operate on complete grapheme clusters.
     {
         const std::array<Terminal::Types::Event, 5> events{
             characterEvent(U'a'),
@@ -143,6 +150,7 @@ void testManagedLineEditing(TestSupport::Context &context)
         static_cast<void>(context.expectEq("middle grapheme merge keeps caret on a cluster boundary", std::string{}, result.line));
     }
 
+    // Respect repeat counts and preserve Unicode paste boundaries.
     {
         const std::array<Terminal::Types::Event, 3> events{
             characterEvent(U'z', Terminal::Types::Events::KeyAction::Repeat, 3),
@@ -169,6 +177,7 @@ void testManagedLineEditing(TestSupport::Context &context)
         static_cast<void>(context.expectTrue("bounded paste reports truncation", result.wasTruncated));
     }
 
+    // Redraw echoed input as lines wrap and the viewport changes.
     {
         const std::array<Terminal::Types::Event, 11> events{
             characterEvent(U'a'),
@@ -240,6 +249,7 @@ void testManagedLineEditing(TestSupport::Context &context)
         }
     }
 
+    // Preserve edited text when stream input would block.
     {
         Hooks::reset();
         Hooks::setInputCapabilitiesOverride(Terminal::Types::Input::Stream::Stdin, terminalInputCapabilities());

@@ -1,96 +1,5 @@
-/// @file output_test.inl
-/// @brief Focused Terminal output tests.
-
-/// ------------------------------------------------------------
-/// Formatting and encoding
-/// ------------------------------------------------------------
-
-/// @brief Verifies formatter reentry without allowing a deadlock to hang the parent suite.
-void testReentrantFormatting(TestSupport::Context &context, const std::filesystem::path &executablePath)
-{
-    // CTest can delay a fresh validation child on Windows; the dedicated timeout tests keep
-    // short-deadline coverage separate from this normal-success path.
-    constexpr auto normalChildTimeout = std::chrono::seconds{30};
-    TestSupport::Types::Process::Options child;
-    child.executablePath = std::filesystem::path(executablePath);
-    child.arguments = {std::string(kReentrantFormatChildArgument)};
-    child.waitTimeout = normalChildTimeout;
-    child.captureOutput = true;
-
-    const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(child);
-    static_cast<void>(context.expectTrue("reentrant formatter child infrastructure succeeds", result.status.ok()));
-    static_cast<void>(context.expectEq("reentrant formatter child exits", TestSupport::Types::Process::Outcome::Exited, result.outcome));
-    static_cast<void>(context.expectEq("reentrant formatter child returns zero", std::uint32_t{0}, result.exitCode));
-    static_cast<void>(
-        context.expectEq("reentrant formatter preserves nested and outer output", std::string{"innerouterinnerouter\n"}, result.outputBytes));
-
-    child.arguments = {std::string(kSessionReentrantFormatChildArgument)};
-    const TestSupport::Types::Process::Result sessionResult = TestSupport::runChildProcess(child);
-    static_cast<void>(context.expectTrue("Session reentrant formatter child infrastructure succeeds", sessionResult.status.ok()));
-    static_cast<void>(
-        context.expectEq("Session reentrant formatter child exits", TestSupport::Types::Process::Outcome::Exited, sessionResult.outcome));
-    static_cast<void>(context.expectEq("Session reentrant formatter child returns zero", std::uint32_t{0}, sessionResult.exitCode));
-    static_cast<void>(context.expectEq(
-        "Session formatter supports nested Session/global output and checked close",
-        std::string{"innerouterinnerouter\nglobalouterouter"},
-        sessionResult.outputBytes));
-}
-
-#if TERMINAL_INTERNAL_TEST_HOOKS
-/// @brief Verifies that every Terminal Text lane rejects malformed UTF-8 before output while Bytes remain arbitrary.
-void testUtf8OutputContracts(TestSupport::Context &context)
-{
-    Hooks::reset();
-    setupCapturedOutput(Terminal::Types::Output::Stream::Stdout);
-
-    const std::string malformed{"ok\xff", 3};
-    const std::string incomplete{"ok\xe2\x82", 4};
-
-    const IO::Types::Status malformedText = Terminal::writeText(malformed);
-    static_cast<void>(context.expectEq("redirected text rejects malformed UTF-8", ErrorCode::EncodingFailed, malformedText.code));
-    static_cast<void>(context.expectTrue("malformed text emits no bytes", Hooks::capturedOutput(Terminal::Types::Output::Stream::Stdout).empty()));
-
-    const IO::Types::Status incompleteLine = Terminal::writeLine(incomplete);
-    static_cast<void>(context.expectEq("redirected line rejects incomplete UTF-8", ErrorCode::EncodingFailed, incompleteLine.code));
-    static_cast<void>(context.expectTrue("incomplete line emits no bytes", Hooks::capturedOutput(Terminal::Types::Output::Stream::Stdout).empty()));
-
-    const IO::Types::Status malformedFormatted = Terminal::print("{}", malformed);
-    static_cast<void>(context.expectEq("formatted output rejects malformed UTF-8", ErrorCode::EncodingFailed, malformedFormatted.code));
-    static_cast<void>(
-        context.expectTrue("malformed formatted output emits no bytes", Hooks::capturedOutput(Terminal::Types::Output::Stream::Stdout).empty()));
-
-    Terminal::OutputBuffer buffer;
-    static_cast<void>(context.expectTrue("buffer accepts trusted UTF-8 prefix", buffer.appendText("prefix").ok()));
-    const std::string before{buffer.text()};
-    static_cast<void>(context.expectEq("buffer rejects malformed append", ErrorCode::EncodingFailed, buffer.appendText(malformed).code));
-    static_cast<void>(context.expectEq("buffer preserves previous text after malformed append", before, std::string{buffer.text()}));
-    static_cast<void>(context.expectEq("buffer rejects incomplete line append", ErrorCode::EncodingFailed, buffer.appendLine(incomplete).code));
-    static_cast<void>(context.expectEq("buffer preserves previous text after incomplete line append", before, std::string{buffer.text()}));
-    static_cast<void>(context.expectEq("buffer rejects malformed formatted suffix", ErrorCode::EncodingFailed, buffer.print("{}", malformed).code));
-    static_cast<void>(context.expectEq("buffer rolls back malformed formatted suffix", before, std::string{buffer.text()}));
-
-    const std::array<Terminal::Types::Output::Segment, 2> invalidTextSegments{
-        Terminal::textSegment("good"),
-        Terminal::textSegment(malformed),
-    };
-    static_cast<void>(context.expectEq(
-        "segmented text rejects malformed UTF-8 before output",
-        ErrorCode::EncodingFailed,
-        Terminal::writeSegments(invalidTextSegments).code));
-    static_cast<void>(
-        context.expectTrue("invalid segmented text emits nothing", Hooks::capturedOutput(Terminal::Types::Output::Stream::Stdout).empty()));
-
-    const std::array<std::byte, 3> arbitraryBytes{std::byte{0xff}, std::byte{0x00}, std::byte{0x80}};
-    const std::array<Terminal::Types::Output::Segment, 1> byteSegments{Terminal::byteSegment(arbitraryBytes)};
-    static_cast<void>(context.expectTrue("byte segment accepts arbitrary non-UTF-8 data", Terminal::writeSegments(byteSegments).ok()));
-    static_cast<void>(context.expectEq(
-        "byte segment preserves arbitrary byte count",
-        arbitraryBytes.size(),
-        Hooks::capturedOutput(Terminal::Types::Output::Stream::Stdout).size()));
-
-    Hooks::reset();
-}
-#endif
+/// @file text_output_test.inl
+/// @brief Terminal text-output tests.
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
 
@@ -104,6 +13,7 @@ void testTextAndStyleOutput(TestSupport::Context &context)
     Hooks::reset();
     setupCapturedOutput(Terminal::Types::Output::Stream::Stdout);
 
+    // Validate plain text options and output-buffer defaults.
     Terminal::Types::Output::LineOptions plainOptions;
     plainOptions.lineEnding = Terminal::Types::Output::LineEnding::Lf;
     plainOptions.flushMode = IO::Types::FlushMode::Data;
@@ -146,6 +56,7 @@ void testTextAndStyleOutput(TestSupport::Context &context)
         Terminal::Types::Output::LineEnding::Native,
         lineEndingBuffer.lineEnding()));
 
+    // Apply styles or fall back when a capability is unavailable.
     Terminal::Types::Style::Request style;
     style.foreground = Terminal::basicColor(Terminal::Types::Style::BasicColor::BrightRed);
     style.bold = true;
@@ -193,6 +104,7 @@ void testTextAndStyleOutput(TestSupport::Context &context)
         "required unsupported RGB style writes nothing",
         Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout).empty()));
 
+    // Check lazy preparation and automatic versus required style handling.
     Hooks::reset();
     setupCapturedOutput(Terminal::Types::Output::Stream::Stdout, redirectedOutputCapabilities());
     static_cast<void>(context.expectTrue("redirected styled output falls back to plain text", Terminal::writeText("redirected", styledOptions).ok()));
@@ -225,6 +137,7 @@ void testTextAndStyleOutput(TestSupport::Context &context)
     static_cast<void>(
         context.expectTrue("forced unsupported style writes nothing", Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout).empty()));
 
+    // Check formatted writes and buffer rollback on failure.
     setupCapturedOutput(Terminal::Types::Output::Stream::Stdout);
     static_cast<void>(context.expectTrue("resetStyle succeeds", Terminal::resetStyle().ok()));
     static_cast<void>(
@@ -288,6 +201,7 @@ void testTextAndStyleOutput(TestSupport::Context &context)
         outputBuffer.reserve(std::numeric_limits<std::size_t>::max()).code));
     static_cast<void>(context.expectEq("output buffer reserve failure preserves contents", beforeFormattingFailure, outputBuffer.text()));
 
+    // Flush buffered output and retry failed writes.
     static_cast<void>(context.expectTrue("output buffer flush succeeds", outputBuffer.flushTo().ok()));
     static_cast<void>(context.expectTrue("output buffer clears after flush", outputBuffer.empty()));
     static_cast<void>(context.expectEq(
@@ -321,6 +235,7 @@ void testTextAndStyleOutput(TestSupport::Context &context)
         std::string{"writer line 6\n"},
         Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout)));
 
+    // Keep stdout and stderr state independent.
     Hooks::reset();
     setupCapturedOutput(Terminal::Types::Output::Stream::Stdout, redirectedOutputCapabilities());
     setupCapturedOutput(Terminal::Types::Output::Stream::Stderr, redirectedOutputCapabilities());
@@ -336,108 +251,5 @@ void testTextAndStyleOutput(TestSupport::Context &context)
 #endif
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
-/// @brief Verifies atomic segmented records, raw bytes, output capture, and flush behavior.
-void testSegmentedAndByteOutput(TestSupport::Context &context)
-{
-    Hooks::reset();
-    setupCapturedOutput(Terminal::Types::Output::Stream::Stdout);
 
-    Terminal::Types::Style::Request style;
-    style.bold = true;
-    const std::string byteText = "c";
-    const std::array<Terminal::Types::Output::Segment, 3> segments{
-        Terminal::textSegment("a"),
-        Terminal::styledTextSegment("b", style),
-        Terminal::byteSegment(bytesOf(byteText))};
-
-    Terminal::Types::Output::SegmentOptions options;
-    options.appendLineEnding = true;
-    options.lineEnding = Terminal::Types::Output::LineEnding::Lf;
-    static_cast<void>(context.expectTrue(
-        "segmented write succeeds",
-        Terminal::writeSegments(std::span<const Terminal::Types::Output::Segment>(segments), options).ok()));
-    static_cast<void>(context.expectEq(
-        "segmented write preserves order",
-        std::string{"a\x1b[1mb\x1b[0mc\n"},
-        Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout)));
-
-    Hooks::clearCapturedOutput(Terminal::Types::Output::Stream::Stdout);
-    const std::array<Terminal::Types::Output::Segment, 1> plainSegments{Terminal::textSegment("plain")};
-    Hooks::forceNextOutputCapabilityFailure(ErrorCode::StatFailed);
-    static_cast<void>(context.expectTrue(
-        "plain segmented write skips capability query",
-        Terminal::writeSegments(std::span<const Terminal::Types::Output::Segment>(plainSegments)).ok()));
-    static_cast<void>(
-        context.expectEq("plain segmented write capture", std::string{"plain"}, Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout)));
-    static_cast<void>(context.expectEq(
-        "plain segmented write leaves capability failure pending",
-        ErrorCode::StatFailed,
-        Terminal::getOutputCapabilities().status.code));
-
-    Hooks::clearCapturedOutput(Terminal::Types::Output::Stream::Stdout);
-    Terminal::Types::Output::SegmentOptions invalidLineEndingOptions;
-    invalidLineEndingOptions.appendLineEnding = true;
-    invalidLineEndingOptions.lineEnding = static_cast<Terminal::Types::Output::LineEnding>(-1);
-    static_cast<void>(context.expectEq(
-        "invalid segmented line ending is rejected before output",
-        ErrorCode::InvalidArgument,
-        Terminal::writeSegments(std::span<const Terminal::Types::Output::Segment>(plainSegments), invalidLineEndingOptions).code));
-    static_cast<void>(context.expectTrue(
-        "invalid segmented line ending writes nothing",
-        Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout).empty()));
-
-    Hooks::reset();
-    setupCapturedOutput(Terminal::Types::Output::Stream::Stdout);
-    const std::array<Terminal::Types::Output::Segment, 1> styledSegments{Terminal::styledTextSegment("fallback", style)};
-    Hooks::forceNextOutputCapabilityFailure(ErrorCode::StatFailed);
-    Hooks::forceNextOutputPreparationFailure(ErrorCode::NativeFailure);
-    static_cast<void>(context.expectTrue(
-        "auto styled segment falls back after capability and preparation failure",
-        Terminal::writeSegments(std::span<const Terminal::Types::Output::Segment>(styledSegments)).ok()));
-    static_cast<void>(context.expectEq(
-        "auto styled segment fallback is plain",
-        std::string{"fallback"},
-        Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout)));
-
-    Hooks::clearCapturedOutput(Terminal::Types::Output::Stream::Stdout);
-    Terminal::Types::Output::SegmentOptions requiredOptions;
-    requiredOptions.styleMode = Terminal::Types::Style::Mode::Required;
-    Hooks::forceNextOutputCapabilityFailure(ErrorCode::StatFailed);
-    Hooks::forceNextOutputPreparationFailure(ErrorCode::NativeFailure);
-    static_cast<void>(context.expectEq(
-        "required styled segment propagates preparation failure",
-        ErrorCode::NativeFailure,
-        Terminal::writeSegments(std::span<const Terminal::Types::Output::Segment>(styledSegments), requiredOptions).code));
-    static_cast<void>(context.expectTrue(
-        "required styled segment failure writes nothing",
-        Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout).empty()));
-
-    Hooks::reset();
-    setupCapturedOutput(Terminal::Types::Output::Stream::Stdout, unpreparedTerminalOutputCapabilities());
-    const std::array<Terminal::Types::Output::Segment, 2> unsupportedSegments{
-        Terminal::textSegment("must-not-write"),
-        Terminal::byteSegment(bytesOf(byteText))};
-    static_cast<void>(context.expectEq(
-        "unsupported byte segment rejects full batch",
-        ErrorCode::Unsupported,
-        Terminal::writeSegments(std::span<const Terminal::Types::Output::Segment>(unsupportedSegments)).code));
-    static_cast<void>(
-        context.expectTrue("unsupported segment batch emits nothing", Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout).empty()));
-
-    Hooks::reset();
-    setupCapturedOutput(Terminal::Types::Output::Stream::Stdout, redirectedOutputCapabilities());
-    Hooks::clearCapturedOutput(Terminal::Types::Output::Stream::Stdout);
-    const std::string raw = "raw";
-    const IO::Types::WriteResult rawWrite = Terminal::writeBytes(bytesOf(raw));
-    static_cast<void>(context.expectTrue("byte write succeeds", rawWrite.status.ok()));
-    static_cast<void>(context.expectEq("byte write count", raw.size(), rawWrite.bytesWritten));
-    static_cast<void>(context.expectEq("byte write capture bytes", copyBytes(raw), Hooks::capturedOutput(Terminal::Types::Output::Stream::Stdout)));
-
-    Hooks::forceNextByteWriteFailure(ErrorCode::BrokenPipe);
-    const IO::Types::WriteResult failedWrite = Terminal::writeBytes(bytesOf(raw));
-    static_cast<void>(context.expectEq("forced byte write failure", ErrorCode::BrokenPipe, failedWrite.status.code));
-    static_cast<void>(context.expectEq("forced byte write reports zero", std::size_t{0}, failedWrite.bytesWritten));
-
-    Hooks::reset();
-}
 #endif

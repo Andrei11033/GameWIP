@@ -8,6 +8,7 @@ void testControls(TestSupport::Context &context)
     Hooks::reset();
     setupCapturedOutput(Terminal::Types::Output::Stream::Stdout);
 
+    // Emit the requested terminal control sequences.
     static_cast<void>(context.expectTrue("move cursor succeeds", Terminal::moveCursor(Terminal::Types::Cursor::MoveDirection::Up, 2).ok()));
     static_cast<void>(context.expectTrue("set cursor succeeds", Terminal::setCursorPosition({.column = 4, .row = 2}).ok()));
     static_cast<void>(context.expectTrue("save cursor succeeds", Terminal::saveCursorPosition().ok()));
@@ -32,6 +33,7 @@ void testControls(TestSupport::Context &context)
         std::string{"\x1b[2A\x1b[3;5H\x1b[s\x1b[u\x1b[?25l\x1b[?25h\x1b[3J\x1b[3T\x1b[?1049h\x1b[?1049l\x1b]0;A B C\a\a"},
         Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout)));
 
+    // Restore cursor state through nested scopes and retry failures.
     Hooks::clearCapturedOutput(Terminal::Types::Output::Stream::Stdout);
     {
         Terminal::CursorHiddenScope outer = Terminal::scopedCursorHidden();
@@ -103,6 +105,7 @@ void testControls(TestSupport::Context &context)
         std::string{"\x1b[?25l\x1b[?25l\x1b[?25h"},
         Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout)));
 
+    // Restore alternate-screen state through nested scopes.
     Hooks::clearCapturedOutput(Terminal::Types::Output::Stream::Stdout);
     {
         Terminal::AlternateScreenScope outer = Terminal::scopedAlternateScreen();
@@ -123,6 +126,7 @@ void testControls(TestSupport::Context &context)
         std::string{"\x1b[?1049h\x1b[?1049l"},
         Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout)));
 
+    // Reject unsupported operations and invalid arguments.
     Hooks::clearCapturedOutput(Terminal::Types::Output::Stream::Stdout);
     Hooks::setOutputCapabilitiesOverride(Terminal::Types::Output::Stream::Stdout, redirectedOutputCapabilities());
     static_cast<void>(context.expectEq(
