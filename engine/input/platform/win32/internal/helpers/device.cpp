@@ -5,7 +5,7 @@
 
 #include <string>
 
-namespace GameWIP::Input::Platform::Win32::Detail
+namespace GameWIP::Input::Platform::Win32
 {
     /// ------------------------------------------------------------
     /// Logical device registration
@@ -110,4 +110,4 @@ namespace GameWIP::Input::Platform::Win32::Detail
             .numeric = numeric,
         };
     }
-} // namespace GameWIP::Input::Platform::Win32::Detail
+} // namespace GameWIP::Input::Platform::Win32

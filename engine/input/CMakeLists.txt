@@ -26,6 +26,24 @@ gamewip_generate_export_header(
     BUILD_DEFINE INPUT_BUILDING_DLL
 )
 
+# Keep installation and generated API documentation on the same header inventory.
+set(
+    INPUT_PUBLIC_HEADERS
+    "${CMAKE_CURRENT_SOURCE_DIR}/frame.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/input.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/query.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/standard.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/synthetic.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/system.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/types.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/win32.h"
+)
+
+add_subdirectory(core)
+add_subdirectory(internal)
+add_subdirectory(native)
+add_subdirectory(platform)
+
 target_sources(
     Input
     PUBLIC
@@ -33,21 +51,9 @@ target_sources(
             TYPE HEADERS
             BASE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/.." "${INPUT_GENERATED_INCLUDE_DIR}"
             FILES
-                "${CMAKE_CURRENT_SOURCE_DIR}/frame.h"
-                "${CMAKE_CURRENT_SOURCE_DIR}/input.h"
-                "${CMAKE_CURRENT_SOURCE_DIR}/query.h"
-                "${CMAKE_CURRENT_SOURCE_DIR}/standard.h"
-                "${CMAKE_CURRENT_SOURCE_DIR}/synthetic.h"
-                "${CMAKE_CURRENT_SOURCE_DIR}/system.h"
-                "${CMAKE_CURRENT_SOURCE_DIR}/types.h"
-                "${CMAKE_CURRENT_SOURCE_DIR}/win32.h"
+                ${INPUT_PUBLIC_HEADERS}
                 "${INPUT_GENERATED_INCLUDE_DIR}/input/input_export.h"
 )
-
-add_subdirectory(core)
-add_subdirectory(internal)
-add_subdirectory(native)
-add_subdirectory(platform)
 
 target_include_directories(
     Input
@@ -75,16 +81,7 @@ if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
     gamewip_register_doxygen_library(
         NAME Input
         PAGE_ID input_library
-        PUBLIC_HEADERS
-            "${CMAKE_CURRENT_SOURCE_DIR}/frame.h"
-            "${CMAKE_CURRENT_SOURCE_DIR}/input.h"
-            "${CMAKE_CURRENT_SOURCE_DIR}/query.h"
-            "${CMAKE_CURRENT_SOURCE_DIR}/standard.h"
-            "${CMAKE_CURRENT_SOURCE_DIR}/synthetic.h"
-            "${CMAKE_CURRENT_SOURCE_DIR}/system.h"
-            "${CMAKE_CURRENT_SOURCE_DIR}/types.h"
-            "${CMAKE_CURRENT_SOURCE_DIR}/win32.h"
-            "${CMAKE_CURRENT_SOURCE_DIR}/native/desktop_win32.h"
+        PUBLIC_HEADERS ${INPUT_PUBLIC_HEADERS}
         DOCS "${CMAKE_CURRENT_SOURCE_DIR}/docs"
     )
 endif()

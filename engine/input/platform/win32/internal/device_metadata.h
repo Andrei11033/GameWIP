@@ -10,7 +10,7 @@
 #include <string_view>
 #include <vector>
 
-namespace GameWIP::Input::Platform::Win32::Detail
+namespace GameWIP::Input::Platform::Win32
 {
     struct HidDeviceStrings
     {
@@ -34,4 +34,4 @@ namespace GameWIP::Input::Platform::Win32::Detail
     [[nodiscard]] std::string hidDeviceFallbackName(bool hasNativeInfo, USAGE usagePage, USAGE usage);
     [[nodiscard]] bool hidDeviceInfo(HANDLE nativeDevice, RID_DEVICE_INFO &outInfo) noexcept;
     [[nodiscard]] bool hidPreparsedData(HANDLE nativeDevice, std::vector<std::byte> &outPreparsedData, HIDP_CAPS &outCaps) noexcept;
-} // namespace GameWIP::Input::Platform::Win32::Detail
+} // namespace GameWIP::Input::Platform::Win32

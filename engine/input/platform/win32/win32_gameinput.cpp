@@ -2,6 +2,7 @@
 /// @brief Windows GameInput controller discovery and polling.
 
 #include "input/platform/win32/internal/win32_attachment_state.h"
+#include "input/platform/win32/internal/device_helpers.h"
 #include "input/platform/win32/internal/device_metadata.h"
 #include "input/platform/win32/internal/win32_unicode.h"
 #include "input/platform/win32/internal/win32_keyboard_mapping.h"
@@ -17,7 +18,7 @@
 
 #include <GameInput.h>
 
-namespace GameWIP::Input::Platform::Win32::Detail
+namespace GameWIP::Input::Platform::Win32
 {
     namespace GameInputApi = ::GameInput::v1;
 
@@ -607,4 +608,4 @@ namespace GameWIP::Input::Platform::Win32::Detail
             return status(IO::Types::ErrorCode::OutOfMemory);
         }
     }
-} // namespace GameWIP::Input::Platform::Win32::Detail
+} // namespace GameWIP::Input::Platform::Win32

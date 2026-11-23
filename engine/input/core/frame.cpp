@@ -25,11 +25,6 @@ namespace GameWIP::Input::Types
 
     std::optional<Scalar> Frame::component(ComponentId id) const noexcept
     {
-        if(id.index >= 7)
-        {
-            return std::nullopt;
-        }
-
         const Value *current = value(id.element);
         return current == nullptr ? std::nullopt : Internal::component(*current, id.index);
     }

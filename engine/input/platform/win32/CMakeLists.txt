@@ -1,6 +1,16 @@
 target_sources(
     Input
-    PRIVATE attachment.cpp win32_attachment_messages.cpp win32_devices.cpp win32_directinput.cpp win32_events.cpp win32_gameinput.cpp win32_hid.cpp
+    PRIVATE
+        attachment.cpp
+        win32_attachment_messages.cpp
+        win32_devices.cpp
+        win32_directinput.cpp
+        win32_directinput_poll.cpp
+        win32_events.cpp
+        win32_gameinput.cpp
+        win32_hid.cpp
+        win32_hid_reports.cpp
+        win32_text.cpp
 )
 
 add_subdirectory(internal)

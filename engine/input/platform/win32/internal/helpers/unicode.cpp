@@ -9,7 +9,7 @@
 #include <string>
 #include <string_view>
 
-namespace GameWIP::Input::Platform::Win32::Detail
+namespace GameWIP::Input::Platform::Win32
 {
     /// ------------------------------------------------------------
     /// Windows text conversion
@@ -76,4 +76,4 @@ namespace GameWIP::Input::Platform::Win32::Detail
         }
         return result;
     }
-} // namespace GameWIP::Input::Platform::Win32::Detail
+} // namespace GameWIP::Input::Platform::Win32

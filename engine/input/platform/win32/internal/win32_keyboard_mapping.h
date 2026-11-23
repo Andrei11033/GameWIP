@@ -5,7 +5,7 @@
 #include <array>
 #include <cstdint>
 
-namespace GameWIP::Input::Platform::Win32::Detail
+namespace GameWIP::Input::Platform::Win32
 {
     /// @brief Maps a raw Win32 scan code and prefix to a USB HID keyboard usage.
     [[nodiscard]] constexpr std::uint32_t keyboardUsageForScanCode(unsigned int scanCode, bool extended, bool extendedPause) noexcept
@@ -202,4 +202,4 @@ namespace GameWIP::Input::Platform::Win32::Detail
 
         return scanCode < set1ToHidUsage.size() ? set1ToHidUsage[scanCode] : 0;
     }
-} // namespace GameWIP::Input::Platform::Win32::Detail
+} // namespace GameWIP::Input::Platform::Win32

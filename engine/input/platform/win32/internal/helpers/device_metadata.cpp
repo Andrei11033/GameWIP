@@ -16,7 +16,7 @@
 
 #include <setupapi.h>
 
-namespace GameWIP::Input::Platform::Win32::Detail
+namespace GameWIP::Input::Platform::Win32
 {
     /// ------------------------------------------------------------
     /// Device names and descriptor data
@@ -274,4 +274,4 @@ namespace GameWIP::Input::Platform::Win32::Detail
         const auto preparsed = reinterpret_cast<PHIDP_PREPARSED_DATA>(outPreparsedData.data());
         return HidP_GetCaps(preparsed, &outCaps) == HIDP_STATUS_SUCCESS;
     }
-} // namespace GameWIP::Input::Platform::Win32::Detail
+} // namespace GameWIP::Input::Platform::Win32

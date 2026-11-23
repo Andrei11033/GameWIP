@@ -10,7 +10,7 @@
 #include <optional>
 #include <string>
 
-namespace GameWIP::Input::Platform::Win32::Detail
+namespace GameWIP::Input::Platform::Win32
 {
     /// @brief Restores session state when native device registration fails.
     class DeviceRegistrationRollback final
@@ -55,4 +55,4 @@ namespace GameWIP::Input::Platform::Win32::Detail
         std::optional<std::uint16_t> initialMergedVendorId_{};
         std::optional<std::uint16_t> initialMergedProductId_{};
     };
-} // namespace GameWIP::Input::Platform::Win32::Detail
+} // namespace GameWIP::Input::Platform::Win32

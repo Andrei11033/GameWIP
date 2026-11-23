@@ -4,6 +4,7 @@
 
 #include "input/system.h"
 
+#include <cstdint>
 #include <memory>
 #include <vector>
 
@@ -92,7 +93,6 @@ namespace GameWIP::Input::Platform::Win32
 
     private:
         static void beforeCapture(System::Impl &state, void *context) noexcept;
-        static void afterCapture(System::Impl &state, void *context) noexcept;
         static void closeSystem(System::Impl &state, void *context) noexcept;
         static IO::Types::Status pollNative(Impl &implementation) noexcept;
 

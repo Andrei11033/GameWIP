@@ -47,8 +47,6 @@ namespace GameWIP::Input
         // Native capture hooks
         /// @brief Native source hook invoked before a capture copy.
         NativeCaptureHook nativeBeforeCapture = nullptr;
-        /// @brief Native source hook invoked after a successful capture copy.
-        NativeCaptureHook nativeAfterCapture = nullptr;
         /// @brief Native source cleanup hook invoked while closing the session.
         NativeCaptureHook nativeClose = nullptr;
         /// @brief Opaque native source context passed to native hooks.

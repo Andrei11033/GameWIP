@@ -15,10 +15,13 @@
 #define INPUT_EXPORT
 #endif
 
+#include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <span>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace GameWIP::Input
 {
@@ -42,6 +45,10 @@ namespace GameWIP::Input::Types
     class INPUT_EXPORT Frame final
     {
     public:
+        // ------------------------------------------------------------
+        // Capture metadata
+        // ------------------------------------------------------------
+
         /// @brief Creates an empty frame.
         Frame() = default;
 
@@ -97,6 +104,10 @@ namespace GameWIP::Input::Types
             return droppedEvents_;
         }
 
+        // ------------------------------------------------------------
+        // Captured data
+        // ------------------------------------------------------------
+
         /// @brief Returns all latest element states owned by the frame.
         /// @return Read-only state span valid while this frame is unchanged.
         [[nodiscard]] std::span<const ElementState> states() const noexcept
@@ -124,6 +135,10 @@ namespace GameWIP::Input::Types
         {
             return textUtf8_;
         }
+
+        // ------------------------------------------------------------
+        // State queries
+        // ------------------------------------------------------------
 
         /// @brief Finds the latest state for a runtime element ID.
         /// @param id Element ID to find.
@@ -168,11 +183,14 @@ namespace GameWIP::Input::Types
     private:
         friend class GameWIP::Input::System;
 
+        // Capture metadata
         std::uint64_t sequence_ = 0;
         std::uint64_t deviceRevision_ = 0;
         Clock::time_point capturedAt_{};
         bool discontinuity_ = false;
         std::uint64_t droppedEvents_ = 0;
+
+        // Captured data
         std::vector<ElementState> states_{};
         std::vector<Event> events_{};
         std::vector<RawReport> rawReports_{};

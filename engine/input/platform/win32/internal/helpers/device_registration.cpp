@@ -3,7 +3,7 @@
 
 #include "input/platform/win32/internal/device_registration.h"
 
-namespace GameWIP::Input::Platform::Win32::Detail
+namespace GameWIP::Input::Platform::Win32
 {
     /// ------------------------------------------------------------
     /// Registration snapshot and rollback
@@ -86,4 +86,4 @@ namespace GameWIP::Input::Platform::Win32::Detail
         state_.pendingDiscontinuity = initialDiscontinuity_;
         state_.health = initialHealth_;
     }
-} // namespace GameWIP::Input::Platform::Win32::Detail
+} // namespace GameWIP::Input::Platform::Win32

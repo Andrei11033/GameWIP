@@ -8,7 +8,6 @@
 /// @details These identifiers describe controls before a device is selected.
 /// They are not device classes, backend selectors, or character-layout results.
 /// Values that are derived from HID use the corresponding HID usage value.
-/// Controls outside this vocabulary remain available through Types::HidControlId.
 /// The named keyboard vocabulary is intentionally limited to the ANSI 104-key
 /// full-size baseline. Controls outside this vocabulary remain available by
 /// their HID identity when a device exposes them.

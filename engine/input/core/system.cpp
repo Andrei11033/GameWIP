@@ -184,7 +184,6 @@ namespace GameWIP::Input
             impl_->deviceRevision = 0;
             impl_->textEnabled = configuration.enableText;
             impl_->nativeBeforeCapture = nullptr;
-            impl_->nativeAfterCapture = nullptr;
             impl_->nativeClose = nullptr;
             impl_->nativeContext = nullptr;
             impl_->devices.clear();
@@ -244,7 +243,6 @@ namespace GameWIP::Input
         }
 
         impl_->nativeBeforeCapture = nullptr;
-        impl_->nativeAfterCapture = nullptr;
         impl_->nativeClose = nullptr;
         impl_->nativeContext = nullptr;
         impl_->sessionLifetime.reset();
@@ -326,11 +324,6 @@ namespace GameWIP::Input
             impl_->pendingEvents.clear();
             impl_->pendingRawReports.clear();
             impl_->pendingTextUtf8.clear();
-
-            if(impl_->nativeAfterCapture != nullptr)
-            {
-                impl_->nativeAfterCapture(*impl_, impl_->nativeContext);
-            }
 
             // Reset transition counters and relative values for the next frame.
             for(Types::ElementState &state : impl_->states)

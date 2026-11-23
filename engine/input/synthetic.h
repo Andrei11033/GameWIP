@@ -4,9 +4,11 @@
 
 #include "input/system.h"
 
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace GameWIP::Input::Types
 {
@@ -39,6 +41,10 @@ namespace GameWIP::Input::Synthetic
     class INPUT_EXPORT Source final
     {
     public:
+        // ------------------------------------------------------------
+        // Source lifecycle
+        // ------------------------------------------------------------
+
         /// @brief Creates a detached synthetic source.
         Source() noexcept;
 
@@ -53,6 +59,10 @@ namespace GameWIP::Input::Synthetic
         Source(Source &&) = delete;
 
         Source &operator=(Source &&) = delete;
+
+        // ------------------------------------------------------------
+        // Device registration
+        // ------------------------------------------------------------
 
         /// @brief Attaches this source to one open System.
         /// @param system Open owner-thread-affine System.
@@ -73,6 +83,10 @@ namespace GameWIP::Input::Synthetic
         /// @param device Runtime device identity to remove.
         /// @return Success, NotFound, NotOpen, ResourceBusy, or OutOfMemory.
         [[nodiscard]] IO::Types::Status removeDevice(Types::DeviceId device) noexcept;
+
+        // ------------------------------------------------------------
+        // Value observations
+        // ------------------------------------------------------------
 
         /// @brief Publishes an observation for one element.
         /// @param element Runtime element identity to update.
@@ -107,6 +121,10 @@ namespace GameWIP::Input::Synthetic
         /// @param when Optional observation timestamp; zero uses the portable clock.
         /// @return Success, NotFound, NotOpen, ResourceBusy, or OutOfMemory.
         [[nodiscard]] IO::Types::Status invalidate(Types::ElementId element, Types::Timestamp when = {}) noexcept;
+
+        // ------------------------------------------------------------
+        // Text input
+        // ------------------------------------------------------------
 
         /// @brief Commits validated UTF-8 text to a synthetic surface.
         /// @param surface Nonzero runtime surface identity.

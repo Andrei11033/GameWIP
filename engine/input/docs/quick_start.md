@@ -17,19 +17,20 @@ Win32 backend and observes messages from an existing owner-thread window.
 
 ## Windows integration
 
-On Windows, use `GameWIP::Input::Platform::Win32::attachToWindow()` to register Input
-with a `Desktop::Window` in one call. This combines Input attachment and Desktop message
-routing rather than calling `Attachment::attach()` directly on a manual window handle.
+For Desktop integration, link `GameWIP::Input` and `GameWIP::Desktop`. Include
+`desktop/window.h` and use `GameWIP::Input::Platform::Win32::attachToWindow()`
+to connect Input and message routing to an existing `Desktop::Window`.
 
 ```cpp
 #if defined(_WIN32)
+#include "desktop/window.h"
 #include "input/native/desktop_win32.h"
 
 GameWIP::Desktop::Window window;
 GameWIP::Input::System input;
 GameWIP::Input::Platform::Win32::Attachment attachment;
 
-if(window.open(description).ok() && input.open().ok())
+if(window.open().ok() && input.open().ok())
 {
     const auto status = GameWIP::Input::Platform::Win32::attachToWindow(input, attachment, window);
     if(!status.ok())
@@ -159,17 +160,14 @@ window-level pointer device, separate from the per-device mouse controls.
 
 ## Synthetic observations
 
-Include `input/synthetic.h` only for deterministic tests or explicit
-software-produced devices. `Source::setAbsoluteValue` replaces an absolute
-value, while `Source::addRelativeDelta` adds a delta to a relative element for
-the current frame. `Source::setValue` remains available when the reporting
-mode is determined by the descriptor. Synthetic sources should be detached
-before their `System` closes, although the API safely detects a closed or
-destroyed session.
+Include `input/synthetic.h` for deterministic tests or explicit software input.
+Attach a `Synthetic::Source` before publishing values or text, and detach it
+before its `System` closes. `Source::setAbsoluteValue` replaces an absolute
+value, while `Source::addRelativeDelta` adds a delta for the current frame.
+`Source::setValue` uses the reporting mode in the element descriptor.
 
-Include `input/synthetic.h` and attach a `Synthetic::Source` before publishing
-software-generated text. Use `attachment.surfaceId()` to target the attached
-Win32 window; other synthetic surfaces may use any nonzero application-defined
+For text, use `attachment.surfaceId()` to target the attached Win32 window.
+Other synthetic surfaces may use any nonzero application-defined
 `Types::SurfaceId`.
 
 ```cpp

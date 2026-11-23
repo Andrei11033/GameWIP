@@ -2,8 +2,10 @@
 /// @brief Implements the Win32 Input attachment lifecycle and provider polling.
 
 #include "input/platform/win32/internal/win32_attachment_state.h"
+#include "input/platform/win32/internal/device_helpers.h"
 
 #include <algorithm>
+#include <atomic>
 #include <array>
 #include <format>
 #include <new>
@@ -12,7 +14,10 @@
 
 namespace GameWIP::Input::Platform::Win32
 {
-    using namespace Detail;
+    namespace
+    {
+        std::atomic<Attachment::Impl *> processRegistrationOwner{nullptr};
+    }
 
     /// ------------------------------------------------------------
     /// Backend selection and status
@@ -23,7 +28,7 @@ namespace GameWIP::Input::Platform::Win32
         return std::format("native=0x{:08X}", static_cast<std::uint32_t>(nativeCode));
     }
 
-    bool Detail::backendSelected(const Types::Configuration &configuration, Types::BackendKind backend) noexcept
+    bool backendSelected(const Types::Configuration &configuration, Types::BackendKind backend) noexcept
     {
         if(!configuration.enabledBackends.has_value())
         {
@@ -34,7 +39,7 @@ namespace GameWIP::Input::Platform::Win32
         return std::find(enabledBackends.begin(), enabledBackends.end(), backend) != enabledBackends.end();
     }
 
-    void Detail::setBackendStatus(Attachment::Impl &attachment, Types::BackendKind backend, Types::BackendStatus statusValue, std::string_view detail)
+    void setBackendStatus(Attachment::Impl &attachment, Types::BackendKind backend, Types::BackendStatus statusValue, std::string_view detail)
     {
         const auto entry = std::find_if(
             attachment.backendStatuses.begin(),
@@ -197,7 +202,6 @@ namespace GameWIP::Input::Platform::Win32
 
             // Connect the attachment to the capture lifecycle.
             system.impl_->nativeBeforeCapture = &Attachment::beforeCapture;
-            system.impl_->nativeAfterCapture = &Attachment::afterCapture;
             system.impl_->nativeClose = &Attachment::closeSystem;
             system.impl_->nativeContext = impl_.get();
 
@@ -326,7 +330,6 @@ namespace GameWIP::Input::Platform::Win32
             {
                 // Remove callbacks installed by the partial attachment.
                 system.impl_->nativeBeforeCapture = nullptr;
-                system.impl_->nativeAfterCapture = nullptr;
                 system.impl_->nativeClose = nullptr;
                 system.impl_->nativeContext = nullptr;
             }
@@ -367,7 +370,6 @@ namespace GameWIP::Input::Platform::Win32
             if(impl_->system->impl_->nativeContext == impl_.get())
             {
                 impl_->system->impl_->nativeBeforeCapture = nullptr;
-                impl_->system->impl_->nativeAfterCapture = nullptr;
                 impl_->system->impl_->nativeClose = nullptr;
                 impl_->system->impl_->nativeContext = nullptr;
             }
@@ -518,7 +520,7 @@ namespace GameWIP::Input::Platform::Win32
                     {
                         if(ElementBinding *button = standardElement(*gamepad, standard); button != nullptr)
                         {
-                            publish(state, button->id, mask == 0 ? false : (buttons & mask) != 0, false);
+                            publish(state, button->id, (buttons & mask) != 0, false);
                         }
                     }
 
@@ -596,8 +598,6 @@ namespace GameWIP::Input::Platform::Win32
         }
         (void)pollNative(*attachment);
     }
-
-    void Attachment::afterCapture(System::Impl &, void *) noexcept {}
 
     void Attachment::closeSystem(System::Impl &, void *context) noexcept
     {

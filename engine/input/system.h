@@ -16,6 +16,8 @@
 #define INPUT_EXPORT
 #endif
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <span>
 
@@ -51,6 +53,10 @@ namespace GameWIP::Input
     class INPUT_EXPORT System final
     {
     public:
+        // ------------------------------------------------------------
+        // Session lifecycle
+        // ------------------------------------------------------------
+
         /// @brief Creates a closed input system.
         System() noexcept;
 
@@ -83,6 +89,10 @@ namespace GameWIP::Input
         /// @return `true` only for the thread that opened the system.
         [[nodiscard]] bool ownedByCurrentThread() const noexcept;
 
+        // ------------------------------------------------------------
+        // Frame capture
+        // ------------------------------------------------------------
+
         /// @brief Publishes a coherent state and event snapshot.
         /// @param destination Caller-owned frame replaced only after a successful capture.
         /// @return Capture status and interval loss information.
@@ -90,6 +100,10 @@ namespace GameWIP::Input
         /// only after the destination has been published successfully. On
         /// failure, destination remains unchanged.
         [[nodiscard]] Types::CaptureResult capture(Types::Frame &destination) noexcept;
+
+        // ------------------------------------------------------------
+        // Device descriptors and health
+        // ------------------------------------------------------------
 
         /// @brief Borrows all device descriptors known during the current open session.
         /// @param outDevices Receives a read-only span owned by the System.
@@ -121,6 +135,10 @@ namespace GameWIP::Input
         /// @param outInfo Receives an independent descriptor copy.
         /// @return Success, InvalidArgument, NotFound, NotOpen, ResourceBusy, or OutOfMemory.
         [[nodiscard]] IO::Types::Status copyDeviceInfo(Types::DeviceId id, Types::DeviceInfo &outInfo) const noexcept;
+
+        // ------------------------------------------------------------
+        // Text input
+        // ------------------------------------------------------------
 
         /// @brief Enables or disables future text events for the session.
         /// @param enabled Whether text events should be accepted.
