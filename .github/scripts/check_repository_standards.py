@@ -930,9 +930,7 @@ def check_editor_integration(failures: list[str]) -> None:
             action = args[action_index]
 
             if action not in helper_actions:
-                failures.append(
-                    f".vscode/tasks.json: task '{task.get('label')}' invokes unknown {platform} helper action '{action}'"
-                )
+                failures.append(f".vscode/tasks.json: task '{task.get('label')}' invokes unknown {platform} helper action '{action}'")
 
 
 def check_extracted_workflow_logic(failures: list[str]) -> None:
