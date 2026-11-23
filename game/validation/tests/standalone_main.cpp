@@ -35,7 +35,7 @@ namespace
     void printHelp() noexcept
     {
         std::puts("Usage:");
-        std::puts("  GameWIPTests.exe [options]");
+        std::puts("  GameWIPTests [options]");
         std::puts("");
         std::puts("Options:");
         std::puts("  --help, -h, -?                       Print help without running tests.");

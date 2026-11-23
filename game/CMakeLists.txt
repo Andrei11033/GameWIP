@@ -51,12 +51,12 @@ if(GAMEWIP_BUILD_GAME)
         if(GAMEWIP_BUILD_BENCHMARKS)
             set_tests_properties(
                 validation.game.help
-                PROPERTIES PASS_REGULAR_EXPRESSION "Usage:;GameWIP.exe --version;GameWIPBenchmarks.exe --help" TIMEOUT 60
+                PROPERTIES PASS_REGULAR_EXPRESSION "Usage:;GameWIP --version;GameWIPBenchmarks --help" TIMEOUT 60
             )
         else()
             set_tests_properties(
                 validation.game.help
-                PROPERTIES PASS_REGULAR_EXPRESSION "Usage:;GameWIP.exe --version" FAIL_REGULAR_EXPRESSION "GameWIPBenchmarks.exe --help" TIMEOUT 60
+                PROPERTIES PASS_REGULAR_EXPRESSION "Usage:;GameWIP --version" FAIL_REGULAR_EXPRESSION "GameWIPBenchmarks --help" TIMEOUT 60
             )
         endif()
         set_tests_properties(validation.game.version PROPERTIES TIMEOUT 60)
