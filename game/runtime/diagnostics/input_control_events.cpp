@@ -489,6 +489,12 @@ namespace
             break;
         }
 
+        case Types::EventKind::DeviceConnected:
+        case Types::EventKind::DeviceDisconnected:
+        case Types::EventKind::DeviceChanged:
+            // Device lifecycle reports are handled by input_events.cpp.
+            break;
+
         case Types::EventKind::TextCommitted:
         case Types::EventKind::CompositionStarted:
         case Types::EventKind::CompositionUpdated:
