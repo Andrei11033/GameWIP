@@ -5,15 +5,17 @@ target_sources(
         display_report.h
         input_control_changes.cpp
         input_control_events.h
+        input_control_names.cpp
         input_control_trace.cpp
+        input_device_format.cpp
         input_device_trace.cpp
         input_devices.cpp
-        input_event_format.cpp
         input_event_format.h
         input_event_labels.cpp
         input_events.cpp
         input_reports.cpp
         input_reports.h
+        input_value_format.cpp
         runtime_diagnostics.h
         runtime_status.cpp
         window_reports.cpp

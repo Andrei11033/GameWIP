@@ -1,15 +1,14 @@
-/// @file input_event_format.cpp
-/// @brief Names and formats shared by runtime Input diagnostics.
+/// @file input_control_names.cpp
+/// @brief Formats standard and HID control names.
 
 #include "input_event_format.h"
 
 #include "input/standard.h"
 
-#include <algorithm>
 #include <array>
 #include <format>
-#include <type_traits>
-#include <vector>
+#include <string>
+#include <string_view>
 
 namespace
 {
@@ -101,31 +100,6 @@ namespace
         StandardName{Standard::Gamepad::Capture, "Capture"},
         StandardName{Standard::Gamepad::Mute, "Mute"}};
 
-    /// ------------------------------------------------------------
-    /// Numeric and vector formatting
-    /// ------------------------------------------------------------
-
-    template <typename T> [[nodiscard]] std::string formatNumber(T value)
-    {
-        if constexpr(std::is_floating_point_v<T>)
-        {
-            return std::format("{:.3f}", value);
-        }
-        else
-        {
-            return std::format("{}", value);
-        }
-    }
-
-    template <typename T> [[nodiscard]] std::string formatVector2(const T &value)
-    {
-        return std::format("({}, {})", formatNumber(value.x), formatNumber(value.y));
-    }
-
-    template <typename T> [[nodiscard]] std::string formatVector3(const T &value)
-    {
-        return std::format("({}, {}, {})", formatNumber(value.x), formatNumber(value.y), formatNumber(value.z));
-    }
 } // namespace
 
 namespace GameWIP::Game::RuntimeDiagnostics::InputEventFormat
@@ -281,182 +255,6 @@ namespace GameWIP::Game::RuntimeDiagnostics::InputEventFormat
         }
 
         return std::format("HID {:04X}:{:04X}", id.usagePage, id.usage);
-    }
-
-    /// ------------------------------------------------------------
-    /// Typed value formatting
-    /// ------------------------------------------------------------
-
-    std::string value(const Input::Types::Value &inputValue)
-    {
-        return std::visit(
-            [](const auto &item) -> std::string
-            {
-                using T = std::remove_cvref_t<decltype(item)>;
-                if constexpr(std::is_same_v<T, std::monostate>)
-                {
-                    return "none";
-                }
-                else if constexpr(std::is_same_v<T, bool>)
-                {
-                    return item ? "true" : "false";
-                }
-                else if constexpr(std::is_arithmetic_v<T>)
-                {
-                    return formatNumber(item);
-                }
-                else if constexpr(requires {
-                                      item.position;
-                                      item.orientation;
-                                      item.positionValid;
-                                  })
-                {
-                    return std::format(
-                        "position={} ({}), orientation={} ({})",
-                        formatVector3(item.position),
-                        item.positionValid ? "valid" : "unavailable",
-                        std::format(
-                            "({}, {}, {}, {})",
-                            formatNumber(item.orientation.x),
-                            formatNumber(item.orientation.y),
-                            formatNumber(item.orientation.z),
-                            formatNumber(item.orientation.w)),
-                        item.orientationValid ? "valid" : "unavailable");
-                }
-                else if constexpr(requires { item.w; })
-                {
-                    return std::format("({}, {}, {}, {})", formatNumber(item.x), formatNumber(item.y), formatNumber(item.z), formatNumber(item.w));
-                }
-                else if constexpr(requires { item.z; })
-                {
-                    return formatVector3(item);
-                }
-                else if constexpr(requires {
-                                      item.x;
-                                      item.y;
-                                  })
-                {
-                    return formatVector2(item);
-                }
-                else
-                {
-                    return "unknown";
-                }
-            },
-            inputValue);
-    }
-
-    /// ------------------------------------------------------------
-    /// Device summaries
-    /// ------------------------------------------------------------
-
-    std::string backendSummary(std::span<const Input::Types::SourceInfo> sources)
-    {
-        std::string summary;
-        std::vector<std::string_view> seen;
-        seen.reserve(sources.size());
-        for(const Input::Types::SourceInfo &source : sources)
-        {
-            const std::string_view name = source.backendName.empty() ? backend(source.backend) : std::string_view{source.backendName};
-            if(std::find(seen.begin(), seen.end(), name) != seen.end())
-            {
-                continue;
-            }
-
-            seen.push_back(name);
-            if(!summary.empty())
-            {
-                summary.append(", ");
-            }
-            summary.append(name);
-        }
-        return summary.empty() ? "no backend" : summary;
-    }
-
-    std::size_t standardControlCount(const Input::Types::DeviceInfo &device)
-    {
-        return static_cast<std::size_t>(std::count_if(
-            device.elements.begin(),
-            device.elements.end(),
-            [](const Input::Types::ElementInfo &element)
-            {
-                return element.identity.standard.has_value() && element.identity.standard->isValid();
-            }));
-    }
-
-    std::string_view deviceKind(const Input::Types::DeviceInfo &device) noexcept
-    {
-        bool keyboard = false;
-        bool mouse = false;
-        bool gamepad = false;
-        bool pointer = false;
-        bool hasHidControls = false;
-        bool hasHidSource = false;
-
-        for(const Input::Types::ElementInfo &element : device.elements)
-        {
-            if(element.identity.standard.has_value())
-            {
-                switch(element.identity.standard->domain)
-                {
-                case Input::Types::StandardDomain::Keyboard:
-                    keyboard = true;
-                    break;
-                case Input::Types::StandardDomain::Mouse:
-                    mouse = true;
-                    break;
-                case Input::Types::StandardDomain::Gamepad:
-                    gamepad = true;
-                    break;
-                case Input::Types::StandardDomain::Pointer:
-                    pointer = true;
-                    break;
-                case Input::Types::StandardDomain::None:
-                    break;
-                }
-            }
-
-            if(element.identity.hid.has_value())
-            {
-                hasHidControls = true;
-                keyboard = keyboard || element.identity.hid->usagePage == 0x07;
-            }
-        }
-
-        for(const Input::Types::SourceInfo &source : device.sources)
-        {
-            using Backend = Input::Types::BackendKind;
-            hasHidSource = hasHidSource || source.backend == Backend::Win32Hid || source.backend == Backend::LinuxHidraw;
-            gamepad = gamepad || source.backend == Backend::XInput;
-        }
-
-        const unsigned int recognizedKinds = static_cast<unsigned int>(keyboard) + static_cast<unsigned int>(mouse) +
-                                             static_cast<unsigned int>(gamepad) + static_cast<unsigned int>(pointer);
-        if(recognizedKinds > 1)
-        {
-            return "composite device";
-        }
-
-        if(keyboard)
-        {
-            return "keyboard";
-        }
-
-        if(mouse)
-        {
-            return "mouse";
-        }
-
-        if(gamepad)
-        {
-            return "gamepad";
-        }
-
-        if(pointer)
-        {
-            return "pointer";
-        }
-        return hasHidControls || hasHidSource ? "HID device" : "generic device";
     }
 
 } // namespace GameWIP::Game::RuntimeDiagnostics::InputEventFormat

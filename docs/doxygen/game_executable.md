@@ -40,7 +40,9 @@ integration code and reusable libraries.
 | `game/runtime/diagnostics/input_reports.h` | Shared entry point for bounded raw report diagnostics. |
 | `game/runtime/diagnostics/input_reports.cpp` | Bounded per-device report previews and platform-detail dispatch at Trace. |
 | `game/runtime/diagnostics/input_event_format.h` | Shared names and value-formatting declarations for Input diagnostics. |
-| `game/runtime/diagnostics/input_event_format.cpp` | Device types, standard controls, and typed value formatting. |
+| `game/runtime/diagnostics/input_control_names.cpp` | Standard and HID control-name formatting. |
+| `game/runtime/diagnostics/input_value_format.cpp` | Formatting for typed Input values. |
+| `game/runtime/diagnostics/input_device_format.cpp` | Backend summaries, standard-control counts, and device classification. |
 | `game/runtime/diagnostics/input_event_labels.cpp` | Stable event, source, and metadata labels. |
 | `game/runtime/diagnostics/input_events.cpp` | Device changes, event dispatch, and incomplete-interval warnings. |
 | `game/runtime/lifecycle/input_lifecycle.cpp` | Input health, source detachment, and session cleanup. |
