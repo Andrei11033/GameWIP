@@ -16,7 +16,7 @@ namespace GameWIP::TestSupport
     /// ------------------------------------------------------------
 
     Runner::Runner(Types::Reporting::Options options)
-        : reportSink_(std::make_shared<Detail::ReportSink>(std::move(options)))
+        : reportSink_(std::make_shared<Internal::ReportSink>(std::move(options)))
     {
     }
 

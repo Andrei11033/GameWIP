@@ -9,7 +9,7 @@
 #include <mutex>
 #include <string_view>
 
-namespace GameWIP::TestSupport::Detail
+namespace GameWIP::TestSupport::Internal
 {
     class ReportSink
     {
@@ -38,4 +38,4 @@ namespace GameWIP::TestSupport::Detail
         Types::Reporting::SinkStatus status_;
         bool reportFailureReported_ = false;
     };
-} // namespace GameWIP::TestSupport::Detail
+} // namespace GameWIP::TestSupport::Internal

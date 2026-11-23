@@ -8,7 +8,7 @@
 #include <new>
 #include <string>
 
-namespace GameWIP::TestSupport::Detail::Platform::Win32
+namespace GameWIP::TestSupport::Internal::Platform::Win32
 {
     /// ------------------------------------------------------------
     /// Captured child output
@@ -86,4 +86,4 @@ namespace GameWIP::TestSupport::Detail::Platform::Win32
             setOutputFailure(Types::InfrastructureError::CaptureFailed, GetLastError());
         }
     }
-} // namespace GameWIP::TestSupport::Detail::Platform::Win32
+} // namespace GameWIP::TestSupport::Internal::Platform::Win32

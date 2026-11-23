@@ -17,7 +17,7 @@
 #include <cstdint>
 #include <string>
 
-namespace GameWIP::TestSupport::Detail::Platform::Win32
+namespace GameWIP::TestSupport::Internal::Platform::Win32
 {
     /// ------------------------------------------------------------
     /// Captured child output
@@ -30,4 +30,4 @@ namespace GameWIP::TestSupport::Detail::Platform::Win32
         std::string &outputBytes,
         bool &outputTruncated,
         Types::InfrastructureStatus &outputStatus) noexcept;
-} // namespace GameWIP::TestSupport::Detail::Platform::Win32
+} // namespace GameWIP::TestSupport::Internal::Platform::Win32

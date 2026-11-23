@@ -10,7 +10,7 @@
 #include <string>
 #include <string_view>
 
-namespace GameWIP::TestSupport::Detail::Platform::Win32
+namespace GameWIP::TestSupport::Internal::Platform::Win32
 {
     /// ------------------------------------------------------------
     /// Path conversion
@@ -87,9 +87,9 @@ namespace GameWIP::TestSupport::Detail::Platform::Win32
         for(const std::string &argument : options.arguments)
         {
             commandLine.push_back(L' ');
-            commandLine += quoteWindowsArgument(Detail::Platform::Win32::utf8ToWide(argument));
+            commandLine += quoteWindowsArgument(Internal::Platform::Win32::utf8ToWide(argument));
         }
 
         return commandLine;
     }
-} // namespace GameWIP::TestSupport::Detail::Platform::Win32
+} // namespace GameWIP::TestSupport::Internal::Platform::Win32

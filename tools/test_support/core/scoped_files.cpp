@@ -55,7 +55,7 @@ namespace GameWIP::TestSupport
 
             if(error)
             {
-                status_ = Detail::failureStatus(Types::InfrastructureError::FileOperationFailed, Detail::nativeCode(error));
+                status_ = Internal::failureStatus(Types::InfrastructureError::FileOperationFailed, Internal::nativeCode(error));
                 return;
             }
             // Keep TestSupport-owned temporary trees under a predictable parent so
@@ -66,7 +66,7 @@ namespace GameWIP::TestSupport
 
             if(error)
             {
-                status_ = Detail::failureStatus(Types::InfrastructureError::FileOperationFailed, Detail::nativeCode(error));
+                status_ = Internal::failureStatus(Types::InfrastructureError::FileOperationFailed, Internal::nativeCode(error));
                 return;
             }
             const std::string prefix = sanitizeTemporaryPurpose(purpose);
@@ -88,26 +88,26 @@ namespace GameWIP::TestSupport
 
                 if(error && error != std::errc::file_exists)
                 {
-                    status_ = Detail::failureStatus(Types::InfrastructureError::FileOperationFailed, Detail::nativeCode(error));
+                    status_ = Internal::failureStatus(Types::InfrastructureError::FileOperationFailed, Internal::nativeCode(error));
                     return;
                 }
             }
 
-            status_ = Detail::failureStatus(
+            status_ = Internal::failureStatus(
                 Types::InfrastructureError::FileOperationFailed,
-                Detail::nativeCode(std::make_error_code(std::errc::file_exists)));
+                Internal::nativeCode(std::make_error_code(std::errc::file_exists)));
         }
         catch(const std::bad_alloc &)
         {
-            status_ = Detail::failureStatus(Types::InfrastructureError::OutOfMemory);
+            status_ = Internal::failureStatus(Types::InfrastructureError::OutOfMemory);
         }
         catch(const std::filesystem::filesystem_error &error)
         {
-            status_ = Detail::failureStatus(Types::InfrastructureError::FileOperationFailed, Detail::nativeCode(error.code()));
+            status_ = Internal::failureStatus(Types::InfrastructureError::FileOperationFailed, Internal::nativeCode(error.code()));
         }
         catch(...)
         {
-            status_ = Detail::failureStatus(Types::InfrastructureError::FileOperationFailed);
+            status_ = Internal::failureStatus(Types::InfrastructureError::FileOperationFailed);
         }
     }
 
@@ -161,7 +161,7 @@ namespace GameWIP::TestSupport
 
             if(error)
             {
-                status_ = Detail::failureStatus(Types::InfrastructureError::FileOperationFailed, Detail::nativeCode(error));
+                status_ = Internal::failureStatus(Types::InfrastructureError::FileOperationFailed, Internal::nativeCode(error));
                 previousPath_.clear();
                 return;
             }
@@ -172,7 +172,7 @@ namespace GameWIP::TestSupport
 
             if(error)
             {
-                status_ = Detail::failureStatus(Types::InfrastructureError::FileOperationFailed, Detail::nativeCode(error));
+                status_ = Internal::failureStatus(Types::InfrastructureError::FileOperationFailed, Internal::nativeCode(error));
                 previousPath_.clear();
                 return;
             }
@@ -182,19 +182,19 @@ namespace GameWIP::TestSupport
 
             if(error)
             {
-                status_ = Detail::failureStatus(Types::InfrastructureError::FileOperationFailed, Detail::nativeCode(error));
+                status_ = Internal::failureStatus(Types::InfrastructureError::FileOperationFailed, Internal::nativeCode(error));
                 previousPath_.clear();
                 return;
             }
         }
         catch(const std::bad_alloc &)
         {
-            status_ = Detail::failureStatus(Types::InfrastructureError::OutOfMemory);
+            status_ = Internal::failureStatus(Types::InfrastructureError::OutOfMemory);
             previousPath_.clear();
         }
         catch(...)
         {
-            status_ = Detail::failureStatus(Types::InfrastructureError::FileOperationFailed);
+            status_ = Internal::failureStatus(Types::InfrastructureError::FileOperationFailed);
             previousPath_.clear();
         }
     }
@@ -225,28 +225,28 @@ namespace GameWIP::TestSupport
 
             if(error)
             {
-                restorationStatus_ = Detail::failureStatus(Types::InfrastructureError::FileOperationFailed, Detail::nativeCode(error));
+                restorationStatus_ = Internal::failureStatus(Types::InfrastructureError::FileOperationFailed, Internal::nativeCode(error));
                 processState_->recordRestorationFailure(restorationStatus_);
                 return restorationStatus_;
             }
 
             if(currentPath != expectedPath_)
             {
-                restorationStatus_ = Detail::failureStatus(Types::InfrastructureError::ProcessStateConflict);
+                restorationStatus_ = Internal::failureStatus(Types::InfrastructureError::ProcessStateConflict);
                 processState_->recordRestorationFailure(restorationStatus_);
                 return restorationStatus_;
             }
             std::filesystem::current_path(previousPath_, error);
-            restorationStatus_ = error ? Detail::failureStatus(Types::InfrastructureError::FileOperationFailed, Detail::nativeCode(error))
+            restorationStatus_ = error ? Internal::failureStatus(Types::InfrastructureError::FileOperationFailed, Internal::nativeCode(error))
                                        : Types::InfrastructureStatus{};
         }
         catch(const std::bad_alloc &)
         {
-            restorationStatus_ = Detail::failureStatus(Types::InfrastructureError::OutOfMemory);
+            restorationStatus_ = Internal::failureStatus(Types::InfrastructureError::OutOfMemory);
         }
         catch(...) // NOLINT(bugprone-empty-catch) -- Restoration failures are returned through the explicit method.
         {
-            restorationStatus_ = Detail::failureStatus(Types::InfrastructureError::FileOperationFailed);
+            restorationStatus_ = Internal::failureStatus(Types::InfrastructureError::FileOperationFailed);
         }
 
         restored_ = restorationStatus_.ok();

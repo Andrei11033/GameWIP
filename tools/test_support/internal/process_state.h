@@ -5,11 +5,11 @@
 
 #include <mutex>
 
-namespace GameWIP::TestSupport::Detail
+namespace GameWIP::TestSupport::Internal
 {
     /// ------------------------------------------------------------
     /// Process-state coordination
     /// ------------------------------------------------------------
 
     [[nodiscard]] std::recursive_mutex &processStateMutex() noexcept;
-} // namespace GameWIP::TestSupport::Detail
+} // namespace GameWIP::TestSupport::Internal

@@ -102,7 +102,7 @@ namespace GameWIP::TestSupport
     } // namespace Types::Reporting
 
     /// @cond INTERNAL_TEST_SUPPORT
-    namespace Detail
+    namespace Internal
     {
         class ReportSink;
 
@@ -128,7 +128,7 @@ namespace GameWIP::TestSupport
                 return "<unprintable>";
             }
         }
-    } // namespace Detail
+    } // namespace Internal
     /// @endcond
 
     /// ------------------------------------------------------------
@@ -257,11 +257,11 @@ namespace GameWIP::TestSupport
     private:
         friend class Runner;
 
-        Context(std::string_view suiteName, std::shared_ptr<Detail::ReportSink> reportSink);
+        Context(std::string_view suiteName, std::shared_ptr<Internal::ReportSink> reportSink);
 
         // Context identity and sink ownership
         std::string suiteName_;
-        std::shared_ptr<Detail::ReportSink> reportSink_;
+        std::shared_ptr<Internal::ReportSink> reportSink_;
         bool ownsReportLifecycle_ = true;
 
         // Recorded outcomes
@@ -315,7 +315,7 @@ namespace GameWIP::TestSupport
 
     private:
         // Shared sink
-        std::shared_ptr<Detail::ReportSink> reportSink_;
+        std::shared_ptr<Internal::ReportSink> reportSink_;
 
         // Aggregate suite results
         mutable std::mutex mutex_;
@@ -367,7 +367,7 @@ namespace GameWIP::TestSupport
         }
 
         std::ostringstream reason;
-        reason << "expected " << Detail::valueToString(expected) << ", got " << Detail::valueToString(actual);
+        reason << "expected " << Internal::valueToString(expected) << ", got " << Internal::valueToString(actual);
         fail(name, reason.str(), location);
         return false;
     }
@@ -382,7 +382,7 @@ namespace GameWIP::TestSupport
         }
 
         std::ostringstream reason;
-        reason << "did not expect " << Detail::valueToString(actual);
+        reason << "did not expect " << Internal::valueToString(actual);
         fail(name, reason.str(), location);
         return false;
     }

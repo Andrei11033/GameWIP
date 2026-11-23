@@ -3,7 +3,7 @@
 
 #include "test_support/internal/status.h"
 
-namespace GameWIP::TestSupport::Detail
+namespace GameWIP::TestSupport::Internal
 {
     /// ------------------------------------------------------------
     /// Infrastructure status construction
@@ -18,4 +18,4 @@ namespace GameWIP::TestSupport::Detail
     {
         return static_cast<std::uint64_t>(static_cast<std::uint32_t>(error.value()));
     }
-} // namespace GameWIP::TestSupport::Detail
+} // namespace GameWIP::TestSupport::Internal

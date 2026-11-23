@@ -9,7 +9,7 @@
 #include <string>
 #include <string_view>
 
-namespace GameWIP::TestSupport::Detail::Platform
+namespace GameWIP::TestSupport::Platform
 {
     /// ------------------------------------------------------------
     /// Process environment contract
@@ -30,4 +30,4 @@ namespace GameWIP::TestSupport::Detail::Platform
 
     /// @brief Removes one process environment variable by UTF-8 name.
     [[nodiscard]] Types::InfrastructureStatus unsetEnvironmentVariableValue(std::string_view name) noexcept;
-} // namespace GameWIP::TestSupport::Detail::Platform
+} // namespace GameWIP::TestSupport::Platform

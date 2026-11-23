@@ -9,7 +9,7 @@
 #include <new>
 #include <system_error>
 
-namespace GameWIP::TestSupport::Detail
+namespace GameWIP::TestSupport::Internal
 {
     namespace
     {
@@ -55,7 +55,7 @@ namespace GameWIP::TestSupport::Detail
     {
         return processStateMutexInstance;
     }
-} // namespace GameWIP::TestSupport::Detail
+} // namespace GameWIP::TestSupport::Internal
 
 namespace GameWIP::TestSupport
 {
@@ -63,7 +63,7 @@ namespace GameWIP::TestSupport
     {
         try
         {
-            lock_ = std::unique_lock<std::recursive_mutex>(Detail::processStateMutex());
+            lock_ = std::unique_lock<std::recursive_mutex>(Internal::processStateMutex());
         }
         catch(const std::bad_alloc &)
         {
@@ -114,7 +114,7 @@ namespace GameWIP::TestSupport
                 return;
             }
             name_.assign(name);
-            const Detail::Platform::EnvironmentReadResult readResult = Detail::Platform::readEnvironmentVariable(name_);
+            const Platform::EnvironmentReadResult readResult = Platform::readEnvironmentVariable(name_);
 
             if(!readResult.status.ok())
             {
@@ -123,7 +123,7 @@ namespace GameWIP::TestSupport
             }
             previousValue_ = readResult.value;
             expectedValue_ = value.empty() ? std::nullopt : std::optional<std::string>{std::string(value)};
-            status_ = Detail::Platform::setEnvironmentVariableValue(name_, value);
+            status_ = Platform::setEnvironmentVariableValue(name_, value);
         }
         catch(const std::bad_alloc &)
         {
@@ -157,7 +157,7 @@ namespace GameWIP::TestSupport
             return restorationStatus_;
         }
 
-        restorationStatus_ = Detail::restoreEnvironmentVariable(name_, expectedValue_, previousValue_);
+        restorationStatus_ = Internal::restoreEnvironmentVariable(name_, expectedValue_, previousValue_);
         restored_ = restorationStatus_.ok();
 
         if(!restorationStatus_.ok())
@@ -183,7 +183,7 @@ namespace GameWIP::TestSupport
                 return;
             }
             name_.assign(name);
-            const Detail::Platform::EnvironmentReadResult readResult = Detail::Platform::readEnvironmentVariable(name_);
+            const Platform::EnvironmentReadResult readResult = Platform::readEnvironmentVariable(name_);
 
             if(!readResult.status.ok())
             {
@@ -192,7 +192,7 @@ namespace GameWIP::TestSupport
             }
             previousValue_ = readResult.value;
             expectedValue_ = std::nullopt;
-            status_ = Detail::Platform::unsetEnvironmentVariableValue(name_);
+            status_ = Platform::unsetEnvironmentVariableValue(name_);
         }
         catch(const std::bad_alloc &)
         {
@@ -226,7 +226,7 @@ namespace GameWIP::TestSupport
             return restorationStatus_;
         }
 
-        restorationStatus_ = Detail::restoreEnvironmentVariable(name_, expectedValue_, previousValue_);
+        restorationStatus_ = Internal::restoreEnvironmentVariable(name_, expectedValue_, previousValue_);
         restored_ = restorationStatus_.ok();
 
         if(!restorationStatus_.ok())

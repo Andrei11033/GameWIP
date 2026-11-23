@@ -11,7 +11,7 @@
 #include <string_view>
 #include <vector>
 
-namespace GameWIP::TestSupport::Detail::Platform::Win32
+namespace GameWIP::TestSupport::Internal::Platform::Win32
 {
     /// ------------------------------------------------------------
     /// UTF-8 to UTF-16 conversion
@@ -99,4 +99,4 @@ namespace GameWIP::TestSupport::Detail::Platform::Win32
 
         return output;
     }
-} // namespace GameWIP::TestSupport::Detail::Platform::Win32
+} // namespace GameWIP::TestSupport::Internal::Platform::Win32

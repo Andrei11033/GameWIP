@@ -68,11 +68,11 @@ namespace GameWIP::TestSupport
 
     Context::Context(std::string_view suiteName, const Types::Reporting::Options &options)
         : suiteName_(suiteName)
-        , reportSink_(std::make_shared<Detail::ReportSink>(options))
+        , reportSink_(std::make_shared<Internal::ReportSink>(options))
     {
     }
 
-    Context::Context(std::string_view suiteName, std::shared_ptr<Detail::ReportSink> reportSink)
+    Context::Context(std::string_view suiteName, std::shared_ptr<Internal::ReportSink> reportSink)
         : suiteName_(suiteName)
         , reportSink_(std::move(reportSink))
         , ownsReportLifecycle_(false)

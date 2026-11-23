@@ -20,7 +20,7 @@
 #include <string_view>
 #include <vector>
 
-namespace GameWIP::TestSupport::Detail::Platform::Win32
+namespace GameWIP::TestSupport::Internal::Platform::Win32
 {
     namespace
     {
@@ -62,7 +62,7 @@ namespace GameWIP::TestSupport::Detail::Platform::Win32
             {
                 throw std::invalid_argument("Child-process environment names must be non-empty and cannot contain '='");
             }
-            const std::wstring variableName = Detail::Platform::Win32::utf8ToWide(variable.name);
+            const std::wstring variableName = Internal::Platform::Win32::utf8ToWide(variable.name);
             const auto matchesName = [&variableName](const std::wstring &entry)
             {
                 return sameEnvironmentName(environmentEntryName(entry), variableName);
@@ -73,7 +73,7 @@ namespace GameWIP::TestSupport::Detail::Platform::Win32
                 entries.erase(std::remove_if(entries.begin(), entries.end(), matchesName), entries.end());
                 return;
             }
-            const std::wstring replacement = variableName + L"=" + Detail::Platform::Win32::utf8ToWide(*variable.value);
+            const std::wstring replacement = variableName + L"=" + Internal::Platform::Win32::utf8ToWide(*variable.value);
             const auto existing = std::find_if(entries.begin(), entries.end(), matchesName);
 
             if(existing != entries.end())
@@ -165,4 +165,4 @@ namespace GameWIP::TestSupport::Detail::Platform::Win32
 
         return block;
     }
-} // namespace GameWIP::TestSupport::Detail::Platform::Win32
+} // namespace GameWIP::TestSupport::Internal::Platform::Win32

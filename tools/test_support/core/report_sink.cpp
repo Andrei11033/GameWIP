@@ -11,7 +11,7 @@
 #include <system_error>
 #include <utility>
 
-namespace GameWIP::TestSupport::Detail
+namespace GameWIP::TestSupport::Internal
 {
     ReportSink::ReportSink(Types::Reporting::Options options)
         : options_(std::move(options))
@@ -207,4 +207,4 @@ namespace GameWIP::TestSupport::Detail
             reportFailureReported_ = true;
         }
     }
-} // namespace GameWIP::TestSupport::Detail
+} // namespace GameWIP::TestSupport::Internal

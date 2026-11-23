@@ -30,7 +30,7 @@ namespace GameWIP::TestSupport
 
             if(!file.is_open())
             {
-                result.status = Detail::failureStatus(Types::InfrastructureError::FileOperationFailed, static_cast<std::uint64_t>(errno));
+                result.status = Internal::failureStatus(Types::InfrastructureError::FileOperationFailed, static_cast<std::uint64_t>(errno));
                 return result;
             }
 
@@ -38,7 +38,7 @@ namespace GameWIP::TestSupport
 
             if(endPosition < std::ifstream::pos_type{0})
             {
-                result.status = Detail::failureStatus(Types::InfrastructureError::FileOperationFailed, static_cast<std::uint64_t>(errno));
+                result.status = Internal::failureStatus(Types::InfrastructureError::FileOperationFailed, static_cast<std::uint64_t>(errno));
                 return result;
             }
 
@@ -51,13 +51,13 @@ namespace GameWIP::TestSupport
 
             if(fileSize > result.text.max_size())
             {
-                result.status = Detail::failureStatus(Types::InfrastructureError::OutOfMemory);
+                result.status = Internal::failureStatus(Types::InfrastructureError::OutOfMemory);
                 return result;
             }
 
             if(fileSize > static_cast<std::uintmax_t>(std::numeric_limits<std::streamsize>::max()))
             {
-                result.status = Detail::failureStatus(Types::InfrastructureError::FileOperationFailed);
+                result.status = Internal::failureStatus(Types::InfrastructureError::FileOperationFailed);
                 return result;
             }
 
@@ -68,7 +68,7 @@ namespace GameWIP::TestSupport
             if(!file)
             {
                 result.text.clear();
-                result.status = Detail::failureStatus(Types::InfrastructureError::FileOperationFailed, static_cast<std::uint64_t>(errno));
+                result.status = Internal::failureStatus(Types::InfrastructureError::FileOperationFailed, static_cast<std::uint64_t>(errno));
                 return result;
             }
 
@@ -90,7 +90,7 @@ namespace GameWIP::TestSupport
             // Malformed input is definitive regardless of a simultaneous backend failure.
             if(validation.outcome == Unicode::Types::ValidationOutcome::InvalidEncoding)
             {
-                result.status = Detail::failureStatus(Types::InfrastructureError::EncodingFailed);
+                result.status = Internal::failureStatus(Types::InfrastructureError::EncodingFailed);
                 return result;
             }
 
@@ -100,11 +100,11 @@ namespace GameWIP::TestSupport
             {
                 if(backendFailure)
                 {
-                    result.status = Detail::failureStatus(Types::InfrastructureError::FileOperationFailed, static_cast<std::uint64_t>(errno));
+                    result.status = Internal::failureStatus(Types::InfrastructureError::FileOperationFailed, static_cast<std::uint64_t>(errno));
                 }
                 else
                 {
-                    result.status = Detail::failureStatus(Types::InfrastructureError::EncodingFailed);
+                    result.status = Internal::failureStatus(Types::InfrastructureError::EncodingFailed);
                 }
 
                 return result;
@@ -115,29 +115,29 @@ namespace GameWIP::TestSupport
             // silently returning a successful prefix.
             if(backendFailure || knownSizeShortRead)
             {
-                result.status = Detail::failureStatus(Types::InfrastructureError::FileOperationFailed, static_cast<std::uint64_t>(errno));
+                result.status = Internal::failureStatus(Types::InfrastructureError::FileOperationFailed, static_cast<std::uint64_t>(errno));
             }
 
             return result;
         }
         catch(const std::bad_alloc &)
         {
-            result.status = Detail::failureStatus(Types::InfrastructureError::OutOfMemory);
+            result.status = Internal::failureStatus(Types::InfrastructureError::OutOfMemory);
             return result;
         }
         catch(const std::length_error &)
         {
-            result.status = Detail::failureStatus(Types::InfrastructureError::OutOfMemory);
+            result.status = Internal::failureStatus(Types::InfrastructureError::OutOfMemory);
             return result;
         }
         catch(const std::filesystem::filesystem_error &error)
         {
-            result.status = Detail::failureStatus(Types::InfrastructureError::FileOperationFailed, Detail::nativeCode(error.code()));
+            result.status = Internal::failureStatus(Types::InfrastructureError::FileOperationFailed, Internal::nativeCode(error.code()));
             return result;
         }
         catch(...)
         {
-            result.status = Detail::failureStatus(Types::InfrastructureError::FileOperationFailed);
+            result.status = Internal::failureStatus(Types::InfrastructureError::FileOperationFailed);
             return result;
         }
     }
@@ -149,12 +149,12 @@ namespace GameWIP::TestSupport
             // Validate input before creating parent directories or truncating the destination.
             if(text.size() > static_cast<std::size_t>(std::numeric_limits<std::streamsize>::max()))
             {
-                return Detail::failureStatus(Types::InfrastructureError::InvalidArgument);
+                return Internal::failureStatus(Types::InfrastructureError::InvalidArgument);
             }
 
             if(Unicode::Utf8::validate(text).outcome != Unicode::Types::ValidationOutcome::Valid)
             {
-                return Detail::failureStatus(Types::InfrastructureError::EncodingFailed);
+                return Internal::failureStatus(Types::InfrastructureError::EncodingFailed);
             }
 
             // Create parent directories after the input is known to be valid.
@@ -176,32 +176,32 @@ namespace GameWIP::TestSupport
 
             if(!file.is_open())
             {
-                return Detail::failureStatus(Types::InfrastructureError::FileOperationFailed, static_cast<std::uint64_t>(errno));
+                return Internal::failureStatus(Types::InfrastructureError::FileOperationFailed, static_cast<std::uint64_t>(errno));
             }
             file.write(text.data(), static_cast<std::streamsize>(text.size()));
             file.flush();
 
             if(!file)
             {
-                return Detail::failureStatus(Types::InfrastructureError::FileOperationFailed, static_cast<std::uint64_t>(errno));
+                return Internal::failureStatus(Types::InfrastructureError::FileOperationFailed, static_cast<std::uint64_t>(errno));
             }
             return {};
         }
         catch(const std::bad_alloc &)
         {
-            return Detail::failureStatus(Types::InfrastructureError::OutOfMemory);
+            return Internal::failureStatus(Types::InfrastructureError::OutOfMemory);
         }
         catch(const std::length_error &)
         {
-            return Detail::failureStatus(Types::InfrastructureError::OutOfMemory);
+            return Internal::failureStatus(Types::InfrastructureError::OutOfMemory);
         }
         catch(const std::filesystem::filesystem_error &error)
         {
-            return Detail::failureStatus(Types::InfrastructureError::FileOperationFailed, Detail::nativeCode(error.code()));
+            return Internal::failureStatus(Types::InfrastructureError::FileOperationFailed, Internal::nativeCode(error.code()));
         }
         catch(...)
         {
-            return Detail::failureStatus(Types::InfrastructureError::FileOperationFailed);
+            return Internal::failureStatus(Types::InfrastructureError::FileOperationFailed);
         }
     }
 
@@ -215,19 +215,19 @@ namespace GameWIP::TestSupport
 
             if(error)
             {
-                result.status = Detail::failureStatus(Types::InfrastructureError::FileOperationFailed, Detail::nativeCode(error));
+                result.status = Internal::failureStatus(Types::InfrastructureError::FileOperationFailed, Internal::nativeCode(error));
             }
 
             return result;
         }
         catch(const std::bad_alloc &)
         {
-            result.status = Detail::failureStatus(Types::InfrastructureError::OutOfMemory);
+            result.status = Internal::failureStatus(Types::InfrastructureError::OutOfMemory);
             return result;
         }
         catch(...)
         {
-            result.status = Detail::failureStatus(Types::InfrastructureError::FileOperationFailed);
+            result.status = Internal::failureStatus(Types::InfrastructureError::FileOperationFailed);
             return result;
         }
     }
@@ -277,16 +277,16 @@ namespace GameWIP::TestSupport
         {
             std::error_code error;
             static_cast<void>(std::filesystem::create_directories(path, error));
-            return error ? Detail::failureStatus(Types::InfrastructureError::FileOperationFailed, Detail::nativeCode(error))
+            return error ? Internal::failureStatus(Types::InfrastructureError::FileOperationFailed, Internal::nativeCode(error))
                          : Types::InfrastructureStatus{};
         }
         catch(const std::bad_alloc &)
         {
-            return Detail::failureStatus(Types::InfrastructureError::OutOfMemory);
+            return Internal::failureStatus(Types::InfrastructureError::OutOfMemory);
         }
         catch(...)
         {
-            return Detail::failureStatus(Types::InfrastructureError::FileOperationFailed);
+            return Internal::failureStatus(Types::InfrastructureError::FileOperationFailed);
         }
     }
 
@@ -296,16 +296,16 @@ namespace GameWIP::TestSupport
         {
             std::error_code error;
             static_cast<void>(std::filesystem::remove_all(path, error));
-            return error ? Detail::failureStatus(Types::InfrastructureError::FileOperationFailed, Detail::nativeCode(error))
+            return error ? Internal::failureStatus(Types::InfrastructureError::FileOperationFailed, Internal::nativeCode(error))
                          : Types::InfrastructureStatus{};
         }
         catch(const std::bad_alloc &)
         {
-            return Detail::failureStatus(Types::InfrastructureError::OutOfMemory);
+            return Internal::failureStatus(Types::InfrastructureError::OutOfMemory);
         }
         catch(...)
         {
-            return Detail::failureStatus(Types::InfrastructureError::FileOperationFailed);
+            return Internal::failureStatus(Types::InfrastructureError::FileOperationFailed);
         }
     }
 } // namespace GameWIP::TestSupport

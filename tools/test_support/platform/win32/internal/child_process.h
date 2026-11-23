@@ -10,7 +10,7 @@
 #include <filesystem>
 #include <string>
 
-namespace GameWIP::TestSupport::Detail::Platform::Win32
+namespace GameWIP::TestSupport::Internal::Platform::Win32
 {
     /// ------------------------------------------------------------
     /// Child process preparation
@@ -37,4 +37,4 @@ namespace GameWIP::TestSupport::Detail::Platform::Win32
     [[nodiscard]] std::wstring pathToWide(const std::filesystem::path &path);
     [[nodiscard]] std::wstring buildCommandLine(const Types::Process::Options &options);
     [[nodiscard]] std::wstring buildEnvironmentBlock(const Types::Process::Options &options);
-} // namespace GameWIP::TestSupport::Detail::Platform::Win32
+} // namespace GameWIP::TestSupport::Internal::Platform::Win32
