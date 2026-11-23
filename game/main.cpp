@@ -88,17 +88,17 @@ namespace
     void printHelp() noexcept
     {
         std::puts("Usage:");
-        std::puts("  GameWIP.exe");
-        std::puts("  GameWIP.exe --version");
-        std::puts("  GameWIP.exe --help | -h | -?");
-        std::puts("  GameWIP.exe --logLevel=<trace|debug|info|warn|error|fatal>");
-        std::puts("  GameWIP.exe --inputDevices");
-        std::puts("  GameWIP.exe --inputDebug");
-        std::puts("  GameWIP.exe --inputBackends=<list>");
+        std::puts("  GameWIP");
+        std::puts("  GameWIP --version");
+        std::puts("  GameWIP --help | -h | -?");
+        std::puts("  GameWIP --logLevel=<trace|debug|info|warn|error|fatal>");
+        std::puts("  GameWIP --inputDevices");
+        std::puts("  GameWIP --inputDebug");
+        std::puts("  GameWIP --inputBackends=<list>");
         std::puts("    Backends: rawInput, hid, xinput, gameInput, directInput, windowMessages, or none.");
-        std::puts("  GameWIP.exe --windowEvents");
+        std::puts("  GameWIP --windowEvents");
 #if GAMEWIP_STARTUP_TESTS_ENABLED
-        std::puts("  GameWIP.exe --startup-tests [GameWIPTests options]");
+        std::puts("  GameWIP --startup-tests [GameWIPTests options]");
         std::puts("");
         std::puts("This build includes opt-in startup correctness tests.");
 #else
@@ -110,9 +110,9 @@ namespace
 #else
         std::puts("This build does not include startup benchmarks.");
 #endif
-        std::puts("When built, use GameWIPTests.exe --help for validation options.");
+        std::puts("When built, use GameWIPTests --help for validation options.");
 #if GAMEWIP_STANDALONE_BENCHMARKS_ENABLED
-        std::puts("Use GameWIPBenchmarks.exe --help for standalone benchmark options.");
+        std::puts("Use GameWIPBenchmarks --help for standalone benchmark options.");
 #endif
     }
 } // namespace

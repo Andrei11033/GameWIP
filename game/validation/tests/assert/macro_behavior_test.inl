@@ -62,7 +62,12 @@ void testVerifyEvaluation(TestContext &context)
 void testEnsureBehavior(TestContext &context)
 {
     const ScopedLoggerShutdown loggerShutdown;
-    initFileLogger(context, "ensure");
+
+    if(!initFileLogger(context, "ensure"))
+    {
+        context.fail("ENSURE logger init", "Logger::init failed");
+        return;
+    }
 
     int evaluations = 0;
     const bool first = ENSURE(++evaluations == 1);
