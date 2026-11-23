@@ -25,7 +25,7 @@ namespace GameWIP::Validation::PlatformTests
     /// @brief Suppresses native crash and missing-file dialogs during child tests.
     void suppressCrashDialogs() noexcept;
 
-    /// @brief Sets or removes one process environment variable.
+    /// @brief Sets a process environment variable, or removes it when value is null.
     bool setEnvironmentVariable(std::string_view name, const char *value) noexcept;
 
 } // namespace GameWIP::Validation::PlatformTests

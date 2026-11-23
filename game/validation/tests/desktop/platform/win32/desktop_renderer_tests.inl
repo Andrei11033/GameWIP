@@ -2,9 +2,10 @@
 /// @brief Window renderer-integration validation cases.
 
 #if DESKTOP_INTERNAL_TEST_HOOKS
-// ------------------------------------------------------------
-// Presentation publication and pointer hit masks
-// ------------------------------------------------------------
+
+/// ------------------------------------------------------------
+/// Presentation publication and pointer hit masks
+/// ------------------------------------------------------------
 
 void testPresentationPublication(TestSupport::Context &context)
 {
@@ -353,9 +354,9 @@ void testPointerHitMask(TestSupport::Context &context)
 }
 #endif
 
-// ------------------------------------------------------------
-// Renderer occlusion feedback
-// ------------------------------------------------------------
+/// ------------------------------------------------------------
+/// Renderer occlusion feedback
+/// ------------------------------------------------------------
 
 void testRendererOcclusionFeedback(TestSupport::Context &context)
 {

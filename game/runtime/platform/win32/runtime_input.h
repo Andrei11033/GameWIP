@@ -31,13 +31,18 @@ namespace GameWIP::Game::Runtime
         // Win32 attachment
         Input::Platform::Win32::Attachment attachment;
 
+        // Backend selection
         void applyBackendSelection(const Options &options, Input::Types::Configuration &configuration) const;
+
+        // Window attachment and backend reporting
         [[nodiscard]] constexpr bool usesWindowAttachment() const noexcept
         {
             return true;
         }
         [[nodiscard]] IO::Types::Status attachToWindow(Desktop::Window &window) noexcept;
         void logBackends();
+
+        // Session cleanup
         [[nodiscard]] bool finish();
     };
 } // namespace GameWIP::Game::Runtime

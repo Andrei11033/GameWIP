@@ -7,9 +7,7 @@
 
 static_assert(std::is_nothrow_copy_constructible_v<GameWIP::Desktop::Accessibility::SnapshotReader>);
 
-bool probeInstalledAccessibility();
-
-bool probeInstalledAccessibility()
+[[nodiscard]] bool probeInstalledAccessibility()
 {
     namespace Desktop = GameWIP::Desktop;
 

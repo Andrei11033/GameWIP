@@ -42,9 +42,9 @@ namespace CursorTest
     }
 } // namespace CursorTest
 
-// ------------------------------------------------------------
-// Cursor values and selection
-// ------------------------------------------------------------
+/// ------------------------------------------------------------
+/// Cursor values and selection
+/// ------------------------------------------------------------
 
 void testCursorDpiSelection(TestSupport::Context &context)
 {
@@ -178,9 +178,10 @@ void testCursorValuesAndValidation(TestSupport::Context &context)
 }
 
 #if DESKTOP_INTERNAL_TEST_HOOKS
-// ------------------------------------------------------------
-// Native cursor resources
-// ------------------------------------------------------------
+
+/// ------------------------------------------------------------
+/// Native cursor resources
+/// ------------------------------------------------------------
 
 void testCursorNativeResources(TestSupport::Context &context)
 {

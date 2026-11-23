@@ -7,9 +7,10 @@ namespace MessageDialogs = DialogTypes::Message;
 namespace PromptDialogs = DialogTypes::Prompt;
 
 #if DESKTOP_INTERNAL_TEST_HOOKS
-// ------------------------------------------------------------
-// File and folder dialogs
-// ------------------------------------------------------------
+
+/// ------------------------------------------------------------
+/// File and folder dialogs
+/// ------------------------------------------------------------
 
 void armFileDialog(
     Desktop::TestHooks::FileDialogOperation operation,
@@ -295,7 +296,7 @@ struct ApartmentObservation
 }
 
 /// @brief Keeps the strictly uninitialized case independent of assistive clients in the parent.
-int runColdApartmentChild()
+[[nodiscard]] int runColdApartmentChild()
 {
     if(observeApartment().result != CO_E_NOTINITIALIZED)
     {
@@ -310,9 +311,9 @@ int runColdApartmentChild()
     return Desktop::TestHooks::testShellApartment().ok() && observeApartment().result == CO_E_NOTINITIALIZED ? 0 : 4;
 }
 
-// ------------------------------------------------------------
-// Dialog apartment contracts
-// ------------------------------------------------------------
+/// ------------------------------------------------------------
+/// Dialog apartment contracts
+/// ------------------------------------------------------------
 
 void testDialogApartmentContracts(TestSupport::Context &context, const std::filesystem::path &executable)
 {
@@ -420,9 +421,9 @@ void testDialogApartmentContracts(TestSupport::Context &context, const std::file
     }
 }
 
-// ------------------------------------------------------------
-// Message dialogs
-// ------------------------------------------------------------
+/// ------------------------------------------------------------
+/// Message dialogs
+/// ------------------------------------------------------------
 
 void testMessageDialogs(TestSupport::Context &context)
 {
@@ -553,9 +554,9 @@ void testMessageDialogs(TestSupport::Context &context)
     static_cast<void>(context.expectEq("Message unknown native result maps", ErrorCode::NativeFailure, failed.status.code));
 }
 
-// ------------------------------------------------------------
-// Prompt dialogs
-// ------------------------------------------------------------
+/// ------------------------------------------------------------
+/// Prompt dialogs
+/// ------------------------------------------------------------
 
 void testPromptDialogs(TestSupport::Context &context)
 {

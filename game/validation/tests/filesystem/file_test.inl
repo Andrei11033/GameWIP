@@ -1,9 +1,9 @@
 /// @file file_test.inl
 /// @brief Focused FileSystem file tests.
 
-// ------------------------------------------------------------
-// File and text contracts
-// ------------------------------------------------------------
+/// ------------------------------------------------------------
+/// File and text contracts
+/// ------------------------------------------------------------
 
 /// @brief Verifies final and intermediate symlink handling for every query policy.
 void testSymlinkPolicies(TestSupport::Context &context, const std::filesystem::path &root)
@@ -185,9 +185,9 @@ void testTextContracts(TestSupport::Context &context, const std::filesystem::pat
     expectFileText(context, "invalid temporary prefix preserves destination", file, "unicode-prefix");
 }
 
-// ------------------------------------------------------------
-// Handles and file mutations
-// ------------------------------------------------------------
+/// ------------------------------------------------------------
+/// Handles and file mutations
+/// ------------------------------------------------------------
 
 /// @brief Verifies whole-file helpers and reader, writer, and read/write handle contracts.
 void testWholeFileHelpersAndHandles(TestSupport::Context &context, const std::filesystem::path &root)
@@ -384,9 +384,9 @@ void testMutationCopyMoveAndRemoval(TestSupport::Context &context, const std::fi
     static_cast<void>(context.expectTrue("partial tree removal cleanup succeeds", FileSystem::removeDirectoryTree(wideTree).status.ok()));
 }
 
-// ------------------------------------------------------------
-// Atomic writes and locks
-// ------------------------------------------------------------
+/// ------------------------------------------------------------
+/// Atomic writes and locks
+/// ------------------------------------------------------------
 
 /// @brief Verifies atomic replacement and non-blocking whole-file lock ownership.
 void testAtomicWriteAndLocks(TestSupport::Context &context, const std::filesystem::path &root)

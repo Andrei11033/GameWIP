@@ -1,9 +1,9 @@
 /// @file accessibility_provider_tests.inl
 /// @brief Native UI Automation provider tests.
 
-// ------------------------------------------------------------
-// Native node providers
-// ------------------------------------------------------------
+/// ------------------------------------------------------------
+/// Native node providers
+/// ------------------------------------------------------------
 
 void testProviders(Context &context)
 {

@@ -29,6 +29,7 @@ namespace
             {
                 return true;
             }
+
             if(GameWIP::Test::TerminalPlatform::handlesCancellationSignalFailureChild(argument))
             {
                 return true;

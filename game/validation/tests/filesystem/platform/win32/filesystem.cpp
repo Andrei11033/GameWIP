@@ -28,6 +28,7 @@ namespace
     namespace TestSupport = GameWIP::TestSupport;
 
 #if FILESYSTEM_INTERNAL_TEST_HOOKS
+
     /// ------------------------------------------------------------
     /// Move synchronization
     /// ------------------------------------------------------------

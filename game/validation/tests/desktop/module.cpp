@@ -14,6 +14,7 @@ namespace
         return GameWIP::Test::DesktopPlatform::handlesChildArguments(argc, argv);
     }
 
+    /// @brief Maps shared runner policy to Desktop-specific options and executes the suite.
     int run(const GameWIP::Validation::Tests::ModuleInvocation &invocation)
     {
         GameWIP::Test::DesktopTestOptions options;

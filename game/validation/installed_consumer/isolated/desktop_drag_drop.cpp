@@ -5,7 +5,7 @@
 
 #include <span>
 
-bool probeInstalledDragDrop()
+[[nodiscard]] bool probeInstalledDragDrop()
 {
     GameWIP::Desktop::Window closedWindow;
     GameWIP::Desktop::DragDropTarget target;

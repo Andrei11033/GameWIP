@@ -2,6 +2,7 @@
 /// @brief Win32 Terminal cancellation tests.
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
+
 /// ------------------------------------------------------------
 /// Cancellation behavior
 /// ------------------------------------------------------------
@@ -49,9 +50,9 @@ int runCancellationSignalFailureChildMode()
     return passed ? 0 : 1;
 }
 
-// ------------------------------------------------------------
-// Cancellation failure handling
-// ------------------------------------------------------------
+/// ------------------------------------------------------------
+/// Cancellation failure handling
+/// ------------------------------------------------------------
 
 /// @brief Verifies bounded cancellation after the native signal fails.
 void testCancellationSignalFailure(TestSupport::Context &context, const std::filesystem::path &executablePath)

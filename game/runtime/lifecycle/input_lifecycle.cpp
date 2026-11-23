@@ -76,12 +76,7 @@ namespace
 
 namespace GameWIP::Game::RuntimeDiagnostics
 {
-    bool finishInputSystem(Input::System &input)
-    {
-        return finishInputSystemImpl(input, nullptr, nullptr);
-    }
-
-    bool finishInputSystemWithDetach(Input::System &input, InputDetachCallback detach, void *context)
+    bool finishInputSystem(Input::System &input, InputDetachCallback detach, void *context)
     {
         return finishInputSystemImpl(input, detach, context);
     }

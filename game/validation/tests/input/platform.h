@@ -14,5 +14,6 @@ namespace GameWIP::Test::InputPlatform
     /// Native validation
     /// ------------------------------------------------------------
 
+    /// @brief Registers platform-specific Input cases with the shared runner.
     void registerSuites(TestSupport::Runner &runner);
 } // namespace GameWIP::Test::InputPlatform

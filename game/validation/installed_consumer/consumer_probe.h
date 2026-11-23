@@ -29,8 +29,8 @@
 #include "desktop/drag_drop.h"
 #include "desktop/renderer_bridge.h"
 #include "desktop/window.h"
-bool probeInstalledAccessibility();
-bool probeInstalledDragDrop();
+[[nodiscard]] bool probeInstalledAccessibility();
+[[nodiscard]] bool probeInstalledDragDrop();
 #elif defined(GAMEWIP_CONSUMER_Input)
 #include "input/input.h"
 #elif defined(GAMEWIP_CONSUMER_Logger)

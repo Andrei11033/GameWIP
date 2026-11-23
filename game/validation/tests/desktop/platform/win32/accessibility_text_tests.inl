@@ -1,9 +1,9 @@
 /// @file accessibility_text_tests.inl
 /// @brief Native UI Automation text-range and attribute tests.
 
-// ------------------------------------------------------------
-// Native text ranges and attributes
-// ------------------------------------------------------------
+/// ------------------------------------------------------------
+/// Native text ranges and attributes
+/// ------------------------------------------------------------
 
 void testText(Context &context)
 {

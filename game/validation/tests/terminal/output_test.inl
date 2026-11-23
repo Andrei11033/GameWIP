@@ -1,9 +1,9 @@
 /// @file output_test.inl
 /// @brief Focused Terminal output tests.
 
-// ------------------------------------------------------------
-// Formatting and encoding
-// ------------------------------------------------------------
+/// ------------------------------------------------------------
+/// Formatting and encoding
+/// ------------------------------------------------------------
 
 /// @brief Verifies formatter reentry without allowing a deadlock to hang the parent suite.
 void testReentrantFormatting(TestSupport::Context &context, const std::filesystem::path &executablePath)
@@ -93,9 +93,10 @@ void testUtf8OutputContracts(TestSupport::Context &context)
 #endif
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
-// ------------------------------------------------------------
-// Text and segmented output
-// ------------------------------------------------------------
+
+/// ------------------------------------------------------------
+/// Text and segmented output
+/// ------------------------------------------------------------
 
 /// @brief Verifies plain, formatted, buffered, styled, and line-oriented text output.
 void testTextAndStyleOutput(TestSupport::Context &context)

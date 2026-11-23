@@ -135,19 +135,23 @@ namespace
     }
 
     /// @brief Creates a file or directory symlink and records unavailable host support as a skip.
-    bool createSymlink(TestSupport::Context &context, const std::filesystem::path &target, const std::filesystem::path &link, bool directory)
+    [[nodiscard]] bool createSymlink(
+        TestSupport::Context &context,
+        const std::filesystem::path &target,
+        const std::filesystem::path &link,
+        bool directory)
     {
         return FileSystemPlatform::createSymlink(context, target, link, directory);
     }
 
     /// @brief Creates a file symlink.
-    bool createFileSymlink(TestSupport::Context &context, const std::filesystem::path &target, const std::filesystem::path &link)
+    [[nodiscard]] bool createFileSymlink(TestSupport::Context &context, const std::filesystem::path &target, const std::filesystem::path &link)
     {
         return createSymlink(context, target, link, false);
     }
 
     /// @brief Creates a directory symlink through the shared privilege-aware helper.
-    bool createDirectorySymlink(TestSupport::Context &context, const std::filesystem::path &target, const std::filesystem::path &link)
+    [[nodiscard]] bool createDirectorySymlink(TestSupport::Context &context, const std::filesystem::path &target, const std::filesystem::path &link)
     {
         return createSymlink(context, target, link, true);
     }

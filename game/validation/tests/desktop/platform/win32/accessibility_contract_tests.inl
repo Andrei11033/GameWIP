@@ -1,9 +1,9 @@
 /// @file accessibility_contract_tests.inl
 /// @brief Portable snapshot contract tests for the Desktop accessibility suite.
 
-// ------------------------------------------------------------
-// Portable snapshot contracts
-// ------------------------------------------------------------
+/// ------------------------------------------------------------
+/// Portable snapshot contracts
+/// ------------------------------------------------------------
 
 void testValidation(Context &context)
 {

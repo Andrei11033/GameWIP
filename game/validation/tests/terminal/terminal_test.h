@@ -12,16 +12,16 @@ namespace GameWIP::Test
     /// @brief Runtime toggles for the Terminal library self-tests.
     struct TerminalTestOptions
     {
-        /// @brief Mirrors complete suite output to stdout instead of only failures, skips, and manual instructions.
-        bool verboseConsole = false;
-        /// @brief Enables tests requiring manual interaction; otherwise they are skipped.
-        bool enableManualTests = false;
-        /// @brief Writes test progress and summaries to reportPath and stdout.
-        bool writeReport = true;
-        /// @brief Appends to reportPath instead of replacing it when report writing is enabled.
-        bool appendReport = true;
-        /// @brief Report destination before shared-runner resolution.
-        std::filesystem::path reportPath = "logs/validation/latest_test_report.txt";
+        // Test selection
+        bool enableManualTests = false; ///< Enables tests requiring manual interaction; otherwise they are skipped.
+
+        // Console output
+        bool verboseConsole = false; ///< Enables full console output instead of the default minimal output.
+
+        // Report output
+        bool writeReport = true;  ///< Writes the suite report to reportPath.
+        bool appendReport = true; ///< Appends to reportPath instead of replacing it when report writing is enabled.
+        std::filesystem::path reportPath = "logs/validation/latest_test_report.txt"; ///< Report destination before shared-runner resolution.
     };
 
     /// @brief Runs the Terminal library self-tests.
@@ -29,5 +29,5 @@ namespace GameWIP::Test
     /// @param argv Borrowed process argument values; pointed-to strings must remain valid for the call.
     /// @param options Runtime report toggles.
     /// @return Zero when every Terminal self-test passes, nonzero otherwise.
-    int runTerminalTests(int argc, char **argv, const TerminalTestOptions &options = {});
+    [[nodiscard]] int runTerminalTests(int argc, char **argv, const TerminalTestOptions &options = {});
 } // namespace GameWIP::Test

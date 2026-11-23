@@ -1,9 +1,9 @@
 /// @file accessibility_com_fixtures.inl
 /// @brief Native COM fixtures shared by Desktop accessibility tests.
 
-// ------------------------------------------------------------
-// Native COM fixtures
-// ------------------------------------------------------------
+/// ------------------------------------------------------------
+/// Native COM fixtures
+/// ------------------------------------------------------------
 
 template <typename T> struct Com
 {

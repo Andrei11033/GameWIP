@@ -1,9 +1,9 @@
 /// @file accessibility_geometry_tests.inl
 /// @brief Accessibility geometry, cleanup, and concurrency tests.
 
-// ------------------------------------------------------------
-// Host geometry, cleanup, and concurrency
-// ------------------------------------------------------------
+/// ------------------------------------------------------------
+/// Host geometry, cleanup, and concurrency
+/// ------------------------------------------------------------
 
 void testGeometryAndExceptionalLifetime(Context &context)
 {

@@ -68,6 +68,12 @@ namespace
     namespace IO = GameWIP::IO;
     namespace TestSupport = GameWIP::TestSupport;
     namespace Desktop = GameWIP::Desktop;
+    namespace ShellTypes = Desktop::Types::Shell;
+    namespace TaskbarTypes = Desktop::Types::Taskbar;
+    namespace TrayTypes = Desktop::Types::Tray;
+    namespace NotificationTypes = Desktop::Types::Notifications;
+    namespace JumpListTypes = Desktop::Types::JumpLists;
+    namespace RegistrationTypes = Desktop::Types::Registration;
     using IO::Types::ErrorCode;
 
     /// ------------------------------------------------------------
@@ -438,10 +444,12 @@ namespace
     /// Validation case implementations
     /// ------------------------------------------------------------
 
+#include "validation/tests/desktop/platform/win32/desktop_manual_fullscreen_support.inl"
 #include "validation/tests/desktop/platform/win32/desktop_manual_support.inl"
 #include "validation/tests/desktop/platform/win32/desktop_manual_window_tests.inl"
 #include "validation/tests/desktop/platform/win32/desktop_manual_accessibility_tests.inl"
 #include "validation/tests/desktop/platform/win32/desktop_manual_transfer_tests.inl"
+#include "validation/tests/desktop/platform/win32/desktop_manual_drag_drop_tests.inl"
 #include "validation/tests/desktop/platform/win32/desktop_manual_display_tests.inl"
 #include "validation/tests/desktop/platform/win32/desktop_dialog_tests.inl"
 #include "validation/tests/desktop/platform/win32/desktop_progress_dialog_tests.inl"
@@ -455,7 +463,8 @@ namespace
 #include "validation/tests/desktop/platform/win32/desktop_clipboard_tests.inl"
 #include "validation/tests/desktop/platform/win32/desktop_manual_clipboard_tests.inl"
 #include "validation/tests/desktop/platform/win32/desktop_drag_drop_tests.inl"
-#include "validation/tests/desktop/platform/win32/desktop_shell_tests.inl"
+#include "validation/tests/desktop/platform/win32/desktop_shell_event_tests.inl"
+#include "validation/tests/desktop/platform/win32/desktop_shell_registration_tests.inl"
 } // namespace
 
 namespace GameWIP::Test

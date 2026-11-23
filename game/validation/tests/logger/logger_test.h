@@ -13,22 +13,21 @@ namespace GameWIP::Test
     /// @brief Runtime toggles for the Logger self-tests.
     struct LoggerTestOptions
     {
-        /// @brief Enables deterministic concurrency and lifecycle stress scenarios.
-        bool enableStressTests = true;
-        /// @brief Enables isolated fatal-termination and paused-worker subprocess scenarios.
-        bool enableChildCrashTests = true;
-        /// @brief Enables tests that require human interaction or observation, including the real fatal-popup check.
-        bool enableManualTests = false;
-        /// @brief Mirrors complete suite output to stdout instead of only failures, skips, and manual instructions.
-        bool verboseConsole = false;
-        /// @brief Per-worker operation count used by Logger stress scenarios.
-        std::size_t stressIterationsPerThread = 2'000;
-        /// @brief Writes test progress and summaries to reportPath and stdout.
-        bool writeReport = true;
-        /// @brief Appends to reportPath instead of replacing it when report writing is enabled.
-        bool appendReport = true;
-        /// @brief Report destination before shared-runner resolution.
-        std::filesystem::path reportPath = "logs/validation/latest_test_report.txt";
+        // Test selection
+        bool enableStressTests = true;     ///< Enables concurrency and lifecycle stress scenarios.
+        bool enableChildCrashTests = true; ///< Enables fatal-termination and paused-worker subprocess scenarios.
+        bool enableManualTests = false;    ///< Enables tests requiring human interaction or observation.
+
+        // Console output
+        bool verboseConsole = false; ///< Enables full console output instead of the default minimal output.
+
+        // Stress configuration
+        std::size_t stressIterationsPerThread = 2'000; ///< Per-worker operation count for Logger stress scenarios.
+
+        // Report output
+        bool writeReport = true;  ///< Writes the suite report to reportPath.
+        bool appendReport = true; ///< Appends to reportPath instead of replacing it when report writing is enabled.
+        std::filesystem::path reportPath = "logs/validation/latest_test_report.txt"; ///< Report destination before shared-runner resolution.
     };
 
     /// @brief Runs the Logger library self-tests.
@@ -36,5 +35,5 @@ namespace GameWIP::Test
     /// @param argv Borrowed process argument values; pointed-to strings must remain valid for the call.
     /// @param options Runtime toggles for stress, subprocess, UI, and reporting behavior.
     /// @return Zero when every Logger self-test passes, nonzero otherwise.
-    int runLoggerTests(int argc, char **argv, const LoggerTestOptions &options = {});
+    [[nodiscard]] int runLoggerTests(int argc, char **argv, const LoggerTestOptions &options = {});
 } // namespace GameWIP::Test

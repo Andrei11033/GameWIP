@@ -26,12 +26,15 @@ target_sources(
         desktop_manual_clipboard_tests.inl
         desktop_manual_dialog_tests.inl
         desktop_manual_display_tests.inl
+        desktop_manual_drag_drop_tests.inl
+        desktop_manual_fullscreen_support.inl
         desktop_manual_support.inl
         desktop_manual_transfer_tests.inl
         desktop_manual_window_tests.inl
         desktop_progress_dialog_tests.inl
         desktop_renderer_tests.inl
-        desktop_shell_tests.inl
+        desktop_shell_event_tests.inl
+        desktop_shell_registration_tests.inl
 )
 
 target_link_libraries(

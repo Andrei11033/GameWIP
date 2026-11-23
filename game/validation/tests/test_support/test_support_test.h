@@ -13,20 +13,18 @@ namespace GameWIP::Test
     /// @brief Runtime toggles for the TestSupport library self-tests.
     struct TestSupportTestOptions
     {
-        /// @brief Enables child-process launch, output capture, environment, and timeout tests.
-        bool enableChildProcessTests = true;
-        /// @brief Enables lightweight stress-helper tests.
-        bool enableStressTests = true;
-        /// @brief Enables manual prompt checks that require user input.
-        bool enableManualTests = false;
-        /// @brief Mirrors complete suite output to stdout instead of only failures, skips, and manual instructions.
-        bool verboseConsole = false;
-        /// @brief Writes test progress and summaries to reportPath and stdout.
-        bool writeReport = true;
-        /// @brief Appends to reportPath instead of replacing it when report writing is enabled.
-        bool appendReport = true;
-        /// @brief Report destination before shared-runner resolution.
-        std::filesystem::path reportPath = "logs/validation/latest_test_report.txt";
+        // Test selection
+        bool enableChildProcessTests = true; ///< Enables process launch, output, environment, and timeout tests.
+        bool enableStressTests = true;       ///< Enables lightweight stress-helper tests.
+        bool enableManualTests = false;      ///< Enables prompt checks that require user input.
+
+        // Console output
+        bool verboseConsole = false; ///< Enables full console output instead of the default minimal output.
+
+        // Report output
+        bool writeReport = true;  ///< Writes the suite report to reportPath.
+        bool appendReport = true; ///< Appends to reportPath instead of replacing it when report writing is enabled.
+        std::filesystem::path reportPath = "logs/validation/latest_test_report.txt"; ///< Report destination before shared-runner resolution.
     };
 
     /// @brief Runs the TestSupport library self-tests.
@@ -34,5 +32,5 @@ namespace GameWIP::Test
     /// @param argv Borrowed process argument values; pointed-to strings must remain valid for the call.
     /// @param options Runtime toggles for process and stress scenarios.
     /// @return Zero when every TestSupport self-test passes, nonzero otherwise.
-    int runTestSupportTests(int argc, char **argv, const TestSupportTestOptions &options = {});
+    [[nodiscard]] int runTestSupportTests(int argc, char **argv, const TestSupportTestOptions &options = {});
 } // namespace GameWIP::Test

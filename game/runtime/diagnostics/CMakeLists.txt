@@ -10,6 +10,7 @@ target_sources(
         input_event_format.h
         input_event_labels.cpp
         input_events.cpp
+        input_reports.cpp
         input_reports.h
         runtime_diagnostics.cpp
         runtime_diagnostics.h

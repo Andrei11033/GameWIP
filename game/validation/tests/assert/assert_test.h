@@ -14,24 +14,22 @@ namespace GameWIP::Test
     /// @brief Runtime toggles for the Assert test suite.
     struct AssertTestOptions
     {
-        /// @brief Enables child-process crash tests for Assert, break, unreachable, and interactive abort/break paths.
-        bool enableChildCrashTests = true;
-        /// @brief Enables deterministic stress tests that exercise concurrent and repeated failure paths.
-        bool enableStressTests = true;
-        /// @brief Enables automated interactive Assert tests that use the test-action environment override instead of real UI.
-        bool enableAutomatedInteractiveTests = true;
-        /// @brief Enables manual tests that require the user to click real Windows dialogs.
-        bool enableManualTests = false;
-        /// @brief Mirrors complete suite output to stdout instead of only failures, skips, and manual instructions.
-        bool verboseConsole = false;
-        /// @brief Number of worker threads used by Assert stress tests.
-        std::size_t stressThreadCount = 4;
-        /// @brief Writes test progress and summaries to reportPath and stdout.
-        bool writeReport = true;
-        /// @brief Appends to reportPath instead of replacing it when report writing is enabled.
-        bool appendReport = true;
-        /// @brief Report destination before shared-runner resolution.
-        std::filesystem::path reportPath = "logs/validation/latest_test_report.txt";
+        // Test selection
+        bool enableChildCrashTests = true;           ///< Enables child-process tests for crash and termination paths.
+        bool enableStressTests = true;               ///< Enables concurrent and repeated failure-path tests.
+        bool enableAutomatedInteractiveTests = true; ///< Uses the test-action override instead of real UI.
+        bool enableManualTests = false;              ///< Enables tests that require real Windows dialogs.
+
+        // Console output
+        bool verboseConsole = false; ///< Enables full console output instead of the default minimal output.
+
+        // Stress configuration
+        std::size_t stressThreadCount = 4; ///< Number of worker threads used by Assert stress tests.
+
+        // Report output
+        bool writeReport = true;  ///< Writes the suite report to reportPath.
+        bool appendReport = true; ///< Appends to reportPath instead of replacing it when report writing is enabled.
+        std::filesystem::path reportPath = "logs/validation/latest_test_report.txt"; ///< Report destination before shared-runner resolution.
     };
 
     /// @brief Runs the Assert library tests.
@@ -39,5 +37,5 @@ namespace GameWIP::Test
     /// @param argv Borrowed process argument values; pointed-to strings must remain valid for the call.
     /// @param options Test toggles for expensive or process-aborting scenarios.
     /// @return Zero when every Assert test passes, nonzero otherwise.
-    int runAssertTests(int argc, char **argv, const AssertTestOptions &options = {});
+    [[nodiscard]] int runAssertTests(int argc, char **argv, const AssertTestOptions &options = {});
 } // namespace GameWIP::Test

@@ -94,7 +94,8 @@ namespace
         std::puts("  GameWIP.exe --logLevel=<trace|debug|info|warn|error|fatal>");
         std::puts("  GameWIP.exe --inputDevices");
         std::puts("  GameWIP.exe --inputDebug");
-        std::puts("  GameWIP.exe --inputBackends=<list>(rawInput,hid,xinput,gameInput,directInput,windowMessages, or none)");
+        std::puts("  GameWIP.exe --inputBackends=<list>");
+        std::puts("    Backends: rawInput, hid, xinput, gameInput, directInput, windowMessages, or none.");
         std::puts("  GameWIP.exe --windowEvents");
 #if GAMEWIP_STARTUP_TESTS_ENABLED
         std::puts("  GameWIP.exe --startup-tests [GameWIPTests options]");
@@ -109,7 +110,7 @@ namespace
 #else
         std::puts("This build does not include startup benchmarks.");
 #endif
-        std::puts("Use GameWIPTests.exe --help for validation options.");
+        std::puts("When built, use GameWIPTests.exe --help for validation options.");
 #if GAMEWIP_STANDALONE_BENCHMARKS_ENABLED
         std::puts("Use GameWIPBenchmarks.exe --help for standalone benchmark options.");
 #endif

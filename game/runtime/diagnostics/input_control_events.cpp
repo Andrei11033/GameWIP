@@ -2,12 +2,12 @@
 /// @brief Formats opt-in Input control changes at Debug and Trace.
 
 #include "input_control_events.h"
-#include "runtime_diagnostics.h"
 
 #include "input_event_format.h"
 #include "input/standard.h"
 #include "logger/logging.h"
 #include "logger/message_format.h"
+#include "runtime/logging.h"
 
 #include <algorithm>
 #include <format>
@@ -190,18 +190,6 @@ namespace
         }
 
         record.field("device_connected", device->connected);
-    }
-
-    void logInputDeviceEventTrace(const GameWIP::Input::System &input, const Types::Event &event, std::uint64_t captureSequence)
-    {
-        const Types::DeviceEvent *deviceEvent = std::get_if<Types::DeviceEvent>(&event.data);
-        if(deviceEvent == nullptr)
-        {
-            return;
-        }
-
-        const Types::DeviceInfo *device = findDevice(input, deviceEvent->id);
-        GameWIP::Game::RuntimeDiagnostics::logInputDeviceTrace(device, deviceEvent->id, &event, captureSequence);
     }
 
     /// ------------------------------------------------------------
@@ -498,26 +486,6 @@ namespace
                     Logger::number(elementEvent->id.device.slot),
                     Logger::quoted(deviceName));
             }
-            break;
-        }
-
-        case Types::EventKind::DeviceConnected:
-        case Types::EventKind::DeviceDisconnected:
-        case Types::EventKind::DeviceChanged:
-        {
-            const Types::DeviceEvent *deviceEvent = std::get_if<Types::DeviceEvent>(&event.data);
-            if(deviceEvent != nullptr)
-            {
-                logInputDeviceEventTrace(input, event, captureSequence);
-                return;
-            }
-            Logger::trace(
-                LogArea::Input,
-                record,
-                "Input event #{} in capture #{}: {}",
-                Logger::number(event.sequence),
-                Logger::number(captureSequence),
-                Format::eventKind(event.kind));
             break;
         }
 

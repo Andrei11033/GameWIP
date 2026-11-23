@@ -3,9 +3,9 @@
 
 namespace ChildEvents = Desktop::Types::ChildSurface::Events;
 
-// ------------------------------------------------------------
-// Automated child-surface coverage
-// ------------------------------------------------------------
+/// ------------------------------------------------------------
+/// Automated child-surface coverage
+/// ------------------------------------------------------------
 
 void testChildSurfaces(TestSupport::Context &context)
 {
@@ -389,9 +389,9 @@ void testChildSurfaces(TestSupport::Context &context)
     static_cast<void>(parent.close());
 }
 
-// ------------------------------------------------------------
-// Manual child-surface coverage
-// ------------------------------------------------------------
+/// ------------------------------------------------------------
+/// Manual child-surface coverage
+/// ------------------------------------------------------------
 
 /// @brief Visually validates a real Win32 descendant hosted below a ChildSurface HWND.
 void testManualChildSurface(TestSupport::Context &context, const GameWIP::Test::DesktopTestOptions &options)

@@ -17,5 +17,5 @@ namespace GameWIP::Game
     /// @return Process exit code returned by the GameWIP executable.
     /// @note Expected runtime startup or shutdown failures should be expressed through the return value;
     /// `main()` does not add a general exception boundary.
-    int run(int argc, char *const *argv);
+    [[nodiscard]] int run(int argc, char *const *argv);
 } // namespace GameWIP::Game

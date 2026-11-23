@@ -32,6 +32,8 @@ integration code and reusable libraries.
 | `game/runtime/diagnostics/input_devices.cpp` | Input device inventory at Debug and grouped descriptors at Trace. |
 | `game/runtime/diagnostics/input_control_events.h` | Internal entry points for opt-in control logging. |
 | `game/runtime/diagnostics/input_control_events.cpp` | Compact control changes at Debug and detailed events at Trace. |
+| `game/runtime/diagnostics/input_reports.h` | Shared entry point for bounded raw report diagnostics. |
+| `game/runtime/diagnostics/input_reports.cpp` | Bounded per-device report previews and platform-detail dispatch at Trace. |
 | `game/runtime/diagnostics/input_event_format.h` | Shared names and value-formatting declarations for Input diagnostics. |
 | `game/runtime/diagnostics/input_event_format.cpp` | Device types, standard controls, and typed value formatting. |
 | `game/runtime/diagnostics/input_event_labels.cpp` | Stable event, source, and metadata labels. |
@@ -39,6 +41,10 @@ integration code and reusable libraries.
 | `game/runtime/lifecycle/input_lifecycle.cpp` | Input health, source detachment, and session cleanup. |
 | `game/runtime/lifecycle/logger_lifecycle.h` | Internal Logger lifecycle operations for the runtime. |
 | `game/runtime/lifecycle/logger_lifecycle.cpp` | Logger setup, initialization failure detail, session summary, and shutdown. |
+| `game/runtime/runtime_input.h` | Selects the runtime Input session for the active platform. |
+| `game/runtime/platform/input_reports.h` | Internal contract for native report details. |
+| `game/runtime/platform/win32/runtime_input.cpp` | Win32 Input attachment and selected-backend handling. |
+| `game/runtime/platform/win32/input_reports.cpp` | Win32 keyboard and mouse report decoding. |
 | `game/runtime/options/runtime_options.h` | Environment-backed settings used by runtime startup. |
 | `game/runtime/options/runtime_options.cpp` | Runtime option parsing and fallback handling. |
 | `game/runtime/window/window_loop.h` | Event-pump summary and runtime loop interface. |
@@ -85,8 +91,8 @@ benchmark arguments. Invalid values warn and fall back to a valid environment
 setting or the build default. Input switches take no value except
 `--inputBackends=<list>`. A custom
 startup-benchmark build may reject other arguments.
-Use `GameWIPTests.exe --help` and `GameWIPBenchmarks.exe --help` for their
-current option sets, or start at @ref project_command_line_tools.
+When built, `GameWIPTests.exe --help` and `GameWIPBenchmarks.exe --help` show
+their options. See @ref project_command_line_tools for the available targets.
 
 Run `.\gamewip.bat runtime` or select **Development > Run game executable**
 to open the interactive builder. On Linux, use `bash ./gamewip.sh runtime`.
@@ -126,9 +132,9 @@ ordinary game runtime begins.
 `game/runtime/game.cpp` initializes Input before opening the Desktop window. On
 Windows it calls `GameWIP::Input::Platform::Win32::attachToWindow()` to route
 native window messages to Input. The runtime captures Input frames to report
-device changes and useful activity, but does not map controls to game actions;
-those remain R01 work. See @ref input_library and @ref desktop_native_interop
-for contracts and error handling.
+device changes and input activity, but does not map controls to game actions.
+See @ref input_library and @ref desktop_native_interop for contracts and error
+handling.
 
 Tracy-enabled builds emit frame marks before startup validation, startup
 benchmarks, and runtime execution. The enclosing named zones identify those
@@ -149,9 +155,8 @@ or shutdown failures through its returned exit code. Any exception that reaches
 `GameWIP::Game::run(int, char **)` is the executable-owned transition from
 startup wiring into runtime composition.
 
-- `argc` and `argv` are the original process arguments and are borrowed for the
-  call. The runtime reads `--logLevel=<level>`, `--inputDebug`,
-  `--inputDevices`, `--inputBackends=<list>`, and `--windowEvents`; other runtime arguments are ignored.
+- `argc` and `argv` are borrowed for the call. The runtime parses its options
+  from the table above and ignores other runtime arguments.
 - The returned integer becomes the executable's process exit code.
 - Reusable behavior belongs in its owning foundation or tools library.
 
@@ -190,8 +195,8 @@ startup wiring into runtime composition.
    expanded.
    `--inputDebug` logs raw axis values, mouse movement and wheel deltas, and
    window-relative pointer position at Debug; Trace adds event metadata, raw
-   keyboard fields, mouse-button flags, and bounded HID report previews. Text
-   contents are never logged. Repeated control invalidations are Trace-only.
+   keyboard fields, mouse-button flags, and one bounded report preview per
+   device and backend. Text contents are never logged. Repeated control invalidations are Trace-only.
    Dropped events and final Input health issues produce warnings.
 4. The Runtime area reports when the session is ready, gives the manual exit
    path, and logs the loop rate, display, and enabled diagnostic switches at

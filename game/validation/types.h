@@ -15,14 +15,13 @@ namespace GameWIP::Validation
     /// @brief Aggregated outcome of one correctness-validation invocation.
     struct TestResult
     {
-        /// @brief Number of selected modules that ran.
-        std::size_t modulesRun = 0;
-        /// @brief Number of invoked modules that failed, or one for a runner-level failure before module execution.
-        std::size_t modulesFailed = 0;
-        /// @brief Normal aggregate exit code, or the exact owning-module code for a routed child invocation.
-        int exitCode = 0;
-        /// @brief Whether child routing handled or rejected the invocation; return immediately when true.
-        bool handledChildInvocation = false;
+        // Aggregate outcome
+        std::size_t modulesRun = 0;    ///< Number of selected modules that ran.
+        std::size_t modulesFailed = 0; ///< Number of invoked modules that failed, or one for runner-level failure before module execution.
+        int exitCode = 0;              ///< Normal aggregate exit code, or the owning-module code for a routed child invocation.
+
+        // Child routing
+        bool handledChildInvocation = false; ///< Whether child routing handled or rejected the invocation; return immediately when true.
 
         /// @brief Whether no module or runner-level failure was recorded.
         /// @return Whether modulesFailed and exitCode are both zero.
@@ -35,10 +34,9 @@ namespace GameWIP::Validation
     /// @brief Outcome of one Google Benchmark invocation.
     struct BenchmarkResult
     {
-        /// @brief Number returned by Google Benchmark for the selected invocation; zero is not inherently a failure.
-        std::size_t benchmarksRun = 0;
-        /// @brief Whether Google Benchmark accepted the forwarded command-line arguments.
-        bool argumentsValid = true;
+        // Run status
+        std::size_t benchmarksRun = 0; ///< Number returned by Google Benchmark for the selected invocation; zero is not inherently a failure.
+        bool argumentsValid = true;    ///< Whether Google Benchmark accepted the forwarded command-line arguments.
 
         /// @brief Returns whether runner-level argument validation succeeded.
         /// @return Whether forwarded arguments were accepted; Google Benchmark reports scenario errors.

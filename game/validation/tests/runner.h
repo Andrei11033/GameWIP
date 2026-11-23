@@ -19,28 +19,25 @@ namespace GameWIP::Validation::Tests
     /// @brief Shared runtime policy applied by the runner to selected correctness-test modules.
     struct RunOptions
     {
-        /// @brief Enables deterministic stress scenarios.
-        bool enableStressTests = true;
-        /// @brief Enables subprocess scenarios that intentionally terminate abnormally.
-        bool enableChildCrashTests = true;
-        /// @brief Enables TestSupport child-process behavior checks.
-        bool enableTestSupportChildProcessTests = true;
-        /// @brief Enables non-UI simulations of interactive assertion behavior.
-        bool enableAutomatedInteractiveTests = true;
-        /// @brief Enables tests that require human interaction or observation.
-        bool enableManualTests = false;
-        /// @brief Mirrors all suite report categories to stdout instead of minimal actionable output.
-        bool verboseConsole = false;
-        /// @brief Worker count for Assert stress scenarios.
-        std::size_t stressThreadCount = 8;
-        /// @brief Per-worker operation count for Logger stress scenarios.
-        std::size_t loggerStressIterationsPerThread = 20'000;
-        /// @brief Writes the complete validation report to reportPath.
-        bool writeReport = true;
-        /// @brief Appends the first selected module instead of truncating reportPath.
-        bool appendReport = false;
-        /// @brief Absolute report path or path resolved beneath the running executable directory after lexical validation.
-        std::filesystem::path reportPath = "logs/validation/latest_test_report.txt";
+        // Test selection
+        bool enableStressTests = true;                  ///< Enables deterministic stress scenarios.
+        bool enableChildCrashTests = true;              ///< Enables subprocess scenarios that intentionally terminate abnormally.
+        bool enableTestSupportChildProcessTests = true; ///< Enables TestSupport child-process behavior checks.
+        bool enableAutomatedInteractiveTests = true;    ///< Enables non-UI simulations of interactive assertion behavior.
+        bool enableManualTests = false;                 ///< Enables tests that require human interaction or observation.
+
+        // Console output
+        bool verboseConsole = false; ///< Enables full console output instead of the default minimal output.
+
+        // Stress configuration
+        std::size_t stressThreadCount = 8;                    ///< Worker count for Assert stress scenarios.
+        std::size_t loggerStressIterationsPerThread = 20'000; ///< Per-worker operation count for Logger stress scenarios.
+
+        // Report output
+        bool writeReport = true;   ///< Writes validation reports to reportPath.
+        bool appendReport = false; ///< Appends the first selected module instead of truncating reportPath.
+        std::filesystem::path reportPath =
+            "logs/validation/latest_test_report.txt"; ///< Absolute path or validated path below the executable directory.
     };
 
     /// @brief Routes child protocols, applies selection policy, and aggregates correctness modules.

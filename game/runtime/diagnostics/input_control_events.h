@@ -23,6 +23,6 @@ namespace GameWIP::Game::RuntimeDiagnostics::InputControlEvents
     /// Trace events
     /// ------------------------------------------------------------
 
-    /// @brief Logs a detailed Input event at Trace.
+    /// @brief Logs a detailed control or text event at Trace.
     void logTrace(const GameWIP::Input::System &input, const GameWIP::Input::Types::Event &event, std::uint64_t captureSequence);
 } // namespace GameWIP::Game::RuntimeDiagnostics::InputControlEvents

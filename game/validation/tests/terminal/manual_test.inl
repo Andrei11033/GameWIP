@@ -1,9 +1,9 @@
 /// @file manual_test.inl
 /// @brief Manual Terminal tests.
 
-// ------------------------------------------------------------
-// Text and style output
-// ------------------------------------------------------------
+/// ------------------------------------------------------------
+/// Text and style output
+/// ------------------------------------------------------------
 
 /// @brief Displays representative UTF-8 text for visual verification.
 void testManualUnicodeOutput(TestSupport::Context &context)
@@ -171,9 +171,9 @@ void testManualStyleRestoration(TestSupport::Context &context, const Terminal::T
         "Is only the first restoration line styled, with the second line using the terminal defaults?");
 }
 
-// ------------------------------------------------------------
-// Cursor and screen behavior
-// ------------------------------------------------------------
+/// ------------------------------------------------------------
+/// Cursor and screen behavior
+/// ------------------------------------------------------------
 
 /// @brief Verifies visible cursor save/restore behavior without changing the final cursor position.
 void testManualCursorBehavior(TestSupport::Context &context, const Terminal::Types::Output::Capabilities &capabilities)
@@ -247,9 +247,9 @@ void testManualAlternateScreen(TestSupport::Context &context, const Terminal::Ty
     }
 }
 
-// ------------------------------------------------------------
-// Interactive input
-// ------------------------------------------------------------
+/// ------------------------------------------------------------
+/// Interactive input
+/// ------------------------------------------------------------
 
 /// @brief Reads one exact line from the real terminal input stream.
 void testManualInput(TestSupport::Context &context)
@@ -417,9 +417,9 @@ void testManualEventInput(TestSupport::Context &context, const Terminal::Types::
     }
 }
 
-// ------------------------------------------------------------
-// State restoration and suite selection
-// ------------------------------------------------------------
+/// ------------------------------------------------------------
+/// State restoration and suite selection
+/// ------------------------------------------------------------
 
 /// @brief Verifies managed Session input restoration and cursor visibility restoration.
 void testManualStateRestoration(

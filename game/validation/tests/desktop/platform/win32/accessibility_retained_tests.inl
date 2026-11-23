@@ -1,9 +1,9 @@
 /// @file accessibility_retained_tests.inl
 /// @brief Externally retained accessibility object lifetime tests.
 
-// ------------------------------------------------------------
-// Externally retained lifetime
-// ------------------------------------------------------------
+/// ------------------------------------------------------------
+/// Externally retained lifetime
+/// ------------------------------------------------------------
 
 void testRetainedObjects(Context &context)
 {

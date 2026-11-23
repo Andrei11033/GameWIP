@@ -7,6 +7,7 @@
 #include "validation/tests/registry.h"
 
 #include <algorithm>
+#include <iterator>
 #include <string_view>
 
 namespace

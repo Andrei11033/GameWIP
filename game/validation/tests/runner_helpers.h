@@ -137,10 +137,14 @@ namespace GameWIP::Test::RunnerHelpers
     template <typename Options> [[nodiscard]] inline TestSupport::Types::Reporting::Options makeReportingOptions(const Options &options)
     {
         TestSupport::Types::Reporting::Options reportOptions;
+
+        // Console output
         reportOptions.writeConsole = true;
         reportOptions.consoleVerbosity =
             options.verboseConsole ? TestSupport::Types::Reporting::ConsoleVerbosity::Full : TestSupport::Types::Reporting::ConsoleVerbosity::Minimal;
         reportOptions.consoleWriter = &writeValidationConsoleLine;
+
+        // Report output
         reportOptions.writeReport = options.writeReport;
         reportOptions.appendReport = options.appendReport;
         reportOptions.reportPath = options.reportPath;

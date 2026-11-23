@@ -2,6 +2,7 @@
 /// @brief Win32 Terminal stdin endpoint tests.
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
+
 /// ------------------------------------------------------------
 /// Stdin endpoint ownership
 /// ------------------------------------------------------------

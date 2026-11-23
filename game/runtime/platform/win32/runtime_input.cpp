@@ -55,6 +55,6 @@ namespace GameWIP::Game::Runtime
 
     bool RuntimeInput::finish()
     {
-        return RuntimeDiagnostics::finishInputSystemWithDetach(system, &detachInput, &attachment);
+        return RuntimeDiagnostics::finishInputSystem(system, &detachInput, &attachment);
     }
 } // namespace GameWIP::Game::Runtime

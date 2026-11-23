@@ -10,9 +10,9 @@ void drain(Desktop::Window &window)
     }
 }
 
-// ------------------------------------------------------------
-// Bounded transport and publication races
-// ------------------------------------------------------------
+/// ------------------------------------------------------------
+/// Bounded transport and publication races
+/// ------------------------------------------------------------
 
 void testQueues(Context &context)
 {

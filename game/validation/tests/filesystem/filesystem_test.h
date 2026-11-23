@@ -12,14 +12,13 @@ namespace GameWIP::Test
     /// @brief Runtime toggles for the FileSystem library self-tests.
     struct FileSystemTestOptions
     {
-        /// @brief Mirrors complete suite output to stdout instead of only failures, skips, and manual instructions.
-        bool verboseConsole = false;
-        /// @brief Writes test progress and summaries to reportPath and stdout.
-        bool writeReport = true;
-        /// @brief Appends to reportPath instead of replacing it when report writing is enabled.
-        bool appendReport = true;
-        /// @brief Report destination before shared-runner resolution.
-        std::filesystem::path reportPath = "logs/validation/latest_test_report.txt";
+        // Console output
+        bool verboseConsole = false; ///< Enables full console output instead of the default minimal output.
+
+        // Report output
+        bool writeReport = true;  ///< Writes the suite report to reportPath.
+        bool appendReport = true; ///< Appends to reportPath instead of replacing it when report writing is enabled.
+        std::filesystem::path reportPath = "logs/validation/latest_test_report.txt"; ///< Report destination before shared-runner resolution.
     };
 
     /// @brief Runs the FileSystem library self-tests.
@@ -27,5 +26,5 @@ namespace GameWIP::Test
     /// @param argv Borrowed process argument values; pointed-to strings must remain valid for the call.
     /// @param options Runtime report toggles.
     /// @return Zero when every FileSystem self-test passes, nonzero otherwise.
-    int runFileSystemTests(int argc, char **argv, const FileSystemTestOptions &options = {});
+    [[nodiscard]] int runFileSystemTests(int argc, char **argv, const FileSystemTestOptions &options = {});
 } // namespace GameWIP::Test

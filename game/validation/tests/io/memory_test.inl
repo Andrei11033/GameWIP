@@ -1,9 +1,9 @@
 /// @file memory_test.inl
 /// @brief Focused IO memory tests.
 
-// ------------------------------------------------------------
-// Memory readers
-// ------------------------------------------------------------
+/// ------------------------------------------------------------
+/// Memory readers
+/// ------------------------------------------------------------
 
 /// @brief Verifies MemoryReader construction, reads, state, and close behavior.
 void testMemoryReader(TestSupport::Context &context)
@@ -166,9 +166,9 @@ void testMemoryReaderSeek(TestSupport::Context &context)
     }
 }
 
-// ------------------------------------------------------------
-// Memory writers
-// ------------------------------------------------------------
+/// ------------------------------------------------------------
+/// Memory writers
+/// ------------------------------------------------------------
 
 /// @brief Verifies MemoryWriter ownership, aliasing, reserve, clear, and close behavior.
 void testMemoryWriter(TestSupport::Context &context)

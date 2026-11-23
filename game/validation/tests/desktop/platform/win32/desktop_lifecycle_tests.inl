@@ -1,9 +1,9 @@
 /// @file desktop_lifecycle_tests.inl
 /// @brief Window lifecycle, ownership, and property validation cases.
 
-// ------------------------------------------------------------
-// Values and descriptions
-// ------------------------------------------------------------
+/// ------------------------------------------------------------
+/// Values and descriptions
+/// ------------------------------------------------------------
 
 void testPassiveValuesAndClosedState(TestSupport::Context &context)
 {
@@ -178,9 +178,9 @@ void testDescriptionValidation(TestSupport::Context &context)
         context.expectEq("empty external queue is invalid", ErrorCode::InvalidArgument, window.open({}, Desktop::Events::borrowed(empty)).code));
 }
 
-// ------------------------------------------------------------
-// Construction and failure handling
-// ------------------------------------------------------------
+/// ------------------------------------------------------------
+/// Construction and failure handling
+/// ------------------------------------------------------------
 
 void testNativeConstructionLifecycle(TestSupport::Context &context)
 {
@@ -379,9 +379,9 @@ void testFailureInjection(TestSupport::Context &context)
     Desktop::TestHooks::resetFailures();
 }
 
-// ------------------------------------------------------------
-// Threading and lifetime
-// ------------------------------------------------------------
+/// ------------------------------------------------------------
+/// Threading and lifetime
+/// ------------------------------------------------------------
 
 void testThreadingContracts(TestSupport::Context &context)
 {
@@ -523,9 +523,9 @@ void testExceptionalLifetime(TestSupport::Context &context)
 
 #endif
 
-// ------------------------------------------------------------
-// Native window and result behavior
-// ------------------------------------------------------------
+/// ------------------------------------------------------------
+/// Native window and result behavior
+/// ------------------------------------------------------------
 
 void testHiddenNativeWindow(TestSupport::Context &context)
 {

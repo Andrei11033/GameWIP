@@ -1,9 +1,9 @@
 /// @file desktop_manual_window_tests.inl
 /// @brief Visible window lifecycle, chrome, and pointer manual validation cases.
 
-// ------------------------------------------------------------
-// Visible lifecycle and ownership
-// ------------------------------------------------------------
+/// ------------------------------------------------------------
+/// Visible lifecycle and ownership
+/// ------------------------------------------------------------
 
 /// @brief Exercises the core real visible-window lifecycle required before submission.
 void testManualVisibleLifecycle(TestSupport::Context &context, const GameWIP::Test::DesktopTestOptions &options)
@@ -163,9 +163,9 @@ void testManualMultipleWindows(TestSupport::Context &context, const GameWIP::Tes
     context.pass("owner-thread exit cleanup is covered by Window exceptional lifetime");
 }
 
-// ------------------------------------------------------------
-// Chrome and pointer interaction
-// ------------------------------------------------------------
+/// ------------------------------------------------------------
+/// Chrome and pointer interaction
+/// ------------------------------------------------------------
 
 /// @brief Exercises custom non-client hit testing and runtime layout replacement.
 void testManualCustomChrome(TestSupport::Context &context, const GameWIP::Test::DesktopTestOptions &options)
@@ -357,9 +357,9 @@ void testManualLayeredAndPointer(TestSupport::Context &context, const GameWIP::T
     }
 }
 
-// ------------------------------------------------------------
-// DPI and cursor behavior
-// ------------------------------------------------------------
+/// ------------------------------------------------------------
+/// DPI and cursor behavior
+/// ------------------------------------------------------------
 
 /// @brief Exercises mixed-DPI policies, coordinate conversion, and physical monitor geometry.
 void testManualDpiAndCoordinates(TestSupport::Context &context, const GameWIP::Test::DesktopTestOptions &options)

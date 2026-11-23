@@ -66,16 +66,12 @@ namespace GameWIP::Game::RuntimeDiagnostics
     /// Input cleanup
     /// ------------------------------------------------------------
 
-    /// @brief Captures input health and explicitly closes the input system.
-    [[nodiscard]] bool finishInputSystem(Input::System &input);
-
-    /// ------------------------------------------------------------
-    /// Input cleanup with a platform detach step
-    /// ------------------------------------------------------------
-
-    /// @brief Runs a platform detach callback between health capture and session close.
+    /// @brief Native source detach callback run before Input closes.
     using InputDetachCallback = IO::Types::Status (*)(void *context) noexcept;
 
-    /// @brief Captures input health, runs an optional detach step, and closes the input system.
-    [[nodiscard]] bool finishInputSystemWithDetach(Input::System &input, InputDetachCallback detach, void *context);
+    /// @brief Captures input health, optionally detaches native sources, and closes the input system.
+    /// @param input Input session to close.
+    /// @param detach Optional native source detach callback.
+    /// @param context Context passed to detach.
+    [[nodiscard]] bool finishInputSystem(Input::System &input, InputDetachCallback detach = nullptr, void *context = nullptr);
 } // namespace GameWIP::Game::RuntimeDiagnostics

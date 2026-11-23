@@ -22,9 +22,9 @@ ProgressTypes::Description progressDescription()
         .blocksOwner = true};
 }
 
-// ------------------------------------------------------------
-// Validation and native lifecycle
-// ------------------------------------------------------------
+/// ------------------------------------------------------------
+/// Validation and native lifecycle
+/// ------------------------------------------------------------
 
 void testProgressDialogValidation(TestSupport::Context &context)
 {
@@ -261,9 +261,9 @@ void testProgressDialogNativeLifecycle(TestSupport::Context &context)
     static_cast<void>(progress.close());
 }
 
-// ------------------------------------------------------------
-// Ownership and exceptional lifetime
-// ------------------------------------------------------------
+/// ------------------------------------------------------------
+/// Ownership and exceptional lifetime
+/// ------------------------------------------------------------
 
 void testProgressDialogOwnership(TestSupport::Context &context)
 {

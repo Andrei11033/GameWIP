@@ -1,9 +1,9 @@
 /// @file accessibility_control_tests.inl
 /// @brief UI Automation control-pattern and grid tests.
 
-// ------------------------------------------------------------
-// Control patterns and grid membership
-// ------------------------------------------------------------
+/// ------------------------------------------------------------
+/// Control patterns and grid membership
+/// ------------------------------------------------------------
 
 void testControlPatterns(Context &context)
 {

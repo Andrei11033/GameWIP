@@ -159,9 +159,9 @@ bool readNativeDibV5Header(TestSupport::Context &context, BITMAPV5HEADER &header
     return data != nullptr && closed;
 }
 
-// ------------------------------------------------------------
-// Clipboard contracts and round trips
-// ------------------------------------------------------------
+/// ------------------------------------------------------------
+/// Clipboard contracts and round trips
+/// ------------------------------------------------------------
 
 void testClipboardValuesAndValidation(TestSupport::Context &context)
 {
@@ -425,9 +425,9 @@ void testClipboardRoundTrips(TestSupport::Context &context)
     }
 }
 
-// ------------------------------------------------------------
-// Clipboard contention and failures
-// ------------------------------------------------------------
+/// ------------------------------------------------------------
+/// Clipboard contention and failures
+/// ------------------------------------------------------------
 
 void testClipboardFixtureContention(TestSupport::Context &context)
 {
