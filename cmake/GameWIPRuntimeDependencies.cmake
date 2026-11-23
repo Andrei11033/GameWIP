@@ -13,9 +13,11 @@ function(gamewip_copy_runtime_dependencies target_name)
     set_property(TARGET "${target_name}" APPEND PROPERTY LINK_DEPENDS "${PROJECT_SOURCE_DIR}/cmake/copy_runtime_dependencies.cmake")
 
     set(gamewip_runtime_dependency_tool_arguments)
+
     if(CMAKE_OBJDUMP)
         list(APPEND gamewip_runtime_dependency_tool_arguments "-DGAMEWIP_OBJDUMP=${CMAKE_OBJDUMP}")
     endif()
+
     if(DEFINED GAMEWIP_TARGET_PLATFORM)
         list(APPEND gamewip_runtime_dependency_tool_arguments "-DGAMEWIP_TARGET_PLATFORM=${GAMEWIP_TARGET_PLATFORM}")
     endif()

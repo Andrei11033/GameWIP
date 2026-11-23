@@ -216,7 +216,7 @@ function(gamewip_prepare_target)
     )
     set(GAMEWIP_${gamewip_toolchain_variable}_COMPILER "${gamewip_tool_compiler}" CACHE INTERNAL "${gamewip_target_toolchain} compiler command" FORCE)
 
-    # Compiler providers may keep their standard library outside the binary directory.
+    # Check providers with an explicit compiler entry point.
     if(gamewip_tool_compiler)
         set(gamewip_compiler_suffix "")
 
@@ -229,24 +229,27 @@ function(gamewip_prepare_target)
         if(NOT EXISTS "${gamewip_compiler_path}")
             message(FATAL_ERROR "Toolchain '${gamewip_target_toolchain}' is missing compiler '${gamewip_compiler_path}'.")
         endif()
-    else()
-        math(EXPR gamewip_tool_validation_last "${gamewip_tool_validation_count} - 1")
-        foreach(index RANGE 0 ${gamewip_tool_validation_last})
-            string(JSON validation_file GET "${gamewip_tools_json}" tools ${gamewip_tool_index} ${gamewip_validation_json_path} ${index})
-
-            if(NOT EXISTS "${gamewip_toolchain_root}/${validation_file}")
-                if(CMAKE_HOST_WIN32)
-                    set(gamewip_setup_hint "Run '.\\setup.bat repair'.")
-                else()
-                    set(gamewip_setup_hint "Run 'bash ./setup.sh repair'.")
-                endif()
-                message(
-                    FATAL_ERROR
-                    "Toolchain '${gamewip_target_toolchain}' is incomplete for ${GAMEWIP_TARGET_PLATFORM}/${GAMEWIP_TARGET_ARCHITECTURE}; missing '${validation_file}'. ${gamewip_setup_hint}"
-                )
-            endif()
-        endforeach()
     endif()
+
+    # Verify every file declared by the selected host asset.
+    math(EXPR gamewip_tool_validation_last "${gamewip_tool_validation_count} - 1")
+
+    foreach(index RANGE 0 ${gamewip_tool_validation_last})
+        string(JSON validation_file GET "${gamewip_tools_json}" tools ${gamewip_tool_index} ${gamewip_validation_json_path} ${index})
+
+        if(NOT EXISTS "${gamewip_toolchain_root}/${validation_file}")
+            if(CMAKE_HOST_WIN32)
+                set(gamewip_setup_hint "Run '.\\setup.bat repair'.")
+            else()
+                set(gamewip_setup_hint "Run 'bash ./setup.sh repair'.")
+            endif()
+
+            message(
+                FATAL_ERROR
+                "Toolchain '${gamewip_target_toolchain}' is incomplete for ${GAMEWIP_TARGET_PLATFORM}/${GAMEWIP_TARGET_ARCHITECTURE}; missing '${validation_file}'. ${gamewip_setup_hint}"
+            )
+        endif()
+    endforeach()
 
     string(JSON gamewip_toolchain_file GET "${gamewip_tools_json}" tools ${gamewip_tool_index} provider cmakeToolchain)
     set(gamewip_toolchain_file "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/${gamewip_toolchain_file}")

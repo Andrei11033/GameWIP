@@ -51,6 +51,7 @@ function(gamewip_add_platform_backend)
 
     gamewip_resolve_platform_id(gamewip_backend_id)
     set(gamewip_backend_directory "${gamewip_backend_ROOT}/${gamewip_backend_id}")
+
     if(NOT EXISTS "${gamewip_backend_directory}/CMakeLists.txt")
         message(FATAL_ERROR "${gamewip_backend_TARGET} has no '${gamewip_backend_id}' platform backend: ${gamewip_backend_directory}/CMakeLists.txt")
     endif()

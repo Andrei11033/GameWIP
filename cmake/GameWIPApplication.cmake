@@ -30,6 +30,7 @@ function(gamewip_attach_application_manifest)
     get_target_property(gamewip_manifest_type "${gamewip_manifest_TARGET}" TYPE)
     get_target_property(gamewip_manifest_imported "${gamewip_manifest_TARGET}" IMPORTED)
     get_target_property(gamewip_manifest_alias "${gamewip_manifest_TARGET}" ALIASED_TARGET)
+
     if(NOT gamewip_manifest_type STREQUAL "EXECUTABLE" OR gamewip_manifest_imported OR gamewip_manifest_alias)
         message(FATAL_ERROR "Application manifest target must be a local executable, not an alias: ${gamewip_manifest_TARGET}")
     endif()
@@ -40,6 +41,7 @@ function(gamewip_attach_application_manifest)
 
     # Retain independent requests so separate application setup steps can compose policy.
     get_property(gamewip_manifest_existing TARGET "${gamewip_manifest_TARGET}" PROPERTY GAMEWIP_APPLICATION_MANIFEST_REQUIREMENTS)
+
     if(gamewip_manifest_COMMON_CONTROLS_V6)
         list(APPEND gamewip_manifest_existing COMMON_CONTROLS_V6)
     endif()
@@ -64,6 +66,7 @@ function(gamewip_attach_application_manifest)
     # Build the combined manifest content.
     set(GAMEWIP_APPLICATION_COMMON_CONTROLS_V6 "")
     set(GAMEWIP_APPLICATION_PER_MONITOR_V2 "")
+
     if("COMMON_CONTROLS_V6" IN_LIST gamewip_manifest_existing)
         set(GAMEWIP_APPLICATION_COMMON_CONTROLS_V6
             [=[
@@ -102,6 +105,7 @@ function(gamewip_attach_application_manifest)
     configure_file("${gamewip_manifest_template_dir}/application_manifest.rc.in" "${gamewip_manifest_rc}" @ONLY)
 
     get_property(gamewip_manifest_attached TARGET "${gamewip_manifest_TARGET}" PROPERTY GAMEWIP_APPLICATION_MANIFEST_ATTACHED)
+
     if(NOT gamewip_manifest_attached)
         target_sources("${gamewip_manifest_TARGET}" PRIVATE "${gamewip_manifest_rc}")
         set_property(TARGET "${gamewip_manifest_TARGET}" PROPERTY GAMEWIP_APPLICATION_MANIFEST_ATTACHED TRUE)

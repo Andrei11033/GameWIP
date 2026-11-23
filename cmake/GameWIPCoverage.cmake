@@ -2,6 +2,7 @@
 # Call gamewip_enable_coverage() after external targets and before GameWIP targets.
 
 set(GAMEWIP_COVERAGE_COMPILER_SUPPORTED OFF)
+
 if(GAMEWIP_ENABLE_COVERAGE)
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
         set(GAMEWIP_COVERAGE_COMPILER_SUPPORTED ON)
