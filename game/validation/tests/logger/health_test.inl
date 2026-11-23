@@ -29,6 +29,7 @@ void testShutdownAndHealthEpoch(TestContext &context)
     expectStarted(context, "health epoch init", Logger::init(config.ready()));
 
 #if LOGGER_INTERNAL_TEST_HOOKS
+    // Observe health snapshots across an injected worker failure.
     std::atomic<bool> observeHealth{true};
     std::atomic<bool> healthSnapshotsCoherent{true};
     std::thread healthObserver(
@@ -69,6 +70,7 @@ void testShutdownAndHealthEpoch(TestContext &context)
     context.expectEq("resetStats preserves health count", healthAfterStatsReset.failureCount, failedHealth.failureCount);
 #endif
 
+    // Verify shutdown and reinitialization begin distinct health epochs.
     const IO::Types::Status shutdownStatus = Logger::shutdown();
     context.expectFalse("shutdown always stops Logger", Logger::running());
     context.expectEq("shutdown health disabled", Logger::getHealth().state, Logger::Types::Health::State::Disabled);

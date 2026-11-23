@@ -1,10 +1,11 @@
 /// @file process_test.inl
 /// @brief Logger child-process and manual diagnostic tests.
 
+/// @brief Runs a Logger child process and captures its output.
+/// @note Fatal exits may pause while Windows error reporting runs.
 [[nodiscard]] TestSupport::Types::Process::Result runChild(
     const std::filesystem::path &executable,
     std::string_view argument,
-    // Crash logging may cross the Windows error-reporting boundary before the child exits.
     std::chrono::milliseconds timeout = 30s)
 {
     TestSupport::Types::Process::Options options;

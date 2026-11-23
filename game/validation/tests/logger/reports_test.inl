@@ -9,6 +9,7 @@ void testReportsAndHealth(TestContext &context)
     config.enableFatalPopup = false;
     expectStarted(context, "report init", Logger::init(config.ready()));
 
+    // Verify emergency reports bypass normal level filtering.
     context.expectFalse("normal Info remains filtered", Logger::shouldLog(Logger::Types::Level::Info));
     const Logger::Types::Report::Result plain = Logger::reportError(kTestSource, "plain emergency report");
     context.expectTrue("emergency report delivered", reportDelivered(plain));
@@ -20,6 +21,7 @@ void testReportsAndHealth(TestContext &context)
     const Logger::Types::Report::Result enumRuntime = Logger::reportError(TestSource::Core, 2s, Logger::runtimeFormat("enum runtime {}"), 29);
     context.expectTrue("enum-source runtime emergency report delivered", reportDelivered(enumRuntime));
 
+    // Reject invalid timeouts and malformed UTF-8.
     const Logger::Types::Report::Result invalidTimeout = Logger::reportError(kTestSource, -1ms, "invalid timeout");
     context.expectEq("negative report timeout invalid argument", invalidTimeout.status.code, IO::Types::ErrorCode::InvalidArgument);
     const std::string invalidUtf8{"\xC3\x28", 2};
@@ -33,6 +35,7 @@ void testReportsAndHealth(TestContext &context)
         IO::Types::ErrorCode::EncodingFailed);
 
 #if LOGGER_INTERNAL_TEST_HOOKS
+    // Preserve delivery details when report or sink flushing fails.
     GameWIP::Logger::Internal::TestHooks::forceNextTimedFlushTimeout();
     const Logger::Types::Report::Result timedOut = Logger::reportError(kTestSource, 2s, "delivered before report timeout");
     context.expectTrue("report timeout is not IO failure", timedOut.status.ok());
