@@ -2869,7 +2869,7 @@ namespace GameWIP::Terminal::Platform
     }
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
-    namespace Win32::Internal::TestHooks
+    namespace Win32::Internal
     {
         namespace
         {
@@ -2974,6 +2974,6 @@ namespace GameWIP::Terminal::Platform
             static_cast<void>(stream);
             return inputStateStorage().eventDecoder.pendingHighSurrogate != u'\0';
         }
-    } // namespace Win32::Internal::TestHooks
+    } // namespace Win32::Internal
 #endif
 } // namespace GameWIP::Terminal::Platform

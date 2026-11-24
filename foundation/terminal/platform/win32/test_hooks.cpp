@@ -13,9 +13,9 @@ namespace GameWIP::Terminal::Internal::TestHooks
 
     void resetBackendInputState() noexcept
     {
-        Terminal::Platform::Win32::Internal::TestHooks::resetWin32InputState();
-        Terminal::Platform::Win32::Internal::TestHooks::resetWin32KeyDecoder();
-        Terminal::Platform::Win32::Internal::TestHooks::setPendingHighSurrogate(Terminal::Types::Input::Stream::Stdin, 0);
+        Terminal::Platform::Win32::Internal::resetWin32InputState();
+        Terminal::Platform::Win32::Internal::resetWin32KeyDecoder();
+        Terminal::Platform::Win32::Internal::setPendingHighSurrogate(Terminal::Types::Input::Stream::Stdin, 0);
     }
 } // namespace GameWIP::Terminal::Internal::TestHooks
 
@@ -27,12 +27,12 @@ namespace GameWIP::Terminal::Internal::TestHooks::Win32
 
     void resetWin32KeyDecoder() noexcept
     {
-        Terminal::Platform::Win32::Internal::TestHooks::resetWin32KeyDecoder();
+        Terminal::Platform::Win32::Internal::resetWin32KeyDecoder();
     }
 
     std::size_t consoleWaitCallCount() noexcept
     {
-        return Terminal::Platform::Win32::Internal::TestHooks::consoleWaitCallCount();
+        return Terminal::Platform::Win32::Internal::consoleWaitCallCount();
     }
 
     Win32KeyDecodeResult decodeWin32KeyRecord(
@@ -43,18 +43,12 @@ namespace GameWIP::Terminal::Internal::TestHooks::Win32
         std::uint16_t repeatCount,
         std::uint16_t scanCode) noexcept
     {
-        return Terminal::Platform::Win32::Internal::TestHooks::decodeWin32KeyRecord(
-            keyDown,
-            virtualKey,
-            unicodeCharacter,
-            controlState,
-            repeatCount,
-            scanCode);
+        return Terminal::Platform::Win32::Internal::decodeWin32KeyRecord(keyDown, virtualKey, unicodeCharacter, controlState, repeatCount, scanCode);
     }
 
     std::optional<Terminal::Types::Event> takePendingWin32KeyEvent() noexcept
     {
-        return Terminal::Platform::Win32::Internal::TestHooks::takePendingWin32KeyEvent();
+        return Terminal::Platform::Win32::Internal::takePendingWin32KeyEvent();
     }
 
     /// ------------------------------------------------------------
@@ -63,12 +57,12 @@ namespace GameWIP::Terminal::Internal::TestHooks::Win32
 
     void setPendingHighSurrogate(Terminal::Types::Input::Stream stream, std::uint16_t surrogate) noexcept
     {
-        Terminal::Platform::Win32::Internal::TestHooks::setPendingHighSurrogate(stream, surrogate);
+        Terminal::Platform::Win32::Internal::setPendingHighSurrogate(stream, surrogate);
     }
 
     bool hasPendingHighSurrogate(Terminal::Types::Input::Stream stream) noexcept
     {
-        return Terminal::Platform::Win32::Internal::TestHooks::hasPendingHighSurrogate(stream);
+        return Terminal::Platform::Win32::Internal::hasPendingHighSurrogate(stream);
     }
 } // namespace GameWIP::Terminal::Internal::TestHooks::Win32
 #endif
