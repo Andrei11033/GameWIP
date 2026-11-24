@@ -387,15 +387,19 @@ namespace GameWIP::Desktop::Accessibility
 
         // Resolve the requested node against the current generation.
         const auto snapshot = runtime->snapshot.load();
-        const auto id = announcement.node != 0 ? announcement.node : snapshot ? snapshot->storage.root : 0;
+        A::NodeId id = announcement.node;
+        if(id == 0 && snapshot)
+        {
+            id = snapshot->storage.root;
+        }
+        const A::Node *node = snapshot ? snapshot->find(id) : nullptr;
 
-        if(!snapshot || !snapshot->find(id))
+        if(node == nullptr)
         {
             return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
         }
 
-        if(!announcement.language.empty() && announcement.language != snapshot->find(id)->language &&
-           !runtime->features.supports(A::Feature::AnnouncementLanguage))
+        if(!announcement.language.empty() && announcement.language != node->language && !runtime->features.supports(A::Feature::AnnouncementLanguage))
         {
             return IO::makeStatus(IO::Types::ErrorCode::Unsupported);
         }
