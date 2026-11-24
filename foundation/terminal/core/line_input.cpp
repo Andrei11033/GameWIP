@@ -27,6 +27,10 @@ namespace GameWIP::Terminal
     {
         using IO::Types::ErrorCode;
 
+        /// ------------------------------------------------------------
+        /// Read controls and timeout helpers
+        /// ------------------------------------------------------------
+
         [[nodiscard]] IO::Types::Status unsupportedStatus() noexcept
         {
             return IO::makeStatus(ErrorCode::Unsupported);
@@ -691,6 +695,10 @@ namespace GameWIP::Terminal
             return IO::successStatus();
         }
 
+        /// ------------------------------------------------------------
+        /// Line result completion
+        /// ------------------------------------------------------------
+
         [[nodiscard]] IO::Types::Status completeManagedLine(
             Types::Input::LineResult &result,
             std::string line,
@@ -732,6 +740,10 @@ namespace GameWIP::Terminal
             return IO::successStatus();
         }
 
+        /// ------------------------------------------------------------
+        /// Structured event reads
+        /// ------------------------------------------------------------
+
         [[nodiscard]] Types::Input::EventResult readManagedEvent(
             Types::Input::Stream input,
             Types::Output::Stream output,
@@ -742,6 +754,10 @@ namespace GameWIP::Terminal
         }
 
     } // namespace
+
+    /// ------------------------------------------------------------
+    /// Managed line reads
+    /// ------------------------------------------------------------
 
     Types::Input::LineResult Internal::managedTerminalLineRead(
         Types::Input::Stream input,
