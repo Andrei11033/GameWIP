@@ -5,7 +5,7 @@
 
 #include "input/win32.h"
 
-namespace GameWIP::Game::RuntimeDiagnostics::Win32
+namespace GameWIP::Game::Runtime::Platform::Win32
 {
     /// ------------------------------------------------------------
     /// Backend status reporting
@@ -13,4 +13,4 @@ namespace GameWIP::Game::RuntimeDiagnostics::Win32
 
     /// @brief Logs selected and available Win32 input backend states at Trace.
     void logInputBackends(const GameWIP::Input::Platform::Win32::Attachment &attachment);
-} // namespace GameWIP::Game::RuntimeDiagnostics::Win32
+} // namespace GameWIP::Game::Runtime::Platform::Win32

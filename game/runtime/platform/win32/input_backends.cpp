@@ -14,12 +14,16 @@
 #include <string_view>
 #include <vector>
 
-namespace GameWIP::Game::RuntimeDiagnostics::Win32
+namespace GameWIP::Game::Runtime::Platform::Win32
 {
     /// ------------------------------------------------------------
     /// Backend status reporting
     /// ------------------------------------------------------------
 
+    namespace Diagnostics = GameWIP::Game::RuntimeDiagnostics;
+    namespace Format = GameWIP::Game::RuntimeDiagnostics::InputEventFormat;
+    namespace IO = GameWIP::IO;
+    namespace Input = GameWIP::Input;
     namespace Logger = GameWIP::Logger;
     using LogArea = GameWIP::Game::Logging::Area;
 
@@ -53,7 +57,7 @@ namespace GameWIP::Game::RuntimeDiagnostics::Win32
         const IO::Types::Status queryStatus = attachment.backends(backends);
         if(!queryStatus.ok())
         {
-            reportWarning(LogArea::Input, "Failed to query Win32 input backends", queryStatus);
+            Diagnostics::reportWarning(LogArea::Input, "Failed to query Win32 input backends", queryStatus);
             return;
         }
 
@@ -64,7 +68,7 @@ namespace GameWIP::Game::RuntimeDiagnostics::Win32
             {
                 report += '\n';
             }
-            report += std::format("  {}: {}", Logger::code(InputEventFormat::backend(backend.backend)), statusName(backend.status));
+            report += std::format("  {}: {}", Logger::code(Format::backend(backend.backend)), statusName(backend.status));
             if(!backend.detail.empty())
             {
                 report += std::format(" ({})", Logger::code(backend.detail));
@@ -73,4 +77,4 @@ namespace GameWIP::Game::RuntimeDiagnostics::Win32
 
         Logger::trace(LogArea::Input, Logger::record().field("backend_count", backends.size()), "Win32 input backends:\n{}", report);
     }
-} // namespace GameWIP::Game::RuntimeDiagnostics::Win32
+} // namespace GameWIP::Game::Runtime::Platform::Win32

@@ -50,7 +50,7 @@ namespace GameWIP::Game::Runtime
 
     void RuntimeInput::logBackends()
     {
-        RuntimeDiagnostics::Win32::logInputBackends(attachment);
+        Platform::Win32::logInputBackends(attachment);
     }
 
     bool RuntimeInput::finish()
