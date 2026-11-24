@@ -23,6 +23,7 @@
 #include <thread>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 namespace
 {
@@ -205,7 +206,7 @@ namespace GameWIP::Test
         const TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::Internal::RunnerHelpers::makeReportingOptions(options);
 
         TestSupport::Runner runner(reportOptions);
-        runner.info(std::format("FileSystem library test root: {}", runRoot.string()));
+        runner.info(std::format("FileSystem library test root: {}", GameWIP::Test::Internal::RunnerHelpers::pathText(runRoot)));
 
         runner.runSuite(
             "FileSystem entry queries",
