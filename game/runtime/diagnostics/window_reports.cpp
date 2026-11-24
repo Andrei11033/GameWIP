@@ -137,7 +137,7 @@ namespace GameWIP::Game::RuntimeDiagnostics
         const bool logDebug = Logger::shouldLog(Logger::Types::Level::Debug, LogArea::Window);
         const bool logTrace = Logger::shouldLog(Logger::Types::Level::Trace, LogArea::Window);
 
-        // Always report close requests; the switch controls other Window events.
+        // Always report close requests; other event details are optional.
         if(const auto *close = event.getIf<WindowEvents::CloseRequested>(); close != nullptr)
         {
             Logger::Record record = Logger::record();

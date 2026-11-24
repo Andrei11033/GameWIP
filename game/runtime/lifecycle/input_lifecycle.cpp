@@ -9,12 +9,11 @@ namespace
 {
     namespace Logger = GameWIP::Logger;
     using LogArea = GameWIP::Game::Logging::Area;
+} // namespace
 
-    /// @brief Captures Input health, runs a detach step, and closes the Input system.
-    [[nodiscard]] bool finishInputSystemImpl(
-        GameWIP::Input::System &input,
-        GameWIP::Game::RuntimeDiagnostics::InputDetachCallback detach,
-        void *context)
+namespace GameWIP::Game::RuntimeDiagnostics
+{
+    bool finishInputSystem(Input::System &input, InputDetachCallback detach, void *context)
     {
         bool ok = true;
 
@@ -71,13 +70,5 @@ namespace
         }
 
         return ok;
-    }
-} // namespace
-
-namespace GameWIP::Game::RuntimeDiagnostics
-{
-    bool finishInputSystem(Input::System &input, InputDetachCallback detach, void *context)
-    {
-        return finishInputSystemImpl(input, detach, context);
     }
 } // namespace GameWIP::Game::RuntimeDiagnostics
