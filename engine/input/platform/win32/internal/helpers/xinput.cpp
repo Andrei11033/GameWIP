@@ -53,7 +53,7 @@ namespace GameWIP::Input::Platform::Win32
                 continue;
             }
 
-            const auto function = GameWIP::Base::Win32::loadProcedure<Attachment::Impl::XInputGetStateFunction>(module, "XInputGetState");
+            const auto function = GameWIP::Base::Platform::Win32::loadProcedure<Attachment::Impl::XInputGetStateFunction>(module, "XInputGetState");
             if(function != nullptr)
             {
                 attachment.xinputModule = module;

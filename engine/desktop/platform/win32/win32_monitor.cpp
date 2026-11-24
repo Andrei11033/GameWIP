@@ -214,7 +214,7 @@ namespace GameWIP::Desktop::Platform
             {
                 return std::uint32_t{0};
             }
-            const auto getVersion = GameWIP::Base::Win32::loadProcedure<RtlGetVersionFunction>(ntdll, "RtlGetVersion");
+            const auto getVersion = GameWIP::Base::Platform::Win32::loadProcedure<RtlGetVersionFunction>(ntdll, "RtlGetVersion");
             if(getVersion == nullptr)
             {
                 return std::uint32_t{0};

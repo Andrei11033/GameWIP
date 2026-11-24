@@ -249,7 +249,7 @@ namespace
 
         // Intentionally retain comctl32 for process lifetime: the resolved procedure pointer may
         // be reused and must remain valid after this function returns.
-        return GameWIP::Base::Win32::loadProcedure<TaskDialogIndirectFn>(commonControls, "TaskDialogIndirect");
+        return GameWIP::Base::Platform::Win32::loadProcedure<TaskDialogIndirectFn>(commonControls, "TaskDialogIndirect");
     }
 
     /// @brief Presents the reduced Abort/Break/Ignore fallback through MessageBoxW.

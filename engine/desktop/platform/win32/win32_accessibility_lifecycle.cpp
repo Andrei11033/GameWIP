@@ -113,7 +113,7 @@ namespace GameWIP::Desktop::Platform
             // Load the optional announcement entry point.
             if(const auto module = GetModuleHandleW(L"uiautomationcore.dll"))
             {
-                native->raiseNotification = Base::Win32::loadProcedure<RaiseNotification>(module, "UiaRaiseNotificationEvent");
+                native->raiseNotification = Base::Platform::Win32::loadProcedure<RaiseNotification>(module, "UiaRaiseNotificationEvent");
             }
 
             // Publish host linkage and supported accessibility features.

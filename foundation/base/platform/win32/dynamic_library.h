@@ -13,7 +13,7 @@
 
 #include <type_traits>
 
-namespace GameWIP::Base::Win32
+namespace GameWIP::Base::Platform::Win32
 {
     /// @brief Resolves a Win32 procedure while preserving its exact function-pointer type.
     /// @tparam FunctionType Exact function-pointer type expected by the caller.
@@ -40,4 +40,4 @@ namespace GameWIP::Base::Win32
 #endif
         return function;
     }
-} // namespace GameWIP::Base::Win32
+} // namespace GameWIP::Base::Platform::Win32

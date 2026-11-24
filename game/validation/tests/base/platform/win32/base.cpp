@@ -35,17 +35,17 @@ namespace
 
         static_cast<void>(context.expectTrue(
             "null module returns no procedure",
-            Base::Win32::loadProcedure<ProcessIdFunction>(nullptr, "GetCurrentProcessId") == nullptr));
+            Base::Platform::Win32::loadProcedure<ProcessIdFunction>(nullptr, "GetCurrentProcessId") == nullptr));
 
         static_cast<void>(
-            context.expectTrue("null export name returns no procedure", Base::Win32::loadProcedure<ProcessIdFunction>(module, nullptr) == nullptr));
+            context.expectTrue("null export name returns no procedure", Base::Platform::Win32::loadProcedure<ProcessIdFunction>(module, nullptr) == nullptr));
 
         static_cast<void>(context.expectTrue(
             "missing export returns no procedure",
-            Base::Win32::loadProcedure<ProcessIdFunction>(module, "GameWIP_Base_MissingExport") == nullptr));
+            Base::Platform::Win32::loadProcedure<ProcessIdFunction>(module, "GameWIP_Base_MissingExport") == nullptr));
 
         // Resolve and invoke a known system export.
-        const ProcessIdFunction processId = Base::Win32::loadProcedure<ProcessIdFunction>(module, "GetCurrentProcessId");
+        const ProcessIdFunction processId = Base::Platform::Win32::loadProcedure<ProcessIdFunction>(module, "GetCurrentProcessId");
         static_cast<void>(context.expectTrue("known export resolves", processId != nullptr));
 
         if(processId != nullptr)

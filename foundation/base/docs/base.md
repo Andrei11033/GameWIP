@@ -27,7 +27,7 @@ A `false` result guarantees that the operation is representable in that type.
 
 Win32 implementation code may include
 `base/platform/win32/dynamic_library.h` for
-`GameWIP::Base::Win32::loadProcedure<FunctionType>(module, name)`. The template
+`GameWIP::Base::Platform::Win32::loadProcedure<FunctionType>(module, name)`. The template
 requires the exact function-pointer type and returns null for null arguments or
 an unresolved export. It borrows the module and name; the caller keeps the module
 loaded while using the returned procedure.

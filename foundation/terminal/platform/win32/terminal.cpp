@@ -269,7 +269,7 @@ namespace GameWIP::Terminal::Platform
                     module = GetModuleHandleW(L"kernel32.dll");
                 }
 
-                return GameWIP::Base::Win32::loadProcedure<Function>(module, "CompareObjectHandles");
+                return GameWIP::Base::Platform::Win32::loadProcedure<Function>(module, "CompareObjectHandles");
             }();
             return function;
         }
