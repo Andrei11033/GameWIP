@@ -3,43 +3,10 @@
 
 #include "validation/tests/test_support/test_support_test.h"
 
-#include "validation/process_arguments.h"
 #include "validation/tests/registry.h"
-
-#include <algorithm>
-#include <cstddef>
-#include <iterator>
-#include <string_view>
 
 namespace
 {
-    /// @brief Claims only exact TestSupport child protocols recognized by the suite.
-    bool handlesChildArguments(int argc, char **argv)
-    {
-        constexpr std::string_view selectors[] = {
-            "--test-support-test-child=environment",
-            "--test-support-test-child=current-path",
-            "--test-support-test-child=echo",
-            "--test-support-test-child=sleep",
-            "--test-support-test-child=exit-code",
-            "--test-support-test-child=output",
-            "--test-support-test-child=descendant",
-            "--test-support-test-child=handle-inheritance",
-            "--test-support-test-child=start-gate",
-        };
-        const auto arguments = GameWIP::Validation::processArguments(argc, argv);
-
-        for(const char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
-        {
-            if(value != nullptr && std::ranges::find(selectors, std::string_view(value)) != std::end(selectors))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     /// @brief Maps shared runner policy to TestSupport-specific options and executes the suite.
     int run(const GameWIP::Validation::Tests::ModuleInvocation &invocation)
     {
@@ -59,6 +26,6 @@ namespace
         .name = "test_support",
         .order = 40,
         .run = run,
-        .handlesChildArguments = handlesChildArguments,
+        .handlesChildArguments = GameWIP::Test::Internal::hasTestSupportChildArguments,
     });
 } // namespace

@@ -10,6 +10,16 @@
 
 namespace GameWIP::Test
 {
+    /// ------------------------------------------------------------
+    /// Private child-mode routing
+    /// ------------------------------------------------------------
+
+    namespace Internal
+    {
+        /// @brief Checks whether arguments select a private TestSupport child mode.
+        [[nodiscard]] bool hasTestSupportChildArguments(int argc, char **argv);
+    } // namespace Internal
+
     /// @brief Runtime toggles for the TestSupport library self-tests.
     struct TestSupportTestOptions
     {

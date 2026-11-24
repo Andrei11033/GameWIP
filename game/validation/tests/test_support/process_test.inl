@@ -17,7 +17,7 @@ void testChildProcesses(TestSupport::Context &context, const std::filesystem::pa
     // the library default. Explicit short waits below continue to exercise timeout enforcement.
     constexpr auto normalChildTimeout = 30s;
 
-    // Invalid options and ordinary child outcomes establish the process contract.
+    // Reject malformed options before a child can start.
     const auto expectInvalidOptions = [&](std::string_view name, const TestSupport::Types::Process::Options &childOptions)
     {
         const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
@@ -26,6 +26,7 @@ void testChildProcesses(TestSupport::Context &context, const std::filesystem::pa
             context.expectEq(std::string(name) + " leaves the child unstarted", TestSupport::Types::Process::Outcome::NotStarted, result.outcome));
     };
 
+    // Validate argument and environment inputs.
     {
         TestSupport::Types::Process::Options childOptions;
         childOptions.executablePath = std::filesystem::path(executablePath);
@@ -43,6 +44,7 @@ void testChildProcesses(TestSupport::Context &context, const std::filesystem::pa
         expectInvalidOptions("Child process rejects embedded-null environment values", childOptions);
     }
 
+    // Verify child environment overrides and removal.
     {
         const TestSupport::ScopedEnvironmentVariable parentUnset(processState, kChildUnsetVariable, "parent-value");
         static_cast<void>(context.expectTrue("Child environment parent fixture succeeds", parentUnset.status().ok()));
@@ -63,6 +65,7 @@ void testChildProcesses(TestSupport::Context &context, const std::filesystem::pa
         static_cast<void>(context.expectContains("Child process unsets environment", result.outputBytes, "child-unset=<unset>"));
     }
 
+    // Confirm output capture can be disabled.
     {
         TestSupport::Types::Process::Options childOptions;
         childOptions.executablePath = std::filesystem::path(executablePath);
@@ -77,8 +80,10 @@ void testChildProcesses(TestSupport::Context &context, const std::filesystem::pa
         static_cast<void>(context.expectEq("Disabled capture leaves output empty", std::string(), result.outputBytes));
     }
 
+    // Keep inherited-handle checks on the native platform.
     GameWIP::Test::TestSupportPlatform::testHandleInheritance(context, executablePath, kHandleInheritanceChildArgument);
 
+    // Launch a child without inheriting the parent environment.
     {
         TestSupport::Types::Process::Options childOptions;
         childOptions.executablePath = std::filesystem::path(executablePath);
@@ -95,6 +100,7 @@ void testChildProcesses(TestSupport::Context &context, const std::filesystem::pa
             result.status.ok() && result.outcome == TestSupport::Types::Process::Outcome::Exited && result.exitCode == 0));
     }
 
+    // Preserve nonzero child exit codes.
     {
         TestSupport::Types::Process::Options childOptions;
         childOptions.executablePath = std::filesystem::path(executablePath);
@@ -107,6 +113,7 @@ void testChildProcesses(TestSupport::Context &context, const std::filesystem::pa
         static_cast<void>(context.expectEq("Child process reports nonzero exit", std::uint32_t{7}, result.exitCode));
     }
 
+    // Validate timeout options and indefinite waits.
     {
         TestSupport::Types::Process::Options childOptions;
         childOptions.executablePath = std::filesystem::path(executablePath);
@@ -121,6 +128,7 @@ void testChildProcesses(TestSupport::Context &context, const std::filesystem::pa
             result.status.ok() && result.outcome == TestSupport::Types::Process::Outcome::Exited && result.exitCode == 0));
     }
 
+    // Verify the child receives its configured working directory.
     {
         TestSupport::Types::Process::Options childOptions;
         const std::filesystem::path absoluteExecutablePath = std::filesystem::absolute(std::filesystem::path(executablePath));
@@ -136,8 +144,10 @@ void testChildProcesses(TestSupport::Context &context, const std::filesystem::pa
         static_cast<void>(context.expectContains("Child receives working directory", result.outputBytes, expectedDirectory));
     }
 
+    // Check native exit-code boundaries separately from portable outcomes.
     GameWIP::Test::TestSupportPlatform::testExitCodeBoundaries(context, executablePath, kExitCodeChildArgument);
 
+    // Report launch failures with the native diagnostic.
     {
         TestSupport::Types::Process::Options childOptions;
         childOptions.executablePath = std::filesystem::path(executablePath).parent_path() / "missing-gamewip-child.exe";
@@ -151,6 +161,7 @@ void testChildProcesses(TestSupport::Context &context, const std::filesystem::pa
         static_cast<void>(context.expectTrue("Missing child preserves a native diagnostic", result.status.nativeCode != 0));
     }
 
+    // Distinguish a child timeout from a launch failure.
     {
         TestSupport::Types::Process::Options childOptions;
         childOptions.executablePath = std::filesystem::path(executablePath);
@@ -162,6 +173,7 @@ void testChildProcesses(TestSupport::Context &context, const std::filesystem::pa
         static_cast<void>(context.expectEq("Child process timeout is reported", TestSupport::Types::Process::Outcome::TimedOut, result.outcome));
     }
 
+    // Exercise capture limits without repeating child setup.
     const auto runOutputChild = [&](std::size_t outputBytes, std::size_t captureLimit)
     {
         TestSupport::Types::Process::Options childOptions;
@@ -172,6 +184,7 @@ void testChildProcesses(TestSupport::Context &context, const std::filesystem::pa
         return TestSupport::runChildProcess(childOptions);
     };
 
+    // Captures below or at the limit retain all output.
     {
         const TestSupport::Types::Process::Result result = runOutputChild(4, 8);
         static_cast<void>(context.expectTrue(
@@ -187,6 +200,7 @@ void testChildProcesses(TestSupport::Context &context, const std::filesystem::pa
         static_cast<void>(context.expectFalse("Capture at limit is not truncated", result.outputTruncated));
     }
 
+    // Captures above the limit retain a prefix and report truncation.
     {
         const TestSupport::Types::Process::Result result = runOutputChild(12, 8);
         static_cast<void>(context.expectTrue(
@@ -196,6 +210,7 @@ void testChildProcesses(TestSupport::Context &context, const std::filesystem::pa
         static_cast<void>(context.expectTrue("Capture above limit reports truncation", result.outputTruncated));
     }
 
+    // A zero limit still drains output to avoid blocking the child.
     {
         const TestSupport::Types::Process::Result result = runOutputChild(12, 0);
         static_cast<void>(context.expectTrue(
@@ -205,6 +220,7 @@ void testChildProcesses(TestSupport::Context &context, const std::filesystem::pa
         static_cast<void>(context.expectTrue("Zero capture limit reports truncation", result.outputTruncated));
     }
 
+    // A timed-out child also releases its descendants.
     {
         TestSupport::Types::Process::Options childOptions;
         childOptions.executablePath = std::filesystem::path(executablePath);
