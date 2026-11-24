@@ -35,6 +35,10 @@ namespace GameWIP::FileSystem::Internal::TestHooks::Win32
     /// @brief Forces FileLock release attempts to fail until disabled or reset.
     void setFileUnlockFailure(bool enabled) noexcept;
 
+    /// ------------------------------------------------------------
+    /// Hook state reset
+    /// ------------------------------------------------------------
+
     /// @brief Restores all retained FileSystem test-hook state.
     void reset() noexcept;
 } // namespace GameWIP::FileSystem::Internal::TestHooks::Win32
