@@ -20,6 +20,15 @@ endif()
 # Target and public headers
 # ------------------------------------------------------------
 
+set(TEST_SUPPORT_PUBLIC_HEADERS
+    "${CMAKE_CURRENT_SOURCE_DIR}/types.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/reporting.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/files.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/process.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/stress.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_support.h"
+)
+
 add_library(TestSupport STATIC)
 add_library(GameWIP::TestSupport ALIAS TestSupport)
 
@@ -29,13 +38,7 @@ target_sources(
         FILE_SET public_headers
             TYPE HEADERS
             BASE_DIRS "${PROJECT_SOURCE_DIR}/tools"
-            FILES
-                "${CMAKE_CURRENT_SOURCE_DIR}/types.h"
-                "${CMAKE_CURRENT_SOURCE_DIR}/reporting.h"
-                "${CMAKE_CURRENT_SOURCE_DIR}/files.h"
-                "${CMAKE_CURRENT_SOURCE_DIR}/process.h"
-                "${CMAKE_CURRENT_SOURCE_DIR}/stress.h"
-                "${CMAKE_CURRENT_SOURCE_DIR}/test_support.h"
+            FILES ${TEST_SUPPORT_PUBLIC_HEADERS}
 )
 
 add_subdirectory(core)
@@ -91,13 +94,7 @@ if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
     gamewip_register_doxygen_library(
         NAME TestSupport
         PAGE_ID test_support
-        PUBLIC_HEADERS
-            "${CMAKE_CURRENT_SOURCE_DIR}/types.h"
-            "${CMAKE_CURRENT_SOURCE_DIR}/reporting.h"
-            "${CMAKE_CURRENT_SOURCE_DIR}/files.h"
-            "${CMAKE_CURRENT_SOURCE_DIR}/process.h"
-            "${CMAKE_CURRENT_SOURCE_DIR}/stress.h"
-            "${CMAKE_CURRENT_SOURCE_DIR}/test_support.h"
+        PUBLIC_HEADERS ${TEST_SUPPORT_PUBLIC_HEADERS}
         DOCS "${CMAKE_CURRENT_SOURCE_DIR}/docs"
     )
 endif()
