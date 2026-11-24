@@ -13,8 +13,9 @@ visible ASCII suffix before they are sent to Logger or platform UI. Assert does 
 UTF-8 validation; callers and compiler-provided diagnostic text satisfy the UTF-8 precondition, and the bounded formatter only adjusts the cut point
 when truncation is required.
 
-On Win32, popup text is validated and converted from UTF-8 to UTF-16 through Unicode; invalid input uses an ASCII fallback. Popup length limits
-preserve UTF-16 surrogate pairs, so native truncation cannot split a Unicode scalar.
+On Win32, popup text is validated and converted from UTF-8 to UTF-16 through Unicode. If conversion fails, printable ASCII bytes are preserved and
+other bytes become `?`. Embedded NUL also becomes `?` so following text remains visible. Popup length limits preserve UTF-16 surrogate pairs, so
+native truncation cannot split a Unicode scalar.
 
 ## Message evaluation
 
