@@ -1,11 +1,8 @@
 @page project_contracts Project contracts and standards
 
-These pages describe the rules that keep the repository consistent. Use them
-when a change affects ownership, compatibility, backend behavior, documentation,
-versioning, or project direction.
-
-They also provide the review points for deciding where a change belongs, how it
-should be documented, and which boundaries it must preserve.
+Use these pages when a change affects ownership, compatibility, backend
+behavior, documentation, versioning, or project direction. They define where
+changes belong and which boundaries they must preserve.
 
 ## Standards and extension contracts
 
@@ -47,11 +44,9 @@ verbs and PascalCase parameters. `Assert-GameWip...` is the intentional naming
 exception for validation helpers whose contract is to throw on failure; a
 `Test-*` name remains reserved for Boolean queries.
 
-Tool versions, providers, setup actions, update behavior, quality configuration,
-and repository-local mutable storage are documented in @ref project_tools.
-Host package installation and editor integration are documented in @ref
-project_environment_setup. Keep these operational details in their owning pages
-rather than duplicating them here.
+Tool versions, providers, setup and update behavior, quality configuration, and
+repository-local mutable storage are in @ref project_tools. Host package
+installation and editor integration are in @ref project_environment_setup.
 
 ## Related pages
 
