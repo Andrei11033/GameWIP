@@ -4,6 +4,7 @@
 /// @brief Verifies Unicode 17 grapheme rules with targeted rule-oriented examples and error paths.
 void testTargetedGraphemeBoundaries(TestSupport::Context &context)
 {
+    // Exercise representative extended grapheme rules.
     expectGraphemeFixture(context, "ASCII grapheme boundaries", graphemeFixture({{U'A'}, {U'B'}, {U'C'}}));
     expectGraphemeFixture(context, "CR LF grapheme pair", graphemeFixture({{U'\r', U'\n'}, {U'X'}}));
     expectGraphemeFixture(context, "combining mark grapheme", graphemeFixture({{U'a', static_cast<char32_t>(0x0308)}, {U'b'}}));
@@ -33,6 +34,7 @@ void testTargetedGraphemeBoundaries(TestSupport::Context &context)
         }));
     expectGraphemeFixture(context, "emoji modifier extend", graphemeFixture({{static_cast<char32_t>(0x1F44D), static_cast<char32_t>(0x1F3FD)}}));
 
+    // Reject invalid offsets and malformed text.
     const Unicode::Types::Utf8::BoundaryResult emptyNext = Unicode::Utf8::nextGraphemeBoundary({}, 0);
     const Unicode::Types::Utf8::BoundaryResult emptyPrevious = Unicode::Utf8::previousGraphemeBoundary({}, 0);
     static_cast<void>(context.expectEq("empty next grapheme outcome", BoundaryOutcome::AtEnd, emptyNext.outcome));
@@ -55,6 +57,7 @@ void testTargetedGraphemeBoundaries(TestSupport::Context &context)
     static_cast<void>(context.expectEq("malformed next grapheme outcome", BoundaryOutcome::InvalidEncoding, malformedNext.outcome));
     static_cast<void>(context.expectEq("malformed previous grapheme outcome", BoundaryOutcome::InvalidEncoding, malformedPrevious.outcome));
 
+    // Verify cursor storage, navigation, and reset behavior.
     const GraphemeFixture cursorFixture = graphemeFixture({
         {U'a', static_cast<char32_t>(0x0308)},
         {static_cast<char32_t>(0x1F469), static_cast<char32_t>(0x200D), static_cast<char32_t>(0x1F4BB)},
@@ -128,12 +131,14 @@ void testOfficialGraphemeConformance(TestSupport::Context &context)
         return;
     }
 
+    const std::string conformancePathText = GameWIP::Test::Internal::RunnerHelpers::pathText(*conformancePath);
+
     // Confirm that the fixture is readable before scanning its cases.
     std::ifstream input(*conformancePath, std::ios::binary);
 
     if(!input)
     {
-        context.fail("official Unicode grapheme conformance data", std::format("could not open {}", conformancePath->string()));
+        context.fail("official Unicode grapheme conformance data", std::format("could not open {}", conformancePathText));
         return;
     }
 
@@ -166,16 +171,14 @@ void testOfficialGraphemeConformance(TestSupport::Context &context)
 
         if(!fixture.has_value())
         {
-            context.fail(
-                "official Unicode grapheme conformance parsing",
-                std::format("{}:{}: {}", conformancePath->string(), lineNumber, parseError));
+            context.fail("official Unicode grapheme conformance parsing", std::format("{}:{}: {}", conformancePathText, lineNumber, parseError));
             return;
         }
         const std::optional<std::string> failure = graphemeFailure(*fixture);
 
         if(failure.has_value())
         {
-            context.fail("official Unicode grapheme conformance", std::format("{}:{}: {}", conformancePath->string(), lineNumber, *failure));
+            context.fail("official Unicode grapheme conformance", std::format("{}:{}: {}", conformancePathText, lineNumber, *failure));
             return;
         }
         ++caseCount;
@@ -185,7 +188,7 @@ void testOfficialGraphemeConformance(TestSupport::Context &context)
     // Reject truncated, empty, or mismatched fixture data.
     if(!input.eof())
     {
-        context.fail("official Unicode grapheme conformance data", std::format("read failed before EOF: {}", conformancePath->string()));
+        context.fail("official Unicode grapheme conformance data", std::format("read failed before EOF: {}", conformancePathText));
         return;
     }
 
@@ -201,7 +204,7 @@ void testOfficialGraphemeConformance(TestSupport::Context &context)
         return;
     }
 
-    context.info(std::format("Unicode grapheme conformance source: {}", conformancePath->string()));
+    context.info(std::format("Unicode grapheme conformance source: {}", conformancePathText));
     context.info(std::format("Unicode grapheme conformance cases={} code-point offsets={} directions=2", caseCount, checkedOffsets));
     context.pass("all official Unicode 17.0.0 GraphemeBreakTest cases pass forward and backward traversal");
 }

@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "test_support/internal/path_text.h"
 #include "test_support/test_support.h"
 #include "terminal/output.h"
 
@@ -21,8 +22,7 @@ namespace GameWIP::Test::Internal::RunnerHelpers
     /// @brief Returns a filesystem path as UTF-8 text for validation output.
     [[nodiscard]] inline std::string pathText(const std::filesystem::path &path)
     {
-        const std::u8string encoded = path.u8string();
-        return std::string{reinterpret_cast<const char *>(encoded.data()), encoded.size()};
+        return GameWIP::TestSupport::Internal::pathText(path);
     }
 
     /// ------------------------------------------------------------
