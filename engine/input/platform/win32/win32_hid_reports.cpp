@@ -22,6 +22,7 @@ namespace GameWIP::Input::Platform::Win32
         {
             return static_cast<std::int64_t>(static_cast<std::int32_t>(value));
         }
+
         const ULONG mask = ~static_cast<ULONG>(0) << width;
         return static_cast<std::int64_t>(static_cast<std::int32_t>(value | mask));
     }
@@ -62,6 +63,7 @@ namespace GameWIP::Input::Platform::Win32
         {
             return 0.0F;
         }
+
         return std::clamp(static_cast<float>((raw - minimum) / (maximum - minimum)), 0.0F, 1.0F);
     }
 

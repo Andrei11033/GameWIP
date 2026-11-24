@@ -155,6 +155,7 @@ namespace GameWIP::Input::Platform::Win32
         {
             return 0x48;
         }
+
         const std::uint32_t usage = keyboardUsageForScanCode(scanCode, extended, extendedPause);
         if(usage != 0 || extended || scanCode < 0x59)
         {
@@ -374,6 +375,7 @@ namespace GameWIP::Input::Platform::Win32
             state.pendingDiscontinuity = true;
             return;
         }
+
         const std::size_t count = std::min(bytes.size(), configuration.maximumRawReportBytes);
         try
         {
