@@ -728,10 +728,17 @@ def check_registry_relationships(failures: list[str]) -> None:
             f"({cmake_tool.get('requiredVersion')!r} != {cmake_match.group(1)!r})"
         )
 
+    # Providers may be shared or host-specific.
     provider_files = {path.stem.lower() for path in (ROOT / "scripts/lib/Providers").glob("*.ps1")}
+    provider_files.update(
+        path.stem.lower()
+        for platform in (ROOT / "scripts/platform").iterdir()
+        if platform.is_dir()
+        for path in platform.glob("*.ps1")
+    )
     validation_text = (WORKFLOW_ROOT / "validation.yml").read_text(encoding="utf-8")
     validation_tools = validation_tool_ids(validation_text)
-    tool_docs = (ROOT / "docs/doxygen/project_contracts.md").read_text(encoding="utf-8")
+    tool_docs = (ROOT / "docs/doxygen/project_tools.md").read_text(encoding="utf-8")
     live_references = set()
     repository_root = ROOT.resolve()
 
@@ -748,7 +755,9 @@ def check_registry_relationships(failures: list[str]) -> None:
             failures.append(f"scripts/config/project-tools.json: tool '{tool_id}' uses unsupported provider '{provider}'")
 
         elif provider.lower() not in provider_files:
-            failures.append(f"scripts/lib/Providers: provider implementation '{provider}' is missing")
+            failures.append(
+                f"scripts/lib/Providers or scripts/platform/<platform>: provider implementation '{provider}' is missing"
+            )
 
         if provider == "msys2":
             if provider_info.get("environment") not in {"common", "ucrt64", "clang64"}:
@@ -850,7 +859,7 @@ def check_registry_relationships(failures: list[str]) -> None:
                 live_references.add(live_key)
 
         if entry.get("versionPolicy") == "exact" and version not in tool_docs:
-            failures.append(f"docs/doxygen/project_contracts.md: exact tool '{tool_id}' version '{version}' is stale")
+            failures.append(f"docs/doxygen/project_tools.md: exact tool '{tool_id}' version '{version}' is stale")
 
     # Keep repository storage and registry schemas under their declared authorities.
     expected_storage = {
@@ -1110,13 +1119,13 @@ def check_action_reference_consistency(workflows: list[Path], failures: list[str
 def check_quality_contract(failures: list[str]) -> None:
     """Protect quality semantics that would otherwise degrade silently."""
 
-    quality_path = ROOT / "scripts" / "lib" / "Quality.ps1"
+    quality_path = ROOT / "scripts" / "lib" / "Quality" / "Checks.ps1"
 
     if quality_path.is_file():
         quality = quality_path.read_text(encoding="utf-8")
 
         if "config/quality/eslint.config.js" not in quality:
-            failures.append("scripts/lib/Quality.ps1: maintained ESLint configuration must itself be inside the ESLint scope")
+            failures.append("scripts/lib/Quality/Checks.ps1: maintained ESLint configuration must itself be inside the ESLint scope")
 
     npm_provider_path = ROOT / "scripts" / "lib" / "Providers" / "Npm.ps1"
 

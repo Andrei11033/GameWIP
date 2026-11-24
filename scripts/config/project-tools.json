@@ -178,7 +178,14 @@
         "checkLatest": true,
         "update": true
       },
-      "references": []
+      "references": [
+        {
+          "path": "docs/doxygen/project_tools.md",
+          "kind": "text",
+          "pattern": "| LLVM-MinGW | {version} | verified GitHub release |",
+          "expectedCount": 1
+        }
+      ]
     },
     {
       "id": "zig",
@@ -227,7 +234,14 @@
         "checkLatest": false,
         "update": true
       },
-      "references": []
+      "references": [
+        {
+          "path": "docs/doxygen/project_tools.md",
+          "kind": "text",
+          "pattern": "| Zig | {version} | verified archive |",
+          "expectedCount": 1
+        }
+      ]
     },
     {
       "id": "clang",
@@ -513,7 +527,7 @@
       },
       "references": [
         {
-          "path": "docs/doxygen/project_contracts.md",
+          "path": "docs/doxygen/project_tools.md",
           "kind": "text",
           "pattern": "| Ruff | {version} | verified GitHub release |",
           "expectedCount": 1
@@ -555,7 +569,7 @@
       },
       "references": [
         {
-          "path": "docs/doxygen/project_contracts.md",
+          "path": "docs/doxygen/project_tools.md",
           "kind": "text",
           "pattern": "| Gersemi | {version} | verified GitHub release |",
           "expectedCount": 1
@@ -590,7 +604,7 @@
       },
       "references": [
         {
-          "path": "docs/doxygen/project_contracts.md",
+          "path": "docs/doxygen/project_tools.md",
           "kind": "text",
           "pattern": "| yamllint | {version} | Python |",
           "expectedCount": 1
@@ -623,9 +637,9 @@
       },
       "references": [
         {
-          "path": "docs/doxygen/project_contracts.md",
+          "path": "docs/doxygen/project_tools.md",
           "kind": "text",
-          "pattern": "| jsonschema | {version} | Python |",
+          "pattern": "| jsonschema | {version} | Python (minimum) |",
           "expectedCount": 1
         }
       ]
@@ -658,7 +672,7 @@
       },
       "references": [
         {
-          "path": "docs/doxygen/project_contracts.md",
+          "path": "docs/doxygen/project_tools.md",
           "kind": "text",
           "pattern": "| ESLint | {version} | npm |",
           "expectedCount": 1
@@ -693,7 +707,7 @@
       },
       "references": [
         {
-          "path": "docs/doxygen/project_contracts.md",
+          "path": "docs/doxygen/project_tools.md",
           "kind": "text",
           "pattern": "| Prettier | {version} | npm |",
           "expectedCount": 1
@@ -722,7 +736,7 @@
       },
       "references": [
         {
-          "path": "docs/doxygen/project_contracts.md",
+          "path": "docs/doxygen/project_tools.md",
           "kind": "text",
           "pattern": "| markdownlint-cli2 | {version} | npm |",
           "expectedCount": 1
@@ -751,7 +765,7 @@
       },
       "references": [
         {
-          "path": "docs/doxygen/project_contracts.md",
+          "path": "docs/doxygen/project_tools.md",
           "kind": "text",
           "pattern": "| PSScriptAnalyzer | {version} | PowerShell Gallery |",
           "expectedCount": 1
@@ -765,7 +779,6 @@
       "provider": {
         "kind": "githubRelease",
         "repository": "rhysd/actionlint",
-        "archiveName": "actionlint_{version}_{os}_{arch}.{extension}",
         "assets": {
           "linux-amd64": {
             "archive": "actionlint_1.7.12_linux_amd64.tar.gz",
@@ -792,7 +805,7 @@
       },
       "references": [
         {
-          "path": "docs/doxygen/project_contracts.md",
+          "path": "docs/doxygen/project_tools.md",
           "kind": "text",
           "pattern": "| actionlint | {version} | verified GitHub release |",
           "expectedCount": 1

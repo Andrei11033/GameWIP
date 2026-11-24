@@ -14,6 +14,23 @@ GitHub releases and archives, WinGet, and external/manual state. Each tool's
 registry entry selects its provider. Discovery checks that provider's managed
 location first, then other GameWIP-managed locations and `PATH`.
 
+Tool version requirements are declared in `project-tools.json` and mirrored here:
+
+<!-- prettier-ignore -->
+| Tool | Version | Provider |
+| --- | --- | --- |
+| LLVM-MinGW | 20261104 | verified GitHub release |
+| Zig | 0.17.1 | verified archive |
+| Ruff | 0.17.1 | verified GitHub release |
+| Gersemi | 0.29.2 | verified GitHub release |
+| yamllint | 1.38.0 | Python |
+| ESLint | 10.13.0 | npm |
+| Prettier | 3.9.10 | npm |
+| markdownlint-cli2 | 0.24.0 | npm |
+| PSScriptAnalyzer | 1.25.0 | PowerShell Gallery |
+| actionlint | 1.7.12 | verified GitHub release |
+| jsonschema | 4.26.0 | Python (minimum) |
+
 `exact` pins version-sensitive tools. `minimum` accepts the declared version or
 newer. `managed` lets the owning package manager select a compatible version.
 `informational` reports externally owned state without taking over its updates.
