@@ -1,1 +1,1 @@
-target_sources(TestSupport PRIVATE status.cpp)
+target_sources(TestSupport PRIVATE path_text.cpp status.cpp)

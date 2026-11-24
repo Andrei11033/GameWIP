@@ -3,12 +3,15 @@
 
 #include "test_support/reporting.h"
 #include "test_support/files.h"
+#include "test_support/internal/path_text.h"
 #include "test_support/internal/report_sink.h"
 
 #include <chrono>
 #include <cmath>
+#include <filesystem>
 #include <memory>
 #include <sstream>
+#include <string>
 #include <string_view>
 #include <utility>
 
@@ -221,7 +224,7 @@ namespace GameWIP::TestSupport
         }
 
         std::ostringstream reason;
-        reason << "expected file '" << path.string() << "' to contain '" << expectedSubstring << "'";
+        reason << "expected file '" << Internal::pathText(path) << "' to contain '" << expectedSubstring << "'";
 
         if(!result.status.ok())
         {
@@ -248,7 +251,8 @@ namespace GameWIP::TestSupport
         }
 
         std::ostringstream reason;
-        reason << "expected " << expectedCount << " occurrences of '" << text << "' in file '" << path.string() << "', got " << result.count;
+        reason << "expected " << expectedCount << " occurrences of '" << text << "' in file '" << Internal::pathText(path) << "', got "
+               << result.count;
 
         if(!result.status.ok())
         {

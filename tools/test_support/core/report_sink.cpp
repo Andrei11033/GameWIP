@@ -1,6 +1,7 @@
 /// @file report_sink.cpp
 /// @brief Report-file and console output for TestSupport.
 
+#include "test_support/internal/path_text.h"
 #include "test_support/internal/report_sink.h"
 
 #include <cstdint>
@@ -204,7 +205,7 @@ namespace GameWIP::TestSupport::Internal
 
         if(!reportFailureReported_)
         {
-            std::cerr << "[TEST REPORT] " << reason << ": " << options_.reportPath.string() << '\n';
+            std::cerr << "[TEST REPORT] " << reason << ": " << pathText(options_.reportPath) << '\n';
             reportFailureReported_ = true;
         }
     }
