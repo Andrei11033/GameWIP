@@ -16,6 +16,11 @@ gamewip_add_test_module(
         # Input and session behavior
         input_test.inl
         line_input_test.inl
+        session_operations_test.inl
+        session_input_test.inl
+        session_output_test.inl
+        session_concurrency_test.inl
+        session_lifetime_test.inl
         session_test.inl
 
         # Manual terminal checks
