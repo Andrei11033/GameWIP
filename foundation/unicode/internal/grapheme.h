@@ -17,6 +17,9 @@ namespace GameWIP::Unicode::Internal::Grapheme
     /// @brief Scans once, writes boundaries that fit, and reports the complete required count.
     [[nodiscard]] bool writeBoundaries(std::string_view text, std::span<std::size_t> boundaryStorage, std::size_t &requiredBoundaryCount) noexcept;
 
+    /// @brief Finds the next grapheme boundary after a code-point-aligned byte offset.
     [[nodiscard]] Types::Utf8::BoundaryResult nextBoundary(std::string_view text, std::size_t byteOffset) noexcept;
+
+    /// @brief Finds the previous grapheme boundary before a code-point-aligned byte offset.
     [[nodiscard]] Types::Utf8::BoundaryResult previousBoundary(std::string_view text, std::size_t byteOffset) noexcept;
 } // namespace GameWIP::Unicode::Internal::Grapheme

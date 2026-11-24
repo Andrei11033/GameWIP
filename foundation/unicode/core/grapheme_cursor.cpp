@@ -76,6 +76,7 @@ namespace GameWIP::Unicode::Utf8
         {
             return {.byteOffset = byteOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidOffset};
         }
+
         currentBoundaryIndex_ = static_cast<std::size_t>(found - boundaries_.begin());
         return {.byteOffset = byteOffset, .outcome = Types::Utf8::BoundaryOutcome::Found};
     }
@@ -91,6 +92,7 @@ namespace GameWIP::Unicode::Utf8
         {
             return {.byteOffset = byteOffset(), .outcome = Types::Utf8::BoundaryOutcome::AtEnd};
         }
+
         ++currentBoundaryIndex_;
         return {.byteOffset = byteOffset(), .outcome = Types::Utf8::BoundaryOutcome::Found};
     }
@@ -106,6 +108,7 @@ namespace GameWIP::Unicode::Utf8
         {
             return {.byteOffset = 0, .outcome = Types::Utf8::BoundaryOutcome::AtBeginning};
         }
+
         --currentBoundaryIndex_;
         return {.byteOffset = byteOffset(), .outcome = Types::Utf8::BoundaryOutcome::Found};
     }

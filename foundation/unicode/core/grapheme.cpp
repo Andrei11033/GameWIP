@@ -46,6 +46,7 @@ namespace GameWIP::Unicode::Internal::Grapheme
             /// @brief Incorporates one decoded scalar into the rule context.
             void consume(const UnicodeInternal::UnicodeProperties &properties) noexcept
             {
+                // Track Indic conjunct context.
                 switch(properties.indicConjunctBreak)
                 {
                 case UnicodeInternal::IndicConjunctBreakClass::Consonant:
@@ -61,6 +62,7 @@ namespace GameWIP::Unicode::Internal::Grapheme
                     break;
                 }
 
+                // Track emoji ZWJ context.
                 if(properties.extendedPictographic)
                 {
                     emoji = EmojiSequenceState::ExtendedPictographic;
@@ -78,6 +80,7 @@ namespace GameWIP::Unicode::Internal::Grapheme
                     emoji = EmojiSequenceState::None;
                 }
 
+                // Track regional-indicator parity.
                 if(properties.graphemeBreak == UnicodeInternal::GraphemeBreakClass::RegionalIndicator)
                 {
                     ++regionalIndicatorCount;
@@ -202,6 +205,7 @@ namespace GameWIP::Unicode::Internal::Grapheme
             {
                 return {.byteOffset = byteOffset + 2, .outcome = Types::Utf8::BoundaryOutcome::Found};
             }
+
             const bool currentIsControl = current <= 0x1FU || current == 0x7FU;
             const bool nextIsAscii = byteOffset + 1 == text.size() || UnicodeInternal::byteValue(text[byteOffset + 1]) < 0x80U;
 
@@ -228,6 +232,7 @@ namespace GameWIP::Unicode::Internal::Grapheme
             {
                 return {.byteOffset = previousOffset - 1, .outcome = Types::Utf8::BoundaryOutcome::Found};
             }
+
             const bool beforePreviousIsAscii = previousOffset == 0 || UnicodeInternal::byteValue(text[previousOffset - 1]) < 0x80U;
 
             if(beforePreviousIsAscii)
@@ -311,12 +316,14 @@ namespace GameWIP::Unicode::Internal::Grapheme
                 {
                     return {.byteOffset = scalarOffset, .valid = false};
                 }
+
                 const UnicodeInternal::PreviousUtf8ScalarResult previousDecoded = UnicodeInternal::decodePreviousUtf8Scalar(text, currentOffset);
 
                 if(previousDecoded.decoded.outcome != Types::DecodeOutcome::Decoded)
                 {
                     return {.byteOffset = scalarOffset, .valid = false};
                 }
+
                 const UnicodeInternal::UnicodeProperties previousProperties = UnicodeInternal::unicodeProperties(previousDecoded.decoded.scalar);
                 const UnicodeInternal::UnicodeProperties currentProperties = UnicodeInternal::unicodeProperties(currentDecoded.scalar);
 
@@ -347,11 +354,14 @@ namespace GameWIP::Unicode::Internal::Grapheme
             {
                 return false;
             }
+
+            // Seed rule state from the first scalar.
             UnicodeInternal::UnicodeProperties previousProperties = UnicodeInternal::unicodeProperties(previousDecoded.scalar);
             GraphemeState state{};
             state.consume(previousProperties);
             currentOffset += previousDecoded.bytesConsumed;
 
+            // Visit later boundaries while advancing the rule state.
             while(currentOffset < text.size())
             {
                 const Types::Utf8::DecodeResult currentDecoded = UnicodeInternal::decodeUtf8Scalar(text.substr(currentOffset));
@@ -360,6 +370,7 @@ namespace GameWIP::Unicode::Internal::Grapheme
                 {
                     return false;
                 }
+
                 const UnicodeInternal::UnicodeProperties currentProperties = UnicodeInternal::unicodeProperties(currentDecoded.scalar);
 
                 if(shouldBreak(previousProperties, currentProperties, state))
@@ -379,17 +390,20 @@ namespace GameWIP::Unicode::Internal::Grapheme
         /// @brief Finds the first grapheme boundary after target using state rebuilt from a safe restart.
         [[nodiscard]] Types::Utf8::BoundaryResult scanNextFrom(std::string_view text, std::size_t restartOffset, std::size_t targetOffset) noexcept
         {
+            // Seed rule state at the safe restart point.
             Types::Utf8::DecodeResult previousDecoded = UnicodeInternal::decodeUtf8Scalar(text.substr(restartOffset));
 
             if(previousDecoded.outcome != Types::DecodeOutcome::Decoded)
             {
                 return {.byteOffset = targetOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidEncoding};
             }
+
             UnicodeInternal::UnicodeProperties previousProperties = UnicodeInternal::unicodeProperties(previousDecoded.scalar);
             GraphemeState state{};
             state.consume(previousProperties);
             std::size_t currentOffset = restartOffset + previousDecoded.bytesConsumed;
 
+            // Scan forward to the first boundary after the target.
             while(currentOffset < text.size())
             {
                 const Types::Utf8::DecodeResult currentDecoded = UnicodeInternal::decodeUtf8Scalar(text.substr(currentOffset));
@@ -398,6 +412,7 @@ namespace GameWIP::Unicode::Internal::Grapheme
                 {
                     return {.byteOffset = targetOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidEncoding};
                 }
+
                 const UnicodeInternal::UnicodeProperties currentProperties = UnicodeInternal::unicodeProperties(currentDecoded.scalar);
 
                 if(shouldBreak(previousProperties, currentProperties, state) && currentOffset > targetOffset)
@@ -419,17 +434,21 @@ namespace GameWIP::Unicode::Internal::Grapheme
             std::size_t targetOffset) noexcept
         {
             std::size_t previousBoundary = restartOffset;
+
+            // Seed rule state at the safe restart point.
             Types::Utf8::DecodeResult previousDecoded = UnicodeInternal::decodeUtf8Scalar(text.substr(restartOffset));
 
             if(previousDecoded.outcome != Types::DecodeOutcome::Decoded)
             {
                 return {.byteOffset = targetOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidEncoding};
             }
+
             UnicodeInternal::UnicodeProperties previousProperties = UnicodeInternal::unicodeProperties(previousDecoded.scalar);
             GraphemeState state{};
             state.consume(previousProperties);
             std::size_t currentOffset = restartOffset + previousDecoded.bytesConsumed;
 
+            // Track the last boundary before the target.
             while(currentOffset < text.size())
             {
                 const Types::Utf8::DecodeResult currentDecoded = UnicodeInternal::decodeUtf8Scalar(text.substr(currentOffset));
@@ -438,6 +457,7 @@ namespace GameWIP::Unicode::Internal::Grapheme
                 {
                     return {.byteOffset = targetOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidEncoding};
                 }
+
                 const UnicodeInternal::UnicodeProperties currentProperties = UnicodeInternal::unicodeProperties(currentDecoded.scalar);
 
                 if(shouldBreak(previousProperties, currentProperties, state))
@@ -476,6 +496,7 @@ namespace GameWIP::Unicode::Internal::Grapheme
 
     Types::Utf8::BoundaryResult nextBoundary(std::string_view text, std::size_t byteOffset) noexcept
     {
+        // Validate the requested boundary.
         if(byteOffset > text.size())
         {
             return {.byteOffset = byteOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidOffset};
@@ -494,9 +515,11 @@ namespace GameWIP::Unicode::Internal::Grapheme
             {
                 return {.byteOffset = byteOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidEncoding};
             }
+
             return {.byteOffset = byteOffset, .outcome = Types::Utf8::BoundaryOutcome::AtEnd};
         }
 
+        // Try the ASCII fast path before rebuilding grapheme state.
         if(UnicodeInternal::byteValue(text[byteOffset]) < 0x80U)
         {
             const Types::Utf8::BoundaryResult ascii = nextAsciiBoundary(text, byteOffset);
@@ -513,11 +536,13 @@ namespace GameWIP::Unicode::Internal::Grapheme
         {
             return {.byteOffset = byteOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidEncoding};
         }
+
         return scanNextFrom(text, restart.byteOffset, byteOffset);
     }
 
     Types::Utf8::BoundaryResult previousBoundary(std::string_view text, std::size_t byteOffset) noexcept
     {
+        // Validate the requested boundary.
         if(byteOffset > text.size())
         {
             return {.byteOffset = byteOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidOffset};
@@ -533,6 +558,7 @@ namespace GameWIP::Unicode::Internal::Grapheme
             return {.byteOffset = 0, .outcome = Types::Utf8::BoundaryOutcome::AtBeginning};
         }
 
+        // Try the ASCII fast path before rebuilding grapheme state.
         if(UnicodeInternal::byteValue(text[byteOffset - 1]) < 0x80U)
         {
             const Types::Utf8::BoundaryResult ascii = previousAsciiBoundary(text, byteOffset);
@@ -549,12 +575,14 @@ namespace GameWIP::Unicode::Internal::Grapheme
         {
             return {.byteOffset = byteOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidEncoding};
         }
+
         const RestartResult restart = findSafeRestart(text, previousScalar.startOffset);
 
         if(!restart.valid)
         {
             return {.byteOffset = byteOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidEncoding};
         }
+
         return scanPreviousFrom(text, restart.byteOffset, byteOffset);
     }
 

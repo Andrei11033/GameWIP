@@ -206,6 +206,7 @@ def build_trie(data: bytearray, block_shift: int) -> GeneratedTrie:
     last_non_default = max(index for index, value in enumerate(data) if value != 0)
     high_start = (last_non_default + block_size) & ~block_mask
 
+    # Deduplicate equal property blocks while building the index.
     unique_blocks: list[bytes] = []
     block_ids: dict[bytes, int] = {}
     indexes: list[int] = []
@@ -220,6 +221,7 @@ def build_trie(data: bytearray, block_shift: int) -> GeneratedTrie:
             unique_blocks.append(block)
         indexes.append(block_id)
 
+    # Pick the narrowest index type that can address every unique block.
     if len(unique_blocks) <= 0x100:
         index_type = "std::uint8_t"
 
@@ -306,16 +308,19 @@ namespace GameWIP::Unicode::Internal::Generated
 
 
 def generate(paths: SourcePaths, output: Path) -> tuple[GeneratedTrie, tuple[GeneratedTrie, ...]]:
+    # Check the pinned sources before reading their records.
     require_source(paths.grapheme_break, (UNICODE_VERSION,))
     require_source(paths.derived_core, (UNICODE_VERSION,))
     require_source(paths.emoji_data, (UNICODE_VERSION, f"Version: {EMOJI_VERSION}"))
 
+    # Merge the three properties into one packed code-point table.
     data = bytearray(CODE_POINT_COUNT)
     apply_grapheme_break(data, paths.grapheme_break)
     apply_indic_conjunct_break(data, paths.derived_core)
     apply_extended_pictographic(data, paths.emoji_data)
     remove_algorithmic_ranges(data)
 
+    # Select and write the smallest supported trie layout.
     trie, candidates = select_trie(data)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(render_header(trie), encoding="utf-8", newline="\n")
