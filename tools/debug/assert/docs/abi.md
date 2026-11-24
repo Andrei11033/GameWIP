@@ -29,9 +29,9 @@ Assert has two package forms:
 | Runtime disabled | interface-only target | Public macros use header-only disabled behavior. Fatal and recoverable reporting are off. |
 
 The runtime uses Logger for reporting and links Unicode statically for popup text conversion. Unicode is a private implementation dependency, and
-Assert's public headers do not expose Unicode types. The installed runtime package resolves Logger and `GameWIPApplication`; the latter provides the
-shared application manifest helper. The interface-only package has no runtime dependencies. Assert does not install manifest resources or attach them
-to consumers. Applications select their process requirements explicitly; see @ref assert_configuration.
+Assert's public headers do not expose Unicode types. The runtime package resolves Logger for its imported target and `GameWIPApplication` for the
+manifest helper; the latter is not linked to the runtime. The interface-only target has no package dependencies. Assert does not install manifest resources or
+attach them to consumers. Applications select their process requirements explicitly; see @ref assert_configuration.
 
 ## Exported symbols
 

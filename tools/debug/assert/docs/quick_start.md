@@ -14,7 +14,8 @@ Include the public header:
 
 ## Installed CMake
 
-Use the package target. The runtime package loads Logger and `GameWIPApplication`; the interface-only package needs only Assert:
+Use the package target. Runtime-enabled Assert resolves Logger and the `GameWIPApplication` manifest helper; interface-only Assert has no
+package dependencies:
 
 Set `GAMEWIP_REQUIRED_VERSION` from the consuming project's dependency lock; see @ref project_library_compatibility.
 

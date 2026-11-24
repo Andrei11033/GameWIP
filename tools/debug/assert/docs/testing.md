@@ -31,21 +31,18 @@ interactive action for child tests.
 
 Disabled or unavailable scenarios count as skips; compiled-out macro evaluation remains an actual behavioral test.
 
-Real Win32 UI is manual and runtime opt-in. It asks for operator confirmation of Ignore Once, suppression after Always Ignore, Break with a debugger,
-and Abort in a child. Returning from a call alone does not count as a successful UI observation. Use `s <reason>` for a skip; end-of-input
-keeps its own reason. The manual Abort child allows five minutes for an operator response; automated child probes retain their 30-second budget.
-Environment controls provide deterministic interactive action paths, while the retained source-tree seam above exercises the noexcept
-diagnostic-preparation emergency path
-without opening real UI.
+Real Win32 UI is manual and runtime opt-in. Confirm Ignore Once, Always Ignore suppression, Break with a debugger, and Abort in a child. Returning from
+a call alone does not count as a successful UI observation. Use `s <reason>` to skip; end-of-input keeps its own reason. The manual Abort child allows
+five minutes for an operator response; automated child probes retain their 30-second budget. The retained source-tree seam above exercises the
+diagnostic-preparation emergency path without opening real UI.
 
 GameWIP owns module registration, child routing, UI selection, benchmarks, reports, and coverage. See @ref project_testing, @ref project_benchmarking,
 and @ref project_coverage.
 
 Installed-package validation includes a dedicated interface-only Assert configuration with both assertion families disabled. Its executable verifies
-that ASSERT/CHECK families skip condition and message evaluation, VERIFY evaluates exactly once, and ENSURE preserves true/false results
-with lazy messages. The normal runtime
-package is also consumed with Assert and its dependencies in separate prefixes. Consumer executables select application manifest requirements through
-the shared helper described in @ref assert_configuration.
+that ASSERT/CHECK families skip condition and message evaluation, VERIFY evaluates exactly once, and ENSURE preserves true/false results with lazy
+messages. The runtime package is also consumed with Assert and its dependencies in separate prefixes. Consumer executables select application manifest
+requirements through the shared helper described in @ref assert_configuration.
 
 ## Related pages
 
