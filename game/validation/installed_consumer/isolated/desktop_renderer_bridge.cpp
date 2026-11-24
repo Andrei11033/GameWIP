@@ -3,6 +3,7 @@
 
 #include "desktop/renderer_bridge.h"
 
+#include <cstdint>
 #include <type_traits>
 
 static_assert(std::is_same_v<GameWIP::Desktop::Types::Renderer::PointerHitMaskWord, std::uint32_t>);
