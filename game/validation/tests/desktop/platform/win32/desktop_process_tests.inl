@@ -13,8 +13,8 @@ inline constexpr std::string_view kOwnerExitDragDropChildArgument = "--desktop-t
 inline constexpr std::string_view kOwnerExitDragDropFailureChildArgument = "--desktop-test-child=owner-exit-drag-drop-revocation-failure";
 inline constexpr std::string_view kOwnerExitProgressChildArgument = "--desktop-test-child=owner-exit-progress-shutdown";
 inline constexpr std::string_view kOwnerExitProgressFailureChildArgument = "--desktop-test-child=owner-exit-progress-close-failure";
-inline constexpr std::string_view kDeferredPumpFailureWaitChildArgument = "--desktop-test-child=deferred-pump-failure-wait";
 #if DESKTOP_INTERNAL_TEST_HOOKS
+inline constexpr std::string_view kDeferredPumpFailureWaitChildArgument = "--desktop-test-child=deferred-pump-failure-wait";
 inline constexpr std::string_view kProgressRestoreMessageLazinessChildArgument = "--desktop-test-child=progress-restore-message-laziness";
 #endif
 
@@ -34,6 +34,10 @@ static_assert(noexcept(std::declval<Desktop::Window &>().close()));
 static_assert(noexcept(Desktop::Display::getColorInfo(Desktop::Types::Display::MonitorId::invalid())));
 static_assert(noexcept(Desktop::Display::getColorInfo(std::declval<const Desktop::Window &>())));
 static_assert(std::is_same_v<decltype(Desktop::Types::Events::FilesDropped{}.paths)::value_type, GameWIP::FileSystem::Types::Path>);
+
+/// ------------------------------------------------------------
+/// Color query shutdown children
+/// ------------------------------------------------------------
 
 [[nodiscard]] int runStandaloneColorShutdownChild() noexcept
 {
@@ -79,6 +83,10 @@ static_assert(std::is_same_v<decltype(Desktop::Types::Events::FilesDropped{}.pat
     }
     return window.close().ok() ? 0 : 7;
 }
+
+/// ------------------------------------------------------------
+/// Owner-thread shutdown children
+/// ------------------------------------------------------------
 
 [[nodiscard]] int runOwnerExitColorShutdownChild() noexcept
 {
@@ -240,11 +248,13 @@ static_assert(std::is_same_v<decltype(Desktop::Types::Events::FilesDropped{}.pat
     return 0;
 }
 
+/// ------------------------------------------------------------
+/// Deferred failure children
+/// ------------------------------------------------------------
+
+#if DESKTOP_INTERNAL_TEST_HOOKS
 [[nodiscard]] int runDeferredPumpFailureWaitChild() noexcept
 {
-#if !DESKTOP_INTERNAL_TEST_HOOKS
-    return 6;
-#else
     Desktop::Window owner;
     Desktop::Types::Description windowDescription;
     windowDescription.title = "Deferred pump failure owner";
@@ -280,8 +290,8 @@ static_assert(std::is_same_v<decltype(Desktop::Types::Events::FilesDropped{}.pat
     static_cast<void>(progress.close());
     static_cast<void>(owner.close());
     return waitResult.status.ok() ? 5 : 0;
-#endif
 }
+#endif
 
 #if DESKTOP_INTERNAL_TEST_HOOKS
 [[nodiscard]] int runProgressRestoreMessageLazinessChild() noexcept
@@ -316,6 +326,10 @@ static_assert(std::is_same_v<decltype(Desktop::Types::Events::FilesDropped{}.pat
 
 #endif
 
+/// ------------------------------------------------------------
+/// Parent process-shutdown suite
+/// ------------------------------------------------------------
+
 void testDesktopProcessShutdown(TestSupport::Context &context, const std::filesystem::path &executablePath)
 {
     constexpr std::array childArguments{
@@ -327,8 +341,8 @@ void testDesktopProcessShutdown(TestSupport::Context &context, const std::filesy
         kOwnerExitDragDropFailureChildArgument,
         kOwnerExitProgressChildArgument,
         kOwnerExitProgressFailureChildArgument,
-        kDeferredPumpFailureWaitChildArgument,
 #if DESKTOP_INTERNAL_TEST_HOOKS
+        kDeferredPumpFailureWaitChildArgument,
         kProgressRestoreMessageLazinessChildArgument,
 #endif
     };

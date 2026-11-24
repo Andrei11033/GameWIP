@@ -47,8 +47,8 @@
 #include <array>
 #include <atomic>
 #include <chrono>
-#include <cstring>
 #include <cstdlib>
+#include <cstring>
 #include <exception>
 #include <filesystem>
 #include <format>
@@ -236,10 +236,12 @@ namespace GameWIP::Test
             return runOwnerExitProgressShutdownChild(true);
         }
 
+#if DESKTOP_INTERNAL_TEST_HOOKS
         if(GameWIP::Validation::hasProcessArgument(argc, argv, kDeferredPumpFailureWaitChildArgument))
         {
             return runDeferredPumpFailureWaitChild();
         }
+#endif
 
 #if DESKTOP_INTERNAL_TEST_HOOKS
         if(GameWIP::Validation::hasProcessArgument(argc, argv, "--desktop-test-child=cold-com-apartment"))

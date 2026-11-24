@@ -186,9 +186,7 @@ void testFailureInjection(TestSupport::Context &context)
 
     // Callback and pump failures are reported by the next event pump.
     const auto callbackHandle = Desktop::Native::Win32::getHandle(window);
-    static_cast<void>(context.expectTrue("callback failure fixture exposes HWND", callbackHandle.status.ok() && callbackHandle->window != nullptr));
-
-    if(callbackHandle.status.ok() && callbackHandle->window != nullptr)
+    if(context.expectTrue("callback failure fixture exposes HWND", callbackHandle.status.ok() && callbackHandle->window != nullptr))
     {
         static_cast<void>(SendMessageW(callbackHandle->window, WM_SHOWWINDOW, FALSE, 0));
         Desktop::Internal::TestHooks::failNext(FailurePoint::Cursor);
@@ -315,17 +313,28 @@ void testExceptionalLifetime(TestSupport::Context &context)
 
     if(deferred->isOpen())
     {
-        deferredHandle = Desktop::Native::Win32::getHandle(*deferred)->window;
+        const auto nativeHandle = Desktop::Native::Win32::getHandle(*deferred);
+        if(context.expectTrue("deferred-destruction fixture exposes HWND", nativeHandle.status.ok() && nativeHandle->window != nullptr))
+        {
+            deferredHandle = nativeHandle->window;
+        }
     }
+
     std::thread destroyer(
         [owned = std::move(deferred)] mutable
         {
             owned.reset();
         });
     destroyer.join();
-    static_cast<void>(context.expectTrue("wrong-thread destructor leaves cleanup queued", IsWindow(deferredHandle) != FALSE));
+    if(deferredHandle != nullptr)
+    {
+        static_cast<void>(context.expectTrue("wrong-thread destructor leaves cleanup queued", IsWindow(deferredHandle) != FALSE));
+    }
     static_cast<void>(context.expectTrue("owner pump drains deferred cleanup", Desktop::Events::poll().status.ok()));
-    static_cast<void>(context.expectFalse("deferred owner cleanup destroys HWND", IsWindow(deferredHandle) != FALSE));
+    if(deferredHandle != nullptr)
+    {
+        static_cast<void>(context.expectFalse("deferred owner cleanup destroys HWND", IsWindow(deferredHandle) != FALSE));
+    }
 
     // Owner-thread exit cleans up native state before object destruction.
     std::unique_ptr<Desktop::Window> survivingObject;
@@ -337,13 +346,20 @@ void testExceptionalLifetime(TestSupport::Context &context)
 
             if(owned->open(description, Desktop::Events::owned(4)).ok())
             {
-                ownerExitHandle = Desktop::Native::Win32::getHandle(*owned)->window;
+                const auto nativeHandle = Desktop::Native::Win32::getHandle(*owned);
+                if(nativeHandle.status.ok() && nativeHandle->window != nullptr)
+                {
+                    ownerExitHandle = nativeHandle->window;
+                }
             }
             survivingObject = std::move(owned);
         });
     ownerThread.join();
     static_cast<void>(context.expectTrue("owner-exit fixture created a native HWND", ownerExitHandle != nullptr));
-    static_cast<void>(context.expectFalse("thread-local dispatcher destroys HWND on owner exit", IsWindow(ownerExitHandle) != FALSE));
+    if(ownerExitHandle != nullptr)
+    {
+        static_cast<void>(context.expectFalse("thread-local dispatcher destroys HWND on owner exit", IsWindow(ownerExitHandle) != FALSE));
+    }
 
     if(survivingObject)
     {

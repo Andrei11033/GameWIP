@@ -28,16 +28,19 @@ void testHiddenNativeWindow(TestSupport::Context &context)
     static_cast<void>(
         context.expectEq("internal event storage is reported", Desktop::Types::Events::StorageKind::Internal, owner.eventQueueInfo().storage));
 
+    // Require a native handle before querying Win32 state.
     const auto handle = Desktop::Native::Win32::getHandle(owner);
-    static_cast<void>(context.expectTrue("native handle adapter succeeds", handle.status.ok()));
-    static_cast<void>(context.expectTrue("native HWND is non-null", handle->window != nullptr));
+    if(!context.expectTrue("native handle resolves", handle.status.ok() && handle->window != nullptr))
+    {
+        static_cast<void>(owner.close());
+        return;
+    }
 
     // Check title, sizing, DPI policy, and coordinate conversions.
-    static_cast<void>(context.expectTrue("UTF-8 title update succeeds", owner.setTitle("FenÃƒÂªtre GameWIP").ok()));
+    static_cast<void>(context.expectTrue("UTF-8 title update succeeds", owner.setTitle("Fenêtre GameWIP").ok()));
     static_cast<void>(context.expectTrue("logical client resize succeeds", owner.setClientSize({360, 240}).ok()));
     static_cast<void>(context.expectEq("client-size cache reports applied resize", Desktop::Types::LogicalSize{360, 240}, owner.clientSize()));
     const Desktop::Types::LogicalSize beforePolicyChange = owner.clientSize();
-    // Exercise fullscreen placement and repair after native bounds drift.
     static_cast<void>(context.expectTrue(
         "DPI resize policy changes for future transitions",
         owner.setDpiResizePolicy(Desktop::Types::DpiResizePolicy::PreservePhysicalClientSize).ok()));
@@ -64,6 +67,7 @@ void testHiddenNativeWindow(TestSupport::Context &context)
         }
     }
 
+    // Check fullscreen placement and repair after native bounds drift.
     static_cast<void>(context.expectTrue(
         "borderless fullscreen transition succeeds",
         owner.setWindowMode(Desktop::Types::WindowModes::borderlessFullscreen(owner.currentMonitor())).ok()));
@@ -118,10 +122,10 @@ void testHiddenNativeWindow(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("windowed placement restores", owner.setWindowMode(Desktop::Types::WindowModes::windowed()).ok()));
     static_cast<void>(context.expectEq("windowed mode is cached", Desktop::Types::WindowMode::Windowed, owner.windowMode()));
 
-    // Verify decoration, pointer, opacity, file-drop, and interaction policies together because each changes native styles.
     static_cast<void>(
         context.expectTrue("runtime borderless decorations succeed", owner.setDecorationMode(Desktop::Types::DecorationMode::Borderless).ok()));
     static_cast<void>(context.expectTrue("system decorations restore", owner.setDecorationMode(Desktop::Types::DecorationMode::System).ok()));
+    // Verify decoration and pointer policies.
     static_cast<void>(context.expectTrue(
         "click-through pointer policy succeeds",
         owner.setPointerInputLayout({.mode = Desktop::Types::PointerInputMode::ClickThrough}).ok()));
@@ -135,6 +139,7 @@ void testHiddenNativeWindow(TestSupport::Context &context)
     static_cast<void>(context.expectFalse(
         "normal pointer policy removes transparent hit-testing style",
         (static_cast<ULONG_PTR>(normalPointerStyle) & static_cast<ULONG_PTR>(WS_EX_TRANSPARENT)) != 0));
+
     const std::array<Desktop::Types::LogicalRect, 1> pointerRegions{{{{0, 0}, {10, 10}}}};
     static_cast<void>(context.expectEq(
         "rectangular pointer routing remains Unsupported",
@@ -142,6 +147,8 @@ void testHiddenNativeWindow(TestSupport::Context &context)
         owner.setPointerInputLayout({.mode = Desktop::Types::PointerInputMode::AcceptRegions, .regions = pointerRegions}).code));
     static_cast<void>(
         context.expectEq("unsupported region request preserves pointer mode", Desktop::Types::PointerInputMode::Normal, owner.pointerInputMode()));
+
+    // Check opacity and file-drop styles.
     static_cast<void>(context.expectTrue("opacity update succeeds", owner.setOpacity(0.8F).ok()));
     static_cast<void>(context.expectTrue("opacity restores", owner.setOpacity(1.0F).ok()));
     static_cast<void>(context.expectTrue("file-drop enable succeeds", owner.setFileDropEnabled(true).ok()));
@@ -158,6 +165,8 @@ void testHiddenNativeWindow(TestSupport::Context &context)
         "system decoration restores after file-drop style check",
         owner.setDecorationMode(Desktop::Types::DecorationMode::System).ok()));
     static_cast<void>(context.expectTrue("file-drop disable succeeds", owner.setFileDropEnabled(false).ok()));
+
+    // Preserve disabled interaction across style changes.
     static_cast<void>(context.expectTrue("interaction disable succeeds", owner.setUserInteractionEnabled(false).ok()));
     static_cast<void>(context.expectTrue(
         "style mutation while interaction is disabled succeeds",
@@ -169,7 +178,7 @@ void testHiddenNativeWindow(TestSupport::Context &context)
     static_cast<void>(context.expectFalse("decoration restoration preserves native disabled state", IsWindowEnabled(handle->window) != FALSE));
     static_cast<void>(context.expectTrue("interaction re-enable succeeds", owner.setUserInteractionEnabled(true).ok()));
 
-    // Confirm the cross-property resize and control constraints after the style policies are restored.
+    // Check resize and control constraints.
     static_cast<void>(
         context.expectEq("resize cannot be disabled while maximize remains enabled", ErrorCode::InvalidArgument, owner.setResizable(false).code));
     Desktop::Types::Controls controls = owner.controls();
@@ -189,7 +198,7 @@ void testHiddenNativeWindow(TestSupport::Context &context)
     controls.minimizable = true;
     static_cast<void>(context.expectTrue("maximize restores after resize", owner.setControls(controls).ok()));
 
-    // Capability-gated behavior is checked last so unsupported features remain explicit skips or stable errors.
+    // Check capabilities, backdrop support, and icon handling.
     const auto capabilitiesResult = Desktop::getCapabilities();
     const Desktop::Types::Capabilities capabilities = capabilitiesResult.value_or({});
     static_cast<void>(context.expectFalse(
@@ -217,7 +226,7 @@ void testHiddenNativeWindow(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("RGBA icon copy succeeds", owner.setIcon(iconImages).ok()));
     static_cast<void>(context.expectTrue("icon clears", owner.clearIcon().ok()));
 
-    // Check sticky close requests and owner-linked Window behavior.
+    // Check close requests and owner-linked Window behavior.
     static_cast<void>(context.expectTrue("programmatic close request succeeds", owner.requestClose().ok()));
     static_cast<void>(context.expectTrue("programmatic close request is sticky", owner.hasCloseRequest()));
     static_cast<void>(context.expectTrue("clear close request succeeds", owner.clearCloseRequest().ok()));
@@ -227,38 +236,47 @@ void testHiddenNativeWindow(TestSupport::Context &context)
     childDescription.owner = owner.id();
     Desktop::Window child;
     static_cast<void>(context.expectTrue("same-thread owned Window opens", child.open(childDescription, Desktop::Events::owned(16)).ok()));
+    HWND childNativeHandle = nullptr;
 
     if(child.isOpen())
     {
         static_cast<void>(context.expectEq("owner identity is cached", owner.id(), child.ownerId()));
-        const HWND childHandle = Desktop::Native::Win32::getHandle(child)->window;
-        static_cast<void>(context.expectFalse(
-            "owned Window has no independent taskbar style",
-            (static_cast<ULONG_PTR>(GetWindowLongPtrW(childHandle, GWL_EXSTYLE)) & static_cast<ULONG_PTR>(WS_EX_APPWINDOW)) != 0));
-        child.clearEvents();
-        static_cast<void>(context.expectTrue("owner can be cleared at runtime", child.setOwner(std::nullopt).ok()));
-        static_cast<void>(context.expectTrue(
-            "owner removal restores independent taskbar style",
-            (static_cast<ULONG_PTR>(GetWindowLongPtrW(childHandle, GWL_EXSTYLE)) & static_cast<ULONG_PTR>(WS_EX_APPWINDOW)) != 0));
-        static_cast<void>(
-            context.expectTrue("owner clear translates to OwnerChangedEvent", consumeEventOfType<Desktop::Types::Events::OwnerChanged>(child)));
-        child.clearEvents();
-        static_cast<void>(context.expectTrue("owner can be restored at runtime", child.setOwner(owner.id()).ok()));
-        static_cast<void>(context.expectFalse(
-            "owner restoration removes independent taskbar style",
-            (static_cast<ULONG_PTR>(GetWindowLongPtrW(childHandle, GWL_EXSTYLE)) & static_cast<ULONG_PTR>(WS_EX_APPWINDOW)) != 0));
-        static_cast<void>(
-            context.expectTrue("owner restore translates to OwnerChangedEvent", consumeEventOfType<Desktop::Types::Events::OwnerChanged>(child)));
+        const auto childHandle = Desktop::Native::Win32::getHandle(child);
+        if(context.expectTrue("owned Window native handle resolves", childHandle.status.ok() && childHandle->window != nullptr))
+        {
+            childNativeHandle = childHandle->window;
+
+            // Update ownership and verify its taskbar style and event.
+            static_cast<void>(context.expectFalse(
+                "owned Window has no independent taskbar style",
+                (static_cast<ULONG_PTR>(GetWindowLongPtrW(childNativeHandle, GWL_EXSTYLE)) & static_cast<ULONG_PTR>(WS_EX_APPWINDOW)) != 0));
+            child.clearEvents();
+            static_cast<void>(context.expectTrue("owner can be cleared at runtime", child.setOwner(std::nullopt).ok()));
+            static_cast<void>(context.expectTrue(
+                "owner removal restores independent taskbar style",
+                (static_cast<ULONG_PTR>(GetWindowLongPtrW(childNativeHandle, GWL_EXSTYLE)) & static_cast<ULONG_PTR>(WS_EX_APPWINDOW)) != 0));
+            static_cast<void>(
+                context.expectTrue("owner clear translates to OwnerChangedEvent", consumeEventOfType<Desktop::Types::Events::OwnerChanged>(child)));
+            child.clearEvents();
+            static_cast<void>(context.expectTrue("owner can be restored at runtime", child.setOwner(owner.id()).ok()));
+            static_cast<void>(context.expectFalse(
+                "owner restoration removes independent taskbar style",
+                (static_cast<ULONG_PTR>(GetWindowLongPtrW(childNativeHandle, GWL_EXSTYLE)) & static_cast<ULONG_PTR>(WS_EX_APPWINDOW)) != 0));
+            static_cast<void>(
+                context.expectTrue("owner restore translates to OwnerChangedEvent", consumeEventOfType<Desktop::Types::Events::OwnerChanged>(child)));
+        }
     }
     static_cast<void>(context.expectTrue("owner closes", owner.close().ok()));
 
     if(child.isOpen())
     {
         static_cast<void>(context.expectFalse("closing owner clears child owner identity", child.ownerId().has_value()));
-        static_cast<void>(context.expectTrue(
-            "closing owner restores child taskbar style",
-            (static_cast<ULONG_PTR>(GetWindowLongPtrW(Desktop::Native::Win32::getHandle(child)->window, GWL_EXSTYLE)) &
-             static_cast<ULONG_PTR>(WS_EX_APPWINDOW)) != 0));
+        if(childNativeHandle != nullptr)
+        {
+            static_cast<void>(context.expectTrue(
+                "closing owner restores child taskbar style",
+                (static_cast<ULONG_PTR>(GetWindowLongPtrW(childNativeHandle, GWL_EXSTYLE)) & static_cast<ULONG_PTR>(WS_EX_APPWINDOW)) != 0));
+        }
         static_cast<void>(context.expectTrue("child closes after owner", child.close().ok()));
     }
     static_cast<void>(context.expectFalse("closed owner reports closed", owner.isOpen()));
@@ -295,6 +313,7 @@ void testInitialMonitorGeometry(TestSupport::Context &context)
         return;
     }
 
+    // Exercise centered and explicit placement on each connected monitor.
     for(const auto &monitor : *monitors)
     {
         for(const auto placement : {Desktop::Types::PlacementKind::Centered, Desktop::Types::PlacementKind::Explicit})
