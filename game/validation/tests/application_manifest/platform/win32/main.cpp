@@ -1,7 +1,6 @@
 /// @file main.cpp
 /// @brief Checks the embedded application manifest and effective Windows DPI policy.
 
-#if defined(_WIN32)
 #include <windows.h>
 
 #include <string_view>
@@ -19,11 +18,10 @@ namespace
         return TRUE;
     }
 } // namespace
-#endif
 
 int main()
 {
-#if defined(_WIN32)
+    // Verify one manifest resource is embedded in the executable.
     const HMODULE module = GetModuleHandleW(nullptr);
     unsigned int manifestCount = 0;
 
@@ -31,6 +29,8 @@ int main()
     {
         return 1;
     }
+
+    // Read the application manifest and check its declared policies.
     const HRSRC resource = FindResourceW(module, MAKEINTRESOURCEW(1), MAKEINTRESOURCEW(24));
 
     if(resource == nullptr)
@@ -44,6 +44,7 @@ int main()
     {
         return 3;
     }
+
     const std::string_view manifest(data, SizeofResource(module, resource));
     const bool commonControls = manifest.contains("Microsoft.Windows.Common-Controls");
 
@@ -52,13 +53,11 @@ int main()
         return 4;
     }
 
-    // Inspect the context established before main; the helper must not depend
-    // on a library changing process policy after startup.
+    // Check the DPI context established before main.
     if(!AreDpiAwarenessContextsEqual(GetThreadDpiAwarenessContext(), DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2))
     {
         return 5;
     }
 
-#endif
     return 0;
 }
