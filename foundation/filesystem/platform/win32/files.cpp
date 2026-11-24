@@ -12,6 +12,10 @@ namespace GameWIP::FileSystem::Platform
     using namespace Internal;
     using namespace Win32;
 
+    /// ------------------------------------------------------------
+    /// File handles and transfers
+    /// ------------------------------------------------------------
+
     IO::Types::Status openReader(
         std::unique_ptr<Internal::FileState> &state,
         const Types::Path &path,
@@ -106,10 +110,6 @@ namespace GameWIP::FileSystem::Platform
             return IO::makeStatus(ErrorCode::Unknown);
         }
     }
-
-    /// ------------------------------------------------------------
-    /// File operations
-    /// ------------------------------------------------------------
 
     IO::Types::Status openFile(std::unique_ptr<Internal::FileState> &state, const Types::Path &path, const Types::File::OpenOptions &options) noexcept
     {
@@ -465,6 +465,10 @@ namespace GameWIP::FileSystem::Platform
             return IO::makeStatus(ErrorCode::Unknown);
         }
     }
+
+    /// ------------------------------------------------------------
+    /// File locks
+    /// ------------------------------------------------------------
 
     NativeLockResult tryLockFile(Internal::FileState &state, Types::Lock::Mode mode) noexcept
     {

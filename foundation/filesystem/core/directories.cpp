@@ -40,6 +40,10 @@ namespace GameWIP::FileSystem
         }
     } // namespace
 
+    /// ------------------------------------------------------------
+    /// Directory creation and listing
+    /// ------------------------------------------------------------
+
     IO::Types::Status createDirectory(const Types::Path &path, const Types::Directory::CreateOptions &options) noexcept
     {
         try
@@ -100,6 +104,7 @@ namespace GameWIP::FileSystem
                 {
                     return result;
                 }
+
                 result.entries.push_back(std::move(next.entry));
             }
         }
@@ -112,6 +117,10 @@ namespace GameWIP::FileSystem
             return listDirectoryFailure(ErrorCode::Unknown);
         }
     }
+
+    /// ------------------------------------------------------------
+    /// Directory removal
+    /// ------------------------------------------------------------
 
     IO::Types::Status removeEmptyDirectory(const Types::Path &path, const Types::RemoveOptions &options) noexcept
     {

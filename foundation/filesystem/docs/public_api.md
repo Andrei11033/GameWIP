@@ -134,8 +134,9 @@ the length. See @ref filesystem_file_open_modes.
 Move-only unlock owner with `active()`, `mode()`, and retryable `unlock()`. A lock owns independent native state and can remain active after the
 object from which it was acquired is destroyed.
 
-The file and lock owners are move-constructible, non-copyable, and deliberately not move-assignable. `DirectoryCursor` is move-constructible and
-move-assignable because replacing an enumeration cannot hide a flush, unlock, or close error. See @ref filesystem_file_open_modes.
+The file and lock owners are move-constructible, non-copyable, and deliberately not move-assignable so assignment cannot discard a reportable
+close, flush, or unlock failure. `DirectoryCursor` is move-constructible and move-assignable; replacing it releases its previous enumeration. See
+@ref filesystem_file_open_modes.
 
 ## Whole-file operation families
 

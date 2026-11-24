@@ -64,6 +64,7 @@ namespace GameWIP::FileSystem::Platform::Win32
             {
                 return options.succeedIfAlreadyExists ? IO::successStatus() : IO::makeStatus(ErrorCode::AlreadyExists);
             }
+
             return IO::makeStatus(ErrorCode::AlreadyExists);
         }
 

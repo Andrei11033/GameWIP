@@ -25,8 +25,10 @@
 
 namespace GameWIP::FileSystem::Platform::Win32
 {
+    using Internal::includeEntryKind;
+    using Internal::isValidFileShare;
+    using Internal::isValidSymlinkPolicy;
     using IO::Types::ErrorCode;
-    using namespace Internal;
 
     /// ------------------------------------------------------------
     /// Native access and sharing
@@ -207,7 +209,7 @@ namespace GameWIP::FileSystem::Platform::Win32
     [[nodiscard]] ParsedPathResult parseAbsolutePath(std::wstring_view fullPath);
 
     /// ------------------------------------------------------------
-    /// Stable path resolution and metadata
+    /// Native path opening
     /// ------------------------------------------------------------
 
     [[nodiscard]] HandleResult openFullPathFollowAll(const std::wstring &path);
@@ -232,11 +234,21 @@ namespace GameWIP::FileSystem::Platform::Win32
         bool doNotFollow,
         bool requireDirectory,
         DWORD shareMode = kShareAll);
+
+    /// ------------------------------------------------------------
+    /// Entry metadata queries
+    /// ------------------------------------------------------------
+
     [[nodiscard]] TimeResult fileTimeToSystemTimePoint(LARGE_INTEGER fileTime);
     [[nodiscard]] bool isNameSurrogateReparsePoint(const FILE_ATTRIBUTE_TAG_INFO &attributes) noexcept;
     [[nodiscard]] EntryQueryResult queryHandleInfo(HANDLE handle);
     [[nodiscard]] EntryQueryResult queryStrictPath(const ParsedPathResult &path, Types::SymlinkPolicy symlinkPolicy);
     [[nodiscard]] EntryQueryResult queryEntryImpl(const Types::Path &path, Types::SymlinkPolicy symlinkPolicy);
+
+    /// ------------------------------------------------------------
+    /// Stable path resolution
+    /// ------------------------------------------------------------
+
     [[nodiscard]] HandleResult openParentStrict(
         const ParsedPathResult &path,
         DWORD shareMode = kShareAll,

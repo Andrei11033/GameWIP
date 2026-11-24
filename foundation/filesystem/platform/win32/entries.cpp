@@ -12,6 +12,10 @@ namespace GameWIP::FileSystem::Platform
     using namespace Internal;
     using namespace Win32;
 
+    /// ------------------------------------------------------------
+    /// Entry queries
+    /// ------------------------------------------------------------
+
     EntryQueryResult queryEntry(const Types::Path &path, Types::SymlinkPolicy symlinkPolicy) noexcept
     {
         try
@@ -29,7 +33,7 @@ namespace GameWIP::FileSystem::Platform
     }
 
     /// ------------------------------------------------------------
-    /// Metadata and mutations
+    /// Entry metadata
     /// ------------------------------------------------------------
 
     IO::Types::Status setReadOnly(const Types::Path &path, bool readOnly, Types::SymlinkPolicy symlinkPolicy) noexcept
@@ -111,6 +115,10 @@ namespace GameWIP::FileSystem::Platform
             return IO::makeStatus(ErrorCode::Unknown);
         }
     }
+
+    /// ------------------------------------------------------------
+    /// Entry mutations
+    /// ------------------------------------------------------------
 
     IO::Types::Status removeFile(const Types::Path &path, const Types::RemoveOptions &options) noexcept
     {
@@ -334,6 +342,10 @@ namespace GameWIP::FileSystem::Platform
         }
     }
 
+    /// ------------------------------------------------------------
+    /// Directory durability
+    /// ------------------------------------------------------------
+
     IO::Types::Status flushDirectory(const Types::Path &path) noexcept
     {
         try
@@ -378,6 +390,10 @@ namespace GameWIP::FileSystem::Platform
         }
     }
 
+    /// ------------------------------------------------------------
+    /// Hidden-entry query
+    /// ------------------------------------------------------------
+
     Types::BoolResult isHidden(const Types::Path &path) noexcept
     {
         try
@@ -388,6 +404,7 @@ namespace GameWIP::FileSystem::Platform
             {
                 return {.status = std::move(nativePath.status), .value = false};
             }
+
             const DWORD attributes = GetFileAttributesW(nativePath.path.c_str());
 
             if(attributes == INVALID_FILE_ATTRIBUTES)
