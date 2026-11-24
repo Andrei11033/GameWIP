@@ -67,7 +67,7 @@ namespace GameWIP::Input::Platform::Win32
 
             for(std::size_t index = 0; index < axisCount; ++index)
             {
-                const Types::ElementId id = addElement(
+                addElement(
                     state,
                     descriptor,
                     binding,
@@ -89,7 +89,6 @@ namespace GameWIP::Input::Platform::Win32
                     }},
                     ElementRole::NativeAxis);
                 binding.elements.back().nativeIndex = static_cast<std::uint32_t>(index);
-                (void)id;
             }
 
             for(std::size_t index = 0; index < buttonCount; ++index)
