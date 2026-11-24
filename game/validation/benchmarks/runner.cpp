@@ -64,6 +64,7 @@ namespace GameWIP::Validation::Benchmarks
             std::cerr << "Benchmark process-state setup failed.\n";
             return {.argumentsValid = false};
         }
+
         TestSupport::ScopedEnvironmentVariable temporaryDirectory(processState, "TEMP", temporaryRootText);
         TestSupport::ScopedEnvironmentVariable temporaryDirectoryAlias(processState, "TMP", temporaryRootText);
         TestSupport::ScopedEnvironmentVariable posixTemporaryDirectory(processState, "TMPDIR", temporaryRootText);
@@ -104,6 +105,7 @@ namespace GameWIP::Validation::Benchmarks
             benchmark::Shutdown();
             return {.argumentsValid = false};
         }
+
         const std::size_t benchmarksRun = benchmark::RunSpecifiedBenchmarks();
         benchmark::Shutdown();
         return {.benchmarksRun = benchmarksRun};

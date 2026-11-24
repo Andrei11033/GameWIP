@@ -103,7 +103,7 @@ namespace
 
             for(std::uint32_t codePoint = 0x10000U; codePoint < 0x10000U + kPropertyLookupBatchSize; ++codePoint)
             {
-                auto properties = Unicode::Internal::unicodeProperties(static_cast<char32_t>(codePoint));
+                const auto properties = Unicode::Internal::unicodeProperties(static_cast<char32_t>(codePoint));
                 benchmark::DoNotOptimize(properties);
             }
         }
@@ -120,7 +120,7 @@ namespace
 
             for(const char32_t scalar : kScatteredPropertyScalars)
             {
-                auto properties = Unicode::Internal::unicodeProperties(scalar);
+                const auto properties = Unicode::Internal::unicodeProperties(scalar);
                 benchmark::DoNotOptimize(properties);
             }
         }
@@ -142,13 +142,14 @@ namespace
 
             while(offset < text.size())
             {
-                Unicode::Types::Utf8::DecodeResult decoded = Unicode::Utf8::decodeScalar(text.substr(offset));
+                const Unicode::Types::Utf8::DecodeResult decoded = Unicode::Utf8::decodeScalar(text.substr(offset));
 
                 if(decoded.outcome != Unicode::Types::DecodeOutcome::Decoded)
                 {
                     state.SkipWithError("Unicode decode benchmark fixture is invalid.");
                     return;
                 }
+
                 benchmark::DoNotOptimize(decoded.scalar);
                 offset += decoded.bytesConsumed;
             }
@@ -163,13 +164,14 @@ namespace
         for(auto iteration : state)
         {
             static_cast<void>(iteration);
-            Unicode::Types::Utf8::ValidationResult result = Unicode::Utf8::validate(text);
+            const Unicode::Types::Utf8::ValidationResult result = Unicode::Utf8::validate(text);
 
             if(result.outcome != Unicode::Types::ValidationOutcome::Valid)
             {
                 state.SkipWithError("Unicode validation benchmark fixture is invalid.");
                 return;
             }
+
             benchmark::DoNotOptimize(result.validPrefixBytes);
         }
 
@@ -186,13 +188,14 @@ namespace
 
             while(offset < text.size())
             {
-                Unicode::Types::Utf8::BoundaryResult next = Unicode::Utf8::nextCodePointBoundary(text, offset);
+                const Unicode::Types::Utf8::BoundaryResult next = Unicode::Utf8::nextCodePointBoundary(text, offset);
 
                 if(next.outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
                 {
                     state.SkipWithError("Unicode forward code-point traversal failed.");
                     return;
                 }
+
                 offset = next.byteOffset;
                 benchmark::DoNotOptimize(next.byteOffset);
             }
@@ -211,13 +214,14 @@ namespace
 
             while(offset > 0)
             {
-                Unicode::Types::Utf8::BoundaryResult previous = Unicode::Utf8::previousCodePointBoundary(text, offset);
+                const Unicode::Types::Utf8::BoundaryResult previous = Unicode::Utf8::previousCodePointBoundary(text, offset);
 
                 if(previous.outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
                 {
                     state.SkipWithError("Unicode backward code-point traversal failed.");
                     return;
                 }
+
                 offset = previous.byteOffset;
                 benchmark::DoNotOptimize(previous.byteOffset);
             }
@@ -240,13 +244,14 @@ namespace
 
             while(offset < text.size())
             {
-                Unicode::Types::Utf8::BoundaryResult next = Unicode::Utf8::nextGraphemeBoundary(text, offset);
+                const Unicode::Types::Utf8::BoundaryResult next = Unicode::Utf8::nextGraphemeBoundary(text, offset);
 
                 if(next.outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
                 {
                     state.SkipWithError("Unicode forward grapheme traversal failed.");
                     return;
                 }
+
                 offset = next.byteOffset;
                 benchmark::DoNotOptimize(next.byteOffset);
             }
@@ -265,13 +270,14 @@ namespace
 
             while(offset > 0)
             {
-                Unicode::Types::Utf8::BoundaryResult previous = Unicode::Utf8::previousGraphemeBoundary(text, offset);
+                const Unicode::Types::Utf8::BoundaryResult previous = Unicode::Utf8::previousGraphemeBoundary(text, offset);
 
                 if(previous.outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
                 {
                     state.SkipWithError("Unicode backward grapheme traversal failed.");
                     return;
                 }
+
                 offset = previous.byteOffset;
                 benchmark::DoNotOptimize(previous.byteOffset);
             }
@@ -286,13 +292,14 @@ namespace
         for(auto iteration : state)
         {
             static_cast<void>(iteration);
-            Unicode::Types::Utf8::BoundaryResult next = Unicode::Utf8::nextGraphemeBoundary(text, byteOffset);
+            const Unicode::Types::Utf8::BoundaryResult next = Unicode::Utf8::nextGraphemeBoundary(text, byteOffset);
 
             if(next.outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
             {
                 state.SkipWithError("Unicode local next-grapheme query failed.");
                 return;
             }
+
             benchmark::DoNotOptimize(next.byteOffset);
         }
     }
@@ -303,13 +310,14 @@ namespace
         for(auto iteration : state)
         {
             static_cast<void>(iteration);
-            Unicode::Types::Utf8::BoundaryResult previous = Unicode::Utf8::previousGraphemeBoundary(text, byteOffset);
+            const Unicode::Types::Utf8::BoundaryResult previous = Unicode::Utf8::previousGraphemeBoundary(text, byteOffset);
 
             if(previous.outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
             {
                 state.SkipWithError("Unicode local previous-grapheme query failed.");
                 return;
             }
+
             benchmark::DoNotOptimize(previous.byteOffset);
         }
     }
@@ -337,13 +345,14 @@ namespace
 
             while(cursor.byteOffset() < text.size())
             {
-                Unicode::Types::Utf8::BoundaryResult next = cursor.next();
+                const Unicode::Types::Utf8::BoundaryResult next = cursor.next();
 
                 if(next.outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
                 {
                     state.SkipWithError("Unicode indexed forward grapheme traversal failed.");
                     return;
                 }
+
                 benchmark::DoNotOptimize(next.byteOffset);
             }
         }
@@ -422,13 +431,14 @@ namespace
 
             for(const char32_t scalar : kScalars)
             {
-                Unicode::Types::Utf8::EncodeResult encoded = Unicode::Utf8::encodeScalar(scalar);
+                const Unicode::Types::Utf8::EncodeResult encoded = Unicode::Utf8::encodeScalar(scalar);
 
                 if(encoded.outcome != Unicode::Types::EncodeOutcome::Encoded)
                 {
                     state.SkipWithError("Unicode encode benchmark scalar is invalid.");
                     return;
                 }
+
                 benchmark::DoNotOptimize(encoded.bytes.data());
                 benchmark::DoNotOptimize(encoded.byteCount);
             }

@@ -57,6 +57,14 @@ namespace
         return result.status.ok() && result.outcome == Logger::Types::FlushOutcome::Completed;
     }
 
+    void recordLoggerCounters(benchmark::State &state, const Logger::Types::Stats &stats)
+    {
+        state.counters["queued"] = static_cast<double>(stats.queued);
+        state.counters["written"] = static_cast<double>(stats.written);
+        state.counters["queue_drops"] = static_cast<double>(stats.queueDropsSoft + stats.queueDropsHard);
+        state.counters["peak_queue"] = static_cast<double>(stats.peakQueueDepth);
+    }
+
     [[nodiscard]] std::string pathConversionError(std::string_view pathName, const IO::Types::Status &status)
     {
         return std::format("Could not convert {} (status={}, native={}).", pathName, IO::errorCodeName(status.code), status.nativeCode);
@@ -133,10 +141,7 @@ namespace
                 const Logger::Types::Stats stats = Logger::getStats();
                 static_cast<void>(Logger::shutdown());
 
-                state.counters["queued"] = static_cast<double>(stats.queued);
-                state.counters["written"] = static_cast<double>(stats.written);
-                state.counters["queue_drops"] = static_cast<double>(stats.queueDropsSoft + stats.queueDropsHard);
-                state.counters["peak_queue"] = static_cast<double>(stats.peakQueueDepth);
+                recordLoggerCounters(state, stats);
 
                 if(!flushCompleted(flushResult))
                 {
@@ -380,10 +385,7 @@ namespace
                 workspace.reset();
                 directoryText.clear();
                 initialized = false;
-                state.counters["queued"] = static_cast<double>(stats.queued);
-                state.counters["written"] = static_cast<double>(stats.written);
-                state.counters["queue_drops"] = static_cast<double>(stats.queueDropsSoft + stats.queueDropsHard);
-                state.counters["peak_queue"] = static_cast<double>(stats.peakQueueDepth);
+                recordLoggerCounters(state, stats);
 
                 if(!flushed)
                 {
