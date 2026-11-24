@@ -12,8 +12,8 @@
 
 #include <gamewip/version.h>
 
-#include <cstdlib>
 #include <chrono>
+#include <cstdlib>
 #include <format>
 #include <string_view>
 

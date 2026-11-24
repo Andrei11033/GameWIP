@@ -14,6 +14,21 @@
 namespace
 {
     /// ------------------------------------------------------------
+    /// Runtime command-line options
+    /// ------------------------------------------------------------
+
+    constexpr std::string_view kLogLevelOption = "--logLevel";
+    constexpr std::string_view kLogLevelPrefix = "--logLevel=";
+    constexpr std::string_view kInputDevicesOption = "--inputDevices";
+    constexpr std::string_view kInputDevicesPrefix = "--inputDevices=";
+    constexpr std::string_view kInputDebugOption = "--inputDebug";
+    constexpr std::string_view kInputDebugPrefix = "--inputDebug=";
+    constexpr std::string_view kWindowEventsOption = "--windowEvents";
+    constexpr std::string_view kWindowEventsPrefix = "--windowEvents=";
+    constexpr std::string_view kInputBackendsOption = "--inputBackends";
+    constexpr std::string_view kInputBackendsPrefix = "--inputBackends=";
+
+    /// ------------------------------------------------------------
     /// Shared setting parsers
     /// ------------------------------------------------------------
 
@@ -179,16 +194,6 @@ namespace GameWIP::Game::Runtime
                 }
 
                 const std::string_view argument{argumentPointer};
-                constexpr std::string_view kLogLevelOption = "--logLevel";
-                constexpr std::string_view kLogLevelPrefix = "--logLevel=";
-                constexpr std::string_view kInputDevicesOption = "--inputDevices";
-                constexpr std::string_view kInputDevicesPrefix = "--inputDevices=";
-                constexpr std::string_view kInputDebugOption = "--inputDebug";
-                constexpr std::string_view kInputDebugPrefix = "--inputDebug=";
-                constexpr std::string_view kWindowEventsOption = "--windowEvents";
-                constexpr std::string_view kWindowEventsPrefix = "--windowEvents=";
-                constexpr std::string_view kInputBackendsOption = "--inputBackends";
-                constexpr std::string_view kInputBackendsPrefix = "--inputBackends=";
 
                 // Select native Input backends.
                 if(argument == kInputBackendsOption)
