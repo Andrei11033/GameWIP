@@ -20,7 +20,6 @@ namespace GameWIP::IO
         /// @brief Result of copying collected bytes as validated text.
         struct CopyTextResult
         {
-            // Operation status
             /// @brief Operation status.
             Status status;
 

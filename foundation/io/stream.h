@@ -38,7 +38,6 @@ namespace GameWIP::IO
         /// @brief Result returned by byte read operations.
         struct ReadResult
         {
-            // Operation status
             /// @brief Operation status. A failure may accompany valid bytes reported by bytesRead.
             Status status;
 
@@ -52,7 +51,6 @@ namespace GameWIP::IO
         /// @brief Result returned by byte write operations.
         struct WriteResult
         {
-            // Operation status
             /// @brief Operation status. A failure may accompany valid bytes reported by bytesWritten.
             Status status;
 
@@ -64,7 +62,6 @@ namespace GameWIP::IO
         /// @brief Result returned by stream position operations.
         struct PositionResult
         {
-            // Operation status
             /// @brief Operation status.
             Status status;
 
@@ -76,7 +73,6 @@ namespace GameWIP::IO
         /// @brief Result returned by size query operations.
         struct SizeResult
         {
-            // Operation status
             /// @brief Operation status.
             Status status;
 

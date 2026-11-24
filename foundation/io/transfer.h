@@ -28,7 +28,6 @@ namespace GameWIP::IO
         /// @brief Result returned by whole-stream byte reads.
         struct ReadAllBytesResult
         {
-            // Operation status
             /// @brief Operation status.
             Status status;
 
@@ -40,7 +39,6 @@ namespace GameWIP::IO
         /// @brief Result returned by whole-stream UTF-8 text reads.
         struct ReadAllTextResult
         {
-            // Operation status
             /// @brief Operation status.
             Status status;
 
