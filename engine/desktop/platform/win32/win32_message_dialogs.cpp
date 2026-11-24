@@ -535,7 +535,7 @@ namespace GameWIP::Desktop::Platform
 } // namespace GameWIP::Desktop::Platform
 
 #if DESKTOP_INTERNAL_TEST_HOOKS
-namespace GameWIP::Desktop::Internal::TestHooks::Platform
+namespace GameWIP::Desktop::Internal::Win32
 {
     using namespace GameWIP::Desktop::Platform;
 
@@ -545,5 +545,5 @@ namespace GameWIP::Desktop::Internal::TestHooks::Platform
         const IO::Types::Status &status = apartment.status();
         return status.ok() ? IO::successStatus() : IO::makeStatus(status.code, status.nativeCode);
     }
-} // namespace GameWIP::Desktop::Internal::TestHooks::Platform
+} // namespace GameWIP::Desktop::Internal::Win32
 #endif

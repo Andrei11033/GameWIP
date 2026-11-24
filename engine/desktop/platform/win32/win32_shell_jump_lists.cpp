@@ -222,7 +222,7 @@ namespace GameWIP::Desktop::Platform
 
 #if DESKTOP_INTERNAL_TEST_HOOKS
 
-namespace GameWIP::Desktop::Internal::TestHooks::Platform
+namespace GameWIP::Desktop::Internal::Win32
 {
     using namespace GameWIP::Desktop::Platform;
 
@@ -265,7 +265,7 @@ namespace GameWIP::Desktop::Internal::TestHooks::Platform
             return IO::makeStatus(ErrorCode::Unknown);
         }
     }
-} // namespace GameWIP::Desktop::Internal::TestHooks::Platform
+} // namespace GameWIP::Desktop::Internal::Win32
 #endif
 
 namespace GameWIP::Desktop::Platform

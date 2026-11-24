@@ -694,7 +694,7 @@ namespace GameWIP::Desktop::Platform
 
 } // namespace GameWIP::Desktop::Platform
 
-namespace GameWIP::Desktop::Internal::TestHooks::Platform
+namespace GameWIP::Desktop::Internal::Win32
 {
     using namespace GameWIP::Desktop::Platform;
 
@@ -764,4 +764,4 @@ namespace GameWIP::Desktop::Internal::TestHooks::Platform
 
         return count;
     }
-} // namespace GameWIP::Desktop::Internal::TestHooks::Platform
+} // namespace GameWIP::Desktop::Internal::Win32

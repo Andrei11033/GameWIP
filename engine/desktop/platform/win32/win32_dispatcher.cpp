@@ -788,7 +788,7 @@ namespace GameWIP::Desktop::Platform
 } // namespace GameWIP::Desktop::Platform
 
 #if DESKTOP_INTERNAL_TEST_HOOKS
-namespace GameWIP::Desktop::Internal::TestHooks::Platform
+namespace GameWIP::Desktop::Internal::Win32
 {
     using namespace GameWIP::Desktop::Platform;
     /// @brief Reports whether progress-owner message registration has been attempted.
@@ -796,5 +796,5 @@ namespace GameWIP::Desktop::Internal::TestHooks::Platform
     {
         return progressOwnerRestoreMessageState().attempted.load(std::memory_order_acquire);
     }
-} // namespace GameWIP::Desktop::Internal::TestHooks::Platform
+} // namespace GameWIP::Desktop::Internal::Win32
 #endif

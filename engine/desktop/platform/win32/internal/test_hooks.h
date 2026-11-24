@@ -233,7 +233,7 @@ namespace GameWIP::Desktop::Internal
     struct ProgressDialogState;
 } // namespace GameWIP::Desktop::Internal
 
-namespace GameWIP::Desktop::Internal::TestHooks::Platform
+namespace GameWIP::Desktop::Internal::Win32
 {
 #if DESKTOP_INTERNAL_TEST_HOOKS
     /// ------------------------------------------------------------
@@ -248,13 +248,13 @@ namespace GameWIP::Desktop::Internal::TestHooks::Platform
     /// Progress dialog hooks
     /// ------------------------------------------------------------
 
-    [[nodiscard]] Win32::ProgressDialogNativeSnapshot inspectProgressDialog(const ProgressDialogState *state) noexcept;
+    [[nodiscard]] TestHooks::Win32::ProgressDialogNativeSnapshot inspectProgressDialog(const ProgressDialogState *state) noexcept;
     [[nodiscard]] IO::Types::Status requestProgressDialogCancel(ProgressDialogState *state) noexcept;
     [[nodiscard]] IO::Types::Status requestProgressDialogClose(ProgressDialogState *state) noexcept;
     [[nodiscard]] IO::Types::Status destroyNativeProgressDialog(ProgressDialogState *state) noexcept;
     [[nodiscard]] IO::Types::Status simulateProgressDialogDpiChange(
         ProgressDialogState *state,
-        Win32::NativePixelRect suggestedBounds,
+        TestHooks::Win32::NativePixelRect suggestedBounds,
         std::uint32_t dpi) noexcept;
     [[nodiscard]] std::size_t activeProgressDialogCount() noexcept;
     [[nodiscard]] std::size_t deferredProgressDialogCount() noexcept;
@@ -283,4 +283,4 @@ namespace GameWIP::Desktop::Internal::TestHooks::Platform
     [[nodiscard]] std::size_t testActiveDragDropTargetCount() noexcept;
     [[nodiscard]] std::size_t testDeferredDragDropTargetCount() noexcept;
 #endif
-} // namespace GameWIP::Desktop::Internal::TestHooks::Platform
+} // namespace GameWIP::Desktop::Internal::Win32

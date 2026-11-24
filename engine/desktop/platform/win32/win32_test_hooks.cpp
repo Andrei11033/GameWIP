@@ -17,7 +17,7 @@
 namespace
 {
     namespace Win32TestHooks = GameWIP::Desktop::Internal::TestHooks::Win32;
-    namespace PlatformTestHooks = GameWIP::Desktop::Internal::TestHooks::Platform;
+    namespace Win32Backend = GameWIP::Desktop::Internal::Win32;
 
     /// ------------------------------------------------------------
     /// Dialog fixture storage
@@ -137,17 +137,17 @@ namespace GameWIP::Desktop::Internal::TestHooks::Win32
 
     IO::Types::Status testDialogApartment() noexcept
     {
-        return PlatformTestHooks::testDialogApartment();
+        return Win32Backend::testDialogApartment();
     }
 
     IO::Types::Status testShellApartment() noexcept
     {
-        return PlatformTestHooks::testShellApartment();
+        return Win32Backend::testShellApartment();
     }
 
     IO::Types::Status createJumpLink(const Types::JumpLists::Task &task, void *&out) noexcept
     {
-        return PlatformTestHooks::createJumpLinkForTests(task, out);
+        return Win32Backend::createJumpLinkForTests(task, out);
     }
 
     /// ------------------------------------------------------------
@@ -156,47 +156,47 @@ namespace GameWIP::Desktop::Internal::TestHooks::Win32
 
     ProgressDialogNativeSnapshot inspectProgressDialog(const ProgressDialog &dialog) noexcept
     {
-        return PlatformTestHooks::inspectProgressDialog(Internal::ProgressDialogAccess::state(dialog));
+        return Win32Backend::inspectProgressDialog(Internal::ProgressDialogAccess::state(dialog));
     }
 
     IO::Types::Status requestProgressDialogCancel(ProgressDialog &dialog) noexcept
     {
-        return PlatformTestHooks::requestProgressDialogCancel(Internal::ProgressDialogAccess::state(dialog));
+        return Win32Backend::requestProgressDialogCancel(Internal::ProgressDialogAccess::state(dialog));
     }
 
     IO::Types::Status requestProgressDialogClose(ProgressDialog &dialog) noexcept
     {
-        return PlatformTestHooks::requestProgressDialogClose(Internal::ProgressDialogAccess::state(dialog));
+        return Win32Backend::requestProgressDialogClose(Internal::ProgressDialogAccess::state(dialog));
     }
 
     IO::Types::Status destroyNativeProgressDialog(ProgressDialog &dialog) noexcept
     {
-        return PlatformTestHooks::destroyNativeProgressDialog(Internal::ProgressDialogAccess::state(dialog));
+        return Win32Backend::destroyNativeProgressDialog(Internal::ProgressDialogAccess::state(dialog));
     }
 
     IO::Types::Status simulateProgressDialogDpiChange(ProgressDialog &dialog, NativePixelRect suggestedBounds, std::uint32_t dpi) noexcept
     {
-        return PlatformTestHooks::simulateProgressDialogDpiChange(Internal::ProgressDialogAccess::state(dialog), suggestedBounds, dpi);
+        return Win32Backend::simulateProgressDialogDpiChange(Internal::ProgressDialogAccess::state(dialog), suggestedBounds, dpi);
     }
 
     std::size_t activeProgressDialogCount() noexcept
     {
-        return PlatformTestHooks::activeProgressDialogCount();
+        return Win32Backend::activeProgressDialogCount();
     }
 
     std::size_t deferredProgressDialogCount() noexcept
     {
-        return PlatformTestHooks::deferredProgressDialogCount();
+        return Win32Backend::deferredProgressDialogCount();
     }
 
     std::size_t progressDialogClassReferenceCount() noexcept
     {
-        return PlatformTestHooks::progressDialogClassReferenceCount();
+        return Win32Backend::progressDialogClassReferenceCount();
     }
 
     bool progressOwnerRestoreMessageRegistrationAttempted() noexcept
     {
-        return PlatformTestHooks::progressOwnerRestoreMessageRegistrationAttempted();
+        return Win32Backend::progressOwnerRestoreMessageRegistrationAttempted();
     }
 
     /// ------------------------------------------------------------
@@ -205,27 +205,27 @@ namespace GameWIP::Desktop::Internal::TestHooks::Win32
 
     IO::Types::Status prepareDragDropSource(const Types::DragDrop::Description &description) noexcept
     {
-        return PlatformTestHooks::prepareDragDropSource(description);
+        return Win32Backend::prepareDragDropSource(description);
     }
 
     IO::Types::Status testDragDropOleInitialization() noexcept
     {
-        return PlatformTestHooks::testDragDropOleInitialization();
+        return Win32Backend::testDragDropOleInitialization();
     }
 
     IO::Types::Status testDragDropMaterialization() noexcept
     {
-        return PlatformTestHooks::testDragDropMaterialization();
+        return Win32Backend::testDragDropMaterialization();
     }
 
     Types::DragDrop::Result droppedDragDropSourceResult(Types::DragDrop::Effect performed, Types::DragDrop::Effect allowed) noexcept
     {
-        return PlatformTestHooks::testDroppedDragDropSourceResult(performed, allowed);
+        return Win32Backend::testDroppedDragDropSourceResult(performed, allowed);
     }
 
     bool dragDropComContractsValid() noexcept
     {
-        return PlatformTestHooks::testDragDropComContracts();
+        return Win32Backend::testDragDropComContracts();
     }
 
     Types::Events::PumpResult routeDragDropDuringPump(DragDropTarget &target, Types::DragDrop::Events::Payload data, bool terminal) noexcept
@@ -238,7 +238,7 @@ namespace GameWIP::Desktop::Internal::TestHooks::Win32
             result.status = IO::makeStatus(IO::Types::ErrorCode::NotOpen);
             return result;
         }
-        return PlatformTestHooks::testRouteDragDropDuringPump(*state, std::move(data), terminal);
+        return Win32Backend::testRouteDragDropDuringPump(*state, std::move(data), terminal);
     }
 
     Types::DragDrop::RegionId matchDragDropRegion(
@@ -247,16 +247,16 @@ namespace GameWIP::Desktop::Internal::TestHooks::Win32
         std::span<const Types::DataTransfer::FormatView> offered) noexcept
     {
         const Internal::DragDropState *state = Internal::DragDropAccess::state(target);
-        return state == nullptr ? Types::DragDrop::RegionId{} : PlatformTestHooks::testMatchDragDropRegion(*state, position, offered);
+        return state == nullptr ? Types::DragDrop::RegionId{} : Win32Backend::testMatchDragDropRegion(*state, position, offered);
     }
 
     std::size_t activeDragDropTargetCount() noexcept
     {
-        return PlatformTestHooks::testActiveDragDropTargetCount();
+        return Win32Backend::testActiveDragDropTargetCount();
     }
 
     std::size_t deferredDragDropTargetCount() noexcept
     {
-        return PlatformTestHooks::testDeferredDragDropTargetCount();
+        return Win32Backend::testDeferredDragDropTargetCount();
     }
 } // namespace GameWIP::Desktop::Internal::TestHooks::Win32
