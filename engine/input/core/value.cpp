@@ -30,6 +30,7 @@ namespace GameWIP::Input::Internal
             {
                 return false;
             }
+
             current += delta;
             return true;
         }
@@ -270,6 +271,7 @@ namespace GameWIP::Input::Internal
                     {
                         return Types::Scalar{current.w};
                     }
+
                     return std::nullopt;
                 }
                 else if constexpr(std::is_same_v<T, Types::Spatial>)
@@ -300,6 +302,7 @@ namespace GameWIP::Input::Internal
                         {
                             return std::nullopt;
                         }
+
                         const std::size_t orientationIndex = index - 3;
                         if(orientationIndex == 0)
                         {
@@ -315,8 +318,10 @@ namespace GameWIP::Input::Internal
                         {
                             return Types::Scalar{current.orientation.z};
                         }
+
                         return Types::Scalar{current.orientation.w};
                     }
+
                     return std::nullopt;
                 }
                 else

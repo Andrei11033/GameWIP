@@ -530,6 +530,7 @@ namespace GameWIP::Input::Synthetic
         {
             return status(ErrorCode::NotFound);
         }
+
         System::Impl &state = *impl_->system->impl_;
         const Types::ElementInfo *info = state.findElement(element);
         const std::size_t stateIndex = state.findStateIndex(element);
@@ -629,16 +630,19 @@ namespace GameWIP::Input::Synthetic
         {
             return status(ErrorCode::NotFound);
         }
+
         System::Impl &state = *impl_->system->impl_;
         if(state.findElement(element) == nullptr)
         {
             return status(ErrorCode::NotFound);
         }
+
         const std::size_t stateIndex = state.findStateIndex(element);
         if(stateIndex == state.states.size() || state.states[stateIndex].validity != Types::ValueValidity::Valid)
         {
             return status(ErrorCode::InvalidArgument);
         }
+
         Types::ElementState &elementState = state.states[stateIndex];
         ++elementState.repeatCount;
         elementState.lastObservation = timestampOrNow(when);
@@ -674,12 +678,14 @@ namespace GameWIP::Input::Synthetic
         {
             return status(ErrorCode::NotFound);
         }
+
         System::Impl &state = *impl_->system->impl_;
         const std::size_t stateIndex = state.findStateIndex(element);
         if(state.findElement(element) == nullptr || stateIndex == state.states.size())
         {
             return status(ErrorCode::NotFound);
         }
+
         Types::ElementState &elementState = state.states[stateIndex];
         elementState.validity = Types::ValueValidity::Unavailable;
         elementState.lastObservation = timestampOrNow(when);

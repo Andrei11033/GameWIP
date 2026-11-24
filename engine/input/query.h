@@ -201,6 +201,7 @@ namespace GameWIP::Input::Query
         {
             return std::nullopt;
         }
+
         const Types::ElementInfo *element = findElement(devices, Types::ElementSelector{.standard = standard}, device);
         return element == nullptr ? std::nullopt : std::optional<Types::ElementId>{element->id};
     }
@@ -219,6 +220,7 @@ namespace GameWIP::Input::Query
         {
             return std::nullopt;
         }
+
         const Types::ElementInfo *element = findElement(devices, Types::ElementSelector{.hid = hid}, device);
         return element == nullptr ? std::nullopt : std::optional<Types::ElementId>{element->id};
     }

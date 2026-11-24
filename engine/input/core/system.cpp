@@ -111,6 +111,7 @@ namespace GameWIP::Input
         {
             return states.size();
         }
+
         const std::size_t index = static_cast<std::size_t>(id.slot - 1);
         return index < states.size() && states[index].id == id ? index : states.size();
     }
