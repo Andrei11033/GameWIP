@@ -55,6 +55,10 @@ namespace GameWIP::Terminal::Platform
         std::atomic_size_t consoleWaitCalls = 0;
 #endif
 
+        /// ------------------------------------------------------------
+        /// Stream state and endpoint identity
+        /// ------------------------------------------------------------
+
         /// @brief Retains unread UTF-8 bytes across Win32 input calls with amortized front consumption.
         class PendingInputBuffer final
         {
@@ -410,6 +414,10 @@ namespace GameWIP::Terminal::Platform
         }
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
+        /// ------------------------------------------------------------
+        /// Test input and output capture
+        /// ------------------------------------------------------------
+
         /// @brief Converts a consumed one-shot hook failure into an operation status.
         [[nodiscard]] std::optional<IO::Types::Status> consumeHookFailure(HookState::HookFailure &failure, std::string_view message)
         {
@@ -555,6 +563,10 @@ namespace GameWIP::Terminal::Platform
 
 #endif
 
+        /// ------------------------------------------------------------
+        /// Native handle and error translation
+        /// ------------------------------------------------------------
+
         /// @brief Maps Win32 write failures to portable IO error categories.
         [[nodiscard]] ErrorCode writeErrorCode(DWORD nativeCode) noexcept
         {
@@ -676,6 +688,10 @@ namespace GameWIP::Terminal::Platform
             capabilities.inverse = virtualTerminal;
             capabilities.strikethrough = false;
         }
+
+        /// ------------------------------------------------------------
+        /// Output conversion and writes
+        /// ------------------------------------------------------------
 
         /// @brief Strictly converts UTF-8 text to UTF-16 for WriteConsoleW.
         [[nodiscard]] IO::Types::Status utf8ToWide(std::string_view text, std::wstring &outText)
@@ -803,6 +819,10 @@ namespace GameWIP::Terminal::Platform
             const IO::Types::WriteResult result = writeFileBytes(handle, std::as_bytes(std::span<const char>(text.data(), text.size())));
             return result.status;
         }
+
+        /// ------------------------------------------------------------
+        /// Input waits and cancellation
+        /// ------------------------------------------------------------
 
         /// @brief Converts a chrono timeout to a bounded Win32 wait value.
         [[nodiscard]] DWORD waitMilliseconds(std::chrono::milliseconds timeout) noexcept
@@ -1039,6 +1059,10 @@ namespace GameWIP::Terminal::Platform
                 .bytes = {}};
         }
 
+        /// ------------------------------------------------------------
+        /// Console event decoding
+        /// ------------------------------------------------------------
+
         /// @brief Converts Win32 console-mode flags into Terminal's internal managed input-mode shape.
         [[nodiscard]] InputMode inputModeFromConsoleMode(DWORD mode) noexcept
         {
@@ -1210,6 +1234,10 @@ namespace GameWIP::Terminal::Platform
             }
         }
 
+        /// ------------------------------------------------------------
+        /// Key events and text input
+        /// ------------------------------------------------------------
+
         [[nodiscard]] std::string_view streamBytesForNamedKey(Terminal::Types::Events::NamedKey key) noexcept
         {
             switch(key)
@@ -1365,6 +1393,10 @@ namespace GameWIP::Terminal::Platform
                 return chunk;
             }
         }
+
+        /// ------------------------------------------------------------
+        /// Redirected input
+        /// ------------------------------------------------------------
 
         /// @brief Peeks a pipe and separates availability from the native failure code.
         [[nodiscard]] bool peekPipeBytes(HANDLE handle, DWORD &availableBytes, DWORD &error) noexcept
@@ -1523,6 +1555,10 @@ namespace GameWIP::Terminal::Platform
 
             return readFileInputChunk(handle, timeout, stopToken, requestedBytesHint);
         }
+
+        /// ------------------------------------------------------------
+        /// UTF-8 and line handling
+        /// ------------------------------------------------------------
 
         /// @brief Finds the largest strict UTF-8 scalar prefix that fits maxBytes.
         [[nodiscard]] Utf8Prefix utf8Prefix(std::string_view bytes, std::size_t maxBytes) noexcept
