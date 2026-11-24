@@ -1189,7 +1189,7 @@ else
 }
 $expectedPythonPath = if (Test-GameWipWindowsHost)
 {
-    'C:\gamewip-python-path-test\bin\python.exe'
+    'C:\gamewip-python-path-test\Scripts\python.exe'
 }
 else
 {
