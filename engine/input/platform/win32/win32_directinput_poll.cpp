@@ -86,6 +86,11 @@ namespace GameWIP::Input::Platform::Win32
         {
             return SUCCEEDED(device.Acquire());
         }
+
+        [[nodiscard]] bool deviceNeedsReacquisition(HRESULT result) noexcept
+        {
+            return result == DIERR_INPUTLOST || result == DIERR_NOTACQUIRED;
+        }
     } // namespace
 
     /// ------------------------------------------------------------
@@ -108,7 +113,7 @@ namespace GameWIP::Input::Platform::Win32
 
                 auto *device = static_cast<DirectInputDevice *>(binding.nativeDevice);
                 HRESULT result = device->Poll();
-                if(result == DIERR_INPUTLOST || result == DIERR_NOTACQUIRED)
+                if(deviceNeedsReacquisition(result))
                 {
                     if(!acquireDevice(*device))
                     {
@@ -129,7 +134,7 @@ namespace GameWIP::Input::Platform::Win32
                     result = device->GetDeviceState(static_cast<DWORD>(keys.size()), keys.data());
                     if(FAILED(result))
                     {
-                        if(result == DIERR_INPUTLOST || result == DIERR_NOTACQUIRED)
+                        if(deviceNeedsReacquisition(result))
                         {
                             (void)acquireDevice(*device);
                         }
@@ -165,7 +170,7 @@ namespace GameWIP::Input::Platform::Win32
                     result = device->GetDeviceState(sizeof(mouse), &mouse);
                     if(FAILED(result))
                     {
-                        if(result == DIERR_INPUTLOST || result == DIERR_NOTACQUIRED)
+                        if(deviceNeedsReacquisition(result))
                         {
                             (void)acquireDevice(*device);
                         }
@@ -214,7 +219,7 @@ namespace GameWIP::Input::Platform::Win32
                 result = device->GetDeviceState(sizeof(joystick), &joystick);
                 if(FAILED(result))
                 {
-                    if(result == DIERR_INPUTLOST || result == DIERR_NOTACQUIRED)
+                    if(deviceNeedsReacquisition(result))
                     {
                         (void)acquireDevice(*device);
                     }
