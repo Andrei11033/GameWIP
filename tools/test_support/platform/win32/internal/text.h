@@ -6,7 +6,7 @@
 #include <string>
 #include <string_view>
 
-namespace GameWIP::TestSupport::Internal::Platform::Win32
+namespace GameWIP::TestSupport::Internal::Win32
 {
     /// ------------------------------------------------------------
     /// UTF-8 and UTF-16 conversion
@@ -14,4 +14,4 @@ namespace GameWIP::TestSupport::Internal::Platform::Win32
 
     [[nodiscard]] std::wstring utf8ToWide(std::string_view text);
     [[nodiscard]] std::string wideToUtf8(std::wstring_view text);
-} // namespace GameWIP::TestSupport::Internal::Platform::Win32
+} // namespace GameWIP::TestSupport::Internal::Win32

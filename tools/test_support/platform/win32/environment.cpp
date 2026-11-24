@@ -48,8 +48,8 @@ namespace
         try
         {
             validateEnvironmentName(name);
-            const std::wstring nameWide = GameWIP::TestSupport::Internal::Platform::Win32::utf8ToWide(name);
-            const std::wstring valueWide = GameWIP::TestSupport::Internal::Platform::Win32::utf8ToWide(value);
+            const std::wstring nameWide = GameWIP::TestSupport::Internal::Win32::utf8ToWide(name);
+            const std::wstring valueWide = GameWIP::TestSupport::Internal::Win32::utf8ToWide(value);
             const errno_t error = _wputenv_s(nameWide.c_str(), valueWide.c_str());
             return error == 0
                        ? GameWIP::TestSupport::Types::InfrastructureStatus{}
@@ -86,7 +86,7 @@ namespace GameWIP::TestSupport::Platform
         try
         {
             validateEnvironmentName(name);
-            const std::wstring nameText = GameWIP::TestSupport::Internal::Platform::Win32::utf8ToWide(name);
+            const std::wstring nameText = GameWIP::TestSupport::Internal::Win32::utf8ToWide(name);
 
             // GetEnvironmentVariableW reports missing variables through GetLastError(),
             // so clear the thread error before the zero-size probe.
@@ -122,7 +122,7 @@ namespace GameWIP::TestSupport::Platform
                 return result;
             }
             value.resize(copied);
-            result.value = GameWIP::TestSupport::Internal::Platform::Win32::wideToUtf8(value);
+            result.value = GameWIP::TestSupport::Internal::Win32::wideToUtf8(value);
             return result;
         }
         catch(const std::bad_alloc &)

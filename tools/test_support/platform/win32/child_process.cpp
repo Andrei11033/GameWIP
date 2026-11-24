@@ -308,7 +308,7 @@ namespace GameWIP::TestSupport
                 return result;
             }
 
-            std::wstring commandLine = Internal::Platform::Win32::buildCommandLine(options);
+            std::wstring commandLine = Internal::Win32::buildCommandLine(options);
             std::wstring environmentBlock;
             std::wstring workingDirectory;
 
@@ -417,14 +417,14 @@ namespace GameWIP::TestSupport
 
             if(options.workingDirectory)
             {
-                workingDirectory = Internal::Platform::Win32::pathToWide(*options.workingDirectory);
+                workingDirectory = Internal::Win32::pathToWide(*options.workingDirectory);
                 currentDirectory = workingDirectory.c_str();
             }
 
             BOOL created = FALSE;
             {
                 std::lock_guard stateLock(Internal::processStateMutex());
-                environmentBlock = Internal::Platform::Win32::buildEnvironmentBlock(options);
+                environmentBlock = Internal::Win32::buildEnvironmentBlock(options);
 
                 // Start suspended so cleanup and capture setup finish before child code runs.
                 created = CreateProcessW(
@@ -490,7 +490,7 @@ namespace GameWIP::TestSupport
                     const HANDLE outputDoneHandle = outputDoneEvent.get();
                     const std::size_t captureLimit = options.maxCapturedOutputBytes;
                     outputReader = std::thread(
-                        Internal::Platform::Win32::readCapturedOutput,
+                        Internal::Win32::readCapturedOutput,
                         outputReadHandle,
                         outputDoneHandle,
                         captureLimit,
@@ -598,7 +598,7 @@ namespace GameWIP::TestSupport
             result.outputBytes = std::move(outputBytes);
             return result;
         }
-        catch(const Internal::Platform::Win32::NativeInfrastructureFailure &failure)
+        catch(const Internal::Win32::NativeInfrastructureFailure &failure)
         {
             setFailure(failure.error, failure.nativeCode);
             return result;
