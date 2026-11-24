@@ -11,18 +11,27 @@ void testProgressDialogOwnership(TestSupport::Context &context)
     Desktop::Types::Description windowDescription;
     windowDescription.activation.visible = false;
     Desktop::Window owner;
-    static_cast<void>(context.expectTrue("ProgressDialog owner Window opens", owner.open(windowDescription, Desktop::Events::owned(8)).ok()));
+    if(!context.expectTrue("ProgressDialog owner Window opens", owner.open(windowDescription, Desktop::Events::owned(8)).ok()))
+    {
+        return;
+    }
+
     static_cast<void>(context.expectTrue("ProgressDialog owner starts interaction-enabled", nativeInteractionEnabled(owner)));
 
     auto description = progressDescription();
     description.owner = &owner;
     description.blocksOwner = false;
     Desktop::ProgressDialog nonblocking;
-    static_cast<void>(context.expectTrue("nonblocking owned ProgressDialog opens", nonblocking.open(description).ok()));
+    if(!context.expectTrue("nonblocking owned ProgressDialog opens", nonblocking.open(description).ok()))
+    {
+        static_cast<void>(owner.close());
+        return;
+    }
     static_cast<void>(context.expectTrue("blocksOwner false leaves owner enabled", nativeInteractionEnabled(owner)));
     static_cast<void>(context.expectTrue("owned ProgressDialog participates in event pump", Desktop::Events::poll().status.ok()));
     static_cast<void>(nonblocking.close());
 
+    // Keep a shared owner blocked until its last modal ProgressDialog closes.
     description.blocksOwner = true;
     Desktop::ProgressDialog first;
     Desktop::ProgressDialog second;
@@ -41,6 +50,7 @@ void testProgressDialogOwnership(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("first blocker closes last", first.close().ok()));
     static_cast<void>(context.expectTrue("reverse close order restores owner", nativeInteractionEnabled(owner)));
 
+    // Preserve requested interaction state across blocking changes.
     static_cast<void>(context.expectTrue("owner can be pre-disabled", owner.setUserInteractionEnabled(false).ok()));
     static_cast<void>(context.expectFalse("pre-disabled owner is natively disabled", nativeInteractionEnabled(owner)));
     static_cast<void>(context.expectTrue("blocker opens over pre-disabled owner", first.open(description).ok()));
@@ -56,6 +66,7 @@ void testProgressDialogOwnership(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("requested-state blocker closes", first.close().ok()));
     static_cast<void>(context.expectTrue("last blocker restores latest requested state", nativeInteractionEnabled(owner)));
 
+    // Restore ownership after native loss and keep ownerless dialogs independent.
     auto ownerlessDescription = progressDescription();
     ownerlessDescription.blocksOwner = true;
     Desktop::ProgressDialog ownerless;
@@ -83,6 +94,7 @@ void testProgressDialogOwnership(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("live owner is restored after ProgressDialog native loss", nativeInteractionEnabled(owner)));
     static_cast<void>(context.expectTrue("ProgressDialog closes after owned native loss", lostOwnedProgress.close().ok()));
 
+    // Retry a failed restore wake after overlapping blockers are removed.
     static_cast<void>(context.expectTrue("first blocker opens for failed restore wake", first.open(description).ok()));
     static_cast<void>(context.expectTrue("second blocker opens for failed restore wake", second.open(description).ok()));
     static_cast<void>(context.expectTrue("blocked owner accepts a deferred disabled request", owner.setUserInteractionEnabled(false).ok()));
@@ -98,6 +110,7 @@ void testProgressDialogOwnership(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("failed wake retry restores latest requested owner state", nativeInteractionEnabled(owner)));
     static_cast<void>(context.expectTrue("destroyed ProgressDialog finalizes after failed wake", first.close().ok()));
 
+    // Verify normal and unexpected owner destruction.
     static_cast<void>(context.expectTrue("owned ProgressDialog opens for normal owner close", first.open(description).ok()));
     static_cast<void>(context.expectTrue("owner closes after finalizing ProgressDialog", owner.close().ok()));
     static_cast<void>(context.expectFalse("normal owner close removes ProgressDialog presentation", first.isOpen()));
@@ -122,6 +135,7 @@ void testProgressDialogOwnership(TestSupport::Context &context)
 
 void testProgressDialogExceptionalLifetime(TestSupport::Context &context)
 {
+    // Finalize unexpected native loss and retry class release.
     const auto description = progressDescription();
     Desktop::ProgressDialog progress;
     static_cast<void>(context.expectTrue("ProgressDialog opens for native loss", progress.open(description).ok()));
@@ -150,6 +164,7 @@ void testProgressDialogExceptionalLifetime(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("class-release retry succeeds", progress.close().ok()));
     static_cast<void>(context.expectEq("class-release retry clears reference", std::size_t{0}, Win32TestHooks::progressDialogClassReferenceCount()));
 
+    // Reject foreign-thread access without disturbing the presentation.
     static_cast<void>(context.expectTrue("ProgressDialog opens for foreign-thread contract", progress.open(description).ok()));
     bool foreignOpen = true;
     bool foreignOwned = true;
@@ -186,6 +201,7 @@ void testProgressDialogExceptionalLifetime(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("foreign operations preserve native ProgressDialog", progress.isOpen()));
     static_cast<void>(progress.close());
 
+    // Drain deferred destructors and retain the remaining chain after failure.
     auto deferredOne = std::make_unique<Desktop::ProgressDialog>();
     static_cast<void>(context.expectTrue("deferred ProgressDialog opens", deferredOne->open(description).ok()));
     std::thread destroyForeign(

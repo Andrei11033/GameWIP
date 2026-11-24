@@ -18,6 +18,7 @@ void testClipboardValuesAndValidation(TestSupport::Context &context)
     static_assert(noexcept(Clipboard::readCustomData(std::declval<std::string_view>())));
     static_assert(noexcept(Clipboard::clear()));
 
+    // Validate timeout handling and registered format names.
     const auto negative = std::chrono::milliseconds{-1};
     static_cast<void>(context.expectEq(
         "negative hasFormat timeout is invalid",
@@ -71,6 +72,7 @@ void testClipboardValuesAndValidation(TestSupport::Context &context)
         ErrorCode::InvalidArgument,
         Clipboard::hasFormat(Transfer::FormatView::custom(std::string_view{"a\0b", 3}), Clipboard::kNoWait).status.code));
 
+    // Reject invalid transfer payloads before they change the Clipboard.
     const std::span<const Transfer::ItemView> emptyItems;
     const auto emptyWrite = Clipboard::write(emptyItems, Clipboard::kNoWait);
     static_cast<void>(context.expectEq("empty multi-format write is invalid", ErrorCode::InvalidArgument, emptyWrite.status.code));
@@ -107,6 +109,7 @@ void testClipboardValuesAndValidation(TestSupport::Context &context)
         ErrorCode::InvalidArgument,
         Clipboard::writeImage({{2, 1}, 0, onePixel}, Clipboard::kNoWait).status.code));
 #if DESKTOP_INTERNAL_TEST_HOOKS
+    // Verify deadline saturation without waiting.
     Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::ClipboardAccess);
     static_cast<void>(context.expectEq(
         "maximum positive timeout saturates its deadline without waiting",

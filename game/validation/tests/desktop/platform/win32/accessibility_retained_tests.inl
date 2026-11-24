@@ -14,6 +14,7 @@ void testRetainedObjects(Context &context)
     {
         return;
     }
+
     auto bridge = window->accessibility();
     check(context, "retained-object bridge enables", bridge.enable().ok());
 

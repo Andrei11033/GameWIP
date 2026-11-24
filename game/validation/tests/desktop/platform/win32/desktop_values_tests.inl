@@ -78,6 +78,7 @@ void testPassiveValuesAndClosedState(TestSupport::Context &context)
         static_cast<void>(
             context.expectTrue("Win32 supports custom native cursors", capabilities->supports(Desktop::Types::Capability::CustomCursor)));
     }
+
     static_cast<void>(context.expectFalse("Count is not a capability", capabilities->supports(Desktop::Types::Capability::Count)));
 
     const Desktop::Types::Events::PumpResult idlePoll = Desktop::Events::poll();

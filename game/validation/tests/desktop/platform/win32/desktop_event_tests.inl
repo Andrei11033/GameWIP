@@ -11,7 +11,10 @@ void testFixedEventQueue(TestSupport::Context &context)
     // Verify queue ownership and event coalescing.
     std::array<Desktop::Types::Event, 3> storage;
     Desktop::Window window;
-    static_cast<void>(context.expectTrue("portable queue hook opens", Desktop::Internal::TestHooks::openPortable(window, storage).ok()));
+    if(!context.expectTrue("portable queue hook opens", Desktop::Internal::TestHooks::openPortable(window, storage).ok()))
+    {
+        return;
+    }
     static_cast<void>(
         context.expectEq("hook queue reports external storage", Desktop::Types::Events::StorageKind::External, window.eventQueueInfo().storage));
     static_cast<void>(context.expectEq("native open rejects existing hook state", ErrorCode::AlreadyOpen, window.open({}).code));
@@ -85,7 +88,10 @@ void testFixedEventQueue(TestSupport::Context &context)
 
     std::array<Desktop::Types::Event, 1> payloadStorage;
     Desktop::Window payloadWindow;
-    static_cast<void>(Desktop::Internal::TestHooks::openPortable(payloadWindow, payloadStorage));
+    if(!context.expectTrue("payload queue hook opens", Desktop::Internal::TestHooks::openPortable(payloadWindow, payloadStorage).ok()))
+    {
+        return;
+    }
     Desktop::Types::Events::FilesDropped dropped;
     dropped.paths.emplace_back("retained-until-close.txt");
     static_cast<void>(Desktop::Internal::TestHooks::enqueue(payloadWindow, std::move(dropped)));
@@ -103,7 +109,10 @@ void testStickyClose(TestSupport::Context &context)
 {
     std::array<Desktop::Types::Event, 4> storage;
     Desktop::Window source;
-    static_cast<void>(Desktop::Internal::TestHooks::openPortable(source, storage));
+    if(!context.expectTrue("sticky-close queue hook opens", Desktop::Internal::TestHooks::openPortable(source, storage).ok()))
+    {
+        return;
+    }
     static_cast<void>(Desktop::Internal::TestHooks::requestClose(source, Desktop::Types::Events::CloseRequestSource::User));
     static_cast<void>(Desktop::Internal::TestHooks::requestClose(source, Desktop::Types::Events::CloseRequestSource::System));
     static_cast<void>(context.expectTrue("close request is sticky", source.hasCloseRequest()));
@@ -143,14 +152,15 @@ void testNativeEventTranslation(TestSupport::Context &context)
     {
         return;
     }
-    const auto handle = Desktop::Native::Win32::getHandle(window);
-    static_cast<void>(context.expectTrue("native event fixture exposes HWND", handle.status.ok() && handle->window != nullptr));
 
-    if(!handle.status.ok() || handle->window == nullptr)
+    const auto handle = Desktop::Native::Win32::getHandle(window);
+
+    if(!context.expectTrue("native event fixture exposes HWND", handle.status.ok() && handle->window != nullptr))
     {
         static_cast<void>(window.close());
         return;
     }
+
     // Translate size and fullscreen changes.
     window.clearEvents();
     static_cast<void>(window.setClientSize({300, 210}));

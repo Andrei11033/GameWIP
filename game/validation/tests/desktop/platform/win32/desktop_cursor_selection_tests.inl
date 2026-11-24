@@ -111,8 +111,13 @@ void testCursorValuesAndValidation(TestSupport::Context &context)
     static_cast<void>(context.expectEq("duplicate cursor DPI is invalid", ErrorCode::InvalidArgument, duplicate.status.code));
     static_cast<void>(context.expectFalse("duplicate DPI does not publish a Cursor", duplicate.value.has_value() && duplicate->isValid()));
 
+    // Verify successful creation and value semantics.
     auto packed = CursorTest::create(packedPixels);
-    static_cast<void>(context.expectTrue("single-image cursor overload creates successfully", packed.status.ok()));
+    if(!context.expectTrue("single-image cursor overload creates successfully", packed.status.ok()))
+    {
+        return;
+    }
+
     static_cast<void>(context.expectTrue("successful creation publishes a valid Cursor", packed->isValid()));
 
     std::array<std::byte, 24> paddedPixels{};
@@ -122,7 +127,10 @@ void testCursorValuesAndValidation(TestSupport::Context &context)
     std::ranges::copy(packedRows.subspan(8), paddedRows.subspan(12, 8).begin());
     const Desktop::Types::Cursor::ImageView paddedImage = CursorTest::image(paddedPixels, 96, 12);
     const auto padded = Desktop::createCursor(std::span{&paddedImage, std::size_t{1}});
-    static_cast<void>(context.expectTrue("padded cursor rows create successfully", padded.status.ok()));
+    if(!context.expectTrue("padded cursor rows create successfully", padded.status.ok()))
+    {
+        return;
+    }
 
     Desktop::Cursor copy = *packed;
     static_cast<void>(context.expectTrue("copied Cursor remains valid", copy.isValid()));

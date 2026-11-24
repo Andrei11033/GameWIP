@@ -5,6 +5,7 @@
 /// @brief Publishes with an isolated application identity so normal application lists are untouched.
 [[nodiscard]] int runJumpListPublicationChild(const std::filesystem::path &executable)
 {
+    // Keep publication away from the user's normal application list.
     const std::wstring appId = std::format(L"GameWIP.Validation.JumpLists.{}", GetCurrentProcessId());
 
     if(FAILED(SetCurrentProcessExplicitAppUserModelID(appId.c_str())))
@@ -20,7 +21,18 @@
     description.tasks = tasks;
     const auto published = Desktop::JumpLists::publish(description);
     const auto cleared = Desktop::JumpLists::publish({});
-    return !published.ok() ? 3 : !cleared.ok() ? 4 : 0;
+
+    if(!published.ok())
+    {
+        return 3;
+    }
+
+    if(!cleared.ok())
+    {
+        return 4;
+    }
+
+    return 0;
 }
 
 void testJumpListNativePublication(TestSupport::Context &context, const std::filesystem::path &executable)
@@ -39,6 +51,7 @@ void testJumpListNativePublication(TestSupport::Context &context, const std::fil
             CoUninitialize();
         }
     } const initialization;
+    // Build the action and inspect its native properties.
     const std::filesystem::path absoluteExecutable = std::filesystem::absolute(executable);
     const std::array<ShellTypes::LaunchArgumentView, 2> arguments{
         ShellTypes::LiteralLaunchArgumentView{"--desktop-test-child=shell-launch-probe"},
@@ -58,7 +71,9 @@ void testJumpListNativePublication(TestSupport::Context &context, const std::fil
     const std::unique_ptr<IShellLinkW, decltype(releaseLink)> link(static_cast<IShellLinkW *>(rawLink), releaseLink);
     IPropertyStore *rawProperties = nullptr;
 
-    if(context.expectTrue("jump link exposes property store", SUCCEEDED(link->QueryInterface(IID_PPV_ARGS(&rawProperties)))))
+    if(context.expectTrue(
+           "jump link exposes property store",
+           SUCCEEDED(link->QueryInterface(IID_PPV_ARGS(&rawProperties))) && rawProperties != nullptr))
     {
         const auto releaseProperties = [](IPropertyStore *properties)
         {
@@ -80,26 +95,33 @@ void testJumpListNativePublication(TestSupport::Context &context, const std::fil
         static_cast<void>(PropVariantClear(&title));
     }
 
+    // Verify tooltip, arguments, and icon metadata.
     std::array<wchar_t, 4096> text{};
-    static_cast<void>(context.expectTrue("jump tooltip reads", SUCCEEDED(link->GetDescription(text.data(), static_cast<int>(text.size())))));
-    static_cast<void>(
-        context.expectEq("tooltip uses description independently from title", std::wstring{L"Distinct task tooltip"}, std::wstring{text.data()}));
+    if(context.expectTrue("jump tooltip reads", SUCCEEDED(link->GetDescription(text.data(), static_cast<int>(text.size())))))
+    {
+        static_cast<void>(
+            context.expectEq("tooltip uses description independently from title", std::wstring{L"Distinct task tooltip"}, std::wstring{text.data()}));
+    }
     text.fill(L'\0');
-    static_cast<void>(context.expectTrue("jump arguments read", SUCCEEDED(link->GetArguments(text.data(), static_cast<int>(text.size())))));
-    static_cast<void>(context.expectEq(
-        "literal launch arguments preserve spaces and quotes",
-        std::wstring{L"\"--desktop-test-child=shell-launch-probe\" \"a space and \\\"quoted\\\" argument\""},
-        std::wstring{text.data()}));
+    if(context.expectTrue("jump arguments read", SUCCEEDED(link->GetArguments(text.data(), static_cast<int>(text.size())))))
+    {
+        static_cast<void>(context.expectEq(
+            "literal launch arguments preserve spaces and quotes",
+            std::wstring{L"\"--desktop-test-child=shell-launch-probe\" \"a space and \\\"quoted\\\" argument\""},
+            std::wstring{text.data()}));
+    }
     text.fill(L'\0');
     int iconIndex = -1;
-    static_cast<void>(
-        context.expectTrue("jump icon location reads", SUCCEEDED(link->GetIconLocation(text.data(), static_cast<int>(text.size()), &iconIndex))));
-    static_cast<void>(context.expectEq(
-        "jump icon comes from executable",
-        std::filesystem::path(absoluteExecutable).make_preferred().wstring(),
-        std::wstring{text.data()}));
-    static_cast<void>(context.expectEq("jump icon uses first executable icon", 0, iconIndex));
+    if(context.expectTrue("jump icon location reads", SUCCEEDED(link->GetIconLocation(text.data(), static_cast<int>(text.size()), &iconIndex))))
+    {
+        static_cast<void>(context.expectEq(
+            "jump icon comes from executable",
+            std::filesystem::path(absoluteExecutable).make_preferred().wstring(),
+            std::wstring{text.data()}));
+        static_cast<void>(context.expectEq("jump icon uses first executable icon", 0, iconIndex));
+    }
 
+    // Reject unsupported actions and verify isolated publication cleanup.
     const ShellTypes::LaunchActionView noArguments{ShellTypes::PathTargetView{std::cref(absoluteExecutable)}, {}};
     void *invalidLink = nullptr;
     static_cast<void>(context.expectEq(

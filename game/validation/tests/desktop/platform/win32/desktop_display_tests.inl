@@ -55,6 +55,7 @@ void testDisplayColorInformation(TestSupport::Context &context)
     {
         return;
     }
+
     const auto windowColor = Feedback::getColorInfo(window);
     static_cast<void>(context.expectTrue("Window display-color query succeeds", windowColor.ok()));
 
@@ -82,12 +83,14 @@ void testDisplayColorInformation(TestSupport::Context &context)
 
     Desktop::Internal::TestHooks::makeNextDisplayColorMetadataUnavailable();
     const auto runtimeUnavailable = Feedback::getColorInfo(window.currentMonitor());
-    static_cast<void>(context.expectTrue("runtime metadata absence still succeeds", runtimeUnavailable.ok()));
-    static_cast<void>(context.expectEq(
-        "runtime metadata absence remains unknown",
-        Desktop::Types::Display::ColorSpace::Unknown,
-        runtimeUnavailable->activeColorSpace));
-    static_cast<void>(context.expectFalse("runtime metadata absence has no precision", runtimeUnavailable->bitsPerColorChannel.has_value()));
+    if(context.expectTrue("runtime metadata absence still succeeds", runtimeUnavailable.ok()))
+    {
+        static_cast<void>(context.expectEq(
+            "runtime metadata absence remains unknown",
+            Desktop::Types::Display::ColorSpace::Unknown,
+            runtimeUnavailable->activeColorSpace));
+        static_cast<void>(context.expectFalse("runtime metadata absence has no precision", runtimeUnavailable->bitsPerColorChannel.has_value()));
+    }
 
     const Desktop::Types::Display::MonitorId fixtureMonitor{42};
     const Desktop::Types::Display::ColorInfo unavailable = Desktop::Internal::TestHooks::makeDisplayColorInfo(fixtureMonitor, {});

@@ -14,6 +14,7 @@ void testGeometryAndExceptionalLifetime(Context &context)
     {
         return;
     }
+
     auto bridge = window->accessibility();
     check(context, "geometry bridge enables", bridge.enable().ok());
 
@@ -112,6 +113,7 @@ void testConcurrentQueries(Context &context)
     {
         return;
     }
+
     auto bridge = window.accessibility();
     check(context, "concurrent bridge enables", bridge.enable().ok());
     Tree tree;
@@ -122,6 +124,7 @@ void testConcurrentQueries(Context &context)
     {
         return;
     }
+
     std::atomic<bool> failed{false}, stop{false};
     // Keep reads and publication active while the Window closes.
     std::thread client(

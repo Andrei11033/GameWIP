@@ -13,6 +13,7 @@ void testText(Context &context)
     {
         return;
     }
+
     auto bridge = window.accessibility();
     A::Options options;
     options.limits.maximumNativeTextRanges = 2;

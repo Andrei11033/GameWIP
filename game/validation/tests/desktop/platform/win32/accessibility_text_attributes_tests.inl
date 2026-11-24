@@ -13,6 +13,7 @@ void testTextAttributes(Context &context)
     {
         return;
     }
+
     auto bridge = window.accessibility();
     check(context, "text attribute bridge enables", bridge.enable().ok());
 

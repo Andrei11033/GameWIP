@@ -7,6 +7,7 @@
 
 void testClipboardFixtureContention(TestSupport::Context &context)
 {
+    // Hold the native Clipboard on another thread and verify bounded retries.
     for(const bool releaseSoon : {true, false})
     {
         std::atomic<bool> ready = false;
@@ -75,6 +76,7 @@ void testClipboardFixtureContention(TestSupport::Context &context)
 
 void testClipboardMultiFormatAndFailures(TestSupport::Context &context)
 {
+    // Verify ordered multi-format publication and transaction state.
     const std::array firstBytes{std::byte{0x01}, std::byte{0x02}};
     const std::array secondBytes{std::byte{0x03}, std::byte{0x04}};
     const std::array<Transfer::ItemView, 3> items{
@@ -117,9 +119,14 @@ void testClipboardMultiFormatAndFailures(TestSupport::Context &context)
     const auto invalidWrite = Clipboard::write(invalidItems);
     static_cast<void>(context.expectEq("late preparation validation fails", ErrorCode::InvalidArgument, invalidWrite.status.code));
     static_cast<void>(context.expectEq("preparation failure remains NotStarted", ClipboardTypes::CommitState::NotStarted, invalidWrite.commitState));
-    static_cast<void>(context.expectEq("preparation failure preserves old clipboard", std::string{"preserve me"}, *Clipboard::readText()));
+    const auto preservedText = Clipboard::readText();
+    if(context.expectTrue("preparation failure leaves prior text readable", preservedText.ok()))
+    {
+        static_cast<void>(context.expectEq("preparation failure preserves old clipboard", std::string{"preserve me"}, *preservedText));
+    }
 
 #if DESKTOP_INTERNAL_TEST_HOOKS
+    // Inject access, allocation, publication, and close failures.
     Desktop::Internal::TestHooks::resetFailures();
     Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::ClipboardAccess);
     static_cast<void>(context.expectEq("access busy is deterministic", ErrorCode::ResourceBusy, Clipboard::readText(Clipboard::kNoWait).status.code));
@@ -164,8 +171,12 @@ void testClipboardMultiFormatAndFailures(TestSupport::Context &context)
     static_cast<void>(context.expectEq("close failure after full publication is reported", ErrorCode::CloseFailed, closeAfterWrite.status.code));
     static_cast<void>(context.expectEq("close failure preserves Published", ClipboardTypes::CommitState::Published, closeAfterWrite.commitState));
     static_cast<void>(context.expectEq("close failure preserves publication count", std::size_t{1}, closeAfterWrite.formatsPublished));
-    static_cast<void>(
-        context.expectEq("published side effect survives close failure", std::string{"committed despite close failure"}, *Clipboard::readText()));
+    const auto committedText = Clipboard::readText();
+    if(context.expectTrue("published side effect remains readable", committedText.ok()))
+    {
+        static_cast<void>(
+            context.expectEq("published side effect survives close failure", std::string{"committed despite close failure"}, *committedText));
+    }
 
     Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::ClipboardClose);
     const auto closeAfterClear = Clipboard::clear();
@@ -174,6 +185,7 @@ void testClipboardMultiFormatAndFailures(TestSupport::Context &context)
     Desktop::Internal::TestHooks::resetFailures();
 #endif
 
+    // Verify finite timeouts while another thread owns the Clipboard.
     std::atomic_bool holderReady = false;
     std::atomic_bool releaseHolder = false;
     std::atomic_bool holderOpened = false;
@@ -232,6 +244,7 @@ void testClipboardMultiFormatAndFailures(TestSupport::Context &context)
     releaseHolder.store(true);
     holder.join();
 
+    // Confirm ordinary threads can use the Clipboard.
     std::atomic<ErrorCode> threadResult{ErrorCode::Unknown};
     std::thread ordinaryThread(
         [&]

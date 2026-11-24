@@ -117,6 +117,7 @@ void testCapacityAndInteraction(Context &context)
     {
         return;
     }
+
     auto bridge = window.accessibility();
     A::Options options;
     options.limits.maximumNodes = 2;
@@ -211,6 +212,7 @@ void testClosePublicationRace(Context &context)
     {
         return;
     }
+
     auto bridge = window.accessibility();
     check(context, "publication race bridge enables", bridge.enable().ok());
     Tree tree;
@@ -238,7 +240,8 @@ void testClosePublicationRace(Context &context)
     publisher.join();
     check(context, "concurrent publication either commits before close or observes gate", result == Error::Success || result == Error::NotOpen);
     check(context, "in-flight publication never resurrects active snapshot", !bridge.snapshotInfo().available);
-    equal(context, "retained reader survives concurrent close", std::string_view("Run"), retained.find(2)->name);
+    const auto *retainedButton = retained.find(2);
+    check(context, "retained reader survives concurrent close", retainedButton && retainedButton->name == "Run");
 
     // Reopen with fresh native state after the race has settled.
     if(!open(context, window))

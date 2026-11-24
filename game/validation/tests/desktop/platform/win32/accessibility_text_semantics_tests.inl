@@ -13,6 +13,7 @@ void testTextSemantics(Context &context)
     {
         return;
     }
+
     auto bridge = window.accessibility();
     check(context, "text semantics bridge enables", bridge.enable().ok());
 
@@ -36,6 +37,7 @@ void testTextSemantics(Context &context)
     {
         return;
     }
+
     Com<ITextProvider2> text;
     Com<IValueProvider> value;
 
@@ -157,6 +159,7 @@ void testTextSemantics(Context &context)
         {
             continue;
         }
+
         VARIANT attribute{};
         equal(context, "text editability query", S_OK, document->GetAttributeValue(UIA_IsReadOnlyAttributeId, &attribute));
         check(

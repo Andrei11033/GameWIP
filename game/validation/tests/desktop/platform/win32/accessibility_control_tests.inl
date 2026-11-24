@@ -14,6 +14,7 @@ void testControlPatterns(Context &context)
     {
         return;
     }
+
     auto bridge = window.accessibility();
     check(context, "control bridge enables", bridge.enable().ok());
 
@@ -265,6 +266,7 @@ void testGridLookup(Context &context)
     {
         return;
     }
+
     auto bridge = window.accessibility();
     check(context, "grid lookup bridge enables", bridge.enable().ok());
 
@@ -320,6 +322,7 @@ void testGridLookup(Context &context)
     {
         return;
     }
+
     Com<IGridProvider> grid, nestedGrid;
 
     if(!pattern(context, outer.value, UIA_GridPatternId, grid) || !pattern(context, inner.value, UIA_GridPatternId, nestedGrid))

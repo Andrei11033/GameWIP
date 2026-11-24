@@ -14,6 +14,7 @@ void testProviders(Context &context)
     {
         return;
     }
+
     auto bridge = window.accessibility();
     check(context, "native bridge enables", bridge.enable().ok());
 

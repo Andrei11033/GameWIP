@@ -22,9 +22,11 @@ template <typename T> struct Com
             value->Release();
         }
     }
+
     Com(const Com &) = delete;
     Com &operator=(const Com &) = delete;
 
+    // COM result access
     T **put()
     {
         if(value)
