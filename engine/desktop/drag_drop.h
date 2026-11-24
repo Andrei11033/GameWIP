@@ -26,7 +26,7 @@ namespace GameWIP::Desktop::Types::DragDrop
     /// @brief Stable identity for one native drag session observed by a target.
     struct SessionId
     {
-        std::uint64_t value = 0; ///< Non-zero identity; zero represents no session.
+        std::uint64_t value = 0; ///< Nonzero identity; zero represents no session.
 
         /// @brief Reports whether this identity is usable.
         [[nodiscard]] constexpr bool isValid() const noexcept
@@ -46,7 +46,7 @@ namespace GameWIP::Desktop::Types::DragDrop
     /// @brief Application-defined identity for one declarative target region.
     struct RegionId
     {
-        std::uint64_t value = 0; ///< Non-zero application identity; zero means no region.
+        std::uint64_t value = 0; ///< Nonzero application identity; zero means no region.
 
         /// @brief Reports whether this identity is usable.
         [[nodiscard]] constexpr bool isValid() const noexcept
@@ -155,10 +155,10 @@ namespace GameWIP::Desktop::Types::DragDrop
     };
 
     /// @brief One logical client region and its declarative acceptance policy.
-    /// @details An empty rect means the whole client and follows client resize automatically.
+    /// @details A nullopt rectangle means the whole client and follows client resize automatically.
     struct RegionDescription
     {
-        RegionId id;                                       ///< Required unique, non-zero region identity.
+        RegionId id;                                       ///< Required unique, nonzero region identity.
         std::optional<LogicalRect> rect;                   ///< Client-relative logical bounds, or the whole client.
         std::span<const DataTransfer::FormatView> formats; ///< Accepted formats in application preference order.
         EffectPolicy effects = EffectPolicy::copy();       ///< Accepted effects and preferred negotiation choice.
