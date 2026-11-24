@@ -15,6 +15,7 @@ function Assert-GameWipHygieneConfig
     Assert-GameWipUniqueId -Label 'hygiene profile' -Items $profiles
     Assert-GameWipUniqueId -Label 'hygiene explanation' -Items $explanations
 
+    # Validate provider declarations before checking references.
     $checkIds = @($checks | ForEach-Object { [string]$_.Id })
 
     if (@($profiles | Where-Object Id -eq $HygieneConfig.DefaultProfile).Count -ne 1)
@@ -24,23 +25,34 @@ function Assert-GameWipHygieneConfig
 
     foreach ($check in $checks)
     {
-        if ($check.Availability -eq 'available' -and $check.Provider -eq 'clang-tidy' -and -not $check.ContainsKey('Rules'))
+        if (
+            $check.Availability -eq 'available' -and
+            $check.Provider -eq 'clang-tidy' -and
+            -not $check.ContainsKey('Rules')
+        )
         {
             throw "Available hygiene check '$($check.Id)' must declare clang-tidy rules."
         }
 
-        if ($check.Availability -eq 'available' -and $check.Provider -eq 'compiler-warning' -and
-            (-not $check.ContainsKey('Rules') -or -not $check.ContainsKey('Flags')))
+        if (
+            $check.Availability -eq 'available' -and
+            $check.Provider -eq 'compiler-warning' -and
+            (-not $check.ContainsKey('Rules') -or -not $check.ContainsKey('Flags'))
+        )
         {
             throw "Available compiler-warning check '$($check.Id)' must declare compiler flags."
         }
 
-        if ($check.Availability -eq 'planned' -and ($check.Provider -ne 'future' -or $check.ContainsKey('Rules')))
+        if (
+            $check.Availability -eq 'planned' -and
+            ($check.Provider -ne 'future' -or $check.ContainsKey('Rules'))
+        )
         {
             throw "Planned hygiene check '$($check.Id)' must not declare executable rules."
         }
     }
 
+    # Keep profile and explanation references inside the configured catalog.
     foreach ($profileInfo in $profiles)
     {
         foreach ($checkId in @($profileInfo.Checks))
@@ -74,6 +86,10 @@ function Assert-GameWipHygieneConfig
     }
 }
 
+# ------------------------------------------------------------
+# Check selection and status
+# ------------------------------------------------------------
+
 function Get-GameWipHygieneCheck
 {
     param([Parameter(Mandatory = $true)][string]$Id)
@@ -96,6 +112,7 @@ function Get-GameWipHygieneSelection
     {
         $effectiveSelector = [string]$HygieneConfig.DefaultProfile
     }
+
     $profileMatches = @($HygieneConfig.Profiles | Where-Object Id -eq $effectiveSelector)
 
     if ($profileMatches.Count -eq 1)
@@ -106,6 +123,7 @@ function Get-GameWipHygieneSelection
             Checks = @($profileMatches[0].Checks | ForEach-Object { Get-GameWipHygieneCheck -Id ([string]$_) })
         }
     }
+
     $check = Get-GameWipHygieneCheck -Id $effectiveSelector
     return [pscustomobject]@{ Id = [string]$check.Id; Title = [string]$check.Title; Checks = @($check) }
 }
@@ -144,8 +162,20 @@ function Show-GameWipHygieneStatus
     Write-Host "  run-clang-tidy:       $(if ($runner) { $runner } else { 'unavailable' })"
     Write-Host "  Python:               $(if ($python) { $python } else { 'unavailable' })"
     Write-Host '  compiler warnings:    supported through the analyze compilation database'
-    Write-Host "  Compilation database: $(if (Test-Path -LiteralPath $database) { $database } else { 'not configured (created on first audit)' })"
+    $databaseStatus = if (Test-Path -LiteralPath $database)
+    {
+        $database
+    }
+    else
+    {
+        'not configured (created on first audit)'
+    }
+    Write-Host "  Compilation database: $databaseStatus"
 }
+
+# ------------------------------------------------------------
+# Finding normalization
+# ------------------------------------------------------------
 
 function Get-GameWipHygieneExplanation
 {
@@ -171,6 +201,7 @@ function ConvertFrom-GameWipClangTidyFinding
 
     foreach ($line in @($Lines))
     {
+        # Ignore diagnostics outside the selected rules.
         $match = [regex]::Match([string]$line, $pattern)
 
         if (-not $match.Success -or $match.Groups['severity'].Value -eq 'note')
@@ -185,6 +216,7 @@ function ConvertFrom-GameWipClangTidyFinding
             continue
         }
 
+        # Normalize paths and attach any configured explanation.
         $check = $RuleLookup[$rule]
         $path = $match.Groups['path'].Value
 
@@ -207,21 +239,46 @@ function ConvertFrom-GameWipClangTidyFinding
             $suggestedAction = [string]$explanation.Reason
             $explanationId = [string]$explanation.Id
         }
+
         $findings.Add([ordered]@{
                 check = [string]$check.Id
                 rule = $rule
                 confidence = $confidence
+
                 path = $path
                 line = [int]$match.Groups['line'].Value
                 column = [int]$match.Groups['column'].Value
+
                 message = $match.Groups['message'].Value
                 evidence = "$(if ($rule.StartsWith('-W')) { 'compiler warning' } else { 'clang-tidy diagnostic' }) '$rule'"
+
                 suggestedAction = $suggestedAction
                 explanation = $explanationId
             }) | Out-Null
     }
 
     return @($findings | Sort-Object { $_.path }, { $_.line }, { $_.column }, { $_.rule })
+}
+
+# ------------------------------------------------------------
+# Provider execution
+# ------------------------------------------------------------
+
+function Invoke-GameWipHygienePythonTool
+{
+    param(
+        [Parameter(Mandatory = $true)][string]$Python,
+        [Parameter(Mandatory = $true)][string[]]$Arguments
+    )
+
+    $path = @((Get-GameWipToolchainPathPrefix), $env:PATH) -join [IO.Path]::PathSeparator
+
+    return Invoke-GameWipProcess `
+        -FilePath $Python `
+        -Arguments $Arguments `
+        -OutputMode $Script:OperationContext.OutputMode `
+        -TimeoutSeconds 7200 `
+        -Environment @{ PATH = $path }
 }
 
 function Invoke-GameWipHygieneClangTidy
@@ -233,12 +290,20 @@ function Invoke-GameWipHygieneClangTidy
 
     if (-not $runner -or -not $python)
     {
-        throw (New-GameWipDiagnosticException -Code 'hygiene-tool-unavailable' -Summary 'The hygiene audit requires Python and run-clang-tidy.' -Details 'The configured analysis toolchain is incomplete.' -SuggestedActions @("$(Get-GameWipProjectHelperCommand) tool status", "$(Get-GameWipSetupHelperCommand) repair"))
+        throw (New-GameWipDiagnosticException `
+                -Code 'hygiene-tool-unavailable' `
+                -Summary 'The hygiene audit requires Python and run-clang-tidy.' `
+                -Details 'The configured analysis toolchain is incomplete.' `
+                -SuggestedActions @(
+                    "$(Get-GameWipProjectHelperCommand) tool status",
+                    "$(Get-GameWipSetupHelperCommand) repair"
+                ))
     }
 
     $preset = [string]$HygieneConfig.AnalyzePreset
     $databaseRoot = Get-GameWipBuildDirectory -PresetName $preset
 
+    # Build one rule and option set for the selected checks.
     $ruleLookup = @{}
     $options = [ordered]@{}
 
@@ -259,7 +324,12 @@ function Invoke-GameWipHygieneClangTidy
     }
 
     $checkOptions = @($options.GetEnumerator() | ForEach-Object { [ordered]@{ key = $_.Key; value = $_.Value } })
-    $inlineConfig = [ordered]@{ Checks = '-*,' + (($ruleLookup.Keys | Sort-Object) -join ','); WarningsAsErrors = ''; CheckOptions = $checkOptions } | ConvertTo-Json -Compress -Depth 5
+    $inlineConfigObject = [ordered]@{
+        Checks = '-*,' + (($ruleLookup.Keys | Sort-Object) -join ',')
+        WarningsAsErrors = ''
+        CheckOptions = $checkOptions
+    }
+    $inlineConfig = $inlineConfigObject | ConvertTo-Json -Compress -Depth 5
     $arguments = @(
         '-u', $runner,
         '-p', $databaseRoot,
@@ -271,8 +341,9 @@ function Invoke-GameWipHygieneClangTidy
         '-j', '4',
         '-quiet'
     )
-    $path = @((Get-GameWipToolchainPathPrefix), $env:PATH) -join [IO.Path]::PathSeparator
-    $result = Invoke-GameWipProcess -FilePath $python -Arguments $arguments -OutputMode $Script:OperationContext.OutputMode -TimeoutSeconds 7200 -Environment @{ PATH = $path }
+
+    # Run clang-tidy and normalize its findings.
+    $result = Invoke-GameWipHygienePythonTool -Python $python -Arguments $arguments
     $lines = @($result.Stdout) + @($result.Stderr)
     $findings = @(ConvertFrom-GameWipClangTidyFinding -Lines $lines -RuleLookup $ruleLookup)
     $providerFailures = @($lines | Where-Object { $_ -match ':[0-9]+:[0-9]+:\s+error:' -or $_ -match '^(?:Error while processing|Error:)' })
@@ -308,6 +379,8 @@ function Invoke-GameWipHygieneCompilerWarnings
     $databaseRoot = Get-GameWipBuildDirectory -PresetName $preset
     $database = Join-Path $databaseRoot 'compile_commands.json'
     $scriptPath = Join-Path $ScriptsRoot 'lib\hygiene_compiler_warnings.py'
+
+    # Combine the configured rules and warning flags.
     $ruleLookup = @{}
     $flags = [System.Collections.Generic.List[string]]::new()
 
@@ -331,8 +404,8 @@ function Invoke-GameWipHygieneCompilerWarnings
         $arguments += "--flag=$flag"
     }
 
-    $path = @((Get-GameWipToolchainPathPrefix), $env:PATH) -join [IO.Path]::PathSeparator
-    $result = Invoke-GameWipProcess -FilePath $python -Arguments $arguments -OutputMode $Script:OperationContext.OutputMode -TimeoutSeconds 7200 -Environment @{ PATH = $path }
+    # Run the syntax-only compiler pass and normalize its findings.
+    $result = Invoke-GameWipHygienePythonTool -Python $python -Arguments $arguments
     $lines = @($result.Stdout) + @($result.Stderr)
     $findings = @(ConvertFrom-GameWipClangTidyFinding -Lines $lines -RuleLookup $ruleLookup)
     $providerFailures = @($lines | Where-Object { $_ -match 'compiler-warning provider failed' -or $_ -match ':[0-9]+:[0-9]+:\s+error:' })
@@ -349,6 +422,10 @@ function Invoke-GameWipHygieneCompilerWarnings
 
     return $findings
 }
+
+# ------------------------------------------------------------
+# Audit report and enforcement
+# ------------------------------------------------------------
 
 function Write-GameWipHygieneReport
 {
@@ -387,9 +464,15 @@ function Write-GameWipHygieneReport
 function Invoke-GameWipHygieneAudit
 {
     param([string]$Selector, [switch]$Enforce)
+
+    # Separate executable providers from checks that are only planned.
     $selection = Get-GameWipHygieneSelection -Selector $Selector
     $available = @($selection.Checks | Where-Object Availability -eq available)
-    $planned = @($selection.Checks | Where-Object Availability -eq planned | ForEach-Object { [ordered]@{ id = $_.Id; title = $_.Title; status = 'planned' } })
+    $planned = @(
+        $selection.Checks |
+            Where-Object Availability -eq planned |
+            ForEach-Object { [ordered]@{ id = $_.Id; title = $_.Title; status = 'planned' } }
+    )
     $findings = @()
 
     if ($available.Count -ne 0)
@@ -419,6 +502,7 @@ function Invoke-GameWipHygieneAudit
         }
     }
 
+    # Retain the report before enforcing proven findings.
     $report = [ordered]@{
         schemaVersion = 1
         generatedAt = (Get-Date).ToUniversalTime().ToString('o')
@@ -436,7 +520,14 @@ function Invoke-GameWipHygieneAudit
 
         if ($proven.Count -ne 0)
         {
-            throw (New-GameWipDiagnosticException -Code 'hygiene-proven-findings' -Summary "$($proven.Count) proven hygiene finding(s) require review." -Details 'The complete finding report is retained in the operation artifacts.' -SuggestedActions @('Review each PROVEN finding.', 'Fix or centrally explain only after confirming the evidence.'))
+            throw (New-GameWipDiagnosticException `
+                    -Code 'hygiene-proven-findings' `
+                    -Summary "$($proven.Count) proven hygiene finding(s) require review." `
+                    -Details 'The complete finding report is retained in the operation artifacts.' `
+                    -SuggestedActions @(
+                        'Review each PROVEN finding.',
+                        'Fix or centrally explain only after confirming the evidence.'
+                    ))
         }
     }
 }

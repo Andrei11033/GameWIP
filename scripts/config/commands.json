@@ -1173,39 +1173,39 @@
   "projectCommands": [
     {
       "id": "test-all",
-      "executable": "build\\test\\GameWIPTests.exe",
-      "useWorkspaceTemp": true,
-      "buildPreset": "test",
       "name": "Run all correctness modules",
+      "buildPreset": "test",
+      "executable": "build\\test\\GameWIPTests.exe",
       "arguments": ["--no-test-report"],
+      "useWorkspaceTemp": true,
       "acceptsExtraArgs": true
     },
     {
       "id": "benchmark-dry-run",
-      "executable": "build\\benchmark\\GameWIPBenchmarks.exe",
-      "useWorkspaceTemp": true,
-      "buildPreset": "benchmark",
       "name": "Run benchmark registration dry run",
+      "buildPreset": "benchmark",
+      "executable": "build\\benchmark\\GameWIPBenchmarks.exe",
       "arguments": ["--benchmark_dry_run"],
+      "useWorkspaceTemp": true,
       "acceptsExtraArgs": true
     },
     {
       "id": "dev-version",
-      "executable": "build\\dev\\GameWIP.exe",
-      "useWorkspaceTemp": false,
-      "buildPreset": "dev",
       "name": "Print development executable version",
+      "buildPreset": "dev",
+      "executable": "build\\dev\\GameWIP.exe",
       "arguments": ["--version"],
+      "useWorkspaceTemp": false,
       "acceptsExtraArgs": false
     },
     {
       "id": "release-version",
+      "name": "Print release executable version",
+      "buildPreset": "release",
       "executable": "build\\release\\game\\GameWIP.exe",
       "alternateExecutable": "build\\release\\GameWIP.exe",
-      "useWorkspaceTemp": false,
-      "buildPreset": "release",
-      "name": "Print release executable version",
       "arguments": ["--version"],
+      "useWorkspaceTemp": false,
       "acceptsExtraArgs": false
     },
     {
@@ -1216,6 +1216,7 @@
       "arguments": [],
       "useWorkspaceTemp": false,
       "acceptsExtraArgs": true,
+
       "runtimeOptions": true,
       "workingDirectory": "build",
       "inheritConsole": true,
@@ -1229,6 +1230,7 @@
       "arguments": ["--startup-tests"],
       "useWorkspaceTemp": false,
       "acceptsExtraArgs": true,
+
       "runtimeOptions": true,
       "workingDirectory": "build",
       "inheritConsole": true,
@@ -1242,6 +1244,7 @@
       "arguments": [],
       "useWorkspaceTemp": false,
       "acceptsExtraArgs": true,
+
       "runtimeOptions": true,
       "workingDirectory": "build",
       "inheritConsole": true,
@@ -1256,6 +1259,7 @@
       "arguments": ["--startup-tests"],
       "useWorkspaceTemp": false,
       "acceptsExtraArgs": true,
+
       "runtimeOptions": true,
       "workingDirectory": "build",
       "inheritConsole": true,
@@ -1270,6 +1274,7 @@
       "arguments": [],
       "useWorkspaceTemp": false,
       "acceptsExtraArgs": true,
+
       "runtimeOptions": true,
       "workingDirectory": "build",
       "inheritConsole": true,
@@ -1280,26 +1285,26 @@
   "defaultStressParallel": 8,
   "benchmarkProfiles": [
     {
-      "aggregatesOnly": false,
-      "minTime": "0.05s",
-      "name": "Quick development measurement",
       "id": "quick",
-      "repetitions": 1
+      "name": "Quick development measurement",
+      "repetitions": 1,
+      "minTime": "0.05s",
+      "aggregatesOnly": false
     },
     {
-      "aggregatesOnly": true,
-      "minTime": "0.2s",
-      "name": "Repeatable local measurement",
       "id": "standard",
-      "repetitions": 5
+      "name": "Repeatable local measurement",
+      "repetitions": 5,
+      "minTime": "0.2s",
+      "aggregatesOnly": true
     },
     {
-      "repetitions": 10,
       "id": "stable",
-      "randomInterleaving": true,
-      "aggregatesOnly": true,
       "name": "Longer comparison-quality measurement",
-      "minTime": "1s"
+      "repetitions": 10,
+      "minTime": "1s",
+      "aggregatesOnly": true,
+      "randomInterleaving": true
     }
   ],
   "bundles": [
@@ -1316,9 +1321,9 @@
           "preset": "test"
         },
         {
-          "useWorkspaceTemp": true,
+          "kind": "CTest",
           "preset": "test",
-          "kind": "CTest"
+          "useWorkspaceTemp": true
         }
       ]
     },
@@ -1336,9 +1341,9 @@
           "preset": "test"
         },
         {
-          "useWorkspaceTemp": true,
+          "kind": "CTest",
           "preset": "test",
-          "kind": "CTest"
+          "useWorkspaceTemp": true
         },
         {
           "kind": "Configure",
@@ -1349,14 +1354,14 @@
           "preset": "coverage"
         },
         {
-          "useWorkspaceTemp": true,
+          "kind": "CTest",
           "preset": "coverage",
-          "kind": "CTest"
+          "useWorkspaceTemp": true
         },
         {
+          "kind": "BuildTarget",
           "preset": "coverage",
-          "target": "coverage",
-          "kind": "BuildTarget"
+          "target": "coverage"
         },
         {
           "kind": "Configure",
@@ -1375,14 +1380,14 @@
           "preset": "docs"
         },
         {
-          "buildIfMissing": true,
+          "kind": "ProjectCommand",
           "command": "benchmark-dry-run",
-          "kind": "ProjectCommand"
+          "buildIfMissing": true
         },
         {
-          "buildIfMissing": true,
+          "kind": "ProjectCommand",
           "command": "release-version",
-          "kind": "ProjectCommand"
+          "buildIfMissing": true
         }
       ]
     },
@@ -1400,9 +1405,9 @@
           "preset": "asan"
         },
         {
-          "useWorkspaceTemp": true,
+          "kind": "CTest",
           "preset": "asan",
-          "kind": "CTest"
+          "useWorkspaceTemp": true
         },
         {
           "kind": "Configure",
@@ -1413,9 +1418,9 @@
           "preset": "ubsan"
         },
         {
-          "useWorkspaceTemp": true,
+          "kind": "CTest",
           "preset": "ubsan",
-          "kind": "CTest"
+          "useWorkspaceTemp": true
         }
       ]
     }

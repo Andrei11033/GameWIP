@@ -16,7 +16,14 @@ function New-GameWipToolQueryResult
         [int]$Attempts = 0,
         [AllowNull()]$Metadata = $null
     )
-    [pscustomobject]@{ State = $State; Provider = $Provider; Version = $Version; Reason = $Reason; Attempts = $Attempts; Metadata = $Metadata }
+    [pscustomobject]@{
+        State = $State
+        Provider = $Provider
+        Version = $Version
+        Reason = $Reason
+        Attempts = $Attempts
+        Metadata = $Metadata
+    }
 }
 
 function Invoke-GameWipToolQueryProcess
@@ -44,7 +51,11 @@ function Invoke-GameWipToolQueryProcess
 
     if ($result.ExitCode -ne 0)
     {
-        return New-GameWipToolQueryResult -State unavailable -Provider $Provider -Version $null -Reason (($result.Stderr + $result.Stdout) -join ' ').Trim()
+        return New-GameWipToolQueryResult `
+            -State unavailable `
+            -Provider $Provider `
+            -Version $null `
+            -Reason (($result.Stderr + $result.Stdout) -join ' ').Trim()
     }
 
     return [pscustomobject]@{ State = 'process'; Output = (($result.Stdout + $result.Stderr) -join "`n").Trim() }
@@ -66,7 +77,12 @@ function Get-GameWipGitHubReleaseQuery
 
     if ([string]::IsNullOrWhiteSpace($tag))
     {
-        return New-GameWipToolQueryResult -State invalidResponse -Provider githubRelease -Version $null -Reason 'latest release has no tag_name' -Attempts $http.Attempts
+        return New-GameWipToolQueryResult `
+            -State invalidResponse `
+            -Provider githubRelease `
+            -Version $null `
+            -Reason 'latest release has no tag_name' `
+            -Attempts $http.Attempts
     }
 
     $version = ConvertFrom-GameWipGitHubReleaseTag -Tag $tag
@@ -93,7 +109,13 @@ function Get-GameWipGitHubReleaseQuery
 
     if ($assets.Count -lt @($Tool.provider.assets.Keys).Count)
     {
-        return New-GameWipToolQueryResult -State integrityUnavailable -Provider githubRelease -Version $version -Reason 'one or more required release assets lack a matching SHA-256 digest' -Attempts $http.Attempts -Metadata $metadata
+        return New-GameWipToolQueryResult `
+            -State integrityUnavailable `
+            -Provider githubRelease `
+            -Version $version `
+            -Reason 'one or more required release assets lack a matching SHA-256 digest' `
+            -Attempts $http.Attempts `
+            -Metadata $metadata
     }
 
     return New-GameWipToolQueryResult -State resolved -Provider githubRelease -Version $version -Attempts $http.Attempts -Metadata $metadata
@@ -105,7 +127,11 @@ function Get-GameWipToolLatestQuery
 
     if (-not $Tool.capabilities.checkLatest)
     {
-        return New-GameWipToolQueryResult -State unsupported -Provider ([string]$Tool.provider.kind) -Version $null -Reason 'registry marks latest-version queries unsupported'
+        return New-GameWipToolQueryResult `
+            -State unsupported `
+            -Provider ([string]$Tool.provider.kind) `
+            -Version $null `
+            -Reason 'registry marks latest-version queries unsupported'
     }
 
     switch ([string]$Tool.provider.kind)
@@ -127,7 +153,12 @@ function Get-GameWipToolLatestQuery
 
             if ([string]::IsNullOrWhiteSpace($version))
             {
-                return New-GameWipToolQueryResult -State invalidResponse -Provider python -Version $null -Reason 'PyPI response did not contain info.version' -Attempts $http.Attempts
+                return New-GameWipToolQueryResult `
+                    -State invalidResponse `
+                    -Provider python `
+                    -Version $null `
+                    -Reason 'PyPI response did not contain info.version' `
+                    -Attempts $http.Attempts
             }
             return New-GameWipToolQueryResult -State resolved -Provider python -Version $version -Attempts $http.Attempts
         }
@@ -154,50 +185,15 @@ function Get-GameWipToolLatestQuery
             return New-GameWipToolQueryResult -State resolved -Provider npm -Version $query.Output
         }
 
+        # Package-manager queries are implemented by the active host platform.
         'msys2'
         {
-            $bash = Join-Path (Get-GameWipMsys2Root) 'usr\bin\bash.exe'
-
-            if (-not (Test-Path -LiteralPath $bash))
-            {
-                return New-GameWipToolQueryResult -State unavailable -Provider msys2 -Version $null -Reason 'MSYS2 bash is unavailable'
-            }
-            $query = Invoke-GameWipToolQueryProcess -FilePath $bash -Arguments @('-lc', "pacman -Si '$($Tool.provider.package)' 2>/dev/null") -Provider msys2
-
-            if ($query.State -ne 'process')
-            {
-                return $query
-            }
-            $match = [regex]::Match($query.Output, '(?m)^Version\s*:\s*([^\s-]+)')
-
-            if (-not $match.Success)
-            {
-                return New-GameWipToolQueryResult -State invalidResponse -Provider msys2 -Version $null -Reason 'pacman output did not contain a version'
-            }
-            return New-GameWipToolQueryResult -State resolved -Provider msys2 -Version $match.Groups[1].Value
+            return Get-GameWipMsys2ToolLatestQuery -Tool $Tool
         }
 
         'winget'
         {
-            $winget = Resolve-GameWipToolCommand -Command 'winget'
-
-            if ($null -eq $winget)
-            {
-                return New-GameWipToolQueryResult -State unavailable -Provider winget -Version $null -Reason 'winget is unavailable'
-            }
-            $query = Invoke-GameWipToolQueryProcess -FilePath $winget -Arguments @('show', '--id', [string]$Tool.provider.package, '--exact', '--accept-source-agreements') -Provider winget
-
-            if ($query.State -ne 'process')
-            {
-                return $query
-            }
-            $match = [regex]::Match($query.Output, '(?m)^Version:\s*(\S+)')
-
-            if (-not $match.Success)
-            {
-                return New-GameWipToolQueryResult -State invalidResponse -Provider winget -Version $null -Reason 'winget output did not contain Version'
-            }
-            return New-GameWipToolQueryResult -State resolved -Provider winget -Version $match.Groups[1].Value
+            return Get-GameWipWingetToolLatestQuery -Tool $Tool
         }
 
         'powershellGallery'
@@ -215,7 +211,12 @@ function Get-GameWipToolLatestQuery
 
             catch
             {
-                return New-GameWipToolQueryResult -State unavailable -Provider powershellGallery -Version $null -Reason $_.Exception.Message -Attempts 1
+                return New-GameWipToolQueryResult `
+                    -State unavailable `
+                    -Provider powershellGallery `
+                    -Version $null `
+                    -Reason $_.Exception.Message `
+                    -Attempts 1
             }
         }
         'external'
@@ -224,7 +225,11 @@ function Get-GameWipToolLatestQuery
         }
         default
         {
-            return New-GameWipToolQueryResult -State unsupported -Provider ([string]$Tool.provider.kind) -Version $null -Reason 'provider query is not implemented'
+            return New-GameWipToolQueryResult `
+                -State unsupported `
+                -Provider ([string]$Tool.provider.kind) `
+                -Version $null `
+                -Reason 'provider query is not implemented'
         }
     }
 }

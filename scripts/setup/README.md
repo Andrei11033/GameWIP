@@ -17,9 +17,10 @@ dispatches to the shared setup flow.
   point, `Setup.ps1`.
 - `Setup.ps1` owns action dispatch, consent, execution plans, and final
   verification. The persistent menu is rendered by the shared console backend.
-- `../lib/Operation.ps1`, `../lib/Process.ps1`, and `../lib/Runs.ps1` own the
-  operation lifecycle, native execution, retained output, receipts, and run
-  layout shared with the project helper.
+- `../lib/Operation.ps1` and `../lib/Operation/` own the shared lifecycle,
+  consent, process cleanup, and receipts. `../lib/Process.ps1` owns native
+  launch and `../lib/Process/` owns process capture and named commands.
+  `../lib/Runs.ps1` and `../lib/Runs/` own retained records and history.
 - `config/setup.json` owns setup action/menu metadata and provider-host bootstrap
   IDs only; it does not duplicate machine packages or tool versions.
 - `platform/linux/` owns Linux package installation, verified CMake archives,
@@ -104,8 +105,7 @@ The read-only environment check verifies that every cached source and manifest
 entry matches the current lock file. The explicit `setup.bat deps`
 action runs the same preparation step without duplicating dependency logic.
 
-The editor stage integrates only installed editors. Setup never installs VS
-Code; if it is missing, the integration is skipped. VS Code
+The editor stage integrates only installed editors. If VS Code is installed,
 integration installs Microsoft C++/CMake extensions and packages the local
 workflow extension as a VSIX so the VS Code CLI installs and reports it like any
 other extension. It also writes
@@ -114,21 +114,17 @@ a marked, repository-guarded block at the end of the user's
 `<storage-root>/state/vscode-keybindings.json`; later runs replace only that
 block. This is required because VS Code user rules outrank extension defaults.
 
-The Tracy stage is Windows-only. It checks the installed executables and locked
-source version before building. When they match, setup reuses the installed
-tools; otherwise it rebuilds five upstream CMake projects from the shared
-`<storage-root>/cache/dependencies/fetchcontent/tracy-src` source (default
-`build/gamewip/cache/dependencies/fetchcontent/tracy-src`) using UCRT64
-GCC/Ninja. Reproducible CMake/CPM build state lives under
-`<storage-root>/cache/tracy`, while the candidate executable/DLL set stages only
-under `<storage-root>/temp/<operation-id>/tracy-stage`. Generated
-compatibility adjustments provide the POSIX `memmem` operation missing from
-UCRT64 and remove incompatible COFF LTO flags without modifying the cached
-dependency source.
-The required Windows security library is linked explicitly. The configured
-managed-tools root's `tools/tracy` directory changes only after the complete
-candidate is verified, using a same-volume directory swap so a failed
-replacement can preserve or restore the previous verified set.
+The Tracy stage builds profiler tools for the host. Windows rebuilds the
+complete tool set from the locked source with UCRT64 GCC/Ninja, then stages the
+verified executables and required DLLs under
+`<managed-tools-root>/tools/tracy/windows`.
+Linux builds Wayland and X11 profiler variants with CMake/Ninja, then selects
+the one matching the active desktop session. It installs both under
+`<managed-tools-root>/tools/tracy/linux` and uses the system display libraries
+and loader. Tracy warns that `libwayland-client` versions below 1.22 have
+reduced functionality. Both hosts keep build caches under
+`<storage-root>/cache/tracy` and stage candidates under
+`<storage-root>/temp/<operation-id>` before replacing the managed installation.
 
 Focused `docs` builds, verifies, and opens the generated manual after normal
 local-mutation consent. `-Preview` prints that plan without configuring,
@@ -146,9 +142,9 @@ flow.
 With the default storage root, Windows MSYS2 and managed tools use
 `build/gamewip/tools/msys2` and `build/gamewip/tools/managed`; Linux managed
 tools use `build/gamewip/tools/managed`. The root variables above can select
-existing installations. On Windows, a non-empty tool root without
-valid ownership proof is never silently adopted. Interactive setup may ask,
-defaulting to No, before adopting it; noninteractive setup remains fail-closed.
+existing installations. Setup lists and asks before adopting a non-empty
+external tools root without an ownership marker; noninteractive setup fails
+closed. New managed roots stay under `build/`.
 
 Uninstall is available on Windows and Linux. It removes the checkout's entire
 `build/` directory after setup exits, plus recorded setup-owned extensions and

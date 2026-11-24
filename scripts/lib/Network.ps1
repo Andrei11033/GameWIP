@@ -73,6 +73,8 @@ function Invoke-GameWipHttpDownloadAttempt
         $response = $responseTask.GetAwaiter().GetResult()
         [void]$response.EnsureSuccessStatusCode()
         $contentLength = $response.Content.Headers.ContentLength
+
+        # Stream directly to disk instead of buffering the response body.
         $inputStream = $response.Content.ReadAsStreamAsync().GetAwaiter().GetResult()
         $outputStream = [IO.File]::Open($OutFile, [IO.FileMode]::Create, [IO.FileAccess]::Write, [IO.FileShare]::None)
         $buffer = [byte[]]::new(65536)
@@ -90,7 +92,8 @@ function Invoke-GameWipHttpDownloadAttempt
 
                 if ($lastReport.Elapsed.TotalSeconds -ge 15)
                 {
-                    Write-GameWipHost "  $Label is still downloading ($([Math]::Round($received / 1MB, 1)) MiB received)..." -ForegroundColor DarkGray
+                    $receivedMiB = [Math]::Round($received / 1MB, 1)
+                    Write-GameWipHost "  $Label is still downloading ($receivedMiB MiB received)..." -ForegroundColor DarkGray
                     $lastReport.Restart()
                 }
                 Start-Sleep -Milliseconds 200
@@ -123,6 +126,7 @@ function Invoke-GameWipHttpDownloadAttempt
 
     finally
     {
+        # Release each resource even when a request is cancelled or fails.
         if ($null -ne $outputStream)
         {
             $outputStream.Dispose()
@@ -234,6 +238,12 @@ function Invoke-GameWipHttpRead
 
         catch
         {
+            # Keep user cancellation out of the transient-network retry path.
+            if ($_.Exception -is [System.OperationCanceledException] -and (Test-GameWipCancellationRequested))
+            {
+                throw
+            }
+
             $lastError = $_
             $transient = Test-GameWipTransientNetworkError -ErrorRecord $_
 
@@ -242,7 +252,12 @@ function Invoke-GameWipHttpRead
                 break
             }
             $delaySeconds = [Math]::Min(8, [Math]::Pow(2, $attempt - 1))
-            Write-GameWipHost ("  retry {0}/{1} in {2}s: {3}" -f ($attempt + 1), $MaxAttempts, $delaySeconds, $_.Exception.Message) -ForegroundColor Yellow
+            $retryMessage = '  retry {0}/{1} in {2}s: {3}' -f `
+                ($attempt + 1),
+                $MaxAttempts,
+                $delaySeconds,
+                $_.Exception.Message
+            Write-GameWipHost $retryMessage -ForegroundColor Yellow
             Start-Sleep -Seconds $delaySeconds
         }
     }
@@ -267,7 +282,12 @@ function Invoke-GameWipHttpJson
         [ValidateRange(1, 10)][int]$MaxAttempts = 3,
         [ValidateRange(1, 300)][int]$TimeoutSeconds = 30
     )
-    return Invoke-GameWipHttpRead -Uri $Uri -Headers $Headers -MaxAttempts $MaxAttempts -TimeoutSeconds $TimeoutSeconds -Json
+    return Invoke-GameWipHttpRead `
+        -Uri $Uri `
+        -Headers $Headers `
+        -MaxAttempts $MaxAttempts `
+        -TimeoutSeconds $TimeoutSeconds `
+        -Json
 }
 
 function Invoke-GameWipDownload
@@ -280,5 +300,11 @@ function Invoke-GameWipDownload
         [ValidateRange(1, 300)][int]$TimeoutSeconds = 60,
         [string]$Label = 'Download'
     )
-    return Invoke-GameWipHttpRead -Uri $Uri -Headers $Headers -MaxAttempts $MaxAttempts -TimeoutSeconds $TimeoutSeconds -OutFile $OutFile -Label $Label
+    return Invoke-GameWipHttpRead `
+        -Uri $Uri `
+        -Headers $Headers `
+        -MaxAttempts $MaxAttempts `
+        -TimeoutSeconds $TimeoutSeconds `
+        -OutFile $OutFile `
+        -Label $Label
 }

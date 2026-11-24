@@ -100,6 +100,7 @@ function Invoke-GameWipTracyProjectBuild
                 {
                     throw "Tracy $($project.Name) build did not produce $output."
                 }
+
                 Copy-Item -LiteralPath $built.FullName -Destination (Join-Path $stageRoot $output) -Force
                 Copy-GameWipTracyRuntimeDependency `
                     -Executable $built.FullName `

@@ -73,12 +73,15 @@ function getManagedRoot(context, setting, environmentVariable) {
 
 function getBuildContext() {
     const root = findRepositoryRoot();
+
+    // Read the shared project and target configuration.
     const project = readJson(root, path.join('scripts', 'config', 'project.json'));
     const catalog = readJson(root, path.join('scripts', 'config', 'build-targets.json'));
     const storageRoot = getStorageRoot(root, project);
     const selectionPath = path.join(storageRoot, project.storage.state, 'build-target.json');
     let targetId;
 
+    // Use the persisted selection or the configured default.
     if (fs.existsSync(selectionPath)) {
         const selection = readJson(root, path.relative(root, selectionPath));
 
@@ -91,6 +94,7 @@ function getBuildContext() {
         targetId = catalog.defaultTarget;
     }
 
+    // Refuse launch configurations that cannot run on this host.
     const target = catalog.targets.find((entry) => entry.id.toLowerCase() === targetId.toLowerCase());
 
     if (target === undefined) {
@@ -125,6 +129,7 @@ function getDevelopmentDirectory() {
 function getTargetRuntimePath() {
     const context = getBuildContext();
 
+    // Native executables use the current host environment.
     if (context.target.platform === 'native') {
         return process.env.PATH || '';
     }
@@ -144,6 +149,7 @@ function getTargetRuntimePath() {
     const targetRuntime = path.join(toolchainRoot, context.target.compilerTriple, 'bin');
     const msys2Runtime = path.join(getManagedRoot(context, 'msys2Root', 'GAMEWIP_MSYS2_ROOT'), 'ucrt64', 'bin');
 
+    // Put the selected toolchain and runtime directories ahead of the host PATH.
     return [path.join(toolchainRoot, toolchain.provider.binaryDirectory), targetRuntime, msys2Runtime, process.env.PATH || '']
         .filter(Boolean)
         .join(path.delimiter);

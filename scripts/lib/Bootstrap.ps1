@@ -25,7 +25,17 @@ $PresetsPath = Join-Path $RepositoryRoot 'CMakePresets.json'
 # Long-lived terminals do not inherit PATH changes made by WinGet installers.
 # Refresh this helper process while preserving its existing path precedence.
 . (Join-Path $ScriptsRoot 'lib/Storage.ps1')
-Update-GameWipProcessPath
+
+if ([Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::Windows))
+{
+    . (Join-Path $ScriptsRoot 'platform/windows/Environment.ps1')
+    . (Join-Path $ScriptsRoot 'platform/windows/Tracy.ps1')
+    Update-GameWipProcessPath
+}
+elseif ([Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::Linux))
+{
+    . (Join-Path $ScriptsRoot 'platform/linux/Tracy.ps1')
+}
 
 foreach ($defaultVariable in @{
         PythonPath = ''
@@ -48,15 +58,36 @@ foreach ($defaultVariable in @{
 }
 
 $libraryFiles = @(
+    # Load configuration functions before the helpers that consume them.
     'Config.ps1',
+    'Config/CommandCatalog.ps1',
+    'Config/ProjectTools.ps1',
+    'Config/CommandValidation.ps1',
+
+    # Operation state, consent, retained receipts, and history.
     'Persistence.ps1',
     'Operation.ps1',
+    'Operation/Journal.ps1',
+    'Operation/Consent.ps1',
+    'Operation/Processes.ps1',
+    'Operation/Results.ps1',
+    'Operation/Execution.ps1',
     'Runs.ps1',
+    'Runs/History.ps1',
+
+    # Console input/output and shared command helpers.
     'Console.ps1',
     'CommandBuilder.ps1',
     'Dependencies.ps1',
     'Network.ps1',
+
+    # Native process launch, capture, and command receipts.
     'Process.ps1',
+    'Process/Owned.ps1',
+    'Process/Invocation.ps1',
+    'Process/Native.ps1',
+
+    # Repository, tools, build, and quality workflows.
     'Git.ps1',
     'Workflows.ps1',
     'Unicode.ps1',
@@ -67,15 +98,31 @@ $libraryFiles = @(
     'ToolQueries.ps1',
     'ToolUpdates.ps1',
     'Build.ps1',
+    # Load test execution before its validation command builder.
     'Testing.ps1',
+    'Testing/CommandBuilder.ps1',
     'Benchmarks.ps1',
     'BuildTargets.ps1',
     'Documentation.ps1',
     'Bundles.ps1',
+    # Load scope, formatting, and check/fix helpers before the quality entry point.
+    'Quality/Scope.ps1',
+    'Quality/Formatting.ps1',
+    'Quality/Checks.ps1',
     'Quality.ps1',
     'Hygiene.ps1',
     'Help.ps1',
-    'Interactive.ps1'
+
+    # Load shared menu helpers before the menu implementations and root dispatcher.
+    'Interactive.ps1',
+    'Interactive/Development.ps1',
+    'Interactive/Validation.ps1',
+    'Interactive/Hygiene.ps1',
+    'Interactive/Quality.ps1',
+    'Interactive/Tools.ps1',
+    'Interactive/Repository.ps1',
+    'Interactive/Advanced.ps1',
+    'Interactive/RootMenu.ps1'
 )
 
 foreach ($libraryFile in $libraryFiles)

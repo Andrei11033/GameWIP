@@ -192,13 +192,13 @@
     },
     {
       "id": "profiler",
-      "name": "Install matching Tracy profiler tools",
-      "description": "Prepare or reuse the locked Tracy source, then build and install matching profiler tools.",
+      "name": "Install matching Tracy profiler",
+      "description": "Prepare or reuse the locked Tracy source, then build and install the matching profiler.",
       "risk": "machine",
       "network": true,
       "mutation": "machine",
       "key": "P",
-      "platforms": ["windows"]
+      "platforms": ["windows", "linux"]
     },
     {
       "id": "vs",

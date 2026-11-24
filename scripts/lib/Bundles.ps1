@@ -13,6 +13,7 @@ function Invoke-GameWipBundle
         [System.Collections.Generic.HashSet[string]]$FreshenedPresets
     )
 
+    # Resolve the bundle and its effective build policy.
     $bundleInfo = Get-GameWipProjectBundle -Id $Id
     Assert-GameWipSelectedTargetRunnable -Action "Validation bundle '$Id'"
     $freshByDefault = $bundleInfo.ContainsKey('FreshBuildTrees') -and [bool]$bundleInfo.FreshBuildTrees
@@ -30,6 +31,7 @@ function Invoke-GameWipBundle
 
     if ($effectiveFresh)
     {
+        # Recreate each required preset once before running any bundle step.
         foreach ($step in $bundleInfo.Steps)
         {
             $preset = switch ($step.Kind)
@@ -39,6 +41,7 @@ function Invoke-GameWipBundle
                     [string]$step.Preset
                     break
                 }
+
                 'ProjectCommand'
                 {
                     $buildIfMissing = -not $step.ContainsKey('BuildIfMissing') -or [bool]$step.BuildIfMissing
@@ -49,11 +52,13 @@ function Invoke-GameWipBundle
                     }
                     break
                 }
+
                 'Benchmark'
                 {
                     [string](Get-GameWipProjectCommand -Id 'benchmark-dry-run').BuildPreset
                     break
                 }
+
                 default
                 {
                     ''
@@ -67,6 +72,7 @@ function Invoke-GameWipBundle
         }
     }
 
+    # Execute the declared steps in order.
     Write-GameWipSection $bundleInfo.Name
 
     foreach ($step in $bundleInfo.Steps)
@@ -77,14 +83,17 @@ function Invoke-GameWipBundle
             {
                 Invoke-GameWipConfigurePreset -Name $step.Preset
             }
+
             'Build'
             {
                 Invoke-GameWipBuildPreset -Name $step.Preset
             }
+
             'BuildTarget'
             {
                 Invoke-GameWipBuildTarget -Name $step.Preset -Target $step.Target
             }
+
             'CTest'
             {
                 Invoke-GameWipTestPreset `
@@ -92,6 +101,7 @@ function Invoke-GameWipBundle
                     -UseWorkspaceTemp:([bool]$step.UseWorkspaceTemp) `
                     -NoBuild:$NoBuild
             }
+
             'ProjectCommand'
             {
                 $buildIfMissing = if ($step.ContainsKey('BuildIfMissing'))
@@ -112,8 +122,10 @@ function Invoke-GameWipBundle
                 {
                     $projectCommandParameters.Arguments = @($step.Arguments)
                 }
+
                 Invoke-GameWipProjectCommand @projectCommandParameters
             }
+
             'Benchmark'
             {
                 $stepProfile = if ($step.ContainsKey('Profile'))
@@ -124,6 +136,7 @@ function Invoke-GameWipBundle
                 {
                     'standard'
                 }
+
                 $stepFilter = if ($step.ContainsKey('Filter'))
                 {
                     [string]$step.Filter
@@ -132,6 +145,7 @@ function Invoke-GameWipBundle
                 {
                     ''
                 }
+
                 Invoke-GameWipBenchmark `
                     -Mode 'run' `
                     -ProfileId $stepProfile `
@@ -142,10 +156,16 @@ function Invoke-GameWipBundle
                     -Format 'json' `
                     -SkipBuild:$NoBuild
             }
+
             'Bundle'
             {
-                Invoke-GameWipBundle -Id $step.Bundle -NoBuild:$NoBuild -Fresh:$effectiveFresh -FreshenedPresets $FreshenedPresets
+                Invoke-GameWipBundle `
+                    -Id $step.Bundle `
+                    -NoBuild:$NoBuild `
+                    -Fresh:$effectiveFresh `
+                    -FreshenedPresets $FreshenedPresets
             }
+
             default
             {
                 throw "Unknown bundle step kind '$($step.Kind)' in bundle '$Id'."

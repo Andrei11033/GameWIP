@@ -8,6 +8,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+# Validate the launcher request and checkout paths.
 if ($LaunchToken -notmatch '^[0-9]+-[0-9]+-[0-9]+$')
 {
     throw 'The setup launcher supplied an invalid uninstall token.'
@@ -39,6 +40,7 @@ if ($null -eq $buildAttributes -or
     throw 'Refusing uninstall finalization through a missing or linked build path.'
 }
 
+# Confirm that this request belongs to the current setup run.
 $markerToken = Get-Content -LiteralPath $markerPath -Raw
 
 if ($markerToken -cne $LaunchToken)
@@ -47,6 +49,7 @@ if ($markerToken -cne $LaunchToken)
     exit 0
 }
 
+# Preserve the build tree when setup failed.
 if ($SetupExitCode -ne 0)
 {
     Remove-Item -LiteralPath $markerPath -Force
@@ -54,6 +57,7 @@ if ($SetupExitCode -ne 0)
     exit 0
 }
 
+# Remove the checkout-owned build tree.
 try
 {
     Invoke-GameWipOwnedTreeRemoval `

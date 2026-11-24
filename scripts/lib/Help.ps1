@@ -41,7 +41,11 @@ function Show-GameWipProjectCatalog
     foreach ($moduleName in @(Get-GameWipValidationModuleName))
     {
         $module = Get-GameWipValidationModule -Name $moduleName
-        $options = @(Get-GameWipValidationBuilderOptions -ModuleName $moduleName -CommonCapabilities @('manual-tests', 'verbose-tests', 'test-support-child-process', 'report'))
+        $options = @(
+            Get-GameWipValidationBuilderOptions `
+                -ModuleName $moduleName `
+                -CommonCapabilities @('manual-tests', 'verbose-tests', 'test-support-child-process', 'report')
+        )
 
         if ($options.Count -gt 0)
         {
@@ -161,6 +165,7 @@ function Show-GameWipActionFailure
     {
         $suggestions = @('Inspect the retained run/step log.', 'Rerun the smallest focused GameWIP command that reproduces the failure.')
     }
+
     Write-GameWipHost 'What to do next:' -ForegroundColor Cyan
 
     foreach ($suggestion in $suggestions)
@@ -259,10 +264,18 @@ function Show-GameWipHelp
     Show-GameWipCommonControlHelp -OptionDefinitions $CommandConfig.Options
     Write-Host ''
     Write-Host 'Action-specific options:'
+    $globalOptionIds = @(
+        $CommandConfig.Options |
+            Where-Object { $_.ContainsKey('Global') -and [bool]$_.Global } |
+            ForEach-Object { [string]$_.Id }
+    )
 
     foreach ($action in @($CommandConfig.Actions | Where-Object { $CommandConfig.ActionOptions.ContainsKey([string]$_.Id) }))
     {
-        $specific = @($CommandConfig.ActionOptions[[string]$action.Id] | Where-Object { @($CommandConfig.Options | Where-Object Id -eq $_ | Where-Object { $_.ContainsKey('Global') -and [bool]$_.Global }).Count -eq 0 })
+        $specific = @(
+            $CommandConfig.ActionOptions[[string]$action.Id] |
+                Where-Object { $_ -notin $globalOptionIds }
+        )
 
         if ($specific.Count -eq 0)
         {

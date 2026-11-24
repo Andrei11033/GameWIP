@@ -239,10 +239,6 @@
             "minLength": 1
           }
         },
-        "archiveName": {
-          "type": "string",
-          "minLength": 1
-        },
         "assets": {
           "type": "object",
           "minProperties": 1,
@@ -426,9 +422,20 @@
           "type": "string",
           "minLength": 1
         },
-        "repositoryPath": {
-          "type": "string",
-          "minLength": 1
+        "repositoryPaths": {
+          "type": "object",
+          "properties": {
+            "windows": {
+              "type": "string",
+              "minLength": 1
+            },
+            "linux": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false,
+          "minProperties": 1
         },
         "commandConfigVersionPath": {
           "type": "string",

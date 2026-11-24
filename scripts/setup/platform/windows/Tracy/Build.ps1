@@ -1,6 +1,4 @@
-# Tracy build orchestration
-
-# Tracy build and installation
+# Windows Tracy build orchestration.
 
 # ------------------------------------------------------------
 # Build and install verified Tracy tools
@@ -9,13 +7,12 @@
 function Invoke-GameWipTracyToolBuild
 {
     param(
-        [Parameter(Mandatory = $true)][string]$RepositoryRoot,
         [Parameter(Mandatory = $true)][string]$MsysRoot
     )
 
     $version = Get-GameWipTracyVersion
 
-    if (Test-GameWipTracyToolSet -RepositoryRoot $RepositoryRoot)
+    if (Test-GameWipTracyToolSet)
     {
         Write-Host "  Ready: complete Tracy tool set for locked client $version"
         return
@@ -75,7 +72,6 @@ function Invoke-GameWipTracyToolBuild
         -CompilerCompatibilityHeader $compilerCompatibilityHeader
 
     Install-GameWipTracyToolSet `
-        -RepositoryRoot $RepositoryRoot `
         -StageRoot $stageRoot `
         -Destination $destination `
         -Version $version

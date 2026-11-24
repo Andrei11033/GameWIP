@@ -13,6 +13,7 @@ function Get-GameWipCommandBuilderOptions
         [string[]]$CommonCapabilities = @(),
         [string]$Platform = ''
     )
+
     $applicable = [System.Collections.Generic.List[object]]::new()
 
     foreach ($option in $Options)
@@ -61,6 +62,7 @@ function Get-GameWipCommandBuilderOptions
 function Read-GameWipCommandBuilderOptionResult
 {
     param([Parameter(Mandatory = $true)]$Option)
+
     Write-GameWipSemanticText -Object $Option.Description -Semantic Muted
 
     switch ([string]$Option.Kind)
@@ -72,7 +74,10 @@ function Read-GameWipCommandBuilderOptionResult
 
         'choice'
         {
-            $choiceResult = Read-GameWipMenuChoiceResult -Prompt $Option.Title -Choices ([string[]]$Option.Choices) -Default ([string]$Option.Default)
+            $choiceResult = Read-GameWipMenuChoiceResult `
+                -Prompt $Option.Title `
+                -Choices ([string[]]$Option.Choices) `
+                -Default ([string]$Option.Default)
 
             if ($choiceResult.Status -eq 'Cancelled')
             {
@@ -111,48 +116,55 @@ function ConvertTo-GameWipCommandBuilderArguments
 {
     param([Parameter(Mandatory = $true)]$Option, [Parameter(Mandatory = $true)][AllowEmptyCollection()]$Value)
 
-    if ($Option.Kind -eq 'boolean')
+    switch ([string]$Option.Kind)
     {
-        return @($Option.Arguments | Where-Object { [bool]$Value } | ForEach-Object { [string]$_ })
+        'boolean'
+        {
+            return @($Option.Arguments | Where-Object { [bool]$Value } | ForEach-Object { [string]$_ })
+        }
+
+        'multi-choice'
+        {
+            $selected = @($Value | ForEach-Object { [string]$_ })
+
+            if ($selected.Count -eq 0)
+            {
+                return @()
+            }
+
+            # Validate selections before combining them into one argument value.
+            if (@($selected | Where-Object { @($Option.Choices) -notcontains $_ }).Count -gt 0)
+            {
+                throw "Command builder option '$($Option.Id)' contains an unknown choice."
+            }
+
+            $exclusive = if ($Option.ContainsKey('exclusiveChoices'))
+            {
+                @($Option.ExclusiveChoices)
+            }
+            else
+            {
+                @()
+            }
+
+            if (@($selected | Where-Object { $exclusive -contains $_ }).Count -gt 0 -and $selected.Count -gt 1)
+            {
+                throw "Command builder option '$($Option.Id)' combines an exclusive choice with other values."
+            }
+
+            $separator = [string]$Option.ValueSeparator
+            $selectedValue = $selected -join $separator
+            return @($Option.Arguments | ForEach-Object { ([string]$_).Replace('{value}', $selectedValue) })
+        }
+
+        default
+        {
+            if ($Option.ContainsKey('omitDefault') -and [bool]$Option.OmitDefault -and ([string]$Value -eq [string]$Option.Default))
+            {
+                return @()
+            }
+
+            return @($Option.Arguments | ForEach-Object { ([string]$_).Replace('{value}', [string]$Value) })
+        }
     }
-
-    if ($Option.Kind -eq 'multi-choice')
-    {
-        $selected = @($Value | ForEach-Object { [string]$_ })
-
-        if ($selected.Count -eq 0)
-        {
-            return @()
-        }
-
-        if (@($selected | Where-Object { @($Option.Choices) -notcontains $_ }).Count -gt 0)
-        {
-            throw "Command builder option '$($Option.Id)' contains an unknown choice."
-        }
-
-        $exclusive = if ($Option.ContainsKey('exclusiveChoices'))
-        {
-            @($Option.ExclusiveChoices)
-        }
-        else
-        {
-            @()
-        }
-
-        if (@($selected | Where-Object { $exclusive -contains $_ }).Count -gt 0 -and $selected.Count -gt 1)
-        {
-            throw "Command builder option '$($Option.Id)' combines an exclusive choice with other values."
-        }
-
-        $separator = [string]$Option.ValueSeparator
-        $selectedValue = $selected -join $separator
-        return @($Option.Arguments | ForEach-Object { ([string]$_).Replace('{value}', $selectedValue) })
-    }
-
-    if ($Option.ContainsKey('omitDefault') -and [bool]$Option.OmitDefault -and ([string]$Value -eq [string]$Option.Default))
-    {
-        return @()
-    }
-
-    return @($Option.Arguments | ForEach-Object { ([string]$_).Replace('{value}', [string]$Value) })
 }

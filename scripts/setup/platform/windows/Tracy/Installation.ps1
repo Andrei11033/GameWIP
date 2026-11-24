@@ -7,7 +7,6 @@
 function Install-GameWipTracyToolSet
 {
     param(
-        [Parameter(Mandatory = $true)][string]$RepositoryRoot,
         [Parameter(Mandatory = $true)][string]$StageRoot,
         [Parameter(Mandatory = $true)][string]$Destination,
         [Parameter(Mandatory = $true)][string]$Version
@@ -28,6 +27,7 @@ function Install-GameWipTracyToolSet
 
     try
     {
+        # Assemble and verify the candidate tool set.
         New-Item -ItemType Directory -Path $incoming | Out-Null
 
         foreach ($file in Get-ChildItem -LiteralPath $stageRoot -File)
@@ -36,11 +36,12 @@ function Install-GameWipTracyToolSet
         }
         Write-GameWipTextAtomic -Path (Join-Path $incoming 'version.txt') -Content "source-$version`n"
 
-        if (-not (Test-GameWipTracyToolSet -RepositoryRoot $RepositoryRoot -ToolRoot $incoming))
+        if (-not (Test-GameWipTracyToolSet -ToolRoot $incoming))
         {
             throw 'The staged Tracy tool set failed final verification. Existing managed tools were not replaced.'
         }
 
+        # Swap only after candidate verification.
         if (Test-Path -LiteralPath $destination)
         {
             $backup = Join-Path $destinationParent ('.tracy.{0}.backup' -f [guid]::NewGuid().ToString('N'))
@@ -79,7 +80,7 @@ function Install-GameWipTracyToolSet
         }
     }
 
-    if (-not (Test-GameWipTracyToolSet -RepositoryRoot $RepositoryRoot))
+    if (-not (Test-GameWipTracyToolSet))
     {
         if ($null -ne $backup -and (Test-Path -LiteralPath $backup))
         {

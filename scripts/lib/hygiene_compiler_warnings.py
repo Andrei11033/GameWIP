@@ -85,12 +85,15 @@ def main() -> int:
     options = parse_arguments()
     source_pattern = re.compile(options.source_filter)
     entries = json.loads(options.database.read_text(encoding="utf-8"))
+
+    # Select translation units before launching the compiler pass.
     selected_entries = [entry for entry in entries if source_pattern.search(str(entry.get("file", "")).replace("\\", "/"))]
 
     if not selected_entries:
         print("compiler-warning provider failed: no translation units match the source filter", file=sys.stderr)
         return 1
 
+    # Run independent syntax-only commands with a bounded worker count.
     def run_entry(entry: dict[str, object]) -> tuple[str, int, str]:
         source = str(entry.get("file", "")).replace("\\", "/")
         directory = Path(str(entry["directory"]))

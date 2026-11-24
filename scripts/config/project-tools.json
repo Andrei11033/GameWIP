@@ -867,7 +867,10 @@
         "command": "gamewip",
         "versionArguments": ["unicode", "status"],
         "versionPattern": "Unicode ([0-9.]+)",
-        "repositoryPath": "gamewip.bat",
+        "repositoryPaths": {
+          "windows": "gamewip.bat",
+          "linux": "gamewip.sh"
+        },
         "commandConfigVersionPath": "unicode.version"
       },
       "capabilities": {

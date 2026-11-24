@@ -3,6 +3,7 @@ set -euo pipefail
 
 repository_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source "$repository_root/scripts/platform/linux/powershell_bootstrap.sh"
+source "$repository_root/scripts/platform/linux/build_uninstall.sh"
 
 if ! gamewip_require_setup_powershell "$repository_root" "$@"; then
     exit 1

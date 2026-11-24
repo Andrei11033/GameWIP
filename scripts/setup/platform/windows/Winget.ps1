@@ -29,7 +29,7 @@ function Install-GameWipWingetPackage
     {
         Add-GameWipOwnedWingetPackage -Id $Id
     }
-    Initialize-GameWipSetupProcessPath
+    Update-GameWipProcessPath
 }
 
 function Uninstall-GameWipWingetPackage
@@ -62,5 +62,5 @@ function Invoke-GameWipWingetPackageUpdate
         $arguments += @('--override', $Override)
     }
     Invoke-GameWipSetupNative -FilePath winget -ArgumentList $arguments -AllowedExitCodes @(0, -1978335189) | Out-Null
-    Initialize-GameWipSetupProcessPath
+    Update-GameWipProcessPath
 }

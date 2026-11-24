@@ -1,7 +1,7 @@
 # MSYS2 package derivation, full-system update, retry, and toolchain verification.
 
 # ------------------------------------------------------------
-# MSYS2 package discovery and installation
+# Existing installation discovery
 # ------------------------------------------------------------
 
 Set-StrictMode -Version Latest
@@ -126,7 +126,11 @@ function Get-GameWipExistingMsys2Roots
 
 function Invoke-GameWipMsys2
 {
-    param([Parameter(Mandatory = $true)][string]$MsysRoot, [Parameter(Mandatory = $true)][string]$Command)
+    param(
+        [Parameter(Mandatory = $true)][string]$MsysRoot,
+        [Parameter(Mandatory = $true)][string]$Command
+    )
+
     $bash = Join-Path $MsysRoot 'usr\bin\bash.exe'
 
     if (-not (Test-Path -LiteralPath $bash))
@@ -137,9 +141,18 @@ function Invoke-GameWipMsys2
     Invoke-GameWipSetupNative -FilePath $bash -ArgumentList @('-lc', $Command) | Out-Null
 }
 
+# ------------------------------------------------------------
+# Pacman command execution and retry
+# ------------------------------------------------------------
+
 function Invoke-GameWipMsys2PacmanWithRetry
 {
-    param([Parameter(Mandatory = $true)][string]$MsysRoot, [Parameter(Mandatory = $true)][string]$Command, [ValidateRange(1, 10)][int]$MaxAttempts = 3, [ValidateRange(0, 60)][int]$RetryDelaySeconds = 2)
+    param(
+        [Parameter(Mandatory = $true)][string]$MsysRoot,
+        [Parameter(Mandatory = $true)][string]$Command,
+        [ValidateRange(1, 10)][int]$MaxAttempts = 3,
+        [ValidateRange(0, 60)][int]$RetryDelaySeconds = 2
+    )
 
     for ($attempt = 1; $attempt -le $MaxAttempts; ++$attempt)
     {
@@ -156,7 +169,12 @@ function Invoke-GameWipMsys2PacmanWithRetry
             {
                 throw
             }
-            Write-GameWipOperationEvent -Phase execute -Step pacman-retry -Severity warning -Message "Transient pacman failure; retrying in $RetryDelaySeconds second(s)." -Data @{ attempt = $attempt; reason = $_.Exception.Message }
+            Write-GameWipOperationEvent `
+                -Phase execute `
+                -Step pacman-retry `
+                -Severity warning `
+                -Message "Transient pacman failure; retrying in $RetryDelaySeconds second(s)." `
+                -Data @{ attempt = $attempt; reason = $_.Exception.Message }
 
             if ($RetryDelaySeconds -gt 0)
             {
@@ -165,6 +183,10 @@ function Invoke-GameWipMsys2PacmanWithRetry
         }
     }
 }
+
+# ------------------------------------------------------------
+# Package configuration and verification
+# ------------------------------------------------------------
 
 function Get-GameWipMissingMsys2Package
 {
@@ -189,6 +211,8 @@ function Test-GameWipMsys2PackageSet
 function Get-GameWipMsys2PackageConfig
 {
     param([Parameter(Mandatory = $true)][hashtable]$ProjectTools)
+
+    # Collect packages and dependencies from the project-tool registry.
     $result = @{ Common = @(); Ucrt64 = @(); Clang64 = @() }
     $packageEntries = [System.Collections.Generic.List[object]]::new()
 
@@ -257,9 +281,12 @@ function Install-GameWipMsys2PackageSet
 
     if ($Update)
     {
+        # Run a second full update to complete deferred package updates.
         Invoke-GameWipMsys2PacmanWithRetry -MsysRoot $MsysRoot -Command 'pacman -Syu --noconfirm'
         Invoke-GameWipMsys2PacmanWithRetry -MsysRoot $MsysRoot -Command 'pacman -Syu --noconfirm'
     }
+
+    # Install and verify only the registry-declared package set.
     $packages = @(@($PackageConfig.Common) + @($PackageConfig.Ucrt64) + @($PackageConfig.Clang64) | Sort-Object -Unique)
     Invoke-GameWipMsys2PacmanWithRetry -MsysRoot $MsysRoot -Command "pacman --needed --noconfirm -S $($packages -join ' ')"
 
@@ -272,7 +299,12 @@ function Install-GameWipMsys2PackageSet
 function Test-GameWipMsys2Toolchain
 {
     param([Parameter(Mandatory = $true)][hashtable]$ProjectTools)
-    $toolIds = @($ProjectTools.tools | Where-Object { $_.provider.kind -eq 'msys2' -and $_.capabilities.detectInstalled } | ForEach-Object { [string]$_.id })
+
+    $toolIds = @(
+        $ProjectTools.tools |
+            Where-Object { $_.provider.kind -eq 'msys2' -and $_.capabilities.detectInstalled } |
+            ForEach-Object { [string]$_.id }
+    )
     Test-GameWipToolchain `
         -ToolIds $toolIds `
         -ThrowOnFailure `

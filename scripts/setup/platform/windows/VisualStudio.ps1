@@ -9,6 +9,7 @@ Set-StrictMode -Version Latest
 function Get-GameWipVisualStudioPath
 {
     param([switch]$RequireDesktopWorkload)
+
     $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
 
     if (-not (Test-Path -LiteralPath $vswhere))
@@ -46,10 +47,16 @@ function Get-GameWipVisualStudioInstance
 
 function Install-GameWipVisualStudio
 {
-    param([Parameter(Mandatory = $true)][string]$PackageId, [Parameter(Mandatory = $true)][string]$VsConfigPath, [switch]$Update)
+    param(
+        [Parameter(Mandatory = $true)][string]$PackageId,
+        [Parameter(Mandatory = $true)][string]$VsConfigPath,
+        [switch]$Update
+    )
+
     $override = "--passive --wait --norestart --config `"$VsConfigPath`" --includeRecommended"
     $installation = Get-GameWipVisualStudioInstallation
 
+    # Install Visual Studio only when the user approved the external change.
     if (-not $installation)
     {
         if (-not (Confirm-GameWipExternalInstall -Name 'Visual Studio Community' -Provider WinGet -Package $PackageId))
@@ -67,6 +74,7 @@ function Install-GameWipVisualStudio
         throw 'A Visual Studio installation was not detected after setup.'
     }
 
+    # Apply the selected workload configuration.
     $installer = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\setup.exe'
 
     if (-not (Test-Path -LiteralPath $installer -PathType Leaf))
@@ -76,9 +84,18 @@ function Install-GameWipVisualStudio
 
     if ($Update)
     {
-        Invoke-GameWipSetupNative -FilePath $installer -ArgumentList @('update', '--installPath', $installation, '--passive', '--norestart') -AllowedExitCodes @(0, 3010) | Out-Null
+        Invoke-GameWipSetupNative `
+            -FilePath $installer `
+            -ArgumentList @('update', '--installPath', $installation, '--passive', '--norestart') `
+            -AllowedExitCodes @(0, 3010) | Out-Null
     }
-    Invoke-GameWipSetupNative -FilePath $installer -ArgumentList @('modify', '--installPath', $installation, '--config', $VsConfigPath, '--includeRecommended', '--passive', '--norestart') -AllowedExitCodes @(0, 3010) | Out-Null
+
+    Invoke-GameWipSetupNative `
+        -FilePath $installer `
+        -ArgumentList @('modify', '--installPath', $installation, '--config', $VsConfigPath, '--includeRecommended', '--passive', '--norestart') `
+        -AllowedExitCodes @(0, 3010) | Out-Null
+
+    # Confirm that the C++ desktop workload is available.
     $instance = Get-GameWipVisualStudioInstance
 
     if (-not $instance)

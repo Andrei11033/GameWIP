@@ -27,6 +27,7 @@ function Invoke-GameWipUninstall
     $planned = [System.Collections.Generic.List[string]]::new()
     $preserved = [System.Collections.Generic.List[string]]::new()
 
+    # Classify managed roots and the resources they contain.
     $proven.Add("$buildRoot (project-owned build directory)") | Out-Null
     $proven.Add('GameWIP VS Code workflow integration and managed keybindings') | Out-Null
     $planned.Add('GameWIP VS Code workflow integration and managed keybindings') | Out-Null
@@ -57,6 +58,7 @@ function Invoke-GameWipUninstall
         }
     }
 
+    # Track the selected MSYS2 root according to its location.
     if (Test-GameWipPathWithinRoot -Path $msysRoot -Root $buildRoot)
     {
         if (Test-Path -LiteralPath $msysRoot)
@@ -69,6 +71,7 @@ function Invoke-GameWipUninstall
         $preserved.Add("$msysRoot (existing installation outside build/)") | Out-Null
     }
 
+    # Plan removal for external resources recorded by setup.
     foreach ($id in @($state.wingetPackages | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }))
     {
         $recorded.Add("WinGet package $id") | Out-Null
@@ -88,6 +91,7 @@ function Invoke-GameWipUninstall
     $preserved.Add('Checkout source and configuration files') | Out-Null
     $preserved.Add('Existing installations and packages outside build/ that are not recorded as GameWIP-owned') | Out-Null
 
+    # Report ownership, planned removals, and preserved resources.
     if ($stateNeedsRepair)
     {
         Add-GameWipOperationWarning -Message "Setup state requires repair: $script:SetupStateReadError"
@@ -106,6 +110,7 @@ function Invoke-GameWipUninstall
         return
     }
 
+    # Validate the launcher and get explicit consent before mutation.
     Assert-GameWipBuildUninstallLauncher `
         -RepositoryRoot $RepositoryRoot `
         -LaunchToken ([string]$env:GAMEWIP_SETUP_LAUNCH_TOKEN)
@@ -117,12 +122,14 @@ function Invoke-GameWipUninstall
     }
 
     Invoke-GameWipMutationBody -Body {
+        # Repair ownership metadata before removing managed resources.
         if ($stateNeedsRepair)
         {
             $null = Repair-GameWipSetupState
             Add-GameWipOperationChange -Message 'Normalized recoverable setup ownership state.'
         }
 
+        # Remove GameWIP-managed editor integration and recorded extensions.
         Invoke-GameWipEditorIntegrationRemoval
 
         if (Test-GameWipSetupCommand -Name code)
@@ -133,6 +140,7 @@ function Invoke-GameWipUninstall
             }
         }
 
+        # Remove external managed tools and recorded WinGet packages.
         if ($null -ne $toolMarker -and -not (Test-GameWipPathWithinRoot -Path $toolRoot -Root $buildRoot))
         {
             $toolRootParent = Split-Path -Parent $toolRoot
@@ -144,6 +152,7 @@ function Invoke-GameWipUninstall
             Uninstall-GameWipWingetPackage -Id $id
         }
 
+        # Schedule build/ removal after setup exits.
         Add-GameWipOperationChange -Message 'Scheduled build/ removal after setup exits.'
         Add-GameWipOperationPreserved -Message 'Checkout source and unrecorded external resources were preserved.'
         Write-GameWipBuildUninstallRequest -RepositoryRoot $RepositoryRoot -LaunchToken ([string]$env:GAMEWIP_SETUP_LAUNCH_TOKEN)

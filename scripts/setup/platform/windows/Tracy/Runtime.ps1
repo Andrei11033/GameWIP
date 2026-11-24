@@ -1,4 +1,8 @@
-# Tracy runtime dependencies and compiler compatibility
+# Tracy runtime dependency staging and compiler compatibility.
+
+# ------------------------------------------------------------
+# Runtime dependency closure
+# ------------------------------------------------------------
 
 function Copy-GameWipTracyRuntimeDependency
 {
@@ -44,18 +48,21 @@ function Copy-GameWipTracyRuntimeDependency
             {
                 continue
             }
+
             $dllName = $Matches[1]
 
             if (-not $Visited.Add($dllName))
             {
                 continue
             }
+
             $ucrtDll = Join-Path $UcrtBin $dllName
 
             if (-not (Test-Path -LiteralPath $ucrtDll))
             {
                 continue
             }
+
             $stagedDll = Join-Path $StageRoot $dllName
 
             if (-not (Test-Path -LiteralPath $stagedDll))

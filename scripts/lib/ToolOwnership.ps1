@@ -6,35 +6,6 @@
 
 Set-StrictMode -Version Latest
 
-function Copy-GameWipValue
-{
-    param([AllowNull()]$Value)
-
-    if ($null -eq $Value -or $Value -is [string] -or $Value.GetType().IsValueType)
-    {
-        return $Value
-    }
-
-    if ($Value -is [System.Collections.IDictionary])
-    {
-        $copy = @{}
-
-        foreach ($key in $Value.Keys)
-        {
-            $copy[[string]$key] = Copy-GameWipValue -Value $Value[$key]
-        }
-
-        return $copy
-    }
-
-    if ($Value -is [System.Collections.IEnumerable])
-    {
-        return , @($Value | ForEach-Object { Copy-GameWipValue -Value $_ })
-    }
-
-    return ConvertTo-GameWipHashtable -Value $Value
-}
-
 function Get-GameWipManagedToolRootOwnership
 {
     param([Parameter(Mandatory = $true)][string]$Root)
@@ -58,17 +29,24 @@ function Test-GameWipManagedToolRootOwnership
 function Initialize-GameWipManagedToolRoot
 {
     param([switch]$AdoptExisting)
-    $root = (Get-GameWipManagedToolRoot)
+
+    # Resolve the root and its ownership boundary.
+    $root = Get-GameWipManagedToolRoot
+    $buildRoot = [IO.Path]::GetFullPath((Join-Path $RepositoryRoot 'build'))
+    $projectOwnedRoot = Test-GameWipPathWithinRoot -Path $root -Root $buildRoot
+
+    # Track the marker and installation origin.
     $created = $false
     $origin = 'created'
     $ownership = $null
 
+    # Validate the existing root before claiming it.
     if (Test-Path -LiteralPath $root)
     {
         $ownership = Get-GameWipManagedToolRootOwnership -Root $root
         $entries = @(Get-ChildItem -LiteralPath $root -Force -ErrorAction SilentlyContinue | Where-Object { $_.Name -ne '.gamewip-managed.json' })
 
-        if ((Test-GameWipWindowsHost) -and $null -eq $ownership -and $entries.Count -ne 0)
+        if ($null -eq $ownership -and $entries.Count -ne 0 -and -not $projectOwnedRoot)
         {
             if (-not $AdoptExisting)
             {
@@ -78,7 +56,14 @@ function Initialize-GameWipManagedToolRoot
         }
         elseif ($null -eq $ownership)
         {
-            $origin = 'claimedEmpty'
+            $origin = if ($projectOwnedRoot -and $entries.Count -ne 0)
+            {
+                'claimedProjectOwned'
+            }
+            else
+            {
+                'claimedEmpty'
+            }
         }
     }
     else
@@ -89,6 +74,7 @@ function Initialize-GameWipManagedToolRoot
         $origin = 'created'
     }
 
+    # Record ownership when the root has no valid marker.
     if ($null -eq $ownership)
     {
         $marker = New-GameWipOwnershipMarker -Resource 'project-tools' -Origin $origin -Payload ([ordered]@{
@@ -98,6 +84,7 @@ function Initialize-GameWipManagedToolRoot
         Write-GameWipJsonAtomic -Path (Join-Path $root '.gamewip-managed.json') -Value $marker
     }
 
+    # Keep the standard managed-tool directories available.
     foreach ($name in @('bin', 'tools', 'npm', 'python', 'powershell'))
     {
         $directory = Join-Path $root $name

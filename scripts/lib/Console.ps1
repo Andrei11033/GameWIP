@@ -168,7 +168,11 @@ function Test-GameWipInteractiveConsole
 {
     try
     {
-        return -not [Console]::IsInputRedirected -and -not [Console]::IsOutputRedirected -and $Host.Name -ne 'ServerRemoteHost'
+        return (
+            -not [Console]::IsInputRedirected -and
+            -not [Console]::IsOutputRedirected -and
+            $Host.Name -ne 'ServerRemoteHost'
+        )
     }
 
     catch
@@ -186,7 +190,10 @@ function Assert-GameWipInteractiveConsole
         throw (New-GameWipDiagnosticException `
                 -Code 'interactive-console-required' `
                 -Summary "$Purpose requires an interactive console." `
-                -SuggestedActions @('Use the corresponding explicit CLI command instead of an interactive menu.', 'Do not pipe or redirect stdin for interactive helper flows.'))
+                -SuggestedActions @(
+                    'Use the corresponding explicit CLI command instead of an interactive menu.',
+                    'Do not pipe or redirect stdin for interactive helper flows.'
+                ))
     }
 }
 
@@ -296,11 +303,17 @@ function Read-GameWipIndexedChoiceResult
             {
                 $number = 0
 
-                if (-not [int]::TryParse($part, [ref]$number) -or $number -lt 1 -or $number -gt $Choices.Count -or $numbers.Contains($number))
+                if (
+                    -not [int]::TryParse($part, [ref]$number) -or
+                    $number -lt 1 -or
+                    $number -gt $Choices.Count -or
+                    $numbers.Contains($number)
+                )
                 {
                     $valid = $false
                     break
                 }
+
                 $numbers.Add($number)
             }
 
@@ -309,6 +322,8 @@ function Read-GameWipIndexedChoiceResult
                 return New-GameWipChoiceResult -Status Selected -Value @($numbers | ForEach-Object { $Choices[$_ - 1] })
             }
         }
+
+        # Accept one listed choice when the answer is not a valid multi-selection.
         $number = 0
 
         if ([int]::TryParse($answer, [ref]$number) -and $number -ge 1 -and $number -le $Choices.Count)
@@ -579,7 +594,12 @@ function ConvertTo-GameWipMultiChoiceIndexes
         $trimmed = $token.Trim()
         $number = 0
 
-        if ([string]::IsNullOrWhiteSpace($trimmed) -or -not [int]::TryParse($trimmed, [ref]$number) -or $number -lt 1 -or $number -gt $ChoiceCount)
+        if (
+            [string]::IsNullOrWhiteSpace($trimmed) -or
+            -not [int]::TryParse($trimmed, [ref]$number) -or
+            $number -lt 1 -or
+            $number -gt $ChoiceCount
+        )
         {
             throw "Enter comma-separated numbers from 1 to $ChoiceCount."
         }

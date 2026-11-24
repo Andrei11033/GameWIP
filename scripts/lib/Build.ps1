@@ -26,7 +26,7 @@ function Reset-GameWipPresetBuildTree
     }
     $presetParent = [IO.Path]::GetDirectoryName($presetRoot)
 
-    if (-not [string]::Equals($presetParent, $targetRoot, [StringComparison]::OrdinalIgnoreCase))
+    if (-not [string]::Equals($presetParent, $targetRoot, (Get-GameWipPathComparison)))
     {
         throw "Refusing to recreate preset '$Name' outside target '$($target.id)'."
     }
@@ -55,7 +55,11 @@ function Reset-GameWipPresetBuildTree
     # Remove only the selected target's preset tree.
     if (-not (Test-Path -LiteralPath $presetRoot))
     {
-        Write-GameWipOperationEvent -Phase plan -Step "fresh-$Name" -Severity info -Message "Build tree '$relativePresetRoot' does not exist; configuration will create it."
+        Write-GameWipOperationEvent `
+            -Phase plan `
+            -Step "fresh-$Name" `
+            -Severity info `
+            -Message "Build tree '$relativePresetRoot' does not exist; configuration will create it."
         return
     }
 
@@ -113,15 +117,7 @@ function Test-GameWipPresetConfigured
         return $false
     }
 
-    $pathComparison = if (Test-GameWipWindowsHost)
-    {
-        [StringComparison]::OrdinalIgnoreCase
-    }
-    else
-    {
-        [StringComparison]::Ordinal
-    }
-
+    $pathComparison = Get-GameWipPathComparison
     if (-not [string]::Equals($configuredSource, $expectedSource, $pathComparison))
     {
         return $false
@@ -175,14 +171,20 @@ function Invoke-GameWipConfigurePreset
     # Replace partial or foreign caches before configuring the preset.
     if ((Test-Path -LiteralPath $cache) -and -not (Test-GameWipPresetConfigured -BuildDirectory $buildDirectory))
     {
-        Write-GameWipOperationEvent -Phase plan -Step "configure-$Name" -Severity info -Message "Preset '$Name' has no usable CMake configuration; CMake will regenerate it."
+        Write-GameWipOperationEvent `
+            -Phase plan `
+            -Step "configure-$Name" `
+            -Severity info `
+            -Message "Preset '$Name' has no usable CMake configuration; CMake will regenerate it."
         $arguments += '--fresh'
     }
 
     # Recreate a cache when it belongs to another target compiler.
     if ((Test-Path -LiteralPath $cache) -and $target.platform -in @('windows', 'linux'))
     {
-        $compilerEntry = Get-Content -LiteralPath $cache | Where-Object { $_ -match '^CMAKE_CXX_COMPILER:(?:FILEPATH|STRING)=' } | Select-Object -First 1
+        $compilerEntry = Get-Content -LiteralPath $cache |
+            Where-Object { $_ -match '^CMAKE_CXX_COMPILER:(?:FILEPATH|STRING)=' } |
+            Select-Object -First 1
         $configuredCompiler = if ($null -ne $compilerEntry)
         {
             ($compilerEntry -split '=', 2)[1]
@@ -216,22 +218,23 @@ function Invoke-GameWipConfigurePreset
             }
         }
 
-        if ($target.platform -in @('windows', 'linux') -and -not [string]::IsNullOrWhiteSpace($configuredCompiler) -and [IO.Path]::IsPathRooted($configuredCompiler))
+        if (
+            $target.platform -in @('windows', 'linux') -and
+            -not [string]::IsNullOrWhiteSpace($configuredCompiler) -and
+            [IO.Path]::IsPathRooted($configuredCompiler)
+        )
         {
             $configuredCompiler = [IO.Path]::GetFullPath($configuredCompiler)
             $expectedCompiler = [IO.Path]::GetFullPath((Get-GameWipBuildTargetCompilerPath -Target $target))
-            $pathComparison = if (Test-GameWipWindowsHost)
-            {
-                [StringComparison]::OrdinalIgnoreCase
-            }
-            else
-            {
-                [StringComparison]::Ordinal
-            }
+            $pathComparison = Get-GameWipPathComparison
 
             if (-not [string]::Equals($configuredCompiler, $expectedCompiler, $pathComparison))
             {
-                Write-GameWipOperationEvent -Phase plan -Step "configure-$Name" -Severity info -Message "The cached compiler belongs to a different toolchain; CMake will recreate this preset cache."
+                Write-GameWipOperationEvent `
+                    -Phase plan `
+                    -Step "configure-$Name" `
+                    -Severity info `
+                    -Message "The cached compiler belongs to a different toolchain; CMake will recreate this preset cache."
 
                 if ($arguments -notcontains '--fresh')
                 {
@@ -240,8 +243,13 @@ function Invoke-GameWipConfigurePreset
             }
         }
     }
+
     # Configure the isolated target build tree.
-    Invoke-GameWipNative -Name "configure-$Name" -FilePath 'cmake' -Arguments $arguments -PathPrefix $pathPrefix
+    Invoke-GameWipNative `
+        -Name "configure-$Name" `
+        -FilePath 'cmake' `
+        -Arguments $arguments `
+        -PathPrefix $pathPrefix
 }
 
 function Invoke-GameWipBuildPreset
@@ -251,6 +259,8 @@ function Invoke-GameWipBuildPreset
         [switch]$Fresh,
         [switch]$Offline
     )
+
+    # Ensure a usable configure tree before invoking the build preset.
     Assert-GameWipValidPreset -Kind 'build' -Name $Name
     Confirm-GameWipToolchain -PresetName $Name
     $buildDirectory = Get-GameWipBuildDirectory -PresetName $Name
@@ -259,7 +269,11 @@ function Invoke-GameWipBuildPreset
     if ($Fresh)
     {
         Reset-GameWipPresetBuildTree -Name $Name
-        Write-GameWipOperationEvent -Phase plan -Step "build-$Name" -Severity info -Message "Fresh build requested; configuration is a prerequisite."
+        Write-GameWipOperationEvent `
+            -Phase plan `
+            -Step "build-$Name" `
+            -Severity info `
+            -Message "Fresh build requested; configuration is a prerequisite."
         Invoke-GameWipConfigurePreset -Name $Name -Offline:$Offline
     }
     elseif (-not (Test-GameWipPresetConfigured -BuildDirectory $buildDirectory))
@@ -272,7 +286,11 @@ function Invoke-GameWipBuildPreset
         {
             "Build preset '$Name' is not configured; configuration is a prerequisite."
         }
-        Write-GameWipOperationEvent -Phase plan -Step "build-$Name" -Severity info -Message $message
+        Write-GameWipOperationEvent `
+            -Phase plan `
+            -Step "build-$Name" `
+            -Severity info `
+            -Message $message
         Invoke-GameWipConfigurePreset -Name $Name -Offline:$Offline
     }
     elseif ($Offline)
@@ -284,38 +302,88 @@ function Invoke-GameWipBuildPreset
             -Message "Offline dependency mode requested; refreshing preset '$Name' with downloads disabled."
         Invoke-GameWipConfigurePreset -Name $Name -Offline
     }
-    Invoke-GameWipNative -Name "build-$Name" -FilePath 'cmake' -Arguments @('--build', $buildDirectory, '--parallel') -PathPrefix (Get-GameWipToolchainPathPrefix)
+
+    # Build the selected preset.
+    Invoke-GameWipNative `
+        -Name "build-$Name" `
+        -FilePath 'cmake' `
+        -Arguments @('--build', $buildDirectory, '--parallel') `
+        -PathPrefix (Get-GameWipToolchainPathPrefix)
 }
 
 function Invoke-GameWipBuildTarget
 {
-    param([Parameter(Mandatory = $true)][string]$Name, [Parameter(Mandatory = $true)][string]$Target)
+    param(
+        [Parameter(Mandatory = $true)][string]$Name,
+        [Parameter(Mandatory = $true)][string]$Target
+    )
+
     Assert-GameWipValidPreset -Kind 'build' -Name $Name
     $buildDirectory = Get-GameWipBuildDirectory -PresetName $Name
-    Invoke-GameWipNative -Name "build-$Name-$Target" -FilePath 'cmake' -Arguments @('--build', $buildDirectory, '--target', $Target) -PathPrefix (Get-GameWipToolchainPathPrefix)
+    Invoke-GameWipNative `
+        -Name "build-$Name-$Target" `
+        -FilePath 'cmake' `
+        -Arguments @('--build', $buildDirectory, '--target', $Target) `
+        -PathPrefix (Get-GameWipToolchainPathPrefix)
 }
+
+# ------------------------------------------------------------
+# Project executable and runtime operations
+# ------------------------------------------------------------
 
 function Resolve-GameWipProjectExecutable
 {
     param([Parameter(Mandatory = $true)]$Command)
+
     $buildDirectory = Get-GameWipBuildDirectory -PresetName ([string]$Command.BuildPreset)
-    $presetPrefix = [IO.Path]::GetFullPath((Join-Path $RepositoryRoot (Join-Path 'build' ([string]$Command.BuildPreset))))
+    $target = Get-GameWipSelectedBuildTarget
+    $targetSuffix = switch ([string]$target.platform)
+    {
+        'windows'
+        {
+            '.exe'
+        }
+        'linux'
+        {
+            ''
+        }
+        default
+        {
+            [IO.Path]::GetExtension([string]$Command.Executable)
+        }
+    }
+    $presetPrefix = [IO.Path]::GetFullPath(
+        (Join-Path $RepositoryRoot (Join-Path 'build' ([string]$Command.BuildPreset)))
+    )
 
     $resolvePath = {
         param([string]$RelativePath)
-        $fullPath = [IO.Path]::GetFullPath((Join-Path $RepositoryRoot $RelativePath))
-        $pathComparison = if (Test-GameWipWindowsHost)
+
+        $separator = [IO.Path]::DirectorySeparatorChar
+        $RelativePath = $RelativePath.Replace('\', $separator).Replace('/', $separator)
+        $extension = [IO.Path]::GetExtension($RelativePath)
+
+        if ($extension -ine $targetSuffix)
         {
-            [StringComparison]::OrdinalIgnoreCase
-        }
-        else
-        {
-            [StringComparison]::Ordinal
+            if ($targetSuffix -eq '')
+            {
+                $RelativePath = [IO.Path]::ChangeExtension($RelativePath, $null)
+            }
+            else
+            {
+                $RelativePath = [IO.Path]::ChangeExtension($RelativePath, $targetSuffix)
+            }
         }
 
-        if ($fullPath.StartsWith($presetPrefix.TrimEnd([IO.Path]::DirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar, $pathComparison))
+        $fullPath = [IO.Path]::GetFullPath((Join-Path $RepositoryRoot $RelativePath))
+        $pathComparison = Get-GameWipPathComparison
+
+        $presetDirectory = $presetPrefix.TrimEnd([IO.Path]::DirectorySeparatorChar)
+        $presetPrefixWithSeparator = $presetDirectory + [IO.Path]::DirectorySeparatorChar
+
+        if ($fullPath.StartsWith($presetPrefixWithSeparator, $pathComparison))
         {
-            $suffix = $fullPath.Substring($presetPrefix.TrimEnd([IO.Path]::DirectorySeparatorChar).Length).TrimStart([IO.Path]::DirectorySeparatorChar)
+            $suffix = $fullPath.Substring($presetDirectory.Length).TrimStart([IO.Path]::DirectorySeparatorChar)
             return Join-Path $buildDirectory $suffix
         }
 
@@ -344,9 +412,30 @@ function Resolve-GameWipProjectExecutable
 
 function Start-GameWipTracyProfiler
 {
-    $profilerPath = Join-Path (Get-GameWipManagedToolRoot) 'tools/tracy/tracy-profiler.exe'
+    $backend = Get-GameWipTracyProfilerBackend
+    $platform = if (Test-GameWipWindowsHost) { 'windows' } else { 'linux' }
+    $executable = switch ($backend)
+    {
+        'windows' { 'tracy-profiler.exe' }
+        'wayland' { 'tracy-profiler-wayland' }
+        'x11' { 'tracy-profiler-x11' }
+        default { '' }
+    }
 
-    if (Get-Process -Name 'tracy-profiler' -ErrorAction SilentlyContinue | Select-Object -First 1)
+    if ([string]::IsNullOrWhiteSpace($executable))
+    {
+        throw (New-GameWipDiagnosticException `
+                -Code 'profiler-session-missing' `
+                -Summary 'No Linux graphical session is available for Tracy.' `
+                -SuggestedActions @(
+                    'Run the profiling command from a Wayland or X11 desktop session.'
+                ))
+    }
+
+    $profilerPath = Join-Path (Get-GameWipManagedToolRoot) "tools/tracy/$platform/$executable"
+    $processName = [IO.Path]::GetFileNameWithoutExtension($executable)
+
+    if (Get-Process -Name $processName -ErrorAction SilentlyContinue | Select-Object -First 1)
     {
         return
     }
@@ -356,7 +445,9 @@ function Start-GameWipTracyProfiler
         throw (New-GameWipDiagnosticException `
                 -Code 'profiler-missing' `
                 -Summary "Tracy profiler is missing: $profilerPath" `
-                -SuggestedActions @("Run '.\\setup.bat profiler' to install the matching profiler tools."))
+                -SuggestedActions @(
+                    "Run '$(Get-GameWipSetupHelperCommand) profiler' to install the matching Tracy profiler."
+                ))
     }
 
     try
@@ -370,13 +461,18 @@ function Start-GameWipTracyProfiler
                 -Code 'profiler-start-failed' `
                 -Summary "Could not start the Tracy profiler: $profilerPath" `
                 -Details $_.Exception.Message `
-                -SuggestedActions @('Check that the managed Tracy tools are usable.', 'Run .\\setup.bat profiler to repair them.'))
+                -SuggestedActions @(
+                    'Check that the managed Tracy tools are usable.',
+                    "Run '$(Get-GameWipSetupHelperCommand) profiler' to repair them."
+                ))
     }
 }
 
 function Initialize-GameWipProjectCommandBuild
 {
     param([Parameter(Mandatory = $true)]$Command, [switch]$NoBuild = $Script:NoBuild)
+
+    # Reuse an existing executable or build its declared preset.
     $executable = Resolve-GameWipProjectExecutable -Command $Command
 
     if (Test-Path -LiteralPath $executable)
@@ -389,10 +485,18 @@ function Initialize-GameWipProjectCommandBuild
         throw (New-GameWipDiagnosticException `
                 -Code 'prerequisite-build-disabled' `
                 -Summary "Required executable is missing: $executable" `
-                -Details "Automatic prerequisite builds were disabled with -SkipBuild." `
-                -SuggestedActions @("Build preset '$($Command.BuildPreset)' first.", 'Rerun without -SkipBuild to let GameWIP ensure prerequisites.'))
+                -Details 'Automatic prerequisite builds were disabled with -SkipBuild.' `
+                -SuggestedActions @(
+                    "Build preset '$($Command.BuildPreset)' first.",
+                    'Rerun without -SkipBuild to let GameWIP ensure prerequisites.'
+                ))
     }
-    Write-GameWipOperationEvent -Phase plan -Step 'prerequisite-build' -Severity info -Message "Executable is missing; GameWIP will configure/build preset '$($Command.BuildPreset)' first."
+
+    Write-GameWipOperationEvent `
+        -Phase plan `
+        -Step 'prerequisite-build' `
+        -Severity info `
+        -Message "Executable is missing; GameWIP will configure/build preset '$($Command.BuildPreset)' first."
     Invoke-GameWipConfigurePreset -Name $Command.BuildPreset
     Invoke-GameWipBuildPreset -Name $Command.BuildPreset
 }
@@ -413,10 +517,18 @@ function New-GameWipRuntimeArguments
 
     if (-not $hasRuntimeOptions)
     {
-        $hasRuntimeOptions = $InputDebug -or $InputDevices -or $WindowEvents -or -not [string]::IsNullOrWhiteSpace($InputBackends)
+        $hasRuntimeOptions = (
+            $InputDebug -or
+            $InputDevices -or
+            $WindowEvents -or
+            -not [string]::IsNullOrWhiteSpace($InputBackends)
+        )
     }
 
-    if ($hasRuntimeOptions -and (-not $Command.ContainsKey('RuntimeOptions') -or -not [bool]$Command.RuntimeOptions))
+    if (
+        $hasRuntimeOptions -and
+        (-not $Command.ContainsKey('RuntimeOptions') -or -not [bool]$Command.RuntimeOptions)
+    )
     {
         throw "Project command '$($Command.Id)' does not accept game runtime options."
     }
@@ -462,7 +574,12 @@ function New-GameWipRuntimeArguments
             $validBackends.Add($backend) | Out-Null
         }
 
-        if ($selectedBackends.Count -eq 0 -or @($selectedBackends | Where-Object { -not $validBackends.Contains($_) -and $_ -cne 'none' }).Count -ne 0)
+        $hasUnsupportedBackend = @(
+            $selectedBackends |
+                Where-Object { -not $validBackends.Contains($_) -and $_ -cne 'none' }
+        ).Count -ne 0
+
+        if ($selectedBackends.Count -eq 0 -or $hasUnsupportedBackend)
         {
             throw "Invalid -InputBackends list '$InputBackends'. Use rawInput, hid, xinput, gameInput, directInput, windowMessages, or none."
         }
@@ -492,6 +609,8 @@ function Invoke-GameWipProjectCommand
         [switch]$NoBuild,
         [switch]$ForceBuild
     )
+
+    # Resolve the command and its runtime options.
     $command = Get-GameWipProjectCommand -Id $Id
     $runtimeArguments = @(New-GameWipRuntimeArguments `
             -Command $command `
@@ -501,6 +620,7 @@ function Invoke-GameWipProjectCommand
             -WindowEvents:$WindowEvents `
             -InputBackends $InputBackends)
 
+    # Validate forwarded arguments and confirm the target can run here.
     $hasArguments = $null -ne $Arguments -and $Arguments.Length -ne 0
 
     if ($hasArguments -and -not [bool]$command.AcceptsExtraArgs)
@@ -510,6 +630,7 @@ function Invoke-GameWipProjectCommand
 
     Assert-GameWipSelectedTargetRunnable -Action "Project command '$Id'"
 
+    # Build when requested or ensure the executable is available.
     if ($ForceBuild)
     {
         Invoke-GameWipConfigurePreset -Name $command.BuildPreset
@@ -548,6 +669,7 @@ function Invoke-GameWipProjectCommand
         $null
     }
 
+    # Start the executable with the selected working directory and runtime path.
     Invoke-GameWipNative `
         -Name "project-$Id" `
         -FilePath $executable `

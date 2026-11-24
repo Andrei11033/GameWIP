@@ -31,27 +31,6 @@ function Get-GameWipPythonToolLatestVersion
     return $null
 }
 
-function Get-GameWipPythonEnvironmentInterpreterPath
-{
-    param([Parameter(Mandatory = $true)][string]$Root)
-    if (Test-GameWipWindowsHost)
-    {
-        if ($Root.EndsWith('\'))
-        {
-            return "$($Root)bin\python.exe"
-        }
-
-        return "$Root\bin\python.exe"
-    }
-
-    if ($Root.EndsWith('/'))
-    {
-        return "$($Root)bin/python"
-    }
-
-    return "$Root/bin/python"
-}
-
 function Invoke-GameWipPythonProviderProcess
 {
     param(

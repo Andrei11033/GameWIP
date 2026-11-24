@@ -52,6 +52,7 @@ function Assert-GameWipBuildTargetConfig
 function Get-GameWipBuildTarget
 {
     param([Parameter(Mandatory = $true)][string]$Id)
+
     $targetMatches = @($BuildTargets.targets | Where-Object { [string]$_.id -ieq $Id })
 
     if ($targetMatches.Count -ne 1)
@@ -68,6 +69,7 @@ function Resolve-GameWipBuildTarget
         [Parameter(Mandatory = $true)][string]$Platform,
         [Parameter(Mandatory = $true)][string]$Architecture
     )
+
     $targetMatches = @($BuildTargets.targets | Where-Object {
             [string]$_.platform -ieq $Platform -and [string]$_.architecture -ieq $Architecture
         })
@@ -202,6 +204,7 @@ function Assert-GameWipSelectedTargetRunnable
 function Set-GameWipSelectedBuildTarget
 {
     param([Parameter(Mandatory = $true)]$Target)
+
     $path = Get-GameWipBuildTargetSelectionPath
     Write-GameWipJsonAtomic -Path $path -Value ([ordered]@{
             schemaVersion = 1
@@ -284,6 +287,7 @@ function Invoke-GameWipBuildTargetSelection
 function Get-GameWipBuildTargetToolchainRoot
 {
     param([Parameter(Mandatory = $true)]$Target)
+
     $tool = Get-GameWipProjectTool -Id ([string]$Target.toolchain)
 
     if ($tool.provider.Contains('compiler'))
@@ -310,6 +314,7 @@ function Get-GameWipBuildTargetToolchainRoot
 function Get-GameWipBuildTargetCompilerPath
 {
     param([Parameter(Mandatory = $true)]$Target)
+
     $tool = Get-GameWipProjectTool -Id ([string]$Target.toolchain)
 
     if ($tool.provider.Contains('compiler'))
@@ -339,6 +344,7 @@ function Get-GameWipBuildTargetCompilerPath
 function Get-GameWipBuildDirectory
 {
     param([Parameter(Mandatory = $true)][string]$PresetName, $Target = (Get-GameWipSelectedBuildTarget))
+
     Assert-GameWipValidPreset -Kind configure -Name $PresetName
 
     if ($Target.platform -eq 'native')
@@ -358,7 +364,7 @@ function Get-GameWipBuildTargetPathPrefix
         return ''
     }
 
-    # Keep CMake and the selected compiler available to child processes.
+    # Keep CMake and the selected toolchain available to child processes.
     $toolchainBin = Split-Path -Parent (Get-GameWipBuildTargetCompilerPath -Target $Target)
 
     if (-not (Test-GameWipWindowsHost))
