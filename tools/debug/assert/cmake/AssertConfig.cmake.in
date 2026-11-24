@@ -1,10 +1,9 @@
-# The installed package imports Assert and the shared application manifest helper.
+# The interface-only package has no runtime dependencies.
 @PACKAGE_INIT@
 
-include(CMakeFindDependencyMacro)
-find_dependency(GameWIPApplication @PROJECT_VERSION@ EXACT CONFIG)
-
 if(@ASSERT_RUNTIME_TARGET_ENABLED@)
+    include(CMakeFindDependencyMacro)
+    find_dependency(GameWIPApplication @PROJECT_VERSION@ EXACT CONFIG)
     find_dependency(Logger @PROJECT_VERSION@ EXACT CONFIG)
 endif()
 

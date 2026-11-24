@@ -14,7 +14,7 @@ Include the public header:
 
 ## Installed CMake
 
-Use the package target. The package resolves the shared application manifest helper and, when runtime support is enabled, Logger:
+Use the package target. The runtime package loads Logger and `GameWIPApplication`; the interface-only package needs only Assert:
 
 Set `GAMEWIP_REQUIRED_VERSION` from the consuming project's dependency lock; see @ref project_library_compatibility.
 

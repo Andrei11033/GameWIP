@@ -57,10 +57,14 @@ See @ref assert_diagnostics and @ref assert_macro_behavior for the diagnostic an
 Assert does not own an executable manifest. Process-wide resources belong to the application target because they affect the whole process
 and must be attached exactly once.
 
-Applications that use Assert's preferred Task Dialog path and no Desktop features may request Common Controls v6 through the shared CMake helper:
+Applications that use Assert's preferred Task Dialog path and no Desktop features may request Common Controls v6 through the shared CMake helper. An
+installed consumer should find `GameWIPApplication` when using the helper; runtime-enabled Assert already resolves it, while interface-only Assert does
+not:
 
 ```cmake
 # In the consumer's top-level directory, after project() and before subdirectories.
+find_package(GameWIPApplication ${GAMEWIP_REQUIRED_VERSION} EXACT CONFIG REQUIRED)
+
 if(WIN32)
     enable_language(RC)
 endif()
