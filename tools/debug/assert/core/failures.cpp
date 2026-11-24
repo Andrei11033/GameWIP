@@ -70,6 +70,7 @@ namespace
         {
             return text.size();
         }
+
         std::size_t boundary = maxBytes;
 
         while(boundary > 0 && isUtf8ContinuationByte(text[boundary]))
@@ -142,6 +143,7 @@ namespace
             {
                 return;
             }
+
             constexpr std::string_view suffix = "... [truncated]";
             static_assert(suffix.size() < kCapacityBytes);
             // The retained prefix leaves room for the suffix without cutting a UTF-8 scalar.

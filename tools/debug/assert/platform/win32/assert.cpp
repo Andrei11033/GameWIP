@@ -84,6 +84,7 @@ namespace
         {
             return {};
         }
+
         const auto measurement = GameWIP::Unicode::Utf8::measureToUtf16(text);
         if(measurement.outcome != GameWIP::Unicode::Types::MeasureOutcome::Measured)
         {
@@ -96,6 +97,7 @@ namespace
         {
             return asciiFallbackToWide(text);
         }
+
         std::wstring output(conversion.codeUnitsWritten, L'\0');
 
         for(std::size_t index = 0; index < conversion.codeUnitsWritten; ++index)
@@ -132,6 +134,7 @@ namespace
         {
             return maxCodeUnits - 1;
         }
+
         return maxCodeUnits;
     }
 
@@ -150,6 +153,7 @@ namespace
             text.resize(utf16PrefixBoundary(text, maxCodeUnits));
             return;
         }
+
         // The suffix overwrites discarded text in existing storage, so truncation needs no allocation.
         const std::size_t prefixLimit = maxCodeUnits - suffix.size();
         const std::size_t prefixSize = utf16PrefixBoundary(text, prefixLimit);
@@ -177,6 +181,7 @@ namespace
     PopupText preparePopupText(std::string_view title, std::string_view message)
     {
         PopupText text{utf8ToWide(title), utf8ToWide(message)};
+
         truncateWideForPopup(text.title, kPopupTitleMaxCodeUnits);
         truncateWideForPopup(text.message, kPopupMessageMaxCodeUnits);
 
