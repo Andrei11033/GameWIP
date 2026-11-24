@@ -79,6 +79,7 @@ namespace GameWIP::TestSupport
                 {
                     CloseHandle(handle_);
                 }
+
                 handle_ = handle;
             }
 
@@ -350,6 +351,7 @@ namespace GameWIP::TestSupport
                     setFailure(Types::InfrastructureError::PipeCreationFailed, GetLastError());
                     return result;
                 }
+
                 outputRead.reset(outputReadRaw);
                 outputWrite.reset(outputWriteRaw);
 
@@ -367,6 +369,7 @@ namespace GameWIP::TestSupport
                 setFailure(Types::InfrastructureError::ProcessSetupFailed, GetLastError());
                 return result;
             }
+
             UniqueHandle childOutput;
             UniqueHandle childError;
 
@@ -379,6 +382,7 @@ namespace GameWIP::TestSupport
                     setFailure(Types::InfrastructureError::ProcessSetupFailed, GetLastError());
                     return result;
                 }
+
                 childError = inheritableStandardHandle(STD_ERROR_HANDLE, GENERIC_WRITE);
 
                 if(childError.get() == nullptr || childError.get() == INVALID_HANDLE_VALUE)
@@ -439,6 +443,7 @@ namespace GameWIP::TestSupport
                     &startupInfo.StartupInfo,
                     &processInfo);
             }
+
             const DWORD launchError = created == FALSE ? GetLastError() : ERROR_SUCCESS;
 
             // Close parent copies so capture can observe EOF after the child exits.
@@ -452,6 +457,7 @@ namespace GameWIP::TestSupport
                 setFailure(Types::InfrastructureError::ProcessLaunchFailed, launchError);
                 return result;
             }
+
             UniqueHandle processHandle(processInfo.hProcess);
             UniqueHandle threadHandle(processInfo.hThread);
 
@@ -464,6 +470,7 @@ namespace GameWIP::TestSupport
                 result.outcome = Types::Process::Outcome::TerminatedDuringCleanup;
                 return result;
             }
+
             // Start capture on a reader thread so a full pipe cannot block the wait.
             std::string outputBytes;
             bool outputTruncated = false;

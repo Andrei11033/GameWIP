@@ -35,12 +35,14 @@ namespace GameWIP::TestSupport::Internal::Win32
             {
                 return right.empty() ? CSTR_EQUAL : CSTR_LESS_THAN;
             }
+
             if(right.empty())
             {
                 return CSTR_GREATER_THAN;
             }
 
             constexpr std::size_t maximumLength = static_cast<std::size_t>(std::numeric_limits<int>::max());
+
             if(left.size() > maximumLength || right.size() > maximumLength)
             {
                 return 0;
@@ -49,15 +51,16 @@ namespace GameWIP::TestSupport::Internal::Win32
             return CompareStringOrdinal(left.data(), static_cast<int>(left.size()), right.data(), static_cast<int>(right.size()), TRUE);
         }
 
-        [[nodiscard]] std::wstring environmentEntryName(std::wstring_view entry)
+        [[nodiscard]] std::wstring_view environmentEntryName(std::wstring_view entry) noexcept
         {
             if(!entry.empty() && entry.front() == L'=')
             {
                 const std::size_t secondEquals = entry.find(L'=', 1);
-                return secondEquals == std::wstring_view::npos ? std::wstring(entry) : std::wstring(entry.substr(0, secondEquals));
+                return secondEquals == std::wstring_view::npos ? entry : entry.substr(0, secondEquals);
             }
+
             const std::size_t equals = entry.find(L'=');
-            return equals == std::wstring_view::npos ? std::wstring(entry) : std::wstring(entry.substr(0, equals));
+            return equals == std::wstring_view::npos ? entry : entry.substr(0, equals);
         }
 
         [[nodiscard]] bool sameEnvironmentName(std::wstring_view left, std::wstring_view right)
@@ -71,6 +74,7 @@ namespace GameWIP::TestSupport::Internal::Win32
             {
                 throw std::invalid_argument("Child-process environment names must be non-empty and cannot contain '='");
             }
+
             const std::wstring variableName = Internal::Win32::utf8ToWide(variable.name);
             const auto matchesName = [&variableName](const std::wstring &entry)
             {
@@ -82,6 +86,7 @@ namespace GameWIP::TestSupport::Internal::Win32
                 entries.erase(std::remove_if(entries.begin(), entries.end(), matchesName), entries.end());
                 return;
             }
+
             const std::wstring replacement = variableName + L"=" + Internal::Win32::utf8ToWide(*variable.value);
             const auto existing = std::find_if(entries.begin(), entries.end(), matchesName);
 

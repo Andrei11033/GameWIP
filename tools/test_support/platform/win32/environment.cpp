@@ -2,6 +2,7 @@
 /// @brief Windows environment-variable backend for the TestSupport library.
 
 #include "test_support/platform/backend.h"
+#include "test_support/internal/status.h"
 #include "test_support/platform/win32/internal/text.h"
 
 #ifndef WIN32_LEAN_AND_MEAN
@@ -21,15 +22,10 @@
 namespace
 {
     /// ------------------------------------------------------------
-    /// Status and validation helpers
+    /// Environment helpers
     /// ------------------------------------------------------------
 
-    [[nodiscard]] GameWIP::TestSupport::Types::InfrastructureStatus environmentFailure(
-        GameWIP::TestSupport::Types::InfrastructureError error,
-        std::uint64_t nativeCode = 0) noexcept
-    {
-        return {.error = error, .nativeCode = nativeCode};
-    }
+    using GameWIP::TestSupport::Internal::failureStatus;
 
     void validateEnvironmentName(std::string_view name)
     {
@@ -48,28 +44,28 @@ namespace
         try
         {
             validateEnvironmentName(name);
+
             const std::wstring nameWide = GameWIP::TestSupport::Internal::Win32::utf8ToWide(name);
             const std::wstring valueWide = GameWIP::TestSupport::Internal::Win32::utf8ToWide(value);
             const errno_t error = _wputenv_s(nameWide.c_str(), valueWide.c_str());
-            return error == 0
-                       ? GameWIP::TestSupport::Types::InfrastructureStatus{}
-                       : environmentFailure(GameWIP::TestSupport::Types::InfrastructureError::EnvironmentFailed, static_cast<std::uint64_t>(error));
+            return error == 0 ? GameWIP::TestSupport::Types::InfrastructureStatus{}
+                              : failureStatus(GameWIP::TestSupport::Types::InfrastructureError::EnvironmentFailed, static_cast<std::uint64_t>(error));
         }
         catch(const std::bad_alloc &)
         {
-            return environmentFailure(GameWIP::TestSupport::Types::InfrastructureError::OutOfMemory);
+            return failureStatus(GameWIP::TestSupport::Types::InfrastructureError::OutOfMemory);
         }
         catch(const std::invalid_argument &)
         {
-            return environmentFailure(GameWIP::TestSupport::Types::InfrastructureError::InvalidArgument);
+            return failureStatus(GameWIP::TestSupport::Types::InfrastructureError::InvalidArgument);
         }
         catch(const std::length_error &)
         {
-            return environmentFailure(GameWIP::TestSupport::Types::InfrastructureError::InvalidArgument);
+            return failureStatus(GameWIP::TestSupport::Types::InfrastructureError::InvalidArgument);
         }
         catch(...)
         {
-            return environmentFailure(GameWIP::TestSupport::Types::InfrastructureError::EnvironmentFailed);
+            return failureStatus(GameWIP::TestSupport::Types::InfrastructureError::EnvironmentFailed);
         }
     }
 } // namespace
@@ -86,6 +82,7 @@ namespace GameWIP::TestSupport::Platform
         try
         {
             validateEnvironmentName(name);
+
             const std::wstring nameText = GameWIP::TestSupport::Internal::Win32::utf8ToWide(name);
 
             // GetEnvironmentVariableW reports missing variables through GetLastError(),
@@ -108,7 +105,7 @@ namespace GameWIP::TestSupport::Platform
                     return result;
                 }
 
-                result.status = environmentFailure(Types::InfrastructureError::EnvironmentFailed, readError);
+                result.status = Internal::failureStatus(Types::InfrastructureError::EnvironmentFailed, readError);
                 return result;
             }
 
@@ -118,31 +115,32 @@ namespace GameWIP::TestSupport::Platform
 
             if(copied == 0 || copied >= requiredSize)
             {
-                result.status = environmentFailure(Types::InfrastructureError::EnvironmentFailed, GetLastError());
+                result.status = Internal::failureStatus(Types::InfrastructureError::EnvironmentFailed, GetLastError());
                 return result;
             }
+
             value.resize(copied);
             result.value = GameWIP::TestSupport::Internal::Win32::wideToUtf8(value);
             return result;
         }
         catch(const std::bad_alloc &)
         {
-            result.status = environmentFailure(Types::InfrastructureError::OutOfMemory);
+            result.status = Internal::failureStatus(Types::InfrastructureError::OutOfMemory);
             return result;
         }
         catch(const std::invalid_argument &)
         {
-            result.status = environmentFailure(Types::InfrastructureError::InvalidArgument);
+            result.status = Internal::failureStatus(Types::InfrastructureError::InvalidArgument);
             return result;
         }
         catch(const std::length_error &)
         {
-            result.status = environmentFailure(Types::InfrastructureError::InvalidArgument);
+            result.status = Internal::failureStatus(Types::InfrastructureError::InvalidArgument);
             return result;
         }
         catch(...)
         {
-            result.status = environmentFailure(Types::InfrastructureError::EnvironmentFailed);
+            result.status = Internal::failureStatus(Types::InfrastructureError::EnvironmentFailed);
             return result;
         }
     }

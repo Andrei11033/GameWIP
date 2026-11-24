@@ -15,6 +15,10 @@
 
 namespace GameWIP::TestSupport
 {
+    /// ------------------------------------------------------------
+    /// Synchronization primitives
+    /// ------------------------------------------------------------
+
     /// @brief One-shot gate that blocks workers until opened.
     /// @note Opening is idempotent; current and future waiters pass after the gate opens and it cannot be reset.
     class StartGate
@@ -44,6 +48,10 @@ namespace GameWIP::TestSupport
     private:
         std::atomic<bool> stopRequested_{false}; ///< Sticky cooperative-stop state.
     };
+
+    /// ------------------------------------------------------------
+    /// Worker execution
+    /// ------------------------------------------------------------
 
     /// @brief Starts workerCount threads, joins every started worker, and rethrows one captured worker failure.
     /// @tparam WorkerFunction Copy-constructible callable accepting std::size_t or no arguments.

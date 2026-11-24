@@ -176,6 +176,7 @@ namespace GameWIP::TestSupport
         Context(const Context &) = delete;            ///< Context synchronization/sink ownership cannot be copied.
         Context &operator=(const Context &) = delete; ///< Context synchronization/sink ownership cannot be copy-assigned.
 
+        // Informational reporting
         /// @brief Writes an informational line without changing result counts.
         void info(std::string_view message);
         /// @brief Writes a manual-check instruction without changing result counts.
@@ -187,6 +188,7 @@ namespace GameWIP::TestSupport
         /// @brief Writes a summary line without changing result counts.
         void summary(std::string_view message);
 
+        // Outcome recording
         /// @brief Records one passing check or scenario.
         void pass(std::string_view name);
         /// @brief Records one failing check or scenario with source-location details.
@@ -194,6 +196,7 @@ namespace GameWIP::TestSupport
         /// @brief Records one skipped check or scenario.
         void skip(std::string_view name, std::string_view reason);
 
+        // Expectations
         /// @brief Expects value to be true and records exactly one pass or failure.
         [[nodiscard]] bool expectTrue(std::string_view name, bool value, std::source_location location = std::source_location::current());
         /// @brief Expects value to be false and records exactly one pass or failure.
@@ -245,6 +248,7 @@ namespace GameWIP::TestSupport
             std::size_t expectedCount,
             std::source_location location = std::source_location::current());
 
+        // Context state and report sink
         /// @brief Returns the context-owned suite name.
         [[nodiscard]] const std::string &suiteName() const noexcept;
         /// @brief Returns a coherent snapshot of this context's counts.
@@ -293,16 +297,19 @@ namespace GameWIP::TestSupport
         Runner(const Runner &) = delete;            ///< Runner ownership cannot be copied.
         Runner &operator=(const Runner &) = delete; ///< Runner ownership cannot be copy-assigned.
 
+        // Suite execution
         /// @brief Runs a named suite and converts an uncaught suite exception into one failed check.
         /// @note Join workers borrowing the suite's Context before the callable returns. Allocation, formatting, and reporting failures
         /// outside the callable's exception boundary can propagate.
         template <typename SuiteFunction> Types::Reporting::SuiteResult runSuite(std::string_view suiteName, SuiteFunction &&function);
 
+        // Run-level reporting
         /// @brief Writes a run-level informational line.
         void info(std::string_view message);
         /// @brief Writes a run-level summary line.
         void summary(std::string_view message);
 
+        // Results and sink lifecycle
         /// @brief Returns aggregate counts across suites that have finished.
         [[nodiscard]] Types::Reporting::Summary result() const noexcept;
         /// @brief Reports whether no completed suite has recorded a failure.
@@ -394,6 +401,7 @@ namespace GameWIP::TestSupport
         Timer const timer;
         Context context(suiteName, reportSink_);
 
+        // Run the suite and record any uncaught callback exception.
         try
         {
             if constexpr(std::is_invocable_v<SuiteFunction, Context &>)
@@ -418,6 +426,7 @@ namespace GameWIP::TestSupport
             context.fail("uncaught exception", "unknown exception");
         }
 
+        // Aggregate and report the completed suite.
         Types::Reporting::SuiteResult suiteResult;
         suiteResult.name = std::string(suiteName);
         suiteResult.summary = context.result();

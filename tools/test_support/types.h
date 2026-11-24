@@ -12,6 +12,10 @@ namespace GameWIP::TestSupport
     /// @brief Passive TestSupport status and result values shared across feature surfaces.
     namespace Types
     {
+        /// ------------------------------------------------------------
+        /// Infrastructure status and results
+        /// ------------------------------------------------------------
+
         /// @brief Portable error categories for TestSupport-owned infrastructure operations.
         /// @note Enumerator numeric values are not serialization identifiers or stable wire-format values.
         enum class InfrastructureError : std::uint8_t
@@ -68,6 +72,10 @@ namespace GameWIP::TestSupport
             std::size_t count = 0;       ///< Domain count; zero remains a valid successful value.
         };
     } // namespace Types
+
+    /// ------------------------------------------------------------
+    /// Status formatting
+    /// ------------------------------------------------------------
 
     /// @brief Formats a TestSupport infrastructure status for human-readable reporting.
     /// @return Stable error-category name plus the numeric native diagnostic when present.

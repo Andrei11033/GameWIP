@@ -6,8 +6,8 @@ the matching case below.
 
 ## Report file is missing or empty
 
-Check `writeReport`, `reportPath`, and `appendReport`. An empty path disables file opening. Ordinary directory/open/write/flush failure emits one
-`[TEST REPORT]` diagnostic and disables that sink without affecting the test result.
+Check `writeReport`, `reportPath`, and `appendReport`. An empty path disables file opening. A directory, open, write, flush, or close failure emits
+one `[TEST REPORT]` diagnostic and disables that sink without affecting the test result.
 
 A standalone context normally finalizes at destruction; a runner flushes after each completed suite and owns the shared sink lifecycle. Call
 `finalize()` and inspect `SinkStatus::state` when the artifact must be proven complete. Use `flushReportEachLine` when another process must read each

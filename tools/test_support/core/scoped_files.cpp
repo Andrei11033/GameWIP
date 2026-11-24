@@ -59,6 +59,7 @@ namespace GameWIP::TestSupport
                 status_ = Internal::failureStatus(Types::InfrastructureError::FileOperationFailed, Internal::nativeCode(error));
                 return;
             }
+
             // Keep TestSupport-owned temporary trees under a predictable parent so
             // cleanup can remove empty parent directories without touching unrelated temp data.
             root_ /= "GameWIP";
@@ -70,6 +71,7 @@ namespace GameWIP::TestSupport
                 status_ = Internal::failureStatus(Types::InfrastructureError::FileOperationFailed, Internal::nativeCode(error));
                 return;
             }
+
             const std::string prefix = sanitizeTemporaryPurpose(purpose);
             const auto ticks = std::chrono::steady_clock::now().time_since_epoch().count();
             const std::uint64_t allocationId = temporaryDirectoryCounter.fetch_add(1, std::memory_order_relaxed);
@@ -181,7 +183,6 @@ namespace GameWIP::TestSupport
         try
         {
             // Require the process-state scope before changing the shared directory.
-
             if(!processState.status().ok())
             {
                 status_ = processState.status();
@@ -263,7 +264,6 @@ namespace GameWIP::TestSupport
         try
         {
             // Read the current directory before deciding whether this guard can restore it.
-
             std::error_code error;
             const std::filesystem::path currentPath = std::filesystem::current_path(error);
 

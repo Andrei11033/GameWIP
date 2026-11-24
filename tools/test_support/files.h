@@ -12,6 +12,10 @@ namespace GameWIP::TestSupport
 {
     class ScopedProcessState;
 
+    /// ------------------------------------------------------------
+    /// Scoped filesystem state
+    /// ------------------------------------------------------------
+
     /// @brief Owns one unique directory beneath the process temporary directory.
     /// @details The validation runner scopes the process temporary directory to its active preset; standalone consumers use the host default.
     /// Construction is non-throwing and leaves an inert guard on failure. Destruction performs best-effort recursive cleanup.
@@ -77,6 +81,10 @@ namespace GameWIP::TestSupport
         bool restored_ = false;                         ///< True once restoration succeeds.
     };
 
+    /// ------------------------------------------------------------
+    /// UTF-8 text files
+    /// ------------------------------------------------------------
+
     /// @brief Reads one complete file as strict UTF-8 text.
     /// @return Status plus valid UTF-8 text. Encoding failure may preserve the complete valid prefix.
     /// @note No normalization, BOM handling, or newline conversion is performed.
@@ -88,6 +96,10 @@ namespace GameWIP::TestSupport
     /// @return Success or an explicit infrastructure failure.
     /// @note UTF-8 is validated before parent creation or a truncating destination open.
     [[nodiscard]] Types::InfrastructureStatus writeTextFile(const std::filesystem::path &path, std::string_view text) noexcept;
+
+    /// ------------------------------------------------------------
+    /// File queries and cleanup
+    /// ------------------------------------------------------------
 
     /// @brief Queries whether path exists without collapsing inspection failure into absence.
     [[nodiscard]] Types::BoolResult fileExists(const std::filesystem::path &path) noexcept;

@@ -24,8 +24,8 @@ counts, and `Types::Reporting::SuiteResult` adds the suite name and elapsed mill
 when its report must be proven complete; finalization is idempotent. A
 runner-owned suite context cannot finalize the shared sink independently.
 
-Ordinary report-file setup/write/flush failures disable only that sink and do not rewrite test pass/fail counts. Formatting and stream operations
-that are not documented `noexcept` can throw; see @ref test_support_expectations for the suite exception boundary.
+Ordinary report-file setup, write, flush, or close failures disable only that sink and do not rewrite test pass/fail counts. Formatting and
+stream operations that are not documented `noexcept` can throw; see @ref test_support_expectations for the suite exception boundary.
 
 Provide valid UTF-8 for suite/check names, messages, and values produced by custom formatters. Reporting writes this text without encoding validation
 or repair; use a hexadecimal or another text representation for arbitrary bytes. `readTextFile()` validates report fixtures when tests read them back.
