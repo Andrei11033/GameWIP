@@ -29,6 +29,10 @@ namespace GameWIP::Terminal
     {
         using IO::Types::ErrorCode;
 
+        /// ------------------------------------------------------------
+        /// Output state and formatting storage
+        /// ------------------------------------------------------------
+
         /// @brief Internal capability selector shared by terminal-control emitters.
         enum class ControlFeature
         {
@@ -112,6 +116,10 @@ namespace GameWIP::Terminal
             std::string text_;
         };
 
+        /// ------------------------------------------------------------
+        /// Stream and payload validation
+        /// ------------------------------------------------------------
+
         /// @brief Validates supported standard input stream enum values.
         [[nodiscard]] bool validInputStream(Types::Input::Stream stream) noexcept
         {
@@ -167,6 +175,10 @@ namespace GameWIP::Terminal
 
             return stream == Types::Output::Stream::Stderr ? stderrState : stdoutState;
         }
+
+        /// ------------------------------------------------------------
+        /// Output record assembly
+        /// ------------------------------------------------------------
 
         /// @brief Resolves a validated line-ending policy to emitted bytes.
         [[nodiscard]] std::string_view lineEndingText(Types::Output::LineEnding lineEnding) noexcept
@@ -236,6 +248,10 @@ namespace GameWIP::Terminal
             releaseLargeAssembly(state);
             return status;
         }
+
+        /// ------------------------------------------------------------
+        /// Text and byte records
+        /// ------------------------------------------------------------
 
         /// @brief Implements one serialized styled text write without acquiring the stream mutex.
         [[nodiscard]] IO::Types::Status writeTextUnlocked(
@@ -346,6 +362,10 @@ namespace GameWIP::Terminal
             result.status = flushIfRequested(stream, options.flushMode);
             return result;
         }
+
+        /// ------------------------------------------------------------
+        /// Segmented output
+        /// ------------------------------------------------------------
 
         /// @brief Validates segmented-write kinds, styles, and flush options before emission.
         [[nodiscard]] IO::Types::Status validateSegments(
@@ -599,6 +619,10 @@ namespace GameWIP::Terminal
             return writeAssembly(stream, state, options.flushMode);
         }
 
+        /// ------------------------------------------------------------
+        /// Terminal control sequences
+        /// ------------------------------------------------------------
+
         /// @brief Maps one control operation to its required output capability.
         [[nodiscard]] bool controlFeatureSupported(const Types::Output::Capabilities &capabilities, ControlFeature feature) noexcept
         {
@@ -720,6 +744,10 @@ namespace GameWIP::Terminal
 
     namespace Internal
     {
+        /// ------------------------------------------------------------
+        /// Scoped output restoration
+        /// ------------------------------------------------------------
+
         /// @brief Decrements nested cursor-hide depth and restores visibility at the outer boundary.
         [[nodiscard]] IO::Types::Status restoreCursorHiddenScope(
             Types::Output::Stream stream,
