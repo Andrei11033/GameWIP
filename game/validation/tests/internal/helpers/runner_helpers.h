@@ -10,54 +10,51 @@
 #include <iostream>
 #include <string_view>
 
-namespace GameWIP::Test::RunnerHelpers
+namespace GameWIP::Test::Internal::RunnerHelpers
 {
-    namespace Internal
+    enum class ReportStyle
     {
-        enum class ReportStyle
-        {
-            None,
-            Green,
-            Red,
-            Yellow,
-            Cyan,
-            Gray,
-            Blue,
-            Magenta,
-            Result,
-        };
+        None,
+        Green,
+        Red,
+        Yellow,
+        Cyan,
+        Gray,
+        Blue,
+        Magenta,
+        Result,
+    };
 
-        struct ReportCategoryStyle
-        {
-            std::string_view category;
-            ReportStyle style;
-        };
+    struct ReportCategoryStyle
+    {
+        std::string_view category;
+        ReportStyle style;
+    };
 
-        constexpr std::array kReportCategoryStyles{
-            ReportCategoryStyle{"PASS", ReportStyle::Green},
-            ReportCategoryStyle{"FAIL", ReportStyle::Red},
-            ReportCategoryStyle{"SKIP", ReportStyle::Yellow},
-            ReportCategoryStyle{"MANUAL", ReportStyle::Cyan},
-            ReportCategoryStyle{"SUMMARY", ReportStyle::Cyan},
-            ReportCategoryStyle{"INFO", ReportStyle::Gray},
-            ReportCategoryStyle{"METRIC", ReportStyle::Blue},
-            ReportCategoryStyle{"STRESS", ReportStyle::Magenta},
-            ReportCategoryStyle{"RESULT", ReportStyle::Result},
-        };
+    constexpr std::array kReportCategoryStyles{
+        ReportCategoryStyle{"PASS", ReportStyle::Green},
+        ReportCategoryStyle{"FAIL", ReportStyle::Red},
+        ReportCategoryStyle{"SKIP", ReportStyle::Yellow},
+        ReportCategoryStyle{"MANUAL", ReportStyle::Cyan},
+        ReportCategoryStyle{"SUMMARY", ReportStyle::Cyan},
+        ReportCategoryStyle{"INFO", ReportStyle::Gray},
+        ReportCategoryStyle{"METRIC", ReportStyle::Blue},
+        ReportCategoryStyle{"STRESS", ReportStyle::Magenta},
+        ReportCategoryStyle{"RESULT", ReportStyle::Result},
+    };
 
-        [[nodiscard]] inline ReportStyle reportStyleFor(std::string_view category) noexcept
+    [[nodiscard]] inline ReportStyle reportStyleFor(std::string_view category) noexcept
+    {
+        for(const ReportCategoryStyle &entry : kReportCategoryStyles)
         {
-            for(const ReportCategoryStyle &entry : kReportCategoryStyles)
+            if(entry.category == category)
             {
-                if(entry.category == category)
-                {
-                    return entry.style;
-                }
+                return entry.style;
             }
-
-            return ReportStyle::None;
         }
-    } // namespace Internal
+
+        return ReportStyle::None;
+    }
 
     /// @brief Writes one validation report line with category-based styling when supported.
     [[nodiscard]] inline bool writeValidationConsoleLine(std::string_view category, std::string_view line) noexcept
@@ -66,35 +63,35 @@ namespace GameWIP::Test::RunnerHelpers
         using GameWIP::Terminal::Types::Style::BasicColor;
         using GameWIP::Terminal::Types::Style::Request;
 
-        const Internal::ReportStyle reportStyle = Internal::reportStyleFor(category);
+        const ReportStyle reportStyle = reportStyleFor(category);
         Request style;
 
         switch(reportStyle)
         {
-        case Internal::ReportStyle::None:
+        case ReportStyle::None:
             break;
-        case Internal::ReportStyle::Green:
+        case ReportStyle::Green:
             style.foreground = GameWIP::Terminal::basicColor(BasicColor::BrightGreen);
             break;
-        case Internal::ReportStyle::Red:
+        case ReportStyle::Red:
             style.foreground = GameWIP::Terminal::basicColor(BasicColor::BrightRed);
             break;
-        case Internal::ReportStyle::Yellow:
+        case ReportStyle::Yellow:
             style.foreground = GameWIP::Terminal::basicColor(BasicColor::BrightYellow);
             break;
-        case Internal::ReportStyle::Cyan:
+        case ReportStyle::Cyan:
             style.foreground = GameWIP::Terminal::basicColor(BasicColor::BrightCyan);
             break;
-        case Internal::ReportStyle::Gray:
+        case ReportStyle::Gray:
             style.foreground = GameWIP::Terminal::basicColor(BasicColor::BrightBlack);
             break;
-        case Internal::ReportStyle::Blue:
+        case ReportStyle::Blue:
             style.foreground = GameWIP::Terminal::basicColor(BasicColor::BrightBlue);
             break;
-        case Internal::ReportStyle::Magenta:
+        case ReportStyle::Magenta:
             style.foreground = GameWIP::Terminal::basicColor(BasicColor::BrightMagenta);
             break;
-        case Internal::ReportStyle::Result:
+        case ReportStyle::Result:
         {
             const BasicColor color = line.contains("failed=0") ? BasicColor::BrightGreen : BasicColor::BrightRed;
             style.foreground = GameWIP::Terminal::basicColor(color);
@@ -110,7 +107,7 @@ namespace GameWIP::Test::RunnerHelpers
             options.lineEnding = GameWIP::Terminal::Types::Output::LineEnding::Native;
 
             const Segment segment =
-                reportStyle == Internal::ReportStyle::None ? GameWIP::Terminal::textSegment(line) : GameWIP::Terminal::styledTextSegment(line, style);
+                reportStyle == ReportStyle::None ? GameWIP::Terminal::textSegment(line) : GameWIP::Terminal::styledTextSegment(line, style);
             const std::array<Segment, 1> segments{segment};
 
             return GameWIP::Terminal::writeSegments(GameWIP::Terminal::Types::Output::Stream::Stdout, segments, options).ok();
@@ -167,4 +164,4 @@ namespace GameWIP::Test::RunnerHelpers
 
         return exitCode;
     }
-} // namespace GameWIP::Test::RunnerHelpers
+} // namespace GameWIP::Test::Internal::RunnerHelpers

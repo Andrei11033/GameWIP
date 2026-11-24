@@ -285,13 +285,13 @@ namespace GameWIP::Test
 {
     int runInputTests(const InputTestOptions &options)
     {
-        const TestSupport::Types::Reporting::Options reportOptions = RunnerHelpers::makeReportingOptions(options);
+        const TestSupport::Types::Reporting::Options reportOptions = Internal::RunnerHelpers::makeReportingOptions(options);
 
         TestSupport::Runner runner(reportOptions);
         runner.runSuite("Input system lifecycle", testSystemLifecycle);
         runner.runSuite("Synthetic input source", testSyntheticSource);
         InputPlatform::registerSuites(runner);
 
-        return RunnerHelpers::finalizeRunner(runner);
+        return Internal::RunnerHelpers::finalizeRunner(runner);
     }
 } // namespace GameWIP::Test

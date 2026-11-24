@@ -522,7 +522,7 @@ namespace GameWIP::Test
             return GameWIP::Test::TerminalPlatform::runCancellationSignalFailureChild();
         }
 
-        const TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::RunnerHelpers::makeReportingOptions(options);
+        const TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::Internal::RunnerHelpers::makeReportingOptions(options);
 
         TestSupport::Runner runner(reportOptions);
         runner.info(
@@ -572,6 +572,6 @@ namespace GameWIP::Test
                     manualObservations.skipped));
         }
         runner.summary(std::format("Terminal library self-tests passed={} failed={} skipped={}", result.passed, result.failed, result.skipped));
-        return GameWIP::Test::RunnerHelpers::finalizeRunner(runner);
+        return GameWIP::Test::Internal::RunnerHelpers::finalizeRunner(runner);
     }
 } // namespace GameWIP::Test

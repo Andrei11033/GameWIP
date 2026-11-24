@@ -412,7 +412,7 @@ namespace GameWIP::Test
             return runUnreachableChild();
         }
 
-        const TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::RunnerHelpers::makeReportingOptions(options);
+        const TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::Internal::RunnerHelpers::makeReportingOptions(options);
 
         TestSupport::Runner runner(reportOptions);
 
@@ -610,6 +610,6 @@ namespace GameWIP::Test
                 suite.summary.skipped,
                 suite.elapsedMilliseconds));
         Logger::shutdown();
-        return GameWIP::Test::RunnerHelpers::finalizeRunner(runner);
+        return GameWIP::Test::Internal::RunnerHelpers::finalizeRunner(runner);
     }
 } // namespace GameWIP::Test

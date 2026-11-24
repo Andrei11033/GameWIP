@@ -650,7 +650,7 @@ namespace GameWIP::Test
 
     int runIOTests([[maybe_unused]] int argc, [[maybe_unused]] char *const *argv, const IOTestOptions &options)
     {
-        const TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::RunnerHelpers::makeReportingOptions(options);
+        const TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::Internal::RunnerHelpers::makeReportingOptions(options);
 
         TestSupport::Runner runner(reportOptions);
         runner.info(std::format("IO test options: report={}", options.writeReport ? options.reportPath.string() : std::string_view{"disabled"}));
@@ -667,6 +667,6 @@ namespace GameWIP::Test
 
         const TestSupport::Types::Reporting::Summary result = runner.result();
         runner.summary(std::format("IO library self-tests passed={} failed={} skipped={}", result.passed, result.failed, result.skipped));
-        return GameWIP::Test::RunnerHelpers::finalizeRunner(runner);
+        return GameWIP::Test::Internal::RunnerHelpers::finalizeRunner(runner);
     }
 } // namespace GameWIP::Test

@@ -157,7 +157,7 @@ int runReportNoDrainChild()
             context.logRoot = pathFromText(context, directory);
             testReportNoDrainScenario(context);
         });
-    return GameWIP::Test::RunnerHelpers::finalizeRunner(runner);
+    return GameWIP::Test::Internal::RunnerHelpers::finalizeRunner(runner);
 }
 
 void testFlushContracts(TestContext &context)

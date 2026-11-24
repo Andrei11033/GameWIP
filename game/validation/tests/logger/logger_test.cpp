@@ -129,7 +129,7 @@ namespace GameWIP::Test
             return runFatalTerminateChild();
         }
 
-        const TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::RunnerHelpers::makeReportingOptions(options);
+        const TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::Internal::RunnerHelpers::makeReportingOptions(options);
 
         TestSupport::Runner runner(reportOptions);
         const TestSupport::Types::Reporting::SuiteResult suite = runner.runSuite(
@@ -338,6 +338,6 @@ namespace GameWIP::Test
                 suite.summary.skipped,
                 suite.elapsedMilliseconds));
         static_cast<void>(Logger::shutdown());
-        return GameWIP::Test::RunnerHelpers::finalizeRunner(runner);
+        return GameWIP::Test::Internal::RunnerHelpers::finalizeRunner(runner);
     }
 } // namespace GameWIP::Test

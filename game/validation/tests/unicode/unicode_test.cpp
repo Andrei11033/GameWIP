@@ -472,7 +472,7 @@ namespace GameWIP::Test
 
     int runUnicodeTests(int, char **, const UnicodeTestOptions &options)
     {
-        const TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::RunnerHelpers::makeReportingOptions(options);
+        const TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::Internal::RunnerHelpers::makeReportingOptions(options);
 
         TestSupport::Runner runner(reportOptions);
         runner.info("Unicode library target: strict UTF-8/UTF-16 primitives and Unicode 17.0.0 extended grapheme boundaries");
@@ -489,6 +489,6 @@ namespace GameWIP::Test
 
         const TestSupport::Types::Reporting::Summary result = runner.result();
         runner.summary(std::format("Unicode library self-tests passed={} failed={} skipped={}", result.passed, result.failed, result.skipped));
-        return GameWIP::Test::RunnerHelpers::finalizeRunner(runner);
+        return GameWIP::Test::Internal::RunnerHelpers::finalizeRunner(runner);
     }
 } // namespace GameWIP::Test

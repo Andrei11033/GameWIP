@@ -99,7 +99,7 @@ int runStartGateChild()
             static_cast<void>(
                 context.expectEq("StartGate remains open for future waiters", std::size_t{4}, lateWaiters.load(std::memory_order_relaxed)));
         });
-    return GameWIP::Test::RunnerHelpers::finalizeRunner(runner);
+    return GameWIP::Test::Internal::RunnerHelpers::finalizeRunner(runner);
 }
 
 /// @brief Verifies worker coordination, callable variants, and exception propagation.

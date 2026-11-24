@@ -503,7 +503,7 @@ namespace GameWIP::Test
 
     int runRunnerTests(const RunnerTestOptions &options)
     {
-        const TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::RunnerHelpers::makeReportingOptions(options);
+        const TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::Internal::RunnerHelpers::makeReportingOptions(options);
 
         TestSupport::Runner runner(reportOptions);
 
@@ -527,6 +527,6 @@ namespace GameWIP::Test
 
         const TestSupport::Types::Reporting::Summary result = runner.result();
         runner.summary(std::format("Validation runner tests passed={} failed={} skipped={}", result.passed, result.failed, result.skipped));
-        return GameWIP::Test::RunnerHelpers::finalizeRunner(runner);
+        return GameWIP::Test::Internal::RunnerHelpers::finalizeRunner(runner);
     }
 } // namespace GameWIP::Test

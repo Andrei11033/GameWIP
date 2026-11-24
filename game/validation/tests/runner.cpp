@@ -494,7 +494,7 @@ namespace GameWIP::Validation::Tests
         if(options.writeReport)
         {
             const std::string reportLine = std::format("[VALIDATION] report={}", options.reportPath.string());
-            GameWIP::Test::RunnerHelpers::writeValidationConsoleLineOrDiagnose("INFO", reportLine);
+            GameWIP::Test::Internal::RunnerHelpers::writeValidationConsoleLineOrDiagnose("INFO", reportLine);
         }
 
         TestResult result;
@@ -519,7 +519,7 @@ namespace GameWIP::Validation::Tests
 
             const std::string moduleLine =
                 std::format("[VALIDATION] module={} result={} exitCode={}", module.name, moduleExitCode == 0 ? "PASS" : "FAIL", moduleExitCode);
-            GameWIP::Test::RunnerHelpers::writeValidationConsoleLineOrDiagnose(moduleExitCode == 0 ? "PASS" : "FAIL", moduleLine);
+            GameWIP::Test::Internal::RunnerHelpers::writeValidationConsoleLineOrDiagnose(moduleExitCode == 0 ? "PASS" : "FAIL", moduleLine);
             appendValidationLine(options, moduleLine);
 
             // Once one module has written the aggregate report, later modules
@@ -537,7 +537,7 @@ namespace GameWIP::Validation::Tests
         // Publish the aggregate result.
         const std::string resultLine =
             std::format("[VALIDATION] result={} modules={} failed={}", result.ok() ? "PASS" : "FAIL", result.modulesRun, result.modulesFailed);
-        GameWIP::Test::RunnerHelpers::writeValidationConsoleLineOrDiagnose(result.ok() ? "PASS" : "FAIL", resultLine);
+        GameWIP::Test::Internal::RunnerHelpers::writeValidationConsoleLineOrDiagnose(result.ok() ? "PASS" : "FAIL", resultLine);
         appendValidationLine(options, resultLine);
         return result;
     }

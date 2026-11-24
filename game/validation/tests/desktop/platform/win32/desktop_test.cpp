@@ -297,7 +297,7 @@ namespace GameWIP::Test
             std::string_view{"borderless"},    std::string_view{"exclusive"},       std::string_view{"topology"},
             std::string_view{"hdr"},           std::string_view{"modern"}};
 
-        TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::RunnerHelpers::makeReportingOptions(options);
+        TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::Internal::RunnerHelpers::makeReportingOptions(options);
         reportOptions.flushReportEachLine = options.enableManualTests;
 
         TestSupport::Runner runner(reportOptions);
@@ -577,6 +577,6 @@ namespace GameWIP::Test
         }
         runner.summary(std::format("Desktop library self-tests passed={} failed={} skipped={}", result.passed, result.failed, result.skipped));
         manualStatusWindow = nullptr;
-        return GameWIP::Test::RunnerHelpers::finalizeRunner(runner);
+        return GameWIP::Test::Internal::RunnerHelpers::finalizeRunner(runner);
     }
 } // namespace GameWIP::Test
