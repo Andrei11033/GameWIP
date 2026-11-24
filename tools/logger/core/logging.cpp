@@ -2,6 +2,7 @@
 /// @brief Queue submission and exported asynchronous logging functions.
 
 #include "logger/internal/core.h"
+#include "logger/logging.h"
 
 using namespace GameWIP::Logger::Internal::Core;
 

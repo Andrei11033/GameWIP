@@ -14,8 +14,8 @@ The package installs `logger/types.h`, `logger/config.h`, the `logger/logger.h` 
 `logger/logger_macros.h`, required detail headers, the generated `logger/logger_export.h`, and `GameWIP::Logger`.
 The detail headers contain template definitions required by the installed API; they are not independent API entry points.
 
-`logger.h` exposes `IO::Types::Status`, so IO is a public dependency. `LoggerConfig.cmake` resolves the matching exact-version IO package.
-Terminal is installed for Logger's console implementation; FileSystem and Unicode are private implementation dependencies.
+`logger.h` exposes `IO::Types::Status`, so IO is the public dependency and `LoggerConfig.cmake` resolves its exact-version package. Terminal,
+FileSystem, and Unicode are private implementation dependencies.
 
 ## Shared-library exports
 

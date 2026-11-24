@@ -2,6 +2,7 @@
 /// @brief Timestamp, source, and bounded-message formatting.
 
 #include "logger/internal/core.h"
+#include "logger/detail/formatting.h"
 
 namespace GameWIP::Logger::Internal::Core
 {

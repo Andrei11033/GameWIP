@@ -6,9 +6,7 @@
 #include "logger/detail/formatting.h"
 #include "logger/record.h"
 
-#include <chrono>
 #include <format>
-#include <new>
 #include <string>
 #include <string_view>
 #include <utility>

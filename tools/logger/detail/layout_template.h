@@ -19,6 +19,7 @@ namespace GameWIP::Logger::Internal
     /// UTF-8 validation
     /// ------------------------------------------------------------
 
+    /// @brief Validates UTF-8 during constant evaluation for `makeLayout()`.
     [[nodiscard]] constexpr bool isValidUtf8(std::string_view text) noexcept
     {
         const auto continuation = [](unsigned char value)

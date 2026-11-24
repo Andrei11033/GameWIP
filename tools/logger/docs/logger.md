@@ -1,17 +1,18 @@
 @page logger Logger
 
-Logger is the process-wide runtime diagnostics library. Normal logging is asynchronous and filterable; reports are a synchronous emergency path that
-bypasses queue pressure and runtime filtering.
+Logger is the process-wide runtime diagnostics library for filtered logs and synchronous reports.
 
 ## How the library is organized
 
-Initialize Logger once with the sinks, queue limits, formatting, and filters the
-process needs. Normal log calls copy accepted data into a bounded queue and
-return; a worker formats and writes those records. Lifecycle calls such as
-`flush()` and `shutdown()` synchronize with that worker. Reports take a separate
-synchronous path for diagnostics that must be attempted immediately. Direct
-operation failures are returned to the caller, while later asynchronous sink
-failures are retained in health state.
+Configure sinks, queue limits, formatting, and filters during initialization.
+A worker writes accepted records; lifecycle calls coordinate with that worker.
+
+## Key behavior
+
+Normal calls copy accepted data into a bounded queue and return. Reports bypass
+filters and queue pressure, try enabled channels, and flush active normal sinks
+without draining older queued records. Operations return direct failures;
+asynchronous sink failures appear in health state.
 
 ## Consumer manual
 
@@ -52,16 +53,7 @@ failures are retained in health state.
 Use @ref GameWIP::Logger for operations. Configuration, result, statistics, and
 health types are listed under that namespace in the generated class index.
 
-## Key behavior
-
-Normal log calls copy retained source/message text before return and place accepted records in the bounded worker queue. Reports synchronously attempt
-the requested diagnostic through every enabled emergency channel and flush active normal sinks. Reports never drain older asynchronous records;
-callers that need backlog completion use `flush()` explicitly.
-
-Lifecycle and synchronous operations return direct `IO::Types::Status` or a Logger result containing status plus a distinct domain outcome.
-Asynchronous sink failures are exposed by `getHealth()` rather than mutable process-wide last-operation state.
-
 ## Dependency boundary
 
-Installed consumers link `GameWIP::Logger`. IO is public because Logger's public result surface contains IO status types. Terminal is an installed
-dependency used for console output; FileSystem and Unicode remain private implementation dependencies.
+Installed consumers link `GameWIP::Logger`. IO is public because Logger's result types expose IO status. Terminal, FileSystem, and Unicode are private
+implementation dependencies.

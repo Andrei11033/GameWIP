@@ -2,6 +2,7 @@
 /// @brief Logger statistics snapshots and retained-memory accounting helpers.
 
 #include "logger/internal/core.h"
+#include "logger/logging.h"
 
 namespace GameWIP::Logger::Internal::Core
 {

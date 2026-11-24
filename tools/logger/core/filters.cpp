@@ -2,6 +2,7 @@
 /// @brief Logger runtime filtering, source registration, and source lookup helpers.
 
 #include "logger/internal/core.h"
+#include "logger/logging.h"
 
 namespace GameWIP::Logger::Internal::Core
 {
@@ -106,7 +107,7 @@ namespace GameWIP::Logger::Internal::Core
     bool sourceEnabledRuntime(SourceId source)
     {
         const std::shared_ptr<SourceRegistry> registry = loadSourceRegistry();
-        return ::GameWIP::Logger::Internal::Core::sourceEnabledRuntime(registry.get(), source);
+        return sourceEnabledRuntime(registry.get(), source);
     }
 
     /// @brief Checks the runtime source filter using a caller-owned registry snapshot.
@@ -155,7 +156,7 @@ namespace GameWIP::Logger::Internal::Core
     /// @return True when shouldLogRuntime(level) passes and the source filter allows the source.
     bool shouldLogRuntime(LogLevel level, SourceId source)
     {
-        return ::GameWIP::Logger::Internal::Core::shouldLogRuntime(level) && ::GameWIP::Logger::Internal::Core::sourceEnabledRuntime(source);
+        return shouldLogRuntime(level) && sourceEnabledRuntime(source);
     }
 
     /// @brief Rechecks a pending entry against the current packed runtime state.
@@ -181,7 +182,7 @@ namespace GameWIP::Logger::Internal::Core
             return {};
         }
 
-        if(entry.usesRegisteredSource && !::GameWIP::Logger::Internal::Core::sourceEnabledRuntime(entry.sourceId))
+        if(entry.usesRegisteredSource && !sourceEnabledRuntime(entry.sourceId))
         {
             return {};
         }

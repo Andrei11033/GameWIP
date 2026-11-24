@@ -25,7 +25,7 @@ namespace GameWIP::Logger::Platform
     /// @brief Returns or creates the current thread's formatting scratch storage.
     [[nodiscard]] Internal::FormatScratchStorage &formatScratchStorageForThread();
 
-    /// @brief Returns current-thread scratch storage without creating it.
+    /// @brief Returns current-thread scratch storage during lease release.
     [[nodiscard]] Internal::FormatScratchStorage *findFormatScratchStorageForThread() noexcept;
 
     /// @brief Writes one UTF-8 diagnostic line to the platform debugger channel.

@@ -53,9 +53,9 @@ config.layout = diagnosticLayout;
 Use `Record::layout(diagnosticLayout)` to override it for one record. Supported placeholders are `time`, `level`, `area`, `message`,
 `source_file`, `source_function`, `source_line`, `thread_id`, `process_id`, and `fields`. Alignment uses `<` for left, `^` for center, and `>` for
 right, followed by a minimum byte width. Centering puts any odd extra space on the right. Width is measured in UTF-8 bytes, not terminal display
-columns. `auto` uses the longest registered area name or the five-character severity width. The built-in layout places the area before severity and
-uses left alignment for both. Use `{@timestamp}`, `{@severity}`, `{@area}`, `{@message}`, `{@field}`, `{@code}`, `{@path}`, `{@number}`, or
-`{@quoted}` to color literal text with that semantic theme role; `{/}` ends a scope. Scopes can nest up to eight levels, and marked format values
+columns. `auto` uses the widest registered area name for `area` or five bytes for `level`; the built-in layout left-aligns both fields. Use
+`{@timestamp}`, `{@severity}`, `{@area}`, `{@message}`, `{@field}`, `{@code}`, `{@path}`, `{@number}`, or `{@quoted}` to color literal text with the
+matching theme role. `{/}` ends a scope. Scopes can nest up to eight levels, and marked format values
 keep their own role colors inside a scope. `makeLayout()` rejects malformed placeholders and unbalanced scopes at compile time; `init()` rejects
 invalid runtime-constructed templates.
 `init()` copies and compiles the configured layout, and `Record::layout()` copies and compiles its template, so both remain valid after the original

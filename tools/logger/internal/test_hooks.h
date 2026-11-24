@@ -4,7 +4,6 @@
 #pragma once
 
 #include "logger/internal/test_export.h"
-#include "logger/logger.h"
 
 #ifndef LOGGER_INTERNAL_TEST_HOOKS
 #define LOGGER_INTERNAL_TEST_HOOKS 0
@@ -29,7 +28,7 @@ namespace GameWIP::Logger::Internal::TestHooks
     /// @warning Test-only API. The hook is one-shot.
     LOGGER_TEST_EXPORT void forceNextFatalPopupFailure() noexcept;
 
-    /// @brief Forces the next timed Logger::flush(timeout) wait to time out.
+    /// @brief Forces the next finite flush or report operation to report a timeout.
     /// @warning Test-only API. The hook is one-shot.
     LOGGER_TEST_EXPORT void forceNextTimedFlushTimeout() noexcept;
 

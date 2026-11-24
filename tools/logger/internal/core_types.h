@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "logger/logger.h"
+#include "logger/config.h"
 #include "filesystem/directory.h"
 #include "filesystem/file.h"
 #include "io/status.h"

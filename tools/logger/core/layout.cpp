@@ -2,6 +2,7 @@
 /// @brief Record-envelope parsing and compiled layout rendering.
 
 #include "logger/internal/core.h"
+#include "logger/detail/formatting.h"
 
 #include <algorithm>
 #include <array>

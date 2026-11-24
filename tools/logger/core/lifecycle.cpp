@@ -2,6 +2,7 @@
 /// @brief Logger initialization wrappers, flushing, and shutdown.
 
 #include "logger/internal/core.h"
+#include "logger/logging.h"
 
 #include <chrono>
 #include <mutex>

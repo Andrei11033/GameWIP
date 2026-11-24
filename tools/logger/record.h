@@ -42,6 +42,7 @@ namespace GameWIP::Logger
             {
                 return *this;
             }
+
             const Internal::Core::RecordLimits limits = Internal::Core::getRecordLimitsForFormatting();
             if(fields_.size() >= limits.maxFields)
             {
@@ -56,6 +57,7 @@ namespace GameWIP::Logger
             }
 
             std::string text;
+            // Include room for a four-byte UTF-8 scalar that crosses the retained boundary.
             const std::size_t outputLimit = limits.maxValueLength == 0                                            ? 0
                                             : limits.maxValueLength > std::numeric_limits<std::size_t>::max() - 3 ? limits.maxValueLength
                                                                                                                   : limits.maxValueLength + 3;
@@ -230,6 +232,7 @@ namespace GameWIP::Logger
 
         [[nodiscard]] std::string decorate(std::string_view message, FieldLayout defaultLayout, LayoutTemplate defaultTemplate = {}) const
         {
+            constexpr std::size_t kAdaptiveExpansionThreshold = 96;
             const std::string_view selectedTemplate = customLayout_.empty() ? defaultTemplate.text : std::string_view(customLayout_);
 
             // Apply a validated custom template when one is available.
@@ -283,7 +286,7 @@ namespace GameWIP::Logger
                     totalFieldBytes += key.size() + value.size() + 1;
                     expanded = expanded || value.contains('\n');
                 }
-                expanded = expanded || totalFieldBytes > 96;
+                expanded = expanded || totalFieldBytes > kAdaptiveExpansionThreshold;
             }
 
             // Render either a multiline record or the selected inline layout.

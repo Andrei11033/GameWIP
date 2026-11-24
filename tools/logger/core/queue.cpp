@@ -54,14 +54,19 @@ namespace GameWIP::Logger::Internal::Core
         std::unique_ptr<char[]> &ringArena,
         std::unique_ptr<char[]> &batchArena)
     {
-        try
+        const auto clearOutputs = [&]() noexcept
         {
-            // Clear outputs before preparing replacement storage.
             ring.reset();
             ringSize = 0;
             batch.clear();
             ringArena.reset();
             batchArena.reset();
+        };
+
+        try
+        {
+            // Clear outputs before preparing replacement storage.
+            clearOutputs();
 
             // Allocate queue objects before their inline message arenas.
             if(GameWIP::Base::wouldMultiplyOverflow(hardLimit, sizeof(QueueSlot)))
@@ -75,11 +80,7 @@ namespace GameWIP::Logger::Internal::Core
             if(!allocateMessageArena(ringSize, inlineMessageCapacity, ringArena) ||
                !allocateMessageArena(batch.size(), inlineMessageCapacity, batchArena))
             {
-                ring.reset();
-                ringSize = 0;
-                batch.clear();
-                ringArena.reset();
-                batchArena.reset();
+                clearOutputs();
                 return false;
             }
 
@@ -109,11 +110,7 @@ namespace GameWIP::Logger::Internal::Core
         }
         catch(...)
         {
-            ring.reset();
-            ringSize = 0;
-            batch.clear();
-            ringArena.reset();
-            batchArena.reset();
+            clearOutputs();
             return false;
         }
     }

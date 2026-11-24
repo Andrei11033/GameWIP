@@ -7,8 +7,8 @@
 #include "logger/types.h"
 #include "logger/detail/layout_template.h"
 
-#include <array>
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <limits>

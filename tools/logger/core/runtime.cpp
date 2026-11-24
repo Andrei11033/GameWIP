@@ -2,6 +2,7 @@
 /// @brief Process-wide Logger runtime state, health, output policy, and configuration normalization helpers.
 
 #include "logger/internal/core.h"
+#include "logger/detail/formatting.h"
 
 #include <cmath>
 
@@ -277,25 +278,20 @@ namespace GameWIP::Logger::Internal::Core
 
     LogStyle getLogStyle(LogLevel level)
     {
-        const auto styled = [](const char *text, bool stderrStream)
-        {
-            return LogStyle{text, stderrStream};
-        };
-
         switch(level)
         {
         case LogLevel::Trace:
-            return styled("TRACE", false);
+            return {"TRACE", false};
         case LogLevel::Debug:
-            return styled("DEBUG", false);
+            return {"DEBUG", false};
         case LogLevel::Info:
             return {"INFO", false};
         case LogLevel::Warn:
-            return styled("WARN", false);
+            return {"WARN", false};
         case LogLevel::Error:
-            return styled("ERROR", true);
+            return {"ERROR", true};
         case LogLevel::Fatal:
-            return styled("FATAL", true);
+            return {"FATAL", true};
         }
 
         return {};

@@ -2,6 +2,7 @@
 /// @brief Formatting scratch leases and formatting failure counters.
 
 #include "logger/internal/core.h"
+#include "logger/detail/formatting.h"
 #include "logger/internal/format_scratch.h"
 
 namespace GameWIP::Logger::Internal::Core

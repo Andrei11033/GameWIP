@@ -2,6 +2,7 @@
 /// @brief Synchronous report construction, fatal handling, and debugger output.
 
 #include "logger/internal/core.h"
+#include "logger/reports.h"
 
 namespace GameWIP::Logger::Internal::Core
 {

@@ -2,6 +2,7 @@
 /// @brief Logger initialization, configuration preparation, and startup.
 
 #include "logger/internal/core.h"
+#include "logger/logging.h"
 
 #include <algorithm>
 #include <cstdlib>

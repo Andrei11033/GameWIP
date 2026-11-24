@@ -2,6 +2,7 @@
 /// @brief Logger console style resolution and terminal output.
 
 #include "logger/internal/core.h"
+#include "logger/detail/formatting.h"
 
 namespace GameWIP::Logger::Internal::Core
 {

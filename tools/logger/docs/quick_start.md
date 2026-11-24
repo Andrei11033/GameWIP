@@ -14,9 +14,8 @@ Use `logger/types.h` or `logger/config.h` for focused passive-type or
 configuration access. For the operational API, `logger/record.h` contains
 record metadata, `logger/message_format.h` contains message-color helpers,
 `logger/logging.h` contains lifecycle, filtering, and asynchronous logging, and
-`logger/reports.h` contains
-synchronous diagnostics. Include `logger/logger_macros.h` only when using the
-opt-in logging macros.
+`logger/reports.h` contains synchronous diagnostics. Include
+`logger/logger_macros.h` only when using opt-in logging macros.
 
 ## Installed CMake
 
