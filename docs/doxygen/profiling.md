@@ -4,54 +4,44 @@ GameWIP uses Tracy for interactive profiling of representative runtime sessions.
 Use benchmarks for repeatable isolated measurements and Tracy captures to see
 where an end-to-end run spends time.
 
-## Common workflow
+## Prepare the profiler
 
-Rebuild the Windows tools from the Tracy client locked by the checkout:
+Setup builds the profiler from the Tracy source locked by the checkout:
 
 ```powershell
 .\setup.bat profiler
 ```
 
-The focused command produces `tracy-profiler.exe`, `tracy-capture.exe`,
-`tracy-csvexport.exe`, `tracy-import-chrome.exe`, `tracy-import-fuchsia.exe`,
-and `tracy-update.exe` under `<managed-tools-root>/tools/tracy` (default
-`build/gamewip/tools/managed/tools/tracy`). It uses UCRT64 GCC and Ninja Release
-builds with a reproducible `x86-64-v3` baseline. It stages the tools and required
-UCRT DLLs, and replaces existing tools only after verification. Visual Studio is
-not required. First use may take several minutes because the GUI profiler
-compiles substantial upstream dependencies.
-
-Build the profiling preset:
-
-```powershell
-cmake --preset profile
-cmake --build --preset profile
+```bash
+bash ./setup.sh profiler
 ```
 
-Start the matching profiler, then run the profiling build:
+Windows installs the profiler and companion tools under
+`<managed-tools-root>/tools/tracy/windows` (default
+`build/gamewip/tools/managed/tools/tracy/windows`). It uses UCRT64 GCC and Ninja
+with an `x86-64-v3` baseline. Linux installs the native profiler under
+`<managed-tools-root>/tools/tracy/linux`, with separate Wayland and X11
+variants selected from the active desktop session. Linux uses the system
+display libraries and loader. Tracy warns that `libwayland-client` versions
+below 1.22 have reduced functionality. Both builds use the locked source and
+keep build state under `<storage-root>/cache/tracy`.
+
+## Run a profiling build
+
+The helper builds the selected profile preset, starts the matching host profiler,
+and runs the game:
 
 ```powershell
-$toolsRoot = if ($env:GAMEWIP_MANAGED_TOOLS_ROOT) {
-    $env:GAMEWIP_MANAGED_TOOLS_ROOT
-} else {
-    'build/gamewip/tools/managed'
-}
-Start-Process (Join-Path $toolsRoot 'tools/tracy/tracy-profiler.exe')
-.\build\profile\GameWIP.exe
+.\gamewip.bat run game-profile -BuildBeforeRun
 ```
 
-Use a representative scenario. An empty or artificial run rarely provides
-useful optimization evidence.
-
-The VS Code `F9` workflow uses `gamewip.bat` to configure and build the selected
-target, start Tracy, and run the game. `Alt+F9` profiles startup tests. Pass
-`--startup-tests` when validation itself is the workload being profiled:
-
-```powershell
-cmake --preset profile
-cmake --build --preset profile
-.\build\profile\GameWIP.exe --startup-tests
+```bash
+bash ./gamewip.sh run game-profile -BuildBeforeRun
 ```
+
+Use `game-profile-startup-tests` to profile startup validation. The VS Code
+profile shortcuts run these same helper commands. Use a representative scenario;
+an empty or artificial run rarely provides useful optimization evidence.
 
 ## Build controls
 
@@ -130,8 +120,8 @@ usage requirements, or consumer examples.
 
 | Symptom | Likely cause | Action |
 | --- | --- | --- |
-| The profiling build cannot find Tracy. | The locked dependency cache is not ready. | Run `setup.bat deps`, then reconfigure. |
-| The profiler executable is missing or mismatched. | The configured managed-tools root was not prepared for the locked client. | Run `setup.bat profiler`; existing tools remain intact if rebuilding fails. |
+| The profiling build cannot find Tracy. | The locked dependency cache is not ready. | Run `setup.bat deps` on Windows or `bash ./setup.sh deps` on Linux, then reconfigure. |
+| The profiler executable is missing or mismatched. | The configured managed-tools root was not prepared for the locked client. | Run `setup.bat profiler` on Windows or `bash ./setup.sh profiler` on Linux. |
 | A disabled build still references Tracy. | A Tracy include or symbol leaked outside the enable guard. | Move the include to private implementation code and guard instrumentation. |
 | A capture is too noisy. | Markers are too fine-grained or use unstable names. | Collapse markers to meaningful phases and remove high-cardinality names. |
 | A profile suggests an optimization but benchmarks do not change. | The benchmark does not represent the profiled workload or the hotspot is end-to-end only. | Adjust the benchmark or keep the evidence as profiling-only. |
