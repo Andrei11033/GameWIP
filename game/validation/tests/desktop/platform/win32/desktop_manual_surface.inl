@@ -62,16 +62,54 @@ void paintManualValidationSurface(const Desktop::Window &window, ManualSurfaceLa
         SetDCBrushColor(device, color);
         FillRect(device, &rect, static_cast<HBRUSH>(GetStockObject(DC_BRUSH)));
     };
-    const auto drawText = [&](std::wstring_view text, RECT rect, int, COLORREF color, UINT format)
+    const auto drawText = [&](std::wstring_view text, RECT rect, int fontSize, COLORREF color, UINT format)
     {
-        HGDIOBJ previousFont = SelectObject(device, GetStockObject(DEFAULT_GUI_FONT));
+        HFONT font = CreateFontW(
+            -std::max(1, logical(fontSize)),
+            0,
+            0,
+            0,
+            FW_NORMAL,
+            FALSE,
+            FALSE,
+            FALSE,
+            DEFAULT_CHARSET,
+            OUT_DEFAULT_PRECIS,
+            CLIP_DEFAULT_PRECIS,
+            CLEARTYPE_QUALITY,
+            DEFAULT_PITCH | FF_DONTCARE,
+            nullptr);
+        HGDIOBJ previousFont = nullptr;
+
+        if(font != nullptr)
+        {
+            previousFont = SelectObject(device, font);
+
+            if(previousFont == nullptr || previousFont == HGDI_ERROR)
+            {
+                DeleteObject(font);
+                font = nullptr;
+                previousFont = nullptr;
+            }
+        }
+
+        if(font == nullptr)
+        {
+            previousFont = SelectObject(device, GetStockObject(DEFAULT_GUI_FONT));
+        }
+
         SetBkMode(device, TRANSPARENT);
         SetTextColor(device, color);
         DrawTextW(device, text.data(), static_cast<int>(text.size()), &rect, format | DT_NOPREFIX);
 
-        if(previousFont != nullptr)
+        if(previousFont != nullptr && previousFont != HGDI_ERROR)
         {
             SelectObject(device, previousFont);
+        }
+
+        if(font != nullptr)
+        {
+            DeleteObject(font);
         }
     };
 
