@@ -1,7 +1,8 @@
 /// @file process.cpp
 /// @brief Logger process metadata bridge.
 
-#include "logger/internal/core.h"
+#include "logger/detail/formatting.h"
+#include "logger/platform/backend.h"
 
 namespace GameWIP::Logger::Internal::Core
 {
