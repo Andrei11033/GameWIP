@@ -5,9 +5,6 @@
 /// Manual child-surface coverage
 /// ------------------------------------------------------------
 
-/// Manual child-surface coverage
-/// ------------------------------------------------------------
-
 /// @brief Visually validates a real Win32 descendant hosted below a ChildSurface HWND.
 void testManualChildSurface(TestSupport::Context &context, const GameWIP::Test::DesktopTestOptions &options)
 {
@@ -15,6 +12,7 @@ void testManualChildSurface(TestSupport::Context &context, const GameWIP::Test::
     {
         return;
     }
+
     // Open a visible parent and embedded ChildSurface.
     Desktop::Window parent;
 
@@ -37,24 +35,29 @@ void testManualChildSurface(TestSupport::Context &context, const GameWIP::Test::
     }
     // Add a real native child control to verify HWND embedding.
     const auto native = Desktop::Native::Win32::getHandle(surface);
-    HWND button = nullptr;
 
-    if(native.status.ok())
+    if(!requireManualStatus(context, "ChildSurface native handle is available", native.status) ||
+       !context.expectTrue("ChildSurface exposes a native window", native->window != nullptr))
     {
-        button = CreateWindowExW(
-            0,
-            L"BUTTON",
-            L"Real Win32 descendant hosted by GameWIP ChildSurface",
-            WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-            60,
-            80,
-            480,
-            80,
-            native->window,
-            nullptr,
-            native->instance,
-            nullptr);
+        static_cast<void>(surface.close());
+        static_cast<void>(parent.close());
+        return;
     }
+
+    // Add a real native child control to verify HWND embedding.
+    const HWND button = CreateWindowExW(
+        0,
+        L"BUTTON",
+        L"Real Win32 descendant hosted by GameWIP ChildSurface",
+        WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+        60,
+        80,
+        480,
+        80,
+        native->window,
+        nullptr,
+        native->instance,
+        nullptr);
     static_cast<void>(context.expectTrue("manual native descendant is created", button != nullptr));
 
     if(button != nullptr)

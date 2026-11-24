@@ -58,6 +58,7 @@ void testShellRegistrationOwnership(TestSupport::Context &context, const std::fi
             }
         } const cleanup{[&]
                         {
+                            static_cast<void>(unregister(foreignOwner));
                             static_cast<void>(unregister(owner));
                         }};
         const RegistrationTypes::Verb malformedVerb{"invalid-label", std::string_view{"\xC3", 1}, action};
@@ -211,6 +212,7 @@ void testShellRegistrationOwnership(TestSupport::Context &context, const std::fi
                 std::wstring{L"GameWIP native registration regression"},
                 std::wstring{registryText.data()}));
         }
+
         // Verify foreign owners are reported and remain protected during cleanup.
         const auto rejected = registerOwner(foreignOwner, RegistrationTypes::ConflictPolicy::Report, foreignAction);
         static_cast<void>(context.expectEq(kind + " foreign replacement is rejected", ErrorCode::AlreadyExists, rejected.status.code));
@@ -239,6 +241,7 @@ void testShellRegistrationOwnership(TestSupport::Context &context, const std::fi
 
         if(file)
         {
+            // Confirm the application record remains until its final handler is removed.
             const std::wstring applicationName = applicationExecutable.filename().wstring();
             const std::wstring applicationPath = L"Software\\Classes\\Applications\\" + applicationName;
             HKEY application = nullptr;

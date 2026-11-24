@@ -96,7 +96,7 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
         return;
     }
 
-    context.info(std::format("Drag fixtures: {}", fixtures.path().string()));
+    context.info(std::format("Drag fixtures: {}", GameWIP::Test::Internal::pathToUtf8(context, fixtures.path(), "format drag fixture directory")));
     const std::array<GameWIP::FileSystem::Types::Path, 2> files{{readme, cmake}};
     const std::array<std::byte, 16> pixels{
         {std::byte{255},
@@ -288,7 +288,7 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
 
     const auto observeForeign = [&]
     {
-        capture.drain(target);
+        capture.drain(context, target);
         paintManualValidationSurface(targetWindow, ManualSurfaceLayout::DragDropTarget);
 
         if(capture.lastDrop)
@@ -326,20 +326,22 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
     const Transfer::Item expectedCustom = Transfer::CustomData{std::string(customName), std::vector(customBytes.begin(), customBytes.end())};
     inbound(
         "Explorer single file",
-        std::format("From Explorer, drop {}. The exact imported path will be checked.", singleFile.string()),
+        std::format(
+            "From Explorer, drop {}. The exact imported path will be checked.",
+            GameWIP::Test::Internal::pathToUtf8(context, singleFile, "format single-file drag fixture path")),
         &expectedSingle);
     inbound(
         "Explorer multiple Unicode files",
         std::format(
             "In {}, sort by Name ascending, select single-file.txt and the Unicode filename together and drop them. Exact paths in the visible order "
             "will be checked.",
-            fixtures.path().string()),
+            GameWIP::Test::Internal::pathToUtf8(context, fixtures.path(), "format multi-file drag fixture directory")),
         &expectedMultiple);
     inbound(
         "foreign strict Unicode text",
         std::format(
             "Open {} in a browser. Select just the GameWIP strict Unicode paragraph and drag it into the target. Exact UTF-8 bytes will be checked.",
-            textPage.string()),
+            GameWIP::Test::Internal::pathToUtf8(context, textPage, "format text drag fixture path")),
         &expectedText);
     inbound(
         "foreign DIB image",
@@ -404,7 +406,7 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
         "GameWIP files to Explorer",
         std::format(
             "Hold LEFT in the source and drag to {} in Explorer. Verify Copy is reported and README.md/CMakeLists.txt arrive.",
-            copyDirectory.string()),
+            GameWIP::Test::Internal::pathToUtf8(context, copyDirectory, "format outbound drag copy directory")),
         fileItem,
         DD::EffectPolicy::source(DD::Effect::Copy));
     outbound(

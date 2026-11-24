@@ -5,6 +5,7 @@
 
 #include "validation/executable_path.h"
 #include "validation/tests/desktop/accessibility_test.h"
+#include "validation/tests/internal/path_text.h"
 #include "validation/process_arguments.h"
 #include "validation/tests/internal/helpers/runner_helpers.h"
 
@@ -156,6 +157,8 @@ namespace
 #include "validation/tests/desktop/platform/win32/desktop_clipboard_contract_tests.inl"
 #include "validation/tests/desktop/platform/win32/desktop_clipboard_roundtrip_tests.inl"
 #include "validation/tests/desktop/platform/win32/desktop_clipboard_failure_tests.inl"
+#include "validation/tests/desktop/platform/win32/desktop_drag_drop_contract_tests.inl"
+#include "validation/tests/desktop/platform/win32/desktop_drag_drop_target_tests.inl"
 #include "validation/tests/desktop/platform/win32/desktop_drag_drop_tests.inl"
 #include "validation/tests/desktop/platform/win32/desktop_shell_event_tests.inl"
 #include "validation/tests/desktop/platform/win32/desktop_shell_lifecycle_tests.inl"

@@ -5,6 +5,7 @@ void testQueryDefaultsAndLifecycle(TestContext &context)
 {
     const ScopedLoggerShutdown shutdown;
 
+    // Compare query defaults before, during, and after initialization.
     const Logger::Types::LogFilePathResult beforeInitPath = Logger::getLogFilePath();
     context.expectEq("log path before init reports NotOpen", beforeInitPath.status.code, IO::Types::ErrorCode::NotOpen);
     context.expectEq("output before init is disabled", Logger::getOutput(), Logger::Types::OutputMode::None);

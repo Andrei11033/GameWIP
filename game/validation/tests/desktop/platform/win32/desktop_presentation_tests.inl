@@ -29,6 +29,7 @@ void testPresentationPublication(TestSupport::Context &context)
         .interactiveMoveResizeActive = false,
         .occluded = false};
 
+    // A closed window has no publication and rejects publication setup.
     Desktop::Window closed;
     static_cast<void>(context.expectEq(
         "default Window allocates no presentation publication",
@@ -51,6 +52,7 @@ void testPresentationPublication(TestSupport::Context &context)
         return;
     }
 
+    // Confirm ordinary getters and lazy sidecar allocation before enabling reads.
     static_cast<void>(
         context.expectFalse("default Window has no presentation publication", Desktop::Renderer::concurrentPresentationReadsEnabled(window)));
     static_cast<void>(context.expectEq(
@@ -96,6 +98,7 @@ void testPresentationPublication(TestSupport::Context &context)
         publicationStorage,
         Desktop::Internal::TestHooks::presentationPublicationStorage(window)));
 
+    // Read snapshots concurrently while the owner publishes alternating states.
     Desktop::Internal::TestHooks::applyPresentationPublicationSnapshot(window, first);
     std::atomic_bool stop = false;
     std::atomic_bool invalid = false;
@@ -158,6 +161,7 @@ void testPresentationPublication(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("published interactive state is visible", window.interactiveMoveResizeActive()));
     static_cast<void>(context.expectTrue("published occlusion is visible", window.occluded()));
 
+    // Verify close, failed reopen, and successful reopen preserve the sidecar contract.
     static_cast<void>(context.expectTrue("portable publication fixture closes", window.close().ok()));
     static_cast<void>(context.expectEq("close clears client size", Desktop::Types::LogicalSize{}, window.clientSize()));
     static_cast<void>(context.expectEq("close clears framebuffer size", Desktop::Types::PixelSize{}, window.framebufferSize()));

@@ -12,6 +12,8 @@ void testManualDpiAndCoordinates(TestSupport::Context &context, const GameWIP::T
     {
         return;
     }
+
+    // Exercise both DPI resize policies and client/screen conversions.
     Desktop::Window window;
     Desktop::Types::Description description;
     description.dpiResizePolicy = Desktop::Types::DpiResizePolicy::PreserveLogicalClientSize;
@@ -64,8 +66,16 @@ void testManualDpiAndCoordinates(TestSupport::Context &context, const GameWIP::T
         "mixed-DPI coordinate rounding",
         "At each available DPI scale, do client/screen edge coordinates follow the expected integral-pixel rounding without visible drift?");
 
+    // Validate the physical virtual-screen monitor geometry.
     const auto monitors = Desktop::Display::getMonitors();
-    bool monitorRectsValid = monitors.ok() && !monitors->empty();
+
+    if(!requireManualStatus(context, "monitor enumeration succeeds", monitors.status) ||
+       !context.expectTrue("at least one monitor is available", !monitors->empty()))
+    {
+        return;
+    }
+
+    bool monitorRectsValid = true;
 
     for(const Desktop::Types::Display::Info &monitor : *monitors)
     {
@@ -90,6 +100,7 @@ void testManualCursor(TestSupport::Context &context, const GameWIP::Test::Deskto
         return;
     }
 
+    // Read backend capabilities and open the host Window.
     const auto capabilitiesResult = Desktop::getCapabilities();
     const Desktop::Types::Capabilities capabilities = capabilitiesResult.value_or({});
     Desktop::Window window;
@@ -130,6 +141,7 @@ void testManualCursor(TestSupport::Context &context, const GameWIP::Test::Deskto
         std::string_view{"ResizeDiagonalNorthEastSouthWest"},
         std::string_view{"NotAllowed"}};
 
+    // Cycle through standard shapes over the validation surface.
     for(std::size_t index = 0; index < shapes.size(); ++index)
     {
         static_cast<void>(context.expectTrue("standard cursor shape applies", window.setCursorShape(shapes[index]).ok()));
@@ -147,6 +159,7 @@ void testManualCursor(TestSupport::Context &context, const GameWIP::Test::Deskto
                 shapeNames[index]));
     }
 
+    // Check focus-sensitive cursor modes and capability gates.
     for(const auto &[mode, capability, name] : std::array{
             std::tuple{Desktop::Types::CursorMode::Hidden, Desktop::Types::Capability::Count, std::string_view{"hidden"}},
             std::tuple{Desktop::Types::CursorMode::Confined, Desktop::Types::Capability::CursorConfinement, std::string_view{"confined"}},
@@ -173,6 +186,7 @@ void testManualCursor(TestSupport::Context &context, const GameWIP::Test::Deskto
         static_cast<void>(window.setCursorMode(Desktop::Types::CursorMode::Normal));
     }
 
+    // Verify logical cursor warping when the backend supports it.
     if(capabilities.supports(Desktop::Types::Capability::CursorWarping))
     {
         const Desktop::Types::LogicalSize size = window.clientSize();

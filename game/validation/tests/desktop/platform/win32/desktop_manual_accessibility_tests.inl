@@ -6,6 +6,8 @@ void testManualAccessibility(TestSupport::Context &context, const GameWIP::Test:
     {
         return;
     }
+
+    // Open a visible Window and enable its accessibility provider.
     namespace A = Desktop::Types::Accessibility;
     Desktop::Window window;
     Desktop::Types::Description description;
@@ -25,6 +27,7 @@ void testManualAccessibility(TestSupport::Context &context, const GameWIP::Test:
         return;
     }
 
+    // Publish a semantic tree independently of renderer state.
     const std::array<A::NodeId, 3> children{2, 3, 4};
     std::array<A::Node, 4> nodes{};
     nodes[0].id = 1;
@@ -65,6 +68,7 @@ void testManualAccessibility(TestSupport::Context &context, const GameWIP::Test:
         return;
     }
 
+    // Apply assistive-client actions and refresh the published state.
     std::size_t invocations = 0;
     std::string count;
     const auto observe = [&]
@@ -102,6 +106,7 @@ void testManualAccessibility(TestSupport::Context &context, const GameWIP::Test:
                 std::format("Semantic-only fixture over the renderer-free host; invoke requests received={}", invocations));
         }
     };
+    // Record the client-visible semantics and teardown checks.
     context.manual(
         "Use Narrator and a UIA inspector (Accessibility Insights or Inspect). This fixture publishes semantic controls independently of the "
         "blue/cyan renderer-free surface; it is not a UI toolkit.");

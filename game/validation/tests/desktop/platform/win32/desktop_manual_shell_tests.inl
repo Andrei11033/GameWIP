@@ -7,7 +7,7 @@
 
 [[nodiscard]] bool testManualShellIntegrations(TestSupport::Context &context, Desktop::Window &window, bool includeShell)
 {
-    // Exercise shell integrations through one event queue.
+    // Query shell capabilities and open one event queue for the checks.
     if(includeShell)
     {
         const auto shellCapabilityResult = Desktop::Shell::getCapabilities();
@@ -214,7 +214,14 @@
             const std::string launchToken = std::format("{}-{}", GetCurrentProcessId(), GetTickCount64());
             const std::string tokenArgument = std::format("--desktop-shell-launch-token={}", launchToken);
             const std::filesystem::path launchReceipt = shellLaunchReceiptPath(launchToken);
-            const std::string receiptArgument = std::format("--desktop-shell-launch-receipt={}", launchReceipt.string());
+            const std::string launchReceiptText = GameWIP::Test::Internal::pathToUtf8(context, launchReceipt, "shell receipt path converts to UTF-8");
+
+            if(launchReceiptText.empty())
+            {
+                return false;
+            }
+
+            const std::string receiptArgument = std::format("--desktop-shell-launch-receipt={}", launchReceiptText);
             std::filesystem::path genericLaunchReceipt;
             struct ReceiptCleanup
             {
@@ -326,6 +333,15 @@
             }
             const auto fileProbe = registrationFixtures.path() / ("probe with spaces" + extension);
             const auto uriProbe = registrationFixtures.path() / "uri-launch.html";
+            const std::string fileProbeText =
+                GameWIP::Test::Internal::pathToUtf8(context, fileProbe, "file association fixture path converts to UTF-8");
+            const std::string uriProbeText = GameWIP::Test::Internal::pathToUtf8(context, uriProbe, "URI fixture path converts to UTF-8");
+
+            if(fileProbeText.empty() || uriProbeText.empty())
+            {
+                return false;
+            }
+
             genericLaunchReceipt = shellGenericLaunchReceiptPath(fileProbe);
             receiptCleanup.genericPath = genericLaunchReceipt;
             static_cast<void>(TestSupport::removeIfExists(genericLaunchReceipt));
@@ -380,7 +396,7 @@
                         std::format(
                             "Open {} and verify this validation executable is offered or launched. Choose it with Just once. Answer yes only if "
                             "the current-user registration behaves as documented and the diagnostics show a fresh controlled launch receipt.",
-                            fileProbe.string()),
+                            fileProbeText),
                         observeLaunch);
 
                     if(answer == TestSupport::Types::Reporting::ManualAnswer::Yes)
@@ -390,11 +406,19 @@
                         if(!launched)
                         {
                             const auto receipt = TestSupport::readTextFile(genericLaunchReceipt);
+                            const std::string genericLaunchReceiptText =
+                                GameWIP::Test::Internal::pathToUtf8(context, genericLaunchReceipt, "generic launch receipt path converts to UTF-8");
+
+                            if(genericLaunchReceiptText.empty())
+                            {
+                                return false;
+                            }
+
                             context.fail(
                                 "file association launches controlled helper",
                                 std::format(
                                     "generic receipt was not observed at '{}' (status={}, bytes={})",
-                                    genericLaunchReceipt.string(),
+                                    genericLaunchReceiptText,
                                     static_cast<int>(receipt.status.error),
                                     receipt.text.size()));
                         }
@@ -444,7 +468,7 @@
                             "copy the exact {}://probe address shown in the page into the browser address bar and press Enter. Verify the "
                             "diagnostics "
                             "show a fresh shell launch receipt.",
-                            uriProbe.string(),
+                            uriProbeText,
                             scheme,
                             scheme),
                         observeLaunch);

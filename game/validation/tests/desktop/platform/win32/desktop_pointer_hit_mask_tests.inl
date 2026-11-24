@@ -13,6 +13,7 @@ void testPointerHitMask(TestSupport::Context &context)
     using MaskWord = FeedbackTypes::PointerHitMaskWord;
     constexpr std::size_t bitsPerWord = std::numeric_limits<MaskWord>::digits;
 
+    // Open an invisible window for deterministic mask dimensions.
     Desktop::Types::Description description;
     description.title = "Window pointer-mask validation";
     description.windowed.clientSize = {241, 161};
@@ -67,8 +68,13 @@ void testPointerHitMask(TestSupport::Context &context)
     const std::uint64_t sampledY = static_cast<std::uint64_t>(rowSample.y) * size.height / window.clientSize().height;
     words[static_cast<std::size_t>(sampledY) * wordsPerRow] |= MaskWord{1};
 
+    // Begin a mask update and verify allocation and sampling behavior.
     const auto first = Feedback::beginPointerHitMaskUpdate(window);
-    static_cast<void>(context.expectTrue("Window creates a nonzero mask generation", first.status.ok() && first->generation != 0));
+    if(!context.expectTrue("Window creates a nonzero mask generation", first.status.ok() && first->generation != 0))
+    {
+        return;
+    }
+
     static_cast<void>(context.expectEq("target snapshots framebuffer size", size, first->framebufferSize));
     static_cast<void>(context.expectEq("target reports exact word count", wordCount, first->requiredWordCount));
     Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::Allocation);
@@ -96,13 +102,19 @@ void testPointerHitMask(TestSupport::Context &context)
     static_cast<void>(
         context.expectTrue("out-of-range sampling uses interactive fallback", Desktop::Internal::TestHooks::pointerHitMaskAccepts(window, {-1, -1})));
 
+    // Supersede older updates and reject invalid row padding.
     const void *storage = Desktop::Internal::TestHooks::pointerHitMaskStorage(window);
     words.front() = MaskWord{2};
     const auto stale = Feedback::beginPointerHitMaskUpdate(window);
     const auto newer = Feedback::beginPointerHitMaskUpdate(window);
-    static_cast<void>(context.expectTrue(
-        "Window generations increase monotonically",
-        stale.status.ok() && newer.status.ok() && newer->generation > stale->generation));
+
+    if(!context.expectTrue(
+           "Window generations increase monotonically",
+           stale.status.ok() && newer.status.ok() && newer->generation > stale->generation))
+    {
+        return;
+    }
+
     static_cast<void>(context.expectEq(
         "superseded outstanding update is interrupted",
         ErrorCode::Interrupted,
@@ -125,6 +137,12 @@ void testPointerHitMask(TestSupport::Context &context)
         std::vector<MaskWord> invalidPadding = words;
         invalidPadding[wordsPerRow - 1U] |= MaskWord{1} << validBitsInLastWord;
         const auto padding = Feedback::beginPointerHitMaskUpdate(window);
+
+        if(!context.expectTrue("row-padding update generation is available", padding.status.ok()))
+        {
+            return;
+        }
+
         static_cast<void>(context.expectEq(
             "set row-padding bits are rejected",
             ErrorCode::InvalidArgument,
@@ -135,6 +153,7 @@ void testPointerHitMask(TestSupport::Context &context)
             Desktop::Internal::TestHooks::pointerHitMaskGeneration(window)));
     }
 
+    // Preserve the mask on movement and invalidate it after resize.
     const Desktop::Types::ScreenPosition originalPosition = window.clientPosition();
     static_cast<void>(window.setClientPosition({originalPosition.x + 1, originalPosition.y + 1}));
     static_cast<void>(context.expectEq(
@@ -142,6 +161,12 @@ void testPointerHitMask(TestSupport::Context &context)
         newer->generation,
         Desktop::Internal::TestHooks::pointerHitMaskGeneration(window)));
     const auto beforeResize = Feedback::beginPointerHitMaskUpdate(window);
+
+    if(!context.expectTrue("pre-resize update generation is available", beforeResize.status.ok()))
+    {
+        return;
+    }
+
     static_cast<void>(window.setClientSize({window.clientSize().width + 1, window.clientSize().height}));
     static_cast<void>(context.expectEq(
         "framebuffer resize invalidates active mask",
@@ -154,7 +179,14 @@ void testPointerHitMask(TestSupport::Context &context)
         Feedback::publishPointerHitMask(window, beforeResize->generation, words).code));
     static_cast<void>(context.expectTrue("mask clear is idempotent", Feedback::clearPointerHitMask(window).ok()));
 
+    // Reopen the window and reject a generation from its previous lifetime.
     const auto beforeClose = Feedback::beginPointerHitMaskUpdate(window);
+
+    if(!context.expectTrue("pre-close update generation is available", beforeClose.status.ok()))
+    {
+        return;
+    }
+
     static_cast<void>(context.expectTrue("pointer-mask fixture closes", window.close().ok()));
     static_cast<void>(context.expectTrue("pointer-mask fixture reopens", window.open(description, Desktop::Events::owned(8)).ok()));
 
@@ -167,6 +199,12 @@ void testPointerHitMask(TestSupport::Context &context)
             Feedback::publishPointerHitMask(window, beforeClose->generation, words).code));
         Desktop::Internal::TestHooks::setPointerHitMaskGeneration(window, std::numeric_limits<std::uint64_t>::max() - 1U);
         const auto lastGeneration = Feedback::beginPointerHitMaskUpdate(window);
+
+        if(!context.expectTrue("final generation remains available", lastGeneration.status.ok()))
+        {
+            return;
+        }
+
         static_cast<void>(context.expectEq(
             "last representable generation is deterministic",
             std::numeric_limits<std::uint64_t>::max(),
@@ -177,7 +215,3 @@ void testPointerHitMask(TestSupport::Context &context)
     }
 }
 #endif
-
-/// ------------------------------------------------------------
-/// Renderer occlusion feedback
-/// ------------------------------------------------------------

@@ -44,6 +44,8 @@ target_sources(
         desktop_clipboard_contract_tests.inl
         desktop_clipboard_roundtrip_tests.inl
         desktop_clipboard_failure_tests.inl
+        desktop_drag_drop_contract_tests.inl
+        desktop_drag_drop_target_tests.inl
         desktop_drag_drop_tests.inl
         desktop_shell_event_tests.inl
         desktop_shell_lifecycle_tests.inl

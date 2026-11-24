@@ -13,6 +13,7 @@ void testManualModernWindowsCapabilities(TestSupport::Context &context, const Ga
         return;
     }
 
+    // Read runtime-gated capabilities and open the host Window.
     const auto capabilitiesResult = Desktop::getCapabilities();
     const Desktop::Types::Capabilities capabilities = capabilitiesResult.value_or({});
     Desktop::Window window;
@@ -28,6 +29,7 @@ void testManualModernWindowsCapabilities(TestSupport::Context &context, const Ga
         Desktop::Types::BackdropEffect::TransientWindow,
         Desktop::Types::BackdropEffect::TabbedWindow};
 
+    // Apply each backdrop effect only when the backend advertises support.
     if(capabilities.supports(Desktop::Types::Capability::SystemBackdrop))
     {
         for(std::size_t index = 0; index < effects.size(); ++index)
@@ -58,6 +60,7 @@ void testManualModernWindowsCapabilities(TestSupport::Context &context, const Ga
 
     static_cast<void>(window.close());
 
+    // Check transparent framebuffer support separately from backdrop effects.
     Desktop::Types::Description alphaDescription;
     alphaDescription.transparentFramebuffer = true;
     Desktop::Window alpha;

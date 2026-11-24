@@ -72,11 +72,14 @@ struct ManualFullscreenSections
 {
     ManualNativeWindowState result;
 
+    // Require an open window and a valid native handle.
     if(!window.isOpen())
     {
         return result;
     }
+
     const auto native = Desktop::Native::Win32::getHandle(window);
+
     if(!native.status.ok() || native->window == nullptr)
     {
         return result;
@@ -89,6 +92,7 @@ struct ManualFullscreenSections
     MONITORINFO monitorInfo{};
     monitorInfo.cbSize = sizeof(monitorInfo);
 
+    // Capture native geometry and monitor bounds.
     if(GetWindowRect(native->window, &result.frame) == FALSE || GetClientRect(native->window, &client) == FALSE ||
        ClientToScreen(native->window, &clientTopLeft) == FALSE)
     {
@@ -102,6 +106,8 @@ struct ManualFullscreenSections
     }
     result.client = {clientTopLeft.x, clientTopLeft.y, clientBottomRight.x, clientBottomRight.y};
     result.monitor = monitorInfo.rcMonitor;
+
+    // Derive styles and fullscreen indicators from the native snapshot.
     result.style = static_cast<DWORD>(GetWindowLongPtrW(native->window, GWL_STYLE));
     result.extendedStyle = static_cast<DWORD>(GetWindowLongPtrW(native->window, GWL_EXSTYLE));
     result.dpi = GetDpiForWindow(native->window);

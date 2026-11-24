@@ -8,6 +8,8 @@
 void testFileLoggingAndUtf8Truncation(TestContext &context)
 {
     const ScopedLoggerShutdown shutdown;
+
+    // Emit plain, formatted, and emergency messages under a tight byte limit.
     OwnedLoggerConfig config = makeFileConfig(context, "utf8-truncation");
     config.maxMessageLength = 24;
     config.inlineMessageCapacity = 16;
@@ -22,6 +24,7 @@ void testFileLoggingAndUtf8Truncation(TestContext &context)
     const std::filesystem::path logFile = loggerLogFilePath(context);
     static_cast<void>(Logger::shutdown());
 
+    // Verify truncation keeps readable text and valid UTF-8.
     const std::string contents = readWholeFile(context, logFile);
 
     context.expectContains("truncation suffix written", contents, "[truncated]");
@@ -36,6 +39,8 @@ void testFileLoggingAndUtf8Truncation(TestContext &context)
 void testConfigurableTimestampFormatting(TestContext &context)
 {
     const ScopedLoggerShutdown shutdown;
+
+    // Render one timestamp with literal and millisecond directives.
     OwnedLoggerConfig config = makeFileConfig(context, "timestamp-format");
     config.timestampFormat = "literal=%%f ms=%f";
     expectStarted(context, "custom timestamp format init", Logger::init(config.ready()));
@@ -45,6 +50,7 @@ void testConfigurableTimestampFormatting(TestContext &context)
     const std::string contents = readWholeFile(context, loggerLogFilePath(context));
     static_cast<void>(Logger::shutdown());
 
+    // Locate the timestamp and require exactly three millisecond digits.
     constexpr std::string_view prefix = "[literal=%f ms=";
     const std::size_t timestampStart = contents.find(prefix);
     if(timestampStart == std::string::npos)
@@ -73,6 +79,7 @@ void testConsoleThemeAndAreaColors(TestContext &context)
     const Stream stream = Stream::Stdout;
     const std::array sources{Logger::defineSource(TestSource::Core, "Area]WithBracket", Logger::Color::rgb(0, 255, 0))};
 
+    // Capture the same records under basic, RGB, and custom-layout policies.
     constexpr auto customColorLayout =
         Logger::makeLayout("{@timestamp}[{time}]{/}{@area}[{area}]{/}{@severity}[{level}]{/} {@area}<{@code}nested{/}>{/} {@message}{message}{/}");
     const auto captureMessage = [&](bool rgbSupported, bool messageUsesSeverityColor, bool useCustomLayout)
@@ -114,6 +121,7 @@ void testConsoleThemeAndAreaColors(TestContext &context)
         return output;
     };
 
+    // Verify severity colors, configured colors, and nested layout scopes.
     const std::string basicSeverityOutput = captureMessage(false, true, false);
     context.expectContains("trace label and brackets use bright green", basicSeverityOutput, "\x1b[92m[TRACE]\x1b[0m");
     context.expectContains("message inherits RGB severity color on basic terminal", basicSeverityOutput, "\x1b[92m color probe\x1b[0m");

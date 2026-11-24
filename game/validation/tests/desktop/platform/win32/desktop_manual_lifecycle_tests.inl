@@ -12,6 +12,8 @@ void testManualVisibleLifecycle(TestSupport::Context &context, const GameWIP::Te
     {
         return;
     }
+
+    // Open a visible Window and verify system-frame lifecycle actions.
     context.manual(
         "Window manual tests require a normal interactive Windows desktop. Answer yes, no, or skip at each prompt. "
         "Restore any changed desktop state before the suite ends.");
@@ -52,6 +54,7 @@ void testManualVisibleLifecycle(TestSupport::Context &context, const GameWIP::Te
     static_cast<void>(context.expectTrue("manual Window restore after minimize succeeds", window.restore().ok()));
     static_cast<void>(window.requestFocus());
 
+    // Confirm close requests remain explicit until the owner closes the Window.
     recordManualCheck(
         context,
         window,
@@ -74,6 +77,7 @@ void testManualVisibleLifecycle(TestSupport::Context &context, const GameWIP::Te
     static_cast<void>(context.expectTrue("manual Window explicit close succeeds", window.close().ok()));
     static_cast<void>(context.expectFalse("manual Window is closed", window.isOpen()));
 
+    // Reopen in a hidden state and verify cleanup after reuse.
     Desktop::Window reopened;
     description.activation.visible = false;
     description.activation.requestFocus = false;
@@ -88,6 +92,8 @@ void testManualMultipleWindows(TestSupport::Context &context, const GameWIP::Tes
     {
         return;
     }
+
+    // Open an owner and a visible owned tool Window.
     Desktop::Window owner;
 
     if(!openManualWindow(context, owner, "GameWIP manual owner Window"))
@@ -109,6 +115,7 @@ void testManualMultipleWindows(TestSupport::Context &context, const GameWIP::Tes
         paintManualValidationSurface(child);
     };
 
+    // Verify independent queues and native ownership transitions.
     recordManualCheck(
         context,
         owner,
@@ -140,6 +147,7 @@ void testManualMultipleWindows(TestSupport::Context &context, const GameWIP::Tes
     static_cast<void>(context.expectTrue("owned Window closes", child.close().ok()));
     recordManualCheck(context, owner, "remaining Window after peer close", "Does the owner remain fully operational after the other Window closes?");
 
+    // Check show-without-activation and explicit focus behavior.
     static_cast<void>(context.expectTrue("manual owner hides", owner.hide().ok()));
     recordManualCheck(
         context,

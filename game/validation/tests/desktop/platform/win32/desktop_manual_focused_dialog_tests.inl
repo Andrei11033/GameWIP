@@ -25,6 +25,7 @@ void testManualFocusedDialogs(TestSupport::Context &context)
 
     if(saveSelected)
     {
+        // Prepare an existing file for overwrite confirmation.
         const TestSupport::ScopedTemporaryDirectory fixtures("desktop-save-overwrite");
         const auto path = fixtures.path() / "overwrite-check.gamewip";
         constexpr std::string_view marker = "Existing file must remain unchanged by the path picker.\n";
@@ -47,6 +48,7 @@ void testManualFocusedDialogs(TestSupport::Context &context)
             "Move the Save picker across differently scaled monitors if available. Then Save the existing overwrite-check.gamewip: choose No, verify "
             "the picker stays open, Save again and choose Yes. The shared Windows picker can pause during DPI relayout.";
 
+        // Run the picker and collect the manual result.
         if(manualStatusWindow != nullptr)
         {
             manualStatusWindow->setScenario("save-overwrite-dpi", instruction);
@@ -63,6 +65,7 @@ void testManualFocusedDialogs(TestSupport::Context &context)
 
         if(answer == TestSupport::Types::Reporting::ManualAnswer::Yes)
         {
+            // Confirm the accepted path and preserve the existing file.
             static_cast<void>(context.expectTrue(
                 "overwrite picker accepts exact fixture and filter",
                 result.status.ok() && result.outcome == DialogTypes::Outcome::Accepted && result.path == path &&
@@ -75,6 +78,7 @@ void testManualFocusedDialogs(TestSupport::Context &context)
 
     if(progressSelected)
     {
+        // Open a non-blocking progress dialog for live DPI movement.
         Desktop::ProgressDialog progress;
         Desktop::Types::Dialogs::Progress::Description description;
         description.title = "GameWIP live progress scaling validation";
@@ -90,6 +94,8 @@ void testManualFocusedDialogs(TestSupport::Context &context)
         }
         const auto started = std::chrono::steady_clock::now();
         bool updateFailed = false;
+
+        // Continue progress updates while the user moves and cancels the dialog.
         const auto answer = recordManualCheck(
             context,
             owner,
@@ -123,6 +129,7 @@ void testManualFocusedDialogs(TestSupport::Context &context)
         {
             static_cast<void>(context.expectTrue("focused progress cancellation is sticky", progress.hasCancelRequest()));
         }
+
         static_cast<void>(requireManualStatus(context, "focused progress closes", progress.close()));
     }
 

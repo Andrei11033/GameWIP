@@ -160,9 +160,19 @@ void testShellRegistrationApplicationOwnership(TestSupport::Context &context, co
             value.data(),
             &bytes)));
 
-    static_cast<void>(context.expectTrue("foreign application fixture removes", removeApplicationFixture()));
+    // Repeat the collision check with an application record that has no owner.
+    if(!context.expectTrue("foreign application fixture removes", removeApplicationFixture()))
+    {
+        return;
+    }
+
     const auto unownedSeed = seedApplication(false);
-    static_cast<void>(context.expectTrue("unowned application fixture seeds", unownedSeed));
+
+    if(!context.expectTrue("unowned application fixture seeds", unownedSeed))
+    {
+        return;
+    }
+
     const auto unownedCollision = registerDescription();
     static_cast<void>(context.expectEq("unowned application record blocks registration", ErrorCode::AlreadyExists, unownedCollision.status.code));
     static_cast<void>(context.expectEq("unowned application conflict is reported", std::size_t{1}, unownedCollision.conflicts.size()));
@@ -171,10 +181,14 @@ void testShellRegistrationApplicationOwnership(TestSupport::Context &context, co
     {
         static_cast<void>(context.expectTrue("unowned application conflict has no owner", unownedCollision.conflicts.front().ownerKey.empty()));
     }
-    static_cast<void>(context.expectTrue("unowned application fixture removes", removeApplicationFixture()));
+    if(!context.expectTrue("unowned application fixture removes", removeApplicationFixture()))
+    {
+        return;
+    }
 
     // Verify cleanup failure retains enough state for a retry.
     const auto created = registerDescription();
+
     if(!context.expectTrue("application registration succeeds after conflict removal", created.status.ok()))
     {
         return;

@@ -58,9 +58,22 @@ void testShellRegistrationLaunch(TestSupport::Context &context, const std::files
         }
         const auto path = fixtures.path() / ("probe with spaces" + target);
         const std::wstring targetWide = manualDiagnosticWideText(target);
+
+        std::string pathText;
+
+        if(file)
+        {
+            pathText = GameWIP::Test::Internal::pathToUtf8(context, path, "association fixture path converts to UTF-8");
+
+            if(pathText.empty())
+            {
+                continue;
+            }
+        }
+
         // Use a canonical URI; Windows adds the root slash to a bare authority.
         const std::wstring launchTarget = file ? path.wstring() : targetWide + L"://probe/";
-        const std::string expectedTargetArgument = "--desktop-shell-launch-expected-target=" + (file ? path.string() : target + "://probe/");
+        const std::string expectedTargetArgument = "--desktop-shell-launch-expected-target=" + (file ? pathText : target + "://probe/");
         const std::array<ShellTypes::LaunchArgumentView, 4> arguments{
             ShellTypes::LiteralLaunchArgumentView{"--desktop-test-child=shell-launch-probe"},
             ShellTypes::LiteralLaunchArgumentView{tokenArgument},
@@ -68,6 +81,8 @@ void testShellRegistrationLaunch(TestSupport::Context &context, const std::files
             file ? ShellTypes::LaunchPlaceholder::SelectedPath : ShellTypes::LaunchPlaceholder::SelectedUri};
         const ShellTypes::LaunchActionView action{ShellTypes::PathTargetView{std::cref(launchExecutable)}, arguments};
         const auto receiptPath = shellLaunchReceiptPath(token);
+        std::filesystem::path argumentsPath = receiptPath;
+        argumentsPath += ".arguments";
         struct Cleanup
         {
             std::function<void()> remove;
@@ -86,7 +101,7 @@ void testShellRegistrationLaunch(TestSupport::Context &context, const std::files
                                 static_cast<void>(Desktop::Registration::unregisterUriScheme(owner, target));
                             }
                             static_cast<void>(TestSupport::removeIfExists(receiptPath));
-                            static_cast<void>(TestSupport::removeIfExists(receiptPath.string() + ".arguments"));
+                            static_cast<void>(TestSupport::removeIfExists(argumentsPath));
                         }};
         RegistrationTypes::Result registration;
 
@@ -210,7 +225,7 @@ void testShellRegistrationLaunch(TestSupport::Context &context, const std::files
             CloseHandle(launch.hProcess);
         }
         const auto receipt = TestSupport::readTextFile(receiptPath);
-        const auto receivedArguments = TestSupport::readTextFile(receiptPath.string() + ".arguments");
+        const auto receivedArguments = TestSupport::readTextFile(argumentsPath);
 
         if(receivedArguments.status.ok())
         {

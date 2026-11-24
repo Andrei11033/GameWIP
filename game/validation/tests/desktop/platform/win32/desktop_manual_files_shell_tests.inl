@@ -16,6 +16,7 @@ void testManualFilesAndShell(
         return;
     }
 
+    // Open only the capabilities selected for this manual run.
     const auto capabilitiesResult = Desktop::getCapabilities();
     const Desktop::Types::Capabilities capabilities = capabilitiesResult.value_or({});
     Desktop::Types::Description description;
@@ -27,6 +28,7 @@ void testManualFilesAndShell(
         return;
     }
 
+    // Run file-drop and icon checks on the shared Window.
     if(includeWindow)
     {
         testManualFileDropAndIcon(context, window, capabilities);
@@ -37,6 +39,7 @@ void testManualFilesAndShell(
         return;
     }
 
+    // Apply Window-specific checks only when requested.
     if(!includeWindow)
     {
         static_cast<void>(window.close());

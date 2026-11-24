@@ -189,6 +189,8 @@ void testFatalPopupFailure(TestContext &context)
 {
 #if LOGGER_INTERNAL_TEST_HOOKS
     const ScopedLoggerShutdown shutdown;
+
+    // Verify popup failure is reported after the log delivery attempt.
     OwnedLoggerConfig config = makeFileConfig(context, "fatal-popup");
     config.enableFatalPopup = true;
     expectStarted(context, "fatal popup init", Logger::init(config.ready()));

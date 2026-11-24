@@ -43,6 +43,7 @@ void testFatalTerminateChild(TestContext &context, const LoggerTestOptions &opti
         return;
     }
 
+    // Give the child a private log directory and capture its fatal report.
     const std::filesystem::path directory = testDirectory(context, "fatal-terminate-child");
     const TestSupport::ScopedEnvironmentVariable environment(
         context.processState,
@@ -60,6 +61,7 @@ void testFatalTerminateChild(TestContext &context, const LoggerTestOptions &opti
         "fatalTerminate child exits nonzero",
         child.status.ok() && child.outcome == TestSupport::Types::Process::Outcome::Exited && child.exitCode != 0);
 
+    // Collect the child log and verify its synchronous report.
     std::string contents;
 
     for(const auto &entry : std::filesystem::directory_iterator(directory))
@@ -80,6 +82,7 @@ void testManualFatalPopup(TestContext &context, const LoggerTestOptions &options
         return;
     }
 
+    // Show the fatal popup and record the user's observation.
     const ScopedLoggerShutdown shutdown;
     Logger::Types::Config config = makeConsoleConfig();
     config.enableFatalPopup = true;

@@ -16,10 +16,12 @@ enum class ManualSurfaceLayout : std::uint8_t
 /// pixels are otherwise undefined and can misleadingly retain only the old windowed area.
 void paintManualValidationSurface(const Desktop::Window &window, ManualSurfaceLayout layout = ManualSurfaceLayout::Standard)
 {
+    // Require an open window and a valid native handle.
     if(!window.isOpen())
     {
         return;
     }
+
     const auto native = Desktop::Native::Win32::getHandle(window);
 
     if(!native.status.ok() || native->window == nullptr)
@@ -33,6 +35,7 @@ void paintManualValidationSurface(const Desktop::Window &window, ManualSurfaceLa
     {
         return;
     }
+
     HDC device = GetDC(native->window);
 
     if(device == nullptr)
@@ -40,6 +43,7 @@ void paintManualValidationSurface(const Desktop::Window &window, ManualSurfaceLa
         return;
     }
 
+    // Prepare DPI-scaled geometry and drawing helpers.
     const UINT dpi = GetDpiForWindow(native->window);
     const auto logical = [dpi](int value)
     {
@@ -71,9 +75,12 @@ void paintManualValidationSurface(const Desktop::Window &window, ManualSurfaceLa
         }
     };
 
+    // Paint the selected manual scenario.
     fill(client, RGB(22, 70, 126));
 
-    if(layout == ManualSurfaceLayout::DragDropSource)
+    switch(layout)
+    {
+    case ManualSurfaceLayout::DragDropSource:
     {
         fill(client, RGB(25, 104, 72));
         drawText(L"GAMEWIP DRAG SOURCE", clippedRect(20, 100, 540, 155), 26, RGB(255, 255, 255), DT_CENTER | DT_VCENTER | DT_SINGLELINE);
@@ -83,8 +90,9 @@ void paintManualValidationSurface(const Desktop::Window &window, ManualSurfaceLa
             18,
             RGB(255, 255, 255),
             DT_CENTER | DT_VCENTER | DT_WORDBREAK);
+        break;
     }
-    else if(layout == ManualSurfaceLayout::DragDropTarget)
+    case ManualSurfaceLayout::DragDropTarget:
     {
         const RECT preferred = clippedRect(120, 90, 480, 270);
         fill(preferred, RGB(20, 128, 94));
@@ -96,8 +104,9 @@ void paintManualValidationSurface(const Desktop::Window &window, ManualSurfaceLa
             16,
             RGB(255, 255, 255),
             DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+        break;
     }
-    else if(layout == ManualSurfaceLayout::CustomChromePrimary)
+    case ManualSurfaceLayout::CustomChromePrimary:
     {
         const RECT drag = clippedRect(0, 0, 760, 48);
         const RECT gap = clippedRect(760, 0, 800, 48);
@@ -129,8 +138,9 @@ void paintManualValidationSurface(const Desktop::Window &window, ManualSurfaceLa
             20,
             RGB(255, 255, 255),
             DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+        break;
     }
-    else if(layout == ManualSurfaceLayout::CustomChromeReplacement)
+    case ManualSurfaceLayout::CustomChromeReplacement:
     {
         const RECT inactive = clippedRect(0, 0, 960, 48);
         const RECT replacement = clippedRect(0, 48, 640, 88);
@@ -150,8 +160,10 @@ void paintManualValidationSurface(const Desktop::Window &window, ManualSurfaceLa
             20,
             RGB(255, 255, 255),
             DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+        break;
     }
-    else
+    case ManualSurfaceLayout::Standard:
+    default:
     {
         const LONG middle = client.top + (client.bottom - client.top) / 2;
         const RECT title{client.left, middle - logical(38), client.right, middle - logical(4)};
@@ -163,8 +175,11 @@ void paintManualValidationSurface(const Desktop::Window &window, ManualSurfaceLa
             22,
             RGB(255, 255, 255),
             DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+        break;
+    }
     }
 
+    // Draw a shared inset border and release the native drawing resources.
     const int inset = std::max(4, MulDiv(10, static_cast<int>(dpi), 96));
     const int penWidth = std::max(2, MulDiv(6, static_cast<int>(dpi), 96));
     HPEN edgePen = CreatePen(PS_SOLID, penWidth, RGB(70, 210, 255));

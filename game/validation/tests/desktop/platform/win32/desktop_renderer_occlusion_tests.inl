@@ -10,6 +10,7 @@ void testRendererOcclusionFeedback(TestSupport::Context &context)
     namespace Feedback = Desktop::Renderer;
     using Desktop::Types::Capability;
 
+    // Reject provider operations while the window is closed.
     Desktop::Window closed;
     static_cast<void>(
         context.expectEq("closed Window rejects provider attachment", ErrorCode::NotOpen, Feedback::attachOcclusionProvider(closed).code));
@@ -29,6 +30,7 @@ void testRendererOcclusionFeedback(TestSupport::Context &context)
         return;
     }
 
+    // Attach one provider and verify capability and event reporting.
     static_cast<void>(context.expectFalse(
         "occlusion feedback works without concurrent presentation publication",
         Feedback::concurrentPresentationReadsEnabled(window)));
@@ -57,6 +59,7 @@ void testRendererOcclusionFeedback(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("duplicate occlusion report succeeds", Feedback::reportOcclusion(window, true).ok()));
     static_cast<void>(context.expectEq("duplicate report does not queue event", std::size_t{0}, window.eventQueueInfo().pendingEvents));
 
+    // Reject cross-thread reports without changing the cached state.
     ErrorCode wrongThreadCode = ErrorCode::Success;
     std::thread worker(
         [&window, &wrongThreadCode]
@@ -67,6 +70,7 @@ void testRendererOcclusionFeedback(TestSupport::Context &context)
     static_cast<void>(context.expectEq("wrong-thread renderer feedback is rejected", ErrorCode::ResourceBusy, wrongThreadCode));
     static_cast<void>(context.expectTrue("wrong-thread report preserves cache", window.occluded()));
 
+    // Detach, reattach, and verify concurrent reads from the publication.
     window.clearEvents();
     static_cast<void>(context.expectTrue("provider detaches", Feedback::detachOcclusionProvider(window).ok()));
     static_cast<void>(context.expectTrue("detach preserves backend capability", window.supports(Capability::OcclusionReporting)));
@@ -96,6 +100,7 @@ void testRendererOcclusionFeedback(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("enabled occlusion publication is readable concurrently", concurrentlyOccluded));
     static_cast<void>(context.expectTrue("feedback fixture closes with provider attached", window.close().ok()));
 
+    // Confirm queue overflow still updates state and records the dropped event.
     Desktop::Window overflow;
     static_cast<void>(context.expectTrue("occlusion overflow fixture opens", overflow.open(description, Desktop::Events::owned(1)).ok()));
 

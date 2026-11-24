@@ -82,7 +82,11 @@ void testShellQueueAndCapabilities(TestSupport::Context &context)
 {
     // Compare the capability snapshot with individual queries.
     const auto capabilities = Desktop::Shell::getCapabilities();
-    static_cast<void>(context.expectTrue("shell capability query succeeds", capabilities.status.ok()));
+
+    if(!context.expectTrue("shell capability query succeeds", capabilities.status.ok()))
+    {
+        return;
+    }
 
     for(std::uint8_t index = 0; index < static_cast<std::uint8_t>(ShellTypes::Capability::Count); ++index)
     {
@@ -100,7 +104,12 @@ void testShellQueueAndCapabilities(TestSupport::Context &context)
         "zero-capacity shell queue is rejected",
         ErrorCode::InvalidArgument,
         queue.open(ShellTypes::QueueConfiguration::owned(0)).code));
-    static_cast<void>(context.expectTrue("internal shell queue opens", queue.open(ShellTypes::QueueConfiguration::owned(2)).ok()));
+
+    if(!context.expectTrue("internal shell queue opens", queue.open(ShellTypes::QueueConfiguration::owned(2)).ok()))
+    {
+        return;
+    }
+
     static_cast<void>(context.expectTrue("internal shell queue reports open", queue.isOpen()));
     static_cast<void>(context.expectTrue("internal shell queue binds to the opening thread", queue.ownedByCurrentThread()));
     static_cast<void>(context.expectEq("internal shell queue reports capacity", std::size_t{2}, queue.eventQueueInfo().capacity));
@@ -149,8 +158,11 @@ void testShellQueueAndCapabilities(TestSupport::Context &context)
 
     // Verify borrowed queue storage and sequence reset on reopen.
     std::array<ShellTypes::Event, 2> externalStorage;
-    static_cast<void>(
-        context.expectTrue("external shell queue opens", queue.open(ShellTypes::QueueConfiguration::borrowed(std::span{externalStorage})).ok()));
+    if(!context.expectTrue("external shell queue opens", queue.open(ShellTypes::QueueConfiguration::borrowed(std::span{externalStorage})).ok()))
+    {
+        return;
+    }
+
     static_cast<void>(context.expectEq(
         "external shell queue reports borrowed storage",
         Desktop::Types::Events::StorageKind::External,
@@ -195,8 +207,15 @@ void testShellPumpingWithoutWindow(TestSupport::Context &context)
             checkPump(false);
             checkPump(true);
 
+            // Keep the native pump active until the final shell owner closes.
             Desktop::NotificationCenter secondNotifications;
-            static_cast<void>(context.expectTrue("second shell-only center opens", secondNotifications.open().ok()));
+
+            if(!context.expectTrue("second shell-only center opens", secondNotifications.open().ok()))
+            {
+                static_cast<void>(notifications.close());
+                return;
+            }
+
             static_cast<void>(context.expectTrue("first shell-only center closes", notifications.close().ok()));
             checkPump(false);
             static_cast<void>(context.expectTrue("last shell-only center closes", secondNotifications.close().ok()));
@@ -208,6 +227,7 @@ void testShellPumpingWithoutWindow(TestSupport::Context &context)
             Desktop::TrayIcon tray;
             const auto opened = tray.open(description);
 
+            // Confirm a tray icon also keeps shell-only pumping active.
             if(opened.ok())
             {
                 checkPump(false);
@@ -229,5 +249,3 @@ void testShellPumpingWithoutWindow(TestSupport::Context &context)
         });
     ownerThread.join();
 }
-
-/// ------------------------------------------------------------

@@ -11,6 +11,7 @@ void testManualFullscreenAndTopology(
     const GameWIP::Test::DesktopTestOptions &options,
     ManualFullscreenSections sections)
 {
+    // Start the suite and confirm a usable display target.
     if(!beginManualSuite(context, options, "Window fullscreen and display topology"))
     {
         return;
@@ -26,6 +27,7 @@ void testManualFullscreenAndTopology(
         return;
     }
 
+    // Keep one window across transitions so restoration can be compared.
     Desktop::Window window;
 
     if(!openManualWindow(context, window, "GameWIP fullscreen validation"))
@@ -52,6 +54,7 @@ void testManualFullscreenAndTopology(
         return secondary == connected->end() ? std::nullopt : std::optional{secondary->id};
     };
 
+    // Check borderless coverage and windowed placement restoration.
     if(sections.borderless)
     {
         for(std::size_t index = 0; index < monitors->size(); ++index)
@@ -107,6 +110,7 @@ void testManualFullscreenAndTopology(
             std::format("After fullscreen transitions, did the Window restore its saved placement near ({}, {})?", savedPosition.x, savedPosition.y));
     }
 
+    // Check exact exclusive modes and recovery when their target disappears.
     if(sections.exclusive || sections.topology)
     {
         if(capabilities.supports(Desktop::Types::Capability::ExclusiveFullscreen))
@@ -290,6 +294,7 @@ void testManualFullscreenAndTopology(
         }
     }
 
+    // Check monitor changes and borderless recovery on the same window.
     if(sections.topology)
     {
         recordManualCheck(

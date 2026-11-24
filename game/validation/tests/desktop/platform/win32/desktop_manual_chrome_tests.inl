@@ -13,6 +13,7 @@ void testManualCustomChrome(TestSupport::Context &context, const GameWIP::Test::
         return;
     }
 
+    // Require the native capability and open a visible Window.
     const auto capabilitiesResult = Desktop::getCapabilities();
     const Desktop::Types::Capabilities capabilities = capabilitiesResult.value_or({});
 
@@ -38,6 +39,7 @@ void testManualCustomChrome(TestSupport::Context &context, const GameWIP::Test::
     layout.maximizeButtonRegion = Desktop::Types::LogicalRect{{848, 0}, {48, 48}};
     layout.closeButtonRegion = Desktop::Types::LogicalRect{{896, 0}, {64, 48}};
 
+    // Apply the initial layout and check its native behavior.
     if(!requireManualStatus(context, "custom chrome layout applies", window.setCustomChromeLayout(layout)))
     {
         return;
@@ -58,6 +60,8 @@ void testManualCustomChrome(TestSupport::Context &context, const GameWIP::Test::
     layout.minimizeButtonRegion.reset();
     layout.maximizeButtonRegion.reset();
     layout.closeButtonRegion.reset();
+
+    // Replace the regions and verify that removed controls become inactive.
     static_cast<void>(context.expectTrue("replacement custom chrome layout applies", window.setCustomChromeLayout(layout).ok()));
     recordManualCheck(
         context,
@@ -75,6 +79,7 @@ void testManualCustomChrome(TestSupport::Context &context, const GameWIP::Test::
         {},
         ManualSurfaceLayout::CustomChromeReplacement);
 
+    // Clear native chrome state before closing.
     static_cast<void>(context.expectTrue("custom chrome layout clears", window.clearCustomChromeLayout().ok()));
     static_cast<void>(context.expectTrue("custom chrome Window closes", window.close().ok()));
 }
@@ -87,6 +92,7 @@ void testManualLayeredAndPointer(TestSupport::Context &context, const GameWIP::T
         return;
     }
 
+    // Open the host Window and test opacity when supported.
     const auto capabilitiesResult = Desktop::getCapabilities();
     const Desktop::Types::Capabilities capabilities = capabilitiesResult.value_or({});
     Desktop::Window window;
@@ -144,6 +150,7 @@ void testManualLayeredAndPointer(TestSupport::Context &context, const GameWIP::T
         context.skip("cross-application click-through", "backend does not advertise PointerClickThrough");
     }
 
+    // Check pointer-region policies and restore normal routing.
     const std::array region{Desktop::Types::LogicalRect{{20, 20}, {120, 80}}};
 
     for(const Desktop::Types::PointerInputMode mode :
@@ -171,6 +178,7 @@ void testManualLayeredAndPointer(TestSupport::Context &context, const GameWIP::T
     context.pass("pointer-mask first/last pixels, clearing, movement, resize invalidation, and stale generations are covered deterministically");
     static_cast<void>(context.expectTrue("layered pointer Window closes", window.close().ok()));
 
+    // Exercise transparent framebuffer capability without assuming a renderer.
     Desktop::Types::Description alphaDescription;
     alphaDescription.transparentFramebuffer = true;
     Desktop::Window alpha;

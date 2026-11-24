@@ -21,6 +21,7 @@ void testInitResultModel(TestContext &context)
 {
     const ScopedLoggerShutdown shutdown;
 
+    // Verify disabled output and its reported state.
     Logger::Types::Config disabled = makeConsoleConfig();
     disabled.output = Logger::Types::OutputMode::None;
     const Logger::Types::Init::Result disabledResult = Logger::init(disabled);
@@ -30,6 +31,7 @@ void testInitResultModel(TestContext &context)
     context.expectFalse("disabled init not running", Logger::running());
     static_cast<void>(Logger::shutdown());
 
+    // Verify out-of-range settings are adjusted and reported.
     Logger::Types::Config adjusted = makeConsoleConfig();
     adjusted.maxQueueSize = 0;
     adjusted.maxMessageLength = 0;
@@ -56,6 +58,7 @@ void testInitResultModel(TestContext &context)
     context.expectTrue("second init leaves existing Logger running", Logger::running());
     static_cast<void>(Logger::shutdown());
 
+    // Verify storage fallback remains usable when the requested queue is too large.
     Logger::Types::Config storageFallback = makeConsoleConfig();
     storageFallback.maxQueueSize = std::numeric_limits<std::size_t>::max();
     storageFallback.workerBatchSize = 9999;
@@ -69,6 +72,7 @@ void testInitResultModel(TestContext &context)
         Logger::Types::Init::hasAdjustment(storageFallbackResult.adjustments, Logger::Types::Init::Adjustment::WorkerBatchAdjusted));
     static_cast<void>(Logger::shutdown());
 
+    // Reject unsupported enum values and malformed layout settings.
     Logger::Types::Config invalidOutput = makeConsoleConfig();
     invalidOutput.output = static_cast<Logger::Types::OutputMode>(99);
     context.expectEq("invalid output rejected", Logger::init(invalidOutput).status.code, IO::Types::ErrorCode::InvalidArgument);
@@ -161,11 +165,29 @@ void testFileFallbackAndSetupStatus(TestContext &context)
 {
     const ScopedLoggerShutdown shutdown;
     const std::filesystem::path blockingPath = context.logRoot / "not-a-directory";
+
+    // Create a file where Logger needs a directory.
+    bool blockingFileReady = false;
     {
         std::ofstream file(blockingPath);
         file << "blocks directory creation";
+        file.close();
+        blockingFileReady = file.good();
     }
+
+    context.expectTrue("blocking file fixture writes", blockingFileReady);
+
+    if(!blockingFileReady)
+    {
+        return;
+    }
+
     const std::string blockingText = pathText(context, blockingPath);
+
+    if(blockingText.empty())
+    {
+        return;
+    }
 
     Logger::Types::Config noFallback = makeConsoleConfig();
     noFallback.output = Logger::Types::OutputMode::File;
@@ -178,6 +200,7 @@ void testFileFallbackAndSetupStatus(TestContext &context)
     context.expectEq("file setup failure output none", failed.effectiveOutput, Logger::Types::OutputMode::None);
     static_cast<void>(Logger::shutdown());
 
+    // Confirm the configured fallback starts Logger and preserves the setup error.
     Logger::Types::Config fallback = noFallback;
     fallback.fallbackToConsoleOnFileFailure = true;
     const Logger::Types::Init::Result recovered = Logger::init(fallback);

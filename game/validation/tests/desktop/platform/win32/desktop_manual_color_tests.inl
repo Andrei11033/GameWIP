@@ -13,11 +13,17 @@ void testManualHdrAndAdvancedColor(TestSupport::Context &context, const GameWIP:
         return;
     }
 
+    // Enumerate displays and report each native color-space description.
     const auto monitors = Desktop::Display::getMonitors();
 
-    if(!monitors.ok() || monitors->empty())
+    if(!monitors.ok())
     {
         context.fail("HDR monitor enumeration", monitors.status.message);
+        return;
+    }
+
+    if(!context.expectTrue("HDR monitor enumeration returns at least one display", !monitors->empty()))
+    {
         return;
     }
 
@@ -65,6 +71,7 @@ void testManualHdrAndAdvancedColor(TestSupport::Context &context, const GameWIP:
                 info.sdrWhiteLevelNits.value_or(0.0F)));
     }
 
+    // Compare Window state, then observe user-driven HDR transitions.
     const auto windowInfo = Desktop::Display::getColorInfo(window);
     static_cast<void>(context.expectTrue("Window display-color query succeeds", windowInfo.ok()));
 

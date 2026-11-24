@@ -7,6 +7,8 @@ void testManualClipboard(TestSupport::Context &context, const GameWIP::Test::Des
     {
         return;
     }
+
+    // Create exact text fixtures before replacing clipboard contents.
     const TestSupport::ScopedTemporaryDirectory fixtures("desktop-clipboard-manual");
 
     if(!context.expectTrue("clipboard fixture directory creates", fixtures.status().ok()))
@@ -38,6 +40,7 @@ void testManualClipboard(TestSupport::Context &context, const GameWIP::Test::Des
         "Enter 's reason' if that editor or its copy/paste action is unavailable. Text written by Desktop and text copied back are deliberately "
         "different.");
 
+    // Check text transfer in both directions.
     if(manualCaseSelected("clipboard text pasted into foreign editor"))
     {
         const auto published = Desktop::Clipboard::writeText(outbound);
@@ -54,7 +57,7 @@ void testManualClipboard(TestSupport::Context &context, const GameWIP::Test::Des
                 "Paste into an empty document in the separate editor. Does the result match {} including accents, combining text, Japanese, emoji, "
                 "line "
                 "breaks and tab?",
-                outboundFile.string()));
+                GameWIP::Test::Internal::pathToUtf8(context, outboundFile, "format outbound clipboard fixture path")));
     }
     const auto answer = recordManualCheck(
         context,
@@ -62,15 +65,19 @@ void testManualClipboard(TestSupport::Context &context, const GameWIP::Test::Des
         "clipboard text copied from foreign editor",
         std::format(
             "Open {} in the separate editor, select all and Copy. Answer yes after copying; Desktop will check the exact inbound bytes.",
-            inboundFile.string()));
+            GameWIP::Test::Internal::pathToUtf8(context, inboundFile, "format inbound clipboard fixture path")));
 
     if(answer == TestSupport::Types::Reporting::ManualAnswer::Yes)
     {
         const auto copied = Desktop::Clipboard::readText();
-        static_cast<void>(context.expectTrue("foreign clipboard text reads", copied.ok()));
-        static_cast<void>(context.expectTrue("foreign Unicode text and line endings match exact fixture", copied.ok() && *copied == inbound));
+
+        if(context.expectTrue("foreign clipboard text reads", copied.ok()))
+        {
+            static_cast<void>(context.expectEq("foreign Unicode text and line endings match exact fixture", inbound, *copied));
+        }
     }
 
+    // Check file-list transfer through Explorer.
     const auto unicodeFile = fixtures.path() / L"caf\u00e9-\u65e5\u672c\u8a9e-\U0001f600.txt";
     const auto secondFile = fixtures.path() / "second-file.txt";
     const auto copyDirectory = fixtures.path() / "clipboard-copy";
@@ -93,7 +100,7 @@ void testManualClipboard(TestSupport::Context &context, const GameWIP::Test::Des
             "clipboard files pasted into Explorer",
             std::format(
                 "Open {} in Explorer and press Ctrl+V. Did both files arrive with the Unicode filename displayed correctly?",
-                copyDirectory.string()));
+                GameWIP::Test::Internal::pathToUtf8(context, copyDirectory, "format clipboard copy directory")));
 
         if(pasted == TestSupport::Types::Reporting::ManualAnswer::Yes)
         {
@@ -115,18 +122,22 @@ void testManualClipboard(TestSupport::Context &context, const GameWIP::Test::Des
         std::format(
             "Open {} in Explorer. Select just the Unicode file and second-file.txt, then Ctrl+C. Confirm after copying; exact paths and order will "
             "be checked.",
-            fixtures.path().string()));
+            GameWIP::Test::Internal::pathToUtf8(context, fixtures.path(), "format clipboard fixture directory")));
 
     if(filesCopied == TestSupport::Types::Reporting::ManualAnswer::Yes)
     {
         const auto imported = Desktop::Clipboard::readFiles();
-        static_cast<void>(context.expectTrue("Explorer clipboard file list reads", imported.ok()));
-        static_cast<void>(context.expectEq(
-            "Explorer clipboard preserves exact Unicode paths and order",
-            std::vector(filePaths.begin(), filePaths.end()),
-            *imported));
+
+        if(context.expectTrue("Explorer clipboard file list reads", imported.ok()))
+        {
+            static_cast<void>(context.expectEq(
+                "Explorer clipboard preserves exact Unicode paths and order",
+                std::vector(filePaths.begin(), filePaths.end()),
+                *imported));
+        }
     }
 
+    // Compare packed image transfer against a deterministic bitmap.
     const auto image = manualInteropImage();
     const auto bitmapFile = fixtures.path() / "four-quadrants.bmp";
 
@@ -159,7 +170,7 @@ void testManualClipboard(TestSupport::Context &context, const GameWIP::Test::Des
         "clipboard image copied from Paint",
         std::format(
             "Open {} in Paint, Ctrl+A then Ctrl+C. Confirm after copying the entire 128x128 image; Desktop will compare every RGBA byte.",
-            bitmapFile.string()),
+            GameWIP::Test::Internal::pathToUtf8(context, bitmapFile, "format clipboard bitmap path")),
         [&]
         {
             paintManualImagePreview(window, image);
@@ -168,11 +179,15 @@ void testManualClipboard(TestSupport::Context &context, const GameWIP::Test::Des
     if(imageCopied == TestSupport::Types::Reporting::ManualAnswer::Yes)
     {
         const auto imported = Desktop::Clipboard::readImage();
-        static_cast<void>(context.expectTrue("Paint clipboard image reads", imported.ok()));
-        static_cast<void>(context.expectEq("Paint image has exact dimensions", image.size, imported->size));
-        static_cast<void>(context.expectEq("Paint image has exact channels, orientation and opaque alpha", image.rgba8, imported->rgba8));
+
+        if(context.expectTrue("Paint clipboard image reads", imported.ok()))
+        {
+            static_cast<void>(context.expectEq("Paint image has exact dimensions", image.size, imported->size));
+            static_cast<void>(context.expectEq("Paint image has exact channels, orientation and opaque alpha", image.rgba8, imported->rgba8));
+        }
     }
 
+    // Restore shared clipboard state before closing the Window.
     static_cast<void>(requireManualStatus(context, "clipboard fixture cleanup", Desktop::Clipboard::clear().status));
     static_cast<void>(window.close());
 }

@@ -23,11 +23,12 @@ struct ManualDragDropCapture
         *this = {};
     }
 
-    void drain(Desktop::DragDropTarget &target)
+    void drain(TestSupport::Context &context, Desktop::DragDropTarget &target)
     {
         namespace DDEvents = Desktop::Types::DragDrop::Events;
         Desktop::Types::DragDrop::Event event;
 
+        // Count native transitions and retain the last completed payload.
         while(target.popEvent(event))
         {
             if(event.getIf<DDEvents::Entered>() != nullptr)
@@ -56,12 +57,13 @@ struct ManualDragDropCapture
 
         if(manualStatusWindow != nullptr)
         {
-            manualStatusWindow->setObservation(observation(target));
+            manualStatusWindow->setObservation(observation(context, target));
         }
     }
 
-    [[nodiscard]] std::string observation(const Desktop::DragDropTarget &target) const
+    [[nodiscard]] std::string observation(TestSupport::Context &context, const Desktop::DragDropTarget &target) const
     {
+        const auto queue = target.eventQueueInfo();
         std::string text = std::format(
             "DragDrop events: Entered={} Moved={} transitions={} Left={} Dropped={} pending={} queueDrops={}",
             entered,
@@ -69,8 +71,8 @@ struct ManualDragDropCapture
             regionTransitions,
             left,
             dropped,
-            target.eventQueueInfo().pendingEvents,
-            target.eventQueueInfo().droppedEvents);
+            queue.pendingEvents,
+            queue.droppedEvents);
 
         if(lastDrop)
         {
@@ -86,8 +88,7 @@ struct ManualDragDropCapture
 
                     for(const auto &path : files->paths)
                     {
-                        const auto name = path.u8string();
-                        text += "\r\n" + std::string(name.begin(), name.end());
+                        text += "\r\n" + GameWIP::Test::Internal::pathToUtf8(context, path, "format dropped file path");
                     }
                 }
                 else if(const auto *image = std::get_if<Desktop::Types::DataTransfer::Image>(&item))
@@ -163,6 +164,7 @@ ManualDragDropRun runManualDragDropSource(
         return run;
     }
 
+    // Observe native button transitions and capture each drag attempt.
     bool wasDown = manualDragButtonDown(description.triggerButton);
     const auto effectName = [](Desktop::Types::DragDrop::Effect effect) -> std::string_view
     {
@@ -185,7 +187,7 @@ ManualDragDropRun runManualDragDropSource(
     {
         if(target != nullptr && capture != nullptr)
         {
-            capture->drain(*target);
+            capture->drain(context, *target);
         }
 
         if(targetWindow != nullptr)
@@ -207,7 +209,7 @@ ManualDragDropRun runManualDragDropSource(
 
             if(target != nullptr && capture != nullptr)
             {
-                capture->drain(*target);
+                capture->drain(context, *target);
             }
         }
         wasDown = down;
@@ -226,13 +228,15 @@ ManualDragDropRun runManualDragDropSource(
                     static_cast<int>(run.result.effect),
                     IO::errorCodeName(run.result.status.code),
                     run.result.status.nativeCode,
-                    target != nullptr && capture != nullptr ? capture->observation(*target) : std::string{}));
+                    target != nullptr && capture != nullptr ? capture->observation(context, *target) : std::string{}));
         }
     };
 
     const std::string retryInstruction =
         std::string(instruction) +
         " Retry with a fresh press in the source if you miss. Confirm the last attempt; its named effect remains in diagnostics.";
+
+    // Record the interaction, then validate the confirmed native result.
     run.answer = recordManualCheck(context, source, name, retryInstruction, observe, ManualSurfaceLayout::DragDropSource);
 
     if(run.answer == TestSupport::Types::Reporting::ManualAnswer::Yes)

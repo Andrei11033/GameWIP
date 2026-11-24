@@ -55,7 +55,12 @@ void testShellValidation(TestSupport::Context &context)
 
     // Validate Win32 command identities and recursive tray menus.
     Desktop::ShellEventQueue queue;
-    static_cast<void>(queue.open(ShellTypes::QueueConfiguration::owned(8)));
+
+    if(!context.expectTrue("shell validation queue opens", queue.open(ShellTypes::QueueConfiguration::owned(8)).ok()))
+    {
+        return;
+    }
+
     TaskbarTypes::ThumbnailButton oversizedTaskbarButton{{0x10000U}, "Too-large taskbar command"};
     TaskbarTypes::Description oversizedTaskbarDescription;
     oversizedTaskbarDescription.thumbnailButtons = std::span{&oversizedTaskbarButton, 1};
@@ -73,7 +78,7 @@ void testShellValidation(TestSupport::Context &context)
         "tray rejects malformed recursive menu entries before native publication",
         ErrorCode::InvalidArgument,
         tray.open(malformedMenuDescription, queue).code));
-    static_cast<void>(queue.close());
+    static_cast<void>(context.expectTrue("shell validation queue closes", queue.close().ok()));
 
     // Validate notifications, Jump Lists, and registration inputs.
     Desktop::NotificationCenter notifications;
@@ -168,7 +173,12 @@ void testShellNativeLifetimes(TestSupport::Context &context)
 
     // Verify taskbar queue ownership and later button updates.
     Desktop::ShellEventQueue taskbarQueue;
-    static_cast<void>(taskbarQueue.open(ShellTypes::QueueConfiguration::owned(8)));
+
+    if(!context.expectTrue("taskbar event queue opens", taskbarQueue.open(ShellTypes::QueueConfiguration::owned(8)).ok()))
+    {
+        return;
+    }
+
     Desktop::TaskbarItem queuedTaskbar;
     const IO::Types::Status queuedTaskbarStatus = queuedTaskbar.open(window, {}, taskbarQueue);
 
@@ -188,11 +198,16 @@ void testShellNativeLifetimes(TestSupport::Context &context)
         static_cast<void>(context.expectEq("bound taskbar queue cannot close early", ErrorCode::ResourceBusy, taskbarQueue.close().code));
         static_cast<void>(context.expectTrue("queued taskbar binding closes", queuedTaskbar.close().ok()));
     }
-    static_cast<void>(taskbarQueue.close());
+    static_cast<void>(context.expectTrue("taskbar event queue closes", taskbarQueue.close().ok()));
 
     // Verify tray queue ownership and later menu updates.
     Desktop::ShellEventQueue trayQueue;
-    static_cast<void>(trayQueue.open(ShellTypes::QueueConfiguration::owned(8)));
+
+    if(!context.expectTrue("tray event queue opens", trayQueue.open(ShellTypes::QueueConfiguration::owned(8)).ok()))
+    {
+        return;
+    }
+
     TrayTypes::Description trayDescription;
     trayDescription.icons = std::span{&icon, 1};
     TrayTypes::MenuItem trayMenuItem;
@@ -215,9 +230,13 @@ void testShellNativeLifetimes(TestSupport::Context &context)
         static_cast<void>(context.expectEq("bound tray queue cannot close early", ErrorCode::ResourceBusy, trayQueue.close().code));
         static_cast<void>(context.expectTrue("tray binding closes", tray.close().ok()));
     }
-    static_cast<void>(trayQueue.close());
+    static_cast<void>(context.expectTrue("tray event queue closes", trayQueue.close().ok()));
 
-    static_cast<void>(trayQueue.open(ShellTypes::QueueConfiguration::owned(8)));
+    if(!context.expectTrue("empty tray event queue reopens", trayQueue.open(ShellTypes::QueueConfiguration::owned(8)).ok()))
+    {
+        return;
+    }
+
     TrayTypes::Description queuedEmptyTrayDescription;
     queuedEmptyTrayDescription.icons = std::span{&icon, 1};
     queuedEmptyTrayDescription.tooltip = "Queued empty tray menu";
@@ -237,12 +256,17 @@ void testShellNativeLifetimes(TestSupport::Context &context)
         static_cast<void>(context.expectEq("bound empty tray queue cannot close early", ErrorCode::ResourceBusy, trayQueue.close().code));
         static_cast<void>(context.expectTrue("queued empty tray binding closes", queuedEmptyTray.close().ok()));
     }
-    static_cast<void>(trayQueue.close());
+    static_cast<void>(context.expectTrue("empty tray event queue closes", trayQueue.close().ok()));
 
     // Verify notification queue ownership and item lifecycle.
     Desktop::NotificationCenter notifications;
     Desktop::ShellEventQueue notificationQueue;
-    static_cast<void>(notificationQueue.open(ShellTypes::QueueConfiguration::owned(8)));
+
+    if(!context.expectTrue("notification event queue opens", notificationQueue.open(ShellTypes::QueueConfiguration::owned(8)).ok()))
+    {
+        return;
+    }
+
     const IO::Types::Status notificationStatus = notifications.open(notificationQueue);
 
     if(!notificationStatus.ok())
@@ -276,30 +300,79 @@ void testShellNativeLifetimes(TestSupport::Context &context)
         }
         static_cast<void>(context.expectTrue("notification center closes", notifications.close().ok()));
     }
-    static_cast<void>(notificationQueue.close());
+    static_cast<void>(context.expectTrue("notification event queue closes", notificationQueue.close().ok()));
     static_cast<void>(context.expectTrue("shell native lifetime Window closes", window.close().ok()));
 }
 
 #if DESKTOP_INTERNAL_TEST_HOOKS
 void testShellFailureHooks(TestSupport::Context &context)
 {
+    // Verify native-open failure is reported without leaving partial state.
     Desktop::Internal::TestHooks::resetFailures();
     Desktop::NotificationCenter notifications;
     Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::ShellNativeOpen);
-    static_cast<void>(context.expectEq("shell native-open failure is deterministic", ErrorCode::NativeFailure, notifications.open().code));
+    const IO::Types::Status openFailure = notifications.open();
+
+    if(!context.expectEq("shell native-open failure is deterministic", ErrorCode::NativeFailure, openFailure.code))
+    {
+        Desktop::Internal::TestHooks::resetFailures();
+
+        if(notifications.isOpen())
+        {
+            static_cast<void>(notifications.close());
+        }
+
+        return;
+    }
 
     Desktop::Internal::TestHooks::resetFailures();
-    static_cast<void>(context.expectTrue("notification center opens after injected failure", notifications.open().ok()));
+
+    if(!context.expectTrue("notification center opens after injected failure", notifications.open().ok()))
+    {
+        return;
+    }
+
+    // Verify native apply and close failures can be retried.
     Desktop::Types::Notifications::Description description;
     description.title = "Shell failure hook";
     Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::ShellNativeApply);
-    static_cast<void>(
-        context.expectEq("shell native-apply failure is deterministic", ErrorCode::NativeFailure, notifications.publish(description).status.code));
+    const auto applyFailure = notifications.publish(description);
+
+    if(!context.expectEq("shell native-apply failure is deterministic", ErrorCode::NativeFailure, applyFailure.status.code))
+    {
+        Desktop::Internal::TestHooks::resetFailures();
+        static_cast<void>(notifications.close());
+        return;
+    }
 
     Desktop::Internal::TestHooks::resetFailures();
     Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::ShellNativeClose);
-    static_cast<void>(context.expectEq("shell native-close failure is retryable", ErrorCode::NativeFailure, notifications.close().code));
-    static_cast<void>(context.expectTrue("shell native-close failure retains the open center", notifications.isOpen()));
+    const IO::Types::Status closeFailure = notifications.close();
+
+    if(!context.expectEq("shell native-close failure is retryable", ErrorCode::NativeFailure, closeFailure.code))
+    {
+        Desktop::Internal::TestHooks::resetFailures();
+
+        if(notifications.isOpen())
+        {
+            static_cast<void>(notifications.close());
+        }
+
+        return;
+    }
+
+    if(!context.expectTrue("shell native-close failure retains the open center", notifications.isOpen()))
+    {
+        Desktop::Internal::TestHooks::resetFailures();
+
+        if(notifications.isOpen())
+        {
+            static_cast<void>(notifications.close());
+        }
+
+        return;
+    }
+
     Desktop::Internal::TestHooks::resetFailures();
     static_cast<void>(context.expectTrue("shell native-close retry succeeds", notifications.close().ok()));
 }

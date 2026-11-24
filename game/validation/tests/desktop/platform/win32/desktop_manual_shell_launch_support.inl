@@ -67,7 +67,9 @@
                 receivedArguments.push_back('\n');
             }
             const std::filesystem::path expectedArgumentsPath = receiptPath.empty() ? shellLaunchReceiptPath(token) : receiptPath;
-            static_cast<void>(TestSupport::writeTextFile(expectedArgumentsPath.string() + ".arguments", receivedArguments));
+            std::filesystem::path argumentsPath = expectedArgumentsPath;
+            argumentsPath += ".arguments";
+            static_cast<void>(TestSupport::writeTextFile(argumentsPath, receivedArguments));
 
             if(arguments.size() < 5 || arguments.back() == nullptr || std::string_view{arguments.back()} != expectedTarget)
             {

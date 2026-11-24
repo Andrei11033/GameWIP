@@ -20,6 +20,7 @@ void testManualDialogs(TestSupport::Context &context, const GameWIP::Test::Deskt
         return;
     }
 
+    // Prepare the owner and refresh the manual-step display between dialogs.
     Desktop::Window owner;
     const auto prepareDialogManualCheck = [&](std::string_view name, std::string_view question)
     {
@@ -56,6 +57,7 @@ void testManualDialogs(TestSupport::Context &context, const GameWIP::Test::Deskt
         .filters = filters,
         .preferredFilterIndex = 0};
 
+    // Exercise native file and folder selection.
     prepareDialogManualCheck("open one file", "Select one existing file and choose Open.");
     context.info("The next dialog must open one existing file; select one file to continue.");
     const auto oneFile = Desktop::Dialogs::openFile(open);
@@ -142,6 +144,7 @@ void testManualDialogs(TestSupport::Context &context, const GameWIP::Test::Deskt
             "Did the native Task Dialog show the expected button set, severity treatment, owner modality, and normal keyboard/close behavior?");
     }
 
+    // Exercise custom prompt content and semantic choices.
     const std::array<PromptDialogs::Button, 3> promptButtons{
         PromptDialogs::Button{{1}, "Install", "Install the selected package now"},
         PromptDialogs::Button{{2}, "Later", "Keep the package for a later session"},
@@ -177,6 +180,7 @@ void testManualDialogs(TestSupport::Context &context, const GameWIP::Test::Deskt
         "Were all custom buttons, secondary descriptions, mutually-exclusive options, details, supplemental text, checkbox, severity, and owner "
         "relationship visible and usable?");
 
+    // Open a determinate ProgressDialog and observe live updates and cancellation.
     ManualProgressTypes::Description progressDescription{
         .owner = &owner,
         .title = "GameWIP progress validation",
@@ -190,7 +194,12 @@ void testManualDialogs(TestSupport::Context &context, const GameWIP::Test::Deskt
     prepareDialogManualCheck(
         "determinate ProgressDialog live updates",
         "While this question waits, verify the responsive, owner-blocking progress window and its live updates.");
-    static_cast<void>(context.expectTrue("manual determinate ProgressDialog opens", progress.open(progressDescription).ok()));
+
+    if(!requireManualStatus(context, "manual determinate ProgressDialog opens", progress.open(progressDescription)))
+    {
+        return;
+    }
+
     std::size_t updateStep = 0;
     recordManualCheck(
         context,
@@ -225,6 +234,8 @@ void testManualDialogs(TestSupport::Context &context, const GameWIP::Test::Deskt
         });
     static_cast<void>(context.expectTrue("manual cancel gesture sets sticky request", progress.hasCancelRequest()));
     progress.clearCancelRequest();
+
+    // Switch the same dialog to its indeterminate presentation.
     static_cast<void>(
         context.expectTrue("manual ProgressDialog switches to indeterminate", progress.setMode(ManualProgressTypes::Mode::Indeterminate).ok()));
     recordManualCheck(
@@ -234,13 +245,19 @@ void testManualDialogs(TestSupport::Context &context, const GameWIP::Test::Deskt
         "Does the same progress window switch live to a native indeterminate/marquee presentation?");
     static_cast<void>(progress.close());
 
+    // Check close behavior without cancellation or owner blocking.
     progressDescription.cancelable = false;
     progressDescription.blocksOwner = false;
     progressDescription.heading = "Noncancelable, nonblocking";
     prepareDialogManualCheck(
         "noncancelable close behavior and blocksOwner false",
         "Verify the owner remains usable, no Cancel control is shown, and closing the progress window leaves it open.");
-    static_cast<void>(context.expectTrue("manual noncancelable ProgressDialog opens", progress.open(progressDescription).ok()));
+
+    if(!requireManualStatus(context, "manual noncancelable ProgressDialog opens", progress.open(progressDescription)))
+    {
+        return;
+    }
+
     recordManualCheck(
         context,
         owner,
@@ -251,6 +268,7 @@ void testManualDialogs(TestSupport::Context &context, const GameWIP::Test::Deskt
     static_cast<void>(context.expectFalse("manual noncancelable close leaves cancellation clear", progress.hasCancelRequest()));
     static_cast<void>(progress.close());
 
+    // Verify owner blocking lasts until the final overlapping dialog closes.
     progressDescription.cancelable = true;
     progressDescription.blocksOwner = true;
     Desktop::ProgressDialog blockerOne;
@@ -258,9 +276,18 @@ void testManualDialogs(TestSupport::Context &context, const GameWIP::Test::Deskt
     prepareDialogManualCheck(
         "overlapping ProgressDialog blockers",
         "Close the first progress window and verify the owner remains blocked while the second stays visible.");
-    static_cast<void>(context.expectTrue(
-        "manual overlapping ProgressDialogs open",
-        blockerOne.open(progressDescription).ok() && blockerTwo.open(progressDescription).ok()));
+
+    if(!requireManualStatus(context, "first overlapping ProgressDialog opens", blockerOne.open(progressDescription)))
+    {
+        return;
+    }
+
+    if(!requireManualStatus(context, "second overlapping ProgressDialog opens", blockerTwo.open(progressDescription)))
+    {
+        static_cast<void>(blockerOne.close());
+        return;
+    }
+
     static_cast<void>(blockerOne.close());
     recordManualCheck(
         context,
@@ -269,13 +296,19 @@ void testManualDialogs(TestSupport::Context &context, const GameWIP::Test::Deskt
         "With the first blocker closed and the second still visible, does the owner remain blocked until the final blocker closes?");
     static_cast<void>(blockerTwo.close());
 
+    // Verify ownerless operation and close the owner.
     progressDescription.owner = nullptr;
     progressDescription.blocksOwner = true;
     Desktop::ProgressDialog ownerless;
     prepareDialogManualCheck(
         "ownerless ProgressDialog and DPI",
         "Verify the ownerless progress window is independent and responsive; check DPI behavior if practical.");
-    static_cast<void>(context.expectTrue("manual ownerless ProgressDialog opens", ownerless.open(progressDescription).ok()));
+
+    if(!requireManualStatus(context, "manual ownerless ProgressDialog opens", ownerless.open(progressDescription)))
+    {
+        return;
+    }
+
     recordManualCheck(
         context,
         owner,
