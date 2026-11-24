@@ -249,7 +249,3 @@ void testTextAndStyleOutput(TestSupport::Context &context)
     Hooks::reset();
 }
 #endif
-
-#if TERMINAL_INTERNAL_TEST_HOOKS
-
-#endif

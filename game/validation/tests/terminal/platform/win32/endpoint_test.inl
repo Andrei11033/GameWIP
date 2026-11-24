@@ -13,6 +13,7 @@ void testInputEndpointReplacement(TestSupport::Context &context)
     Hooks::reset();
     const HANDLE originalInput = GetStdHandle(STD_INPUT_HANDLE);
 
+    // Install an initial endpoint with buffered input.
     HANDLE firstRead = nullptr;
     HANDLE firstWrite = nullptr;
     static_cast<void>(context.expectTrue("create first stdin pipe", CreatePipe(&firstRead, &firstWrite, nullptr, 0) != FALSE));
@@ -41,6 +42,7 @@ void testInputEndpointReplacement(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("retry after identity failure succeeds", retriedInitialIdentity.status.ok()));
     static_cast<void>(context.expectEq("zero-timeout poll reads ready input", std::string{"A"}, retriedInitialIdentity.text));
 
+    // Preserve decoder state when endpoint identity checks fail.
     Hooks::Win32::setPendingHighSurrogate(Terminal::Types::Input::Stream::Stdin, UINT16_C(0xD83D));
     static_cast<void>(context.expectTrue(
         "first endpoint retains seeded high surrogate",
@@ -80,6 +82,7 @@ void testInputEndpointReplacement(TestSupport::Context &context)
     static_cast<void>(context.expectEq("replacement after recovery reads normally", std::string{"Z"}, completedReplacementProbe.text));
     CloseHandle(failedProbeRead);
 
+    // Reuse the numeric handle value and discard state from the closed endpoint.
     static_cast<void>(context.expectTrue("restore first stdin endpoint before reuse", SetStdHandle(STD_INPUT_HANDLE, firstRead) != FALSE));
     Hooks::Win32::setPendingHighSurrogate(Terminal::Types::Input::Stream::Stdin, UINT16_C(0xD83D));
     const HANDLE reusedValue = firstRead;
@@ -127,6 +130,7 @@ void testInputEndpointReplacement(TestSupport::Context &context)
         "replacement endpoint discards stale high surrogate",
         Hooks::Win32::hasPendingHighSurrogate(Terminal::Types::Input::Stream::Stdin)));
 
+    // Detaching stdin clears endpoint-owned decoder state.
     static_cast<void>(context.expectTrue("detach stdin", SetStdHandle(STD_INPUT_HANDLE, nullptr) != FALSE));
     static_cast<void>(context.expectEq("detached stdin reports NotOpen after state reset", ErrorCode::NotOpen, Terminal::readText().status.code));
 

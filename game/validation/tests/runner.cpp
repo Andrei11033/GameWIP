@@ -54,20 +54,6 @@ namespace GameWIP::Validation::Tests
             selection.module = std::move(module);
         }
 
-        /// @brief Returns whether the process arguments contain one exact option.
-        [[nodiscard]] bool hasArgument(ProcessArguments arguments, std::string_view argument)
-        {
-            for(const char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
-            {
-                if(value != nullptr && std::string_view(value) == argument)
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
         /// @brief Returns the value following a matched argument prefix.
         [[nodiscard]] std::optional<std::string> argumentValue(ProcessArguments arguments, std::string_view prefix)
         {
@@ -125,22 +111,22 @@ namespace GameWIP::Validation::Tests
                 options.reportPath = *reportPath;
             }
 
-            if(hasArgument(arguments, "--no-test-report"))
+            if(GameWIP::Validation::hasProcessArgument(arguments, "--no-test-report"))
             {
                 options.writeReport = false;
             }
 
-            if(hasArgument(arguments, "--verbose-tests"))
+            if(GameWIP::Validation::hasProcessArgument(arguments, "--verbose-tests"))
             {
                 options.verboseConsole = true;
             }
 
-            if(hasArgument(arguments, "--manual-tests"))
+            if(GameWIP::Validation::hasProcessArgument(arguments, "--manual-tests"))
             {
                 options.enableManualTests = true;
             }
 
-            if(hasArgument(arguments, "--no-test-support-child-process"))
+            if(GameWIP::Validation::hasProcessArgument(arguments, "--no-test-support-child-process"))
             {
                 options.enableTestSupportChildProcessTests = false;
             }
@@ -229,7 +215,8 @@ namespace GameWIP::Validation::Tests
 
                 if(!report.is_open())
                 {
-                    std::cerr << "[VALIDATION] could not append to report: " << options.reportPath.string() << '\n';
+                    std::cerr << "[VALIDATION] could not append to report: " << GameWIP::Test::Internal::RunnerHelpers::pathText(options.reportPath)
+                              << '\n';
                     return;
                 }
 
@@ -237,7 +224,8 @@ namespace GameWIP::Validation::Tests
 
                 if(!report)
                 {
-                    std::cerr << "[VALIDATION] report append failed: " << options.reportPath.string() << '\n';
+                    std::cerr << "[VALIDATION] report append failed: " << GameWIP::Test::Internal::RunnerHelpers::pathText(options.reportPath)
+                              << '\n';
                 }
             }
             catch(const std::exception &exception)
@@ -493,7 +481,8 @@ namespace GameWIP::Validation::Tests
 
         if(options.writeReport)
         {
-            const std::string reportLine = std::format("[VALIDATION] report={}", options.reportPath.string());
+            const std::string reportLine =
+                std::format("[VALIDATION] report={}", GameWIP::Test::Internal::RunnerHelpers::pathText(options.reportPath));
             GameWIP::Test::Internal::RunnerHelpers::writeValidationConsoleLineOrDiagnose("INFO", reportLine);
         }
 

@@ -5,6 +5,7 @@
 
 #include <cstddef>
 #include <span>
+#include <string_view>
 
 namespace GameWIP::Validation
 {
@@ -27,5 +28,27 @@ namespace GameWIP::Validation
 #pragma clang unsafe_buffer_usage end
 #endif
         return arguments;
+    }
+
+    /// @brief Checks for an exact option after the executable name.
+    [[nodiscard]] inline bool hasProcessArgument(ProcessArguments arguments, std::string_view expected) noexcept
+    {
+        for(std::size_t index = 1; index < arguments.size(); ++index)
+        {
+            const char *value = arguments[index];
+
+            if(value != nullptr && std::string_view(value) == expected)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// @brief Checks the process arguments for one exact option.
+    [[nodiscard]] inline bool hasProcessArgument(int argc, char **argv, std::string_view expected) noexcept
+    {
+        return hasProcessArgument(processArguments(argc, argv), expected);
     }
 } // namespace GameWIP::Validation

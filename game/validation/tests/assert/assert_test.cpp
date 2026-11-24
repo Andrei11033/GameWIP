@@ -228,21 +228,6 @@ namespace
         }
     };
 
-    bool hasArgument(int argc, char **argv, std::string_view argument)
-    {
-        const auto arguments = GameWIP::Validation::processArguments(argc, argv);
-
-        for(const char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
-        {
-            if(value != nullptr && std::string_view(value) == argument)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     TestSupport::Types::Process::Result runChildProcessResult(
         const std::filesystem::path &executablePath,
         std::string_view argument,
@@ -387,27 +372,27 @@ namespace GameWIP::Test
 
     int runAssertTests(int argc, char **argv, const AssertTestOptions &options)
     {
-        if(hasArgument(argc, argv, kAssertFailureChildArgument))
+        if(GameWIP::Validation::hasProcessArgument(argc, argv, kAssertFailureChildArgument))
         {
             return runAssertFailureChild();
         }
 
-        if(hasArgument(argc, argv, kInteractiveAbortChildArgument))
+        if(GameWIP::Validation::hasProcessArgument(argc, argv, kInteractiveAbortChildArgument))
         {
             return runInteractiveAbortChild();
         }
 
-        if(hasArgument(argc, argv, kInteractiveBreakChildArgument))
+        if(GameWIP::Validation::hasProcessArgument(argc, argv, kInteractiveBreakChildArgument))
         {
             return runInteractiveBreakChild();
         }
 
-        if(hasArgument(argc, argv, kDebugBreakChildArgument))
+        if(GameWIP::Validation::hasProcessArgument(argc, argv, kDebugBreakChildArgument))
         {
             return runDebugBreakChild();
         }
 
-        if(hasArgument(argc, argv, kUnreachableChildArgument))
+        if(GameWIP::Validation::hasProcessArgument(argc, argv, kUnreachableChildArgument))
         {
             return runUnreachableChild();
         }

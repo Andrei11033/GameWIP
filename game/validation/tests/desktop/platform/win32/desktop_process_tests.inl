@@ -35,17 +35,6 @@ static_assert(noexcept(Desktop::Display::getColorInfo(Desktop::Types::Display::M
 static_assert(noexcept(Desktop::Display::getColorInfo(std::declval<const Desktop::Window &>())));
 static_assert(std::is_same_v<decltype(Desktop::Types::Events::FilesDropped{}.paths)::value_type, GameWIP::FileSystem::Types::Path>);
 
-[[nodiscard]] bool hasArgument(int argc, char **argv, std::string_view expected) noexcept
-{
-    const auto arguments = GameWIP::Validation::processArguments(argc, argv);
-    return std::ranges::any_of(
-        arguments.subspan(std::min<std::size_t>(1, arguments.size())),
-        [expected](const char *value)
-        {
-            return value != nullptr && std::string_view(value) == expected;
-        });
-}
-
 [[nodiscard]] int runStandaloneColorShutdownChild() noexcept
 {
     const auto primary = Desktop::Display::getPrimaryMonitor();

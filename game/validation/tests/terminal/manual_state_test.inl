@@ -11,6 +11,7 @@ void testManualStateRestoration(
     const Terminal::Types::Input::Capabilities &inputCapabilities,
     const Terminal::Types::Output::Capabilities &outputCapabilities)
 {
+    // Verify managed input state restoration when line input is available.
     if(!inputCapabilities.supportsLineInput)
     {
         context.skip("manual session restoration", "the terminal does not report managed line input support");
@@ -56,6 +57,7 @@ void testManualStateRestoration(
         }
     }
 
+    // Verify cursor visibility is restored after an explicit hidden scope.
     if(!outputCapabilities.supportsCursorVisibility)
     {
         context.skip("manual cursor-visibility restoration", "the terminal does not report cursor visibility support");

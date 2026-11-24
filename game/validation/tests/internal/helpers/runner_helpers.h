@@ -7,11 +7,28 @@
 #include "terminal/output.h"
 
 #include <array>
+#include <filesystem>
 #include <iostream>
+#include <string>
 #include <string_view>
 
 namespace GameWIP::Test::Internal::RunnerHelpers
 {
+    /// ------------------------------------------------------------
+    /// Path text
+    /// ------------------------------------------------------------
+
+    /// @brief Returns a filesystem path as UTF-8 text for validation output.
+    [[nodiscard]] inline std::string pathText(const std::filesystem::path &path)
+    {
+        const std::u8string encoded = path.u8string();
+        return std::string{reinterpret_cast<const char *>(encoded.data()), encoded.size()};
+    }
+
+    /// ------------------------------------------------------------
+    /// Report styling
+    /// ------------------------------------------------------------
+
     enum class ReportStyle
     {
         None,

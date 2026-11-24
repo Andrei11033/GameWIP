@@ -14,7 +14,6 @@
 
 #include "test_support/test_support.h"
 
-#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
@@ -79,22 +78,6 @@ namespace
 
     bool failConsoleWriter(std::string_view, std::string_view) noexcept
     {
-        return false;
-    }
-
-    /// @brief Returns whether one exact child-mode argument is present.
-    bool hasArgument(int argc, char **argv, std::string_view argument)
-    {
-        const auto arguments = GameWIP::Validation::processArguments(argc, argv);
-
-        for(const char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
-        {
-            if(value != nullptr && std::string_view(value) == argument)
-            {
-                return true;
-            }
-        }
-
         return false;
     }
 
@@ -172,12 +155,12 @@ namespace
     /// @brief Implements child modes used to verify capture, timeout, environment, and exit behavior.
     int runTestSupportChild(int argc, char **argv)
     {
-        if(hasArgument(argc, argv, kStartGateChildArgument))
+        if(GameWIP::Validation::hasProcessArgument(argc, argv, kStartGateChildArgument))
         {
             return runStartGateChild();
         }
 
-        if(hasArgument(argc, argv, kEnvironmentChildArgument))
+        if(GameWIP::Validation::hasProcessArgument(argc, argv, kEnvironmentChildArgument))
         {
             const char *setValue = std::getenv(std::string(kChildSetVariable).c_str());
             const char *unsetValue = std::getenv(std::string(kChildUnsetVariable).c_str());
@@ -187,32 +170,32 @@ namespace
             return setValue != nullptr && std::string_view(setValue) == "child-value" && unsetValue == nullptr ? 0 : 9;
         }
 
-        if(hasArgument(argc, argv, kCurrentPathChildArgument))
+        if(GameWIP::Validation::hasProcessArgument(argc, argv, kCurrentPathChildArgument))
         {
             std::cout << std::filesystem::current_path().generic_string() << '\n';
             return 0;
         }
 
-        if(hasArgument(argc, argv, kEchoChildArgument))
+        if(GameWIP::Validation::hasProcessArgument(argc, argv, kEchoChildArgument))
         {
             std::cout << "testing child echo\n";
             std::cerr << "testing child stderr\n";
             return 0;
         }
 
-        if(hasArgument(argc, argv, kSleepChildArgument))
+        if(GameWIP::Validation::hasProcessArgument(argc, argv, kSleepChildArgument))
         {
             std::this_thread::sleep_for(5s);
             return 0;
         }
 
-        if(hasArgument(argc, argv, kExitCodeChildArgument))
+        if(GameWIP::Validation::hasProcessArgument(argc, argv, kExitCodeChildArgument))
         {
             const std::string exitCodeText = argumentAfter(argc, argv, kExitCodeChildArgument);
             return exitCodeText.empty() ? 7 : std::stoi(exitCodeText);
         }
 
-        if(hasArgument(argc, argv, kOutputChildArgument))
+        if(GameWIP::Validation::hasProcessArgument(argc, argv, kOutputChildArgument))
         {
             const std::string byteCountText = argumentAfter(argc, argv, kOutputChildArgument);
             const std::size_t byteCount = byteCountText.empty() ? 0 : static_cast<std::size_t>(std::stoull(byteCountText));
@@ -221,7 +204,7 @@ namespace
             return 0;
         }
 
-        if(hasArgument(argc, argv, kHandleInheritanceChildArgument))
+        if(GameWIP::Validation::hasProcessArgument(argc, argv, kHandleInheritanceChildArgument))
         {
             const std::string handleText = argumentAfter(argc, argv, kHandleInheritanceChildArgument);
             const auto handleValue = static_cast<std::uintptr_t>(std::stoull(handleText));
@@ -229,7 +212,7 @@ namespace
             return 0;
         }
 
-        if(hasArgument(argc, argv, kDescendantChildArgument))
+        if(GameWIP::Validation::hasProcessArgument(argc, argv, kDescendantChildArgument))
         {
             const std::filesystem::path executablePath = GameWIP::Validation::currentExecutablePath();
             return GameWIP::Test::TestSupportPlatform::runDescendantChild(executablePath, kSleepChildArgument);
@@ -254,11 +237,15 @@ namespace GameWIP::Test
     int runTestSupportTests(int argc, char **argv, const TestSupportTestOptions &options)
     {
         // Route private child protocols before creating the test workspace.
-        if(hasArgument(argc, argv, kEnvironmentChildArgument) || hasArgument(argc, argv, kCurrentPathChildArgument) ||
-           hasArgument(argc, argv, kEchoChildArgument) || hasArgument(argc, argv, kSleepChildArgument) ||
-           hasArgument(argc, argv, kExitCodeChildArgument) || hasArgument(argc, argv, kOutputChildArgument) ||
-           hasArgument(argc, argv, kDescendantChildArgument) || hasArgument(argc, argv, kHandleInheritanceChildArgument) ||
-           hasArgument(argc, argv, kStartGateChildArgument))
+        if(GameWIP::Validation::hasProcessArgument(argc, argv, kEnvironmentChildArgument) ||
+           GameWIP::Validation::hasProcessArgument(argc, argv, kCurrentPathChildArgument) ||
+           GameWIP::Validation::hasProcessArgument(argc, argv, kEchoChildArgument) ||
+           GameWIP::Validation::hasProcessArgument(argc, argv, kSleepChildArgument) ||
+           GameWIP::Validation::hasProcessArgument(argc, argv, kExitCodeChildArgument) ||
+           GameWIP::Validation::hasProcessArgument(argc, argv, kOutputChildArgument) ||
+           GameWIP::Validation::hasProcessArgument(argc, argv, kDescendantChildArgument) ||
+           GameWIP::Validation::hasProcessArgument(argc, argv, kHandleInheritanceChildArgument) ||
+           GameWIP::Validation::hasProcessArgument(argc, argv, kStartGateChildArgument))
         {
             return runTestSupportChild(argc, argv);
         }
@@ -276,13 +263,13 @@ namespace GameWIP::Test
         const TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::Internal::RunnerHelpers::makeReportingOptions(options);
 
         TestSupport::Runner runner(reportOptions);
-        runner.info(std::format("TestSupport library test root: {}", runRoot.string()));
+        runner.info(std::format("TestSupport library test root: {}", GameWIP::Test::Internal::RunnerHelpers::pathText(runRoot)));
         runner.info(
             std::format(
                 "TestSupport test options: childProcess={} stress={} report={}",
                 options.enableChildProcessTests,
                 options.enableStressTests,
-                options.writeReport ? options.reportPath.string() : std::string_view{"disabled"}));
+                options.writeReport ? GameWIP::Test::Internal::RunnerHelpers::pathText(options.reportPath) : std::string_view{"disabled"}));
 
         const std::filesystem::path executablePath = GameWIP::Validation::currentExecutablePath();
 

@@ -27,6 +27,7 @@ void testWin32EventDecoder(TestSupport::Context &context)
         return key;
     };
 
+    // Decode characters and normalize control modifiers.
     Hooks::Win32::resetWin32KeyDecoder();
     {
         const Hooks::Win32::Win32KeyDecodeResult decoded = Hooks::Win32::decodeWin32KeyRecord(true, 'A', u'a');
@@ -46,6 +47,7 @@ void testWin32EventDecoder(TestSupport::Context &context)
         }
     }
 
+    // Preserve physical modifier identity and key location.
     Hooks::Win32::resetWin32KeyDecoder();
     {
         const Hooks::Win32::Win32KeyDecodeResult decoded =
@@ -67,6 +69,7 @@ void testWin32EventDecoder(TestSupport::Context &context)
         }
     }
 
+    // Track held modifiers and classify navigation and function keys.
     Hooks::Win32::resetWin32KeyDecoder();
     {
         const Hooks::Win32::Win32KeyDecodeResult decoded = Hooks::Win32::decodeWin32KeyRecord(true, 'Q', u'@', RIGHT_ALT_PRESSED | LEFT_CTRL_PRESSED);
@@ -90,6 +93,7 @@ void testWin32EventDecoder(TestSupport::Context &context)
         }
     }
 
+    // Expand repeat records and pair UTF-16 surrogate input.
     Hooks::Win32::resetWin32KeyDecoder();
     {
         const Hooks::Win32::Win32KeyDecodeResult decoded = Hooks::Win32::decodeWin32KeyRecord(true, VK_LCONTROL, u'\0', LEFT_CTRL_PRESSED);

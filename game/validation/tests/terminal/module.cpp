@@ -8,6 +8,7 @@
 #include "validation/tests/terminal/platform.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <string_view>
 
 namespace

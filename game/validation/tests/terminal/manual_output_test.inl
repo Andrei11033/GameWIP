@@ -89,6 +89,7 @@ void testManualRgbColorOutput(TestSupport::Context &context, const Terminal::Typ
     {
         return;
     }
+
     recordManualCheck(context, "manual RGB-color output", "Does the preceding RGB line appear as the requested vivid green color?");
 }
 

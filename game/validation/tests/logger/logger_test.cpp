@@ -119,12 +119,12 @@ namespace GameWIP::Test
 
     int runLoggerTests(int argc, char **argv, const LoggerTestOptions &options)
     {
-        if(hasArgument(argc, argv, "--logger-test-child=report-no-drain"))
+        if(GameWIP::Validation::hasProcessArgument(argc, argv, "--logger-test-child=report-no-drain"))
         {
             return runReportNoDrainChild();
         }
 
-        if(hasArgument(argc, argv, kFatalTerminateChildArgument))
+        if(GameWIP::Validation::hasProcessArgument(argc, argv, kFatalTerminateChildArgument))
         {
             return runFatalTerminateChild();
         }

@@ -22,7 +22,6 @@
 #include "terminal/internal/test_hooks.h"
 #endif
 
-#include <algorithm>
 #include <array>
 #include <atomic>
 #include <chrono>
@@ -204,22 +203,6 @@ namespace
     {
         const std::span<const std::byte> bytes = bytesOf(text);
         return std::vector<std::byte>(bytes.begin(), bytes.end());
-    }
-
-    /// @brief Returns true when the process arguments contain one exact value.
-    [[nodiscard]] bool hasArgument(int argc, char **argv, std::string_view expected)
-    {
-        const auto arguments = GameWIP::Validation::processArguments(argc, argv);
-
-        for(const char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
-        {
-            if(value != nullptr && std::string_view(value) == expected)
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /// @brief Exercises reentrant print and println calls in an isolated child process.
@@ -485,18 +468,23 @@ namespace
     void testHookDependentSuitesSkipped(TestSupport::Context &context);
 #endif
 
+    // Contracts and output controls
 #include "validation/tests/terminal/contracts_test.inl"
 #include "validation/tests/terminal/controls_test.inl"
-#include "validation/tests/terminal/input_test.inl"
-#include "validation/tests/terminal/line_input_test.inl"
-#include "validation/tests/terminal/manual_output_test.inl"
-#include "validation/tests/terminal/manual_screen_test.inl"
-#include "validation/tests/terminal/manual_input_test.inl"
-#include "validation/tests/terminal/manual_state_test.inl"
 #include "validation/tests/terminal/formatting_test.inl"
 #include "validation/tests/terminal/text_output_test.inl"
 #include "validation/tests/terminal/segment_output_test.inl"
+
+    // Input and session behavior
+#include "validation/tests/terminal/input_test.inl"
+#include "validation/tests/terminal/line_input_test.inl"
 #include "validation/tests/terminal/session_test.inl"
+
+    // Manual terminal checks
+#include "validation/tests/terminal/manual_input_test.inl"
+#include "validation/tests/terminal/manual_output_test.inl"
+#include "validation/tests/terminal/manual_screen_test.inl"
+#include "validation/tests/terminal/manual_state_test.inl"
 } // namespace
 
 namespace GameWIP::Test
@@ -507,17 +495,17 @@ namespace GameWIP::Test
 
     int runTerminalTests(int argc, char **argv, const TerminalTestOptions &options)
     {
-        if(hasArgument(argc, argv, kReentrantFormatChildArgument))
+        if(GameWIP::Validation::hasProcessArgument(argc, argv, kReentrantFormatChildArgument))
         {
             return runReentrantFormatChild();
         }
 
-        if(hasArgument(argc, argv, kSessionReentrantFormatChildArgument))
+        if(GameWIP::Validation::hasProcessArgument(argc, argv, kSessionReentrantFormatChildArgument))
         {
             return runSessionReentrantFormatChild();
         }
 
-        if(hasArgument(argc, argv, GameWIP::Test::TerminalPlatform::kCancellationSignalFailureChildArgument))
+        if(GameWIP::Validation::hasProcessArgument(argc, argv, GameWIP::Test::TerminalPlatform::kCancellationSignalFailureChildArgument))
         {
             return GameWIP::Test::TerminalPlatform::runCancellationSignalFailureChild();
         }
@@ -526,7 +514,9 @@ namespace GameWIP::Test
 
         TestSupport::Runner runner(reportOptions);
         runner.info(
-            std::format("Terminal test options: report={}", options.writeReport ? options.reportPath.string() : std::string_view{"disabled"}));
+            std::format(
+                "Terminal test options: report={}",
+                options.writeReport ? GameWIP::Test::Internal::RunnerHelpers::pathText(options.reportPath) : std::string_view{"disabled"}));
 
         runner.runSuite("Terminal passive helpers", testPassiveHelpers);
 #if TERMINAL_INTERNAL_TEST_HOOKS

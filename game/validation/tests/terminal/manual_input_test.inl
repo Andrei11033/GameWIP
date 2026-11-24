@@ -107,6 +107,7 @@ void testManualEventInput(TestSupport::Context &context, const Terminal::Types::
         return;
     }
 
+    // Open a session after the user is ready to provide an event.
     if(!requireManualOperation(
            context,
            "manual structured input",
@@ -115,6 +116,7 @@ void testManualEventInput(TestSupport::Context &context, const Terminal::Types::
     {
         return;
     }
+
     Terminal::Session session;
     const IO::Types::Status openStatus = session.open();
 
@@ -122,9 +124,11 @@ void testManualEventInput(TestSupport::Context &context, const Terminal::Types::
     {
         return;
     }
+
     Terminal::Types::Input::EventOptions options;
     options.timeout = std::chrono::seconds{10};
 
+    // Ignore releases and unrelated events until Left Arrow is observed or the deadline expires.
     bool matched = false;
 
     for(int attempt = 0; attempt < 8 && !matched; ++attempt)

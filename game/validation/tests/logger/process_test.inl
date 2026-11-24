@@ -16,21 +16,6 @@
     return TestSupport::runChildProcess(options);
 }
 
-[[nodiscard]] bool hasArgument(int argc, char **argv, std::string_view argument)
-{
-    const auto arguments = GameWIP::Validation::processArguments(argc, argv);
-
-    for(const char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
-    {
-        if(value != nullptr && std::string_view(value) == argument)
-        {
-            return true;
-        }
-    }
-
-    return false;
-}
-
 int runFatalTerminateChild()
 {
     GameWIP::Validation::PlatformTests::suppressCrashDialogs();

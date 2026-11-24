@@ -126,7 +126,10 @@ namespace GameWIP::Test
         const TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::Internal::RunnerHelpers::makeReportingOptions(options);
 
         TestSupport::Runner runner(reportOptions);
-        runner.info(std::format("IO test options: report={}", options.writeReport ? options.reportPath.string() : std::string_view{"disabled"}));
+        runner.info(
+            std::format(
+                "IO test options: report={}",
+                options.writeReport ? GameWIP::Test::Internal::RunnerHelpers::pathText(options.reportPath) : std::string_view{"disabled"}));
 
         runner.runSuite("IO error code names", testErrorCodeNames);
         runner.runSuite("IO status defaults", testStatusAndDefaultContracts);

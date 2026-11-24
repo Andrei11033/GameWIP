@@ -174,7 +174,7 @@ namespace GameWIP::Test
     int runDesktopTests(int argc, char **argv, const DesktopTestOptions &options)
     {
         // Dispatch child-process modes before creating the suite runner.
-        if(hasArgument(argc, argv, "--desktop-test-child=result-empty-arrow"))
+        if(GameWIP::Validation::hasProcessArgument(argc, argv, "--desktop-test-child=result-empty-arrow"))
         {
             std::set_terminate(
                 []
@@ -185,7 +185,7 @@ namespace GameWIP::Test
             return static_cast<int>(result->width);
         }
 
-        if(hasArgument(argc, argv, "--desktop-test-child=result-failed-dereference"))
+        if(GameWIP::Validation::hasProcessArgument(argc, argv, "--desktop-test-child=result-failed-dereference"))
         {
             std::set_terminate(
                 []
@@ -196,70 +196,70 @@ namespace GameWIP::Test
             return static_cast<int>((*result).width);
         }
 
-        if(hasArgument(argc, argv, "--desktop-test-child=accessibility-client"))
+        if(GameWIP::Validation::hasProcessArgument(argc, argv, "--desktop-test-child=accessibility-client"))
         {
             return runAccessibilityClientChild();
         }
 
-        if(hasArgument(argc, argv, kStandaloneColorChildArgument))
+        if(GameWIP::Validation::hasProcessArgument(argc, argv, kStandaloneColorChildArgument))
         {
             return runStandaloneColorShutdownChild();
         }
 
-        if(hasArgument(argc, argv, kWindowColorChildArgument))
+        if(GameWIP::Validation::hasProcessArgument(argc, argv, kWindowColorChildArgument))
         {
             return runWindowColorShutdownChild();
         }
 
-        if(hasArgument(argc, argv, kOwnerExitColorChildArgument))
+        if(GameWIP::Validation::hasProcessArgument(argc, argv, kOwnerExitColorChildArgument))
         {
             return runOwnerExitColorShutdownChild();
         }
 
-        if(hasArgument(argc, argv, kOwnerExitDragDropChildArgument))
+        if(GameWIP::Validation::hasProcessArgument(argc, argv, kOwnerExitDragDropChildArgument))
         {
             return runOwnerExitDragDropShutdownChild(false);
         }
 
-        if(hasArgument(argc, argv, kOwnerExitDragDropFailureChildArgument))
+        if(GameWIP::Validation::hasProcessArgument(argc, argv, kOwnerExitDragDropFailureChildArgument))
         {
             return runOwnerExitDragDropShutdownChild(true);
         }
 
-        if(hasArgument(argc, argv, kOwnerExitProgressChildArgument))
+        if(GameWIP::Validation::hasProcessArgument(argc, argv, kOwnerExitProgressChildArgument))
         {
             return runOwnerExitProgressShutdownChild(false);
         }
 
-        if(hasArgument(argc, argv, kOwnerExitProgressFailureChildArgument))
+        if(GameWIP::Validation::hasProcessArgument(argc, argv, kOwnerExitProgressFailureChildArgument))
         {
             return runOwnerExitProgressShutdownChild(true);
         }
 
-        if(hasArgument(argc, argv, kDeferredPumpFailureWaitChildArgument))
+        if(GameWIP::Validation::hasProcessArgument(argc, argv, kDeferredPumpFailureWaitChildArgument))
         {
             return runDeferredPumpFailureWaitChild();
         }
 
 #if DESKTOP_INTERNAL_TEST_HOOKS
-        if(hasArgument(argc, argv, "--desktop-test-child=cold-com-apartment"))
+        if(GameWIP::Validation::hasProcessArgument(argc, argv, "--desktop-test-child=cold-com-apartment"))
         {
             return runColdApartmentChild();
         }
 
-        if(hasArgument(argc, argv, "--desktop-test-child=jump-list-publication"))
+        if(GameWIP::Validation::hasProcessArgument(argc, argv, "--desktop-test-child=jump-list-publication"))
         {
             return runJumpListPublicationChild(GameWIP::Validation::currentExecutablePath());
         }
 
-        if(hasArgument(argc, argv, kProgressRestoreMessageLazinessChildArgument))
+        if(GameWIP::Validation::hasProcessArgument(argc, argv, kProgressRestoreMessageLazinessChildArgument))
         {
             return runProgressRestoreMessageLazinessChild();
         }
 
 #endif
 
-        if(hasArgument(argc, argv, "--desktop-test-child=shell-launch-probe"))
+        if(GameWIP::Validation::hasProcessArgument(argc, argv, "--desktop-test-child=shell-launch-probe"))
         {
             return runShellLaunchProbeChild(argc, argv);
         }
@@ -270,7 +270,7 @@ namespace GameWIP::Test
         std::optional<std::string_view> selectedManualSuite;
         manualCaseSelection.reset();
         manualCasesSelected = 0;
-        const bool manualOnly = hasArgument(argc, argv, "--desktop-manual-only");
+        const bool manualOnly = GameWIP::Validation::hasProcessArgument(argc, argv, "--desktop-manual-only");
         constexpr std::string_view manualSuitePrefix = "--desktop-manual-suite=";
         constexpr std::string_view manualCasePrefix = "--desktop-manual-case=";
         const auto arguments = GameWIP::Validation::processArguments(argc, argv);
