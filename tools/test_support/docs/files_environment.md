@@ -18,11 +18,9 @@ diagnostic when available. Success and code-only failures do not allocate diagno
 - Valid UTF-8: success with the exact bytes in `text`.
 - Malformed UTF-8 reports `EncodingFailed` and preserves the complete valid UTF-8 prefix, including when a backend failure is observed at the same
   read boundary.
-- An incomplete final UTF-8 sequence at a definitive end reports `EncodingFailed`; a known-size early EOF therefore reports encoding failure when the
-  retained suffix is incomplete.
-- If a backend fails after returning a valid prefix followed only by an incomplete sequence, the backend `FileOperationFailed` remains authoritative
-  because additional bytes may have existed.
-- A valid but short read relative to the size measured before the read reports `FileOperationFailed` rather than silently succeeding with a prefix.
+- An incomplete final UTF-8 sequence reports `EncodingFailed` only when the measured file contents were read completely. A backend failure or short read
+  reports `FileOperationFailed` because more bytes may have existed.
+- A valid short read relative to the measured size reports `FileOperationFailed` rather than silently succeeding with a prefix.
 - Every returned `text` field is valid UTF-8, including on failure. No normalization, BOM handling, or newline conversion occurs.
 
 `writeTextFile()` validates the complete input before any filesystem mutation. Malformed or incomplete UTF-8 therefore returns `EncodingFailed` before

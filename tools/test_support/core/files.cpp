@@ -95,11 +95,10 @@ namespace GameWIP::TestSupport
                 return result;
             }
 
-            // An incomplete suffix is an encoding failure only at a definitive end. A real
-            // backend failure remains authoritative because more bytes may have existed.
+            // A short or failed read cannot prove that an incomplete suffix belongs to the file.
             if(validation.outcome == Unicode::Types::ValidationOutcome::Incomplete)
             {
-                if(backendFailure)
+                if(backendFailure || knownSizeShortRead)
                 {
                     result.status = Internal::failureStatus(Types::InfrastructureError::FileOperationFailed, static_cast<std::uint64_t>(errno));
                 }

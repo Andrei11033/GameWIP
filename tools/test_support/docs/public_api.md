@@ -56,8 +56,9 @@ to standalone contexts; runner-owned contexts leave the shared sink to the `Runn
 - `createDirectories()` and `removeIfExists()`.
 
 Text-file operations are strict UTF-8. They do not normalize Unicode, add/remove a BOM, or convert line endings. `readTextFile()` returns only valid
-UTF-8 in `TextResult::text`; malformed or incomplete content reports `EncodingFailed` and may retain the complete valid prefix. `writeTextFile()`
-validates before creating parent directories or opening/truncating the destination.
+UTF-8 in `TextResult::text`; malformed bytes report `EncodingFailed`, and an incomplete suffix does so only when the measured contents were read
+completely. Valid short reads and short reads ending in an incomplete suffix report `FileOperationFailed`. Failures may retain the complete valid prefix.
+`writeTextFile()` validates before creating parent directories or opening/truncating the destination.
 
 `ScopedCurrentPath` requires `ScopedProcessState`, and its `restore()` reports explicit restoration failures or process-state conflicts.
 
@@ -91,4 +92,5 @@ rethrown.
 - @ref test_support_files_environment
 - @ref test_support_child_processes
 - @ref test_support_timing_stress
+
 Dependencies: @ref test_support.

@@ -146,7 +146,7 @@ void testUtf8TextFileContracts(TestSupport::Context &context, const std::filesys
     writeRaw(incompletePath, incomplete);
     const TestSupport::Types::TextResult incompleteRead = TestSupport::readTextFile(incompletePath);
     static_cast<void>(context.expectEq(
-        "incomplete text read reports encoding failure",
+        "fully read incomplete suffix reports encoding failure",
         TestSupport::Types::InfrastructureError::EncodingFailed,
         incompleteRead.status.error));
     static_cast<void>(context.expectEq("incomplete text read preserves valid prefix", std::string("prefix"), incompleteRead.text));
