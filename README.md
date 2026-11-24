@@ -69,9 +69,9 @@ See the [getting started guide](docs/doxygen/getting_started.md), the
 ## Documentation
 
 The API reference and developer manual are on the
-[documentation site](https://andrei11033.github.io/GameWIP/);
-Public headers carry short contracts for IntelliSense;
-manual pages cover the surrounding design (see the [documentation guide](docs/doxygen/documentation.md)).
+[documentation site](https://andrei11033.github.io/GameWIP/). Public headers
+carry short IntelliSense contracts; manual pages cover the surrounding design
+(see the [documentation guide](docs/doxygen/documentation.md)).
 
 ## Project links
 
