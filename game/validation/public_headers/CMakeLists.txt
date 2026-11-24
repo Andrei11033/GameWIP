@@ -53,6 +53,7 @@ gamewip_add_public_header_check(TerminalStyle terminal_style_header.cpp GameWIP:
 # ------------------------------------------------------------
 
 gamewip_add_public_header_check(DesktopTypes desktop_types_header.cpp GameWIP::Desktop)
+gamewip_add_public_header_check(DesktopIconTypes desktop_icon_types_header.cpp GameWIP::Desktop)
 gamewip_add_public_header_check(DesktopAccessibility desktop_accessibility_header.cpp GameWIP::Desktop)
 
 # Focused accessibility headers

@@ -4,9 +4,9 @@
 #pragma once
 
 #include "desktop/desktop_export.h"
+#include "desktop/icon_types.h"
 #include "desktop/shell.h"
 #include "desktop/shell_types.h"
-#include "desktop/window.h"
 #include "io/status.h"
 
 #include <cstdint>

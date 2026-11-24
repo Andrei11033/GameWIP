@@ -15,6 +15,7 @@ non-owning Window façade follow the same contract; native providers and COM typ
 The supported public headers are:
 
 - `desktop/types.h`
+- `desktop/icon_types.h`
 - `desktop/description.h`
 - `desktop/events.h`
 - `desktop/display.h`
@@ -46,7 +47,7 @@ Internal headers and test hooks are source-tree-only. Every supported entry head
 `DESKTOP_EXPORT` marks installed production/runtime ABI. `DESKTOP_TEST_EXPORT`
 is limited to source-tree validation hooks and is never installed.
 
-`desktop/window.h` includes the shared vocabulary, description, display-mode surface, and events. Rich display
+`desktop/window.h` includes the shared vocabulary, icon-image values, description, display-mode surface, and events. Rich display
 inspection, cursors, child hosts, accessibility, Clipboard/data transfer, drag and drop, dialogs, shell, renderer
 integration, and native interop are explicit opt-in includes.
 

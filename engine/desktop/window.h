@@ -7,6 +7,7 @@
 #include "desktop/description.h"
 #include "desktop/display.h"
 #include "desktop/events.h"
+#include "desktop/icon_types.h"
 #include "desktop/result.h"
 #include "desktop/types.h"
 #include "desktop/desktop_export.h"
@@ -65,13 +66,6 @@ namespace GameWIP::Desktop
         {
             PointerInputMode mode = PointerInputMode::Normal; ///< Hit-test policy.
             std::span<const LogicalRect> regions;             ///< Client-local acceptance or rejection regions.
-        };
-
-        /// @brief Call-scoped tightly packed RGBA8 icon image.
-        struct IconImageView
-        {
-            PixelSize size;                   ///< Physical icon dimensions.
-            std::span<const std::byte> rgba8; ///< Tightly packed row-major RGBA8 pixels.
         };
 
         /// @brief Portable backend capability.

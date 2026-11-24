@@ -86,6 +86,7 @@ mixed-monitor physical observations; those are opt-in manual checks.
 Repository validation compiles each supported Desktop entry header independently:
 
 - `desktop/types.h`
+- `desktop/icon_types.h`
 - `desktop/description.h`
 - `desktop/events.h`
 - `desktop/display.h`

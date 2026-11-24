@@ -6,6 +6,7 @@ Use this map to find the declaration that owns an operation.
 ## Header ownership
 
 - `desktop/types.h` contains shared primitive/value vocabulary such as `WindowId`, geometry, DPI, limits, and `PresentationState`.
+- `desktop/icon_types.h` contains the borrowed RGBA8 icon image shared by Window, Taskbar, and Tray APIs.
 - `desktop/description.h` contains creation/configuration policy and `Types::Description`.
 - `desktop/events.h` contains `Types::Events`, queued `Types::Event`, and calling-thread `Desktop::Events` pump operations.
 - `desktop/display.h` contains fundamental `Types::Display::MonitorId`, display `Mode`, and mode queries.

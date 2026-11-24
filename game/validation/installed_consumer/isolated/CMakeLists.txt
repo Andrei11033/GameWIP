@@ -70,6 +70,7 @@ elseif(GAMEWIP_CONSUMER_PACKAGE STREQUAL "Desktop")
             desktop_display_info.cpp
             desktop_drag_drop.cpp
             desktop_events.cpp
+            desktop_icon_types.cpp
             desktop_renderer_bridge.cpp
             desktop_shell.cpp
             desktop_shell_jump_lists.cpp

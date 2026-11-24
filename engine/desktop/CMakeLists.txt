@@ -42,6 +42,7 @@ set(DESKTOP_PUBLIC_HEADERS
     "${CMAKE_CURRENT_SOURCE_DIR}/display_info.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/drag_drop.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/events.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/icon_types.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/renderer_bridge.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/result.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/shell.h"
