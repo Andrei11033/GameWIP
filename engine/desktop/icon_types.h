@@ -9,7 +9,7 @@
 #include <span>
 
 /// ------------------------------------------------------------
-/// @brief Borrowed icon image data shared by Window and shell APIs.
+/// Borrowed icon image data shared by Window and shell APIs.
 /// ------------------------------------------------------------
 namespace GameWIP::Desktop::Types
 {
