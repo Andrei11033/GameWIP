@@ -92,6 +92,7 @@ set(expected_gamewip_headers
     logger/types.h
     terminal/input.h
     terminal/output.h
+    terminal/output_types.h
     terminal/session.h
     terminal/style.h
     terminal/terminal.h

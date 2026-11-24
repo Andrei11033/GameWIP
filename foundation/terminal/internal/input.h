@@ -4,6 +4,7 @@
 #pragma once
 
 #include "terminal/input.h"
+#include "terminal/output_types.h"
 
 #include <cstddef>
 #include <mutex>

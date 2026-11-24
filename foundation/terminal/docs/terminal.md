@@ -8,7 +8,8 @@ such as Logger. Callers may use direct one-operation functions or create a move-
 native state.
 
 The focused public headers are `terminal/types.h`, `terminal/style.h`,
-`terminal/input.h`, `terminal/output.h`, and `terminal/session.h`.
+`terminal/input.h`, `terminal/output_types.h`, `terminal/output.h`, and
+`terminal/session.h`.
 `terminal/terminal.h` is the complete convenience include.
 
 ## How the library is organized

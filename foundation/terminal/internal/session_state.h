@@ -4,6 +4,7 @@
 #pragma once
 
 #include "terminal/session.h"
+#include "terminal/output.h"
 #include "terminal/platform/backend.h"
 
 #include <array>

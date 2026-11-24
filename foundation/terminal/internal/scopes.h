@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "terminal/output.h"
+#include "terminal/output_types.h"
 
 namespace GameWIP::Terminal::Internal
 {

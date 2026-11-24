@@ -21,6 +21,7 @@
 #elif defined(GAMEWIP_CONSUMER_Terminal)
 #include "terminal/input.h"
 #include "terminal/output.h"
+#include "terminal/output_types.h"
 #include "terminal/session.h"
 #include "terminal/terminal.h"
 #elif defined(GAMEWIP_CONSUMER_Desktop)

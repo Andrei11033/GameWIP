@@ -11,7 +11,8 @@ explicit move-only `Session` that owns input and binds one primary output; direc
 
 `terminal/terminal.h` is the complete convenience include. Consumers may
 instead include `terminal/types.h`, `terminal/style.h`, `terminal/input.h`,
-`terminal/output.h`, or `terminal/session.h` for the declarations they use.
+`terminal/output_types.h`, `terminal/output.h`, or `terminal/session.h` for the
+declarations they use.
 
 ## Installed CMake
 

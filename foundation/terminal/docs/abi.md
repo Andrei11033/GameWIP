@@ -20,6 +20,7 @@ The package installs:
 - `terminal/types.h`;
 - `terminal/style.h`;
 - `terminal/input.h`;
+- `terminal/output_types.h`;
 - `terminal/output.h`;
 - `terminal/session.h`;
 - `terminal/terminal.h`;

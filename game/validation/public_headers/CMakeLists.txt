@@ -45,6 +45,7 @@ gamewip_add_public_header_check(Terminal terminal_header.cpp GameWIP::Terminal)
 gamewip_add_public_header_check(TerminalTypes terminal_types_header.cpp GameWIP::Terminal)
 gamewip_add_public_header_check(TerminalInput terminal_input_header.cpp GameWIP::Terminal)
 gamewip_add_public_header_check(TerminalOutput terminal_output_header.cpp GameWIP::Terminal)
+gamewip_add_public_header_check(TerminalOutputTypes terminal_output_types_header.cpp GameWIP::Terminal)
 gamewip_add_public_header_check(TerminalSession terminal_session_header.cpp GameWIP::Terminal)
 gamewip_add_public_header_check(TerminalStyle terminal_style_header.cpp GameWIP::Terminal)
 
