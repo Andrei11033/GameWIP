@@ -36,18 +36,18 @@ namespace GameWIP::Input::Platform::Win32
     /// Device and element lookup
     /// ------------------------------------------------------------
 
-    [[nodiscard]] Types::ElementState *findState(System::Impl &state, Types::ElementId id) noexcept
+    [[nodiscard]] Types::ElementState *findState(SystemState &state, Types::ElementId id) noexcept
     {
         const std::size_t index = state.findStateIndex(id);
         return index == state.states.size() ? nullptr : &state.states[index];
     }
 
-    [[nodiscard]] Types::ElementInfo *findElement(System::Impl &state, Types::ElementId id) noexcept
+    [[nodiscard]] Types::ElementInfo *findElement(SystemState &state, Types::ElementId id) noexcept
     {
         return state.findElement(id);
     }
 
-    [[nodiscard]] DeviceBinding *findDevice(Attachment::Impl &attachment, DeviceRole role, std::uint32_t slot) noexcept
+    [[nodiscard]] DeviceBinding *findDevice(AttachmentState &attachment, DeviceRole role, std::uint32_t slot) noexcept
     {
         auto entry = std::find_if(
             attachment.devices.begin(),
@@ -59,7 +59,7 @@ namespace GameWIP::Input::Platform::Win32
         return entry == attachment.devices.end() ? nullptr : &(*entry);
     }
 
-    [[nodiscard]] DeviceBinding *findNativeDevice(Attachment::Impl &attachment, DeviceRole role, void *nativeDevice) noexcept
+    [[nodiscard]] DeviceBinding *findNativeDevice(AttachmentState &attachment, DeviceRole role, void *nativeDevice) noexcept
     {
         auto entry = std::find_if(
             attachment.devices.begin(),
@@ -71,7 +71,7 @@ namespace GameWIP::Input::Platform::Win32
         return entry == attachment.devices.end() ? nullptr : &(*entry);
     }
 
-    [[nodiscard]] DeviceBinding *findHidDevice(Attachment::Impl &attachment, void *nativeDevice) noexcept
+    [[nodiscard]] DeviceBinding *findHidDevice(AttachmentState &attachment, void *nativeDevice) noexcept
     {
         return findNativeDevice(attachment, DeviceRole::Hid, nativeDevice);
     }
@@ -104,7 +104,7 @@ namespace GameWIP::Input::Platform::Win32
     /// Attachment validation
     /// ------------------------------------------------------------
 
-    [[nodiscard]] IO::Types::Status checkAttached(const Attachment::Impl &attachment) noexcept
+    [[nodiscard]] IO::Types::Status checkAttached(const AttachmentState &attachment) noexcept
     {
         if(!attachment.attached || attachment.system == nullptr)
         {

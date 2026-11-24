@@ -43,7 +43,7 @@ namespace GameWIP::Input
     /// Event queue and descriptor lookup
     /// ------------------------------------------------------------
 
-    void System::Impl::appendEvent(Types::Event event) noexcept
+    void Internal::SystemState::appendEvent(Types::Event event) noexcept
     {
         if(pendingEvents.size() >= configuration.eventCapacity)
         {
@@ -72,7 +72,7 @@ namespace GameWIP::Input
         }
     }
 
-    std::size_t System::Impl::findDeviceIndex(Types::DeviceId id) const noexcept
+    std::size_t Internal::SystemState::findDeviceIndex(Types::DeviceId id) const noexcept
     {
         for(std::size_t index = 0; index < devices.size(); ++index)
         {
@@ -85,7 +85,7 @@ namespace GameWIP::Input
         return devices.size();
     }
 
-    std::pair<std::size_t, std::size_t> System::Impl::findElementIndex(Types::ElementId id) const noexcept
+    std::pair<std::size_t, std::size_t> Internal::SystemState::findElementIndex(Types::ElementId id) const noexcept
     {
         const std::size_t deviceIndex = findDeviceIndex(id.device);
         if(deviceIndex == devices.size())
@@ -105,7 +105,7 @@ namespace GameWIP::Input
         return {devices.size(), elements.size()};
     }
 
-    std::size_t System::Impl::findStateIndex(Types::ElementId id) const noexcept
+    std::size_t Internal::SystemState::findStateIndex(Types::ElementId id) const noexcept
     {
         if(!id.isValid() || id.device.instance != instance || id.slot == 0)
         {
@@ -116,13 +116,13 @@ namespace GameWIP::Input
         return index < states.size() && states[index].id == id ? index : states.size();
     }
 
-    Types::ElementInfo *System::Impl::findElement(Types::ElementId id) noexcept
+    Types::ElementInfo *Internal::SystemState::findElement(Types::ElementId id) noexcept
     {
         const auto [deviceIndex, elementIndex] = findElementIndex(id);
         return deviceIndex == devices.size() ? nullptr : &devices[deviceIndex].elements[elementIndex];
     }
 
-    const Types::ElementInfo *System::Impl::findElement(Types::ElementId id) const noexcept
+    const Types::ElementInfo *Internal::SystemState::findElement(Types::ElementId id) const noexcept
     {
         const auto [deviceIndex, elementIndex] = findElementIndex(id);
         return deviceIndex == devices.size() ? nullptr : &devices[deviceIndex].elements[elementIndex];
@@ -133,7 +133,7 @@ namespace GameWIP::Input
     /// ------------------------------------------------------------
 
     System::System() noexcept
-        : impl_(std::unique_ptr<Impl>(new (std::nothrow) Impl{}))
+        : impl_(std::unique_ptr<Internal::SystemState>(new (std::nothrow) Internal::SystemState{}))
     {
     }
 

@@ -5,7 +5,6 @@
 #include "input/internal/system_state.h"
 #include "input/internal/value.h"
 #include "input/standard.h"
-#include "input/win32.h"
 
 #include <array>
 #include <cstddef>
@@ -36,9 +35,9 @@
 #define HID_USAGE_GENERIC_MULTI_AXIS_CONTROLLER 0x08
 #endif
 
-namespace GameWIP::Input::Platform::Win32
+namespace GameWIP::Input::Internal::Win32
 {
-    struct Attachment::Impl
+    struct AttachmentState
     {
         // Element and device roles
         enum class ElementRole : std::uint8_t
@@ -222,25 +221,31 @@ namespace GameWIP::Input::Platform::Win32
         void *directInput = nullptr;
         bool directInputOwnsCom = false;
     };
+} // namespace GameWIP::Input::Internal::Win32
+
+namespace GameWIP::Input::Platform::Win32
+{
     using IO::Types::ErrorCode;
-    using DeviceBinding = Attachment::Impl::DeviceBinding;
-    using DeviceRole = Attachment::Impl::DeviceRole;
-    using ElementBinding = Attachment::Impl::ElementBinding;
-    using ElementRole = Attachment::Impl::ElementRole;
+    using SystemState = ::GameWIP::Input::Internal::SystemState;
+    using AttachmentState = ::GameWIP::Input::Internal::Win32::AttachmentState;
+    using DeviceBinding = AttachmentState::DeviceBinding;
+    using DeviceRole = AttachmentState::DeviceRole;
+    using ElementBinding = AttachmentState::ElementBinding;
+    using ElementRole = AttachmentState::ElementRole;
 
     /// ------------------------------------------------------------
     /// Published values and raw reports
     /// ------------------------------------------------------------
 
     void publish(
-        System::Impl &state,
+        SystemState &state,
         Types::ElementId id,
         const Types::Value &value,
         bool relative,
         Types::Timestamp timestamp = {},
         Types::EventCause cause = Types::EventCause::Reported) noexcept;
     void appendRawReport(
-        System::Impl &state,
+        SystemState &state,
         const Types::Configuration &configuration,
         Types::DeviceId device,
         Types::BackendKind backend,
@@ -250,68 +255,63 @@ namespace GameWIP::Input::Platform::Win32
     /// Text input
     /// ------------------------------------------------------------
 
-    void invalidateFocus(System::Impl &state, Attachment::Impl &attachment) noexcept;
+    void invalidateFocus(SystemState &state, AttachmentState &attachment) noexcept;
     void appendTextUtf8(
-        System::Impl &state,
-        Attachment::Impl &attachment,
+        SystemState &state,
+        AttachmentState &attachment,
         std::string_view utf8,
         Types::EventKind kind,
         std::size_t selectionStartBytes = 0,
         std::size_t selectionLengthBytes = 0,
         bool canceled = false) noexcept;
-    void appendText(System::Impl &state, Attachment::Impl &attachment, char32_t scalar) noexcept;
-    void handleUtf16(System::Impl &state, Attachment::Impl &attachment, char16_t codeUnit) noexcept;
+    void appendText(SystemState &state, AttachmentState &attachment, char32_t scalar) noexcept;
+    void handleUtf16(SystemState &state, AttachmentState &attachment, char16_t codeUnit) noexcept;
 
     /// ------------------------------------------------------------
     /// Backend selection and status
     /// ------------------------------------------------------------
 
     [[nodiscard]] bool backendSelected(const Types::Configuration &configuration, Types::BackendKind backend) noexcept;
-    void setBackendStatus(Attachment::Impl &attachment, Types::BackendKind backend, Types::BackendStatus status, std::string_view detail = {});
+    void setBackendStatus(AttachmentState &attachment, Types::BackendKind backend, Types::BackendStatus status, std::string_view detail = {});
 
     /// ------------------------------------------------------------
     /// GameInput provider
     /// ------------------------------------------------------------
 
-    [[nodiscard]] IO::Types::Status initializeGameInput(Attachment::Impl &attachment, System::Impl &state) noexcept;
-    void shutdownGameInput(Attachment::Impl &attachment) noexcept;
-    [[nodiscard]] IO::Types::Status pollGameInput(Attachment::Impl &attachment, System::Impl &state) noexcept;
+    [[nodiscard]] IO::Types::Status initializeGameInput(AttachmentState &attachment, SystemState &state) noexcept;
+    void shutdownGameInput(AttachmentState &attachment) noexcept;
+    [[nodiscard]] IO::Types::Status pollGameInput(AttachmentState &attachment, SystemState &state) noexcept;
 
     /// ------------------------------------------------------------
     /// DirectInput provider
     /// ------------------------------------------------------------
 
-    [[nodiscard]] IO::Types::Status initializeDirectInput(Attachment::Impl &attachment) noexcept;
-    void shutdownDirectInput(Attachment::Impl &attachment) noexcept;
-    [[nodiscard]] IO::Types::Status enumerateDirectInputDevices(Attachment::Impl &attachment, System::Impl &state) noexcept;
-    [[nodiscard]] IO::Types::Status pollDirectInput(Attachment::Impl &attachment, System::Impl &state) noexcept;
+    [[nodiscard]] IO::Types::Status initializeDirectInput(AttachmentState &attachment) noexcept;
+    void shutdownDirectInput(AttachmentState &attachment) noexcept;
+    [[nodiscard]] IO::Types::Status enumerateDirectInputDevices(AttachmentState &attachment, SystemState &state) noexcept;
+    [[nodiscard]] IO::Types::Status pollDirectInput(AttachmentState &attachment, SystemState &state) noexcept;
 
     /// ------------------------------------------------------------
     /// Keyboard mapping and Window-message fallback
     /// ------------------------------------------------------------
 
     void appendImeText(
-        System::Impl &state,
-        Attachment::Impl &attachment,
+        SystemState &state,
+        AttachmentState &attachment,
         HIMC context,
         DWORD compositionFlag,
         Types::EventKind kind,
         LONG cursorPosition = 0) noexcept;
     [[nodiscard]] std::uint32_t rawKeyboardUsage(const RAWKEYBOARD &keyboard) noexcept;
-    void noteRawKeyboardTransition(
-        Attachment::Impl &attachment,
-        std::uint32_t usage,
-        bool extended,
-        bool pressed,
-        std::uint32_t messageTime) noexcept;
+    void noteRawKeyboardTransition(AttachmentState &attachment, std::uint32_t usage, bool extended, bool pressed, std::uint32_t messageTime) noexcept;
     void queueWindowKeyboardTransition(
-        System::Impl &state,
-        Attachment::Impl &attachment,
+        SystemState &state,
+        AttachmentState &attachment,
         std::uint32_t usage,
         bool extended,
         bool pressed,
         std::uint32_t messageTime) noexcept;
-    void processWindowKeyboardTransitions(System::Impl &state, Attachment::Impl &attachment);
+    void processWindowKeyboardTransitions(SystemState &state, AttachmentState &attachment);
 
     /// ------------------------------------------------------------
     /// XInput
@@ -319,21 +319,21 @@ namespace GameWIP::Input::Platform::Win32
 
     [[nodiscard]] float xInputTrigger(BYTE value) noexcept;
     [[nodiscard]] float xInputAxis(SHORT value) noexcept;
-    void loadXInput(Attachment::Impl &attachment) noexcept;
-    void releaseXInput(Attachment::Impl &attachment) noexcept;
+    void loadXInput(AttachmentState &attachment) noexcept;
+    void releaseXInput(AttachmentState &attachment) noexcept;
 
     /// ------------------------------------------------------------
     /// Raw Input and HID discovery
     /// ------------------------------------------------------------
 
-    [[nodiscard]] IO::Types::Status registerRawInputCollection(Attachment::Impl &attachment, USHORT usagePage, USHORT usage, DWORD flags);
-    [[nodiscard]] IO::Types::Status registerHidCollections(Attachment::Impl &attachment);
-    [[nodiscard]] bool registerHidDeviceNotification(Attachment::Impl &attachment) noexcept;
-    void unregisterHidDeviceNotification(Attachment::Impl &attachment) noexcept;
-    void unregisterRawInput(Attachment::Impl &attachment) noexcept;
-    [[nodiscard]] bool enumerateNativeDevices(System::Impl &state, Attachment::Impl &attachment);
-    [[nodiscard]] bool addRawDevice(System::Impl &state, Attachment::Impl &attachment, DeviceRole role, HANDLE nativeDevice);
-    [[nodiscard]] bool addHidDevice(System::Impl &state, Attachment::Impl &attachment, HANDLE nativeDevice);
-    [[nodiscard]] bool addOpaqueHidDevice(System::Impl &state, Attachment::Impl &attachment, HANDLE nativeDevice);
-    void publishHidReport(System::Impl &state, DeviceBinding &device, std::span<const std::byte> report) noexcept;
+    [[nodiscard]] IO::Types::Status registerRawInputCollection(AttachmentState &attachment, USHORT usagePage, USHORT usage, DWORD flags);
+    [[nodiscard]] IO::Types::Status registerHidCollections(AttachmentState &attachment);
+    [[nodiscard]] bool registerHidDeviceNotification(AttachmentState &attachment) noexcept;
+    void unregisterHidDeviceNotification(AttachmentState &attachment) noexcept;
+    void unregisterRawInput(AttachmentState &attachment) noexcept;
+    [[nodiscard]] bool enumerateNativeDevices(SystemState &state, AttachmentState &attachment);
+    [[nodiscard]] bool addRawDevice(SystemState &state, AttachmentState &attachment, DeviceRole role, HANDLE nativeDevice);
+    [[nodiscard]] bool addHidDevice(SystemState &state, AttachmentState &attachment, HANDLE nativeDevice);
+    [[nodiscard]] bool addOpaqueHidDevice(SystemState &state, AttachmentState &attachment, HANDLE nativeDevice);
+    void publishHidReport(SystemState &state, DeviceBinding &device, std::span<const std::byte> report) noexcept;
 } // namespace GameWIP::Input::Platform::Win32

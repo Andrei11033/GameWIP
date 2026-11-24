@@ -16,7 +16,7 @@ namespace GameWIP::Input::Platform::Win32
     /// Focus and value publication
     /// ------------------------------------------------------------
 
-    void invalidateFocus(System::Impl &state, Attachment::Impl &attachment) noexcept
+    void invalidateFocus(SystemState &state, AttachmentState &attachment) noexcept
     {
         for(std::size_t bindingIndex = 0; bindingIndex < attachment.devices.size(); ++bindingIndex)
         {
@@ -79,7 +79,7 @@ namespace GameWIP::Input::Platform::Win32
     }
 
     void publish(
-        System::Impl &state,
+        SystemState &state,
         Types::ElementId id,
         const Types::Value &value,
         bool relative,
@@ -192,7 +192,7 @@ namespace GameWIP::Input::Platform::Win32
         return keyboardUsage(mapped & 0xFFU, (mapped & 0xFF00U) == 0xE000U, false, keyboard.VKey);
     }
 
-    void noteRawKeyboardTransition(Attachment::Impl &attachment, std::uint32_t usage, bool extended, bool pressed, std::uint32_t messageTime) noexcept
+    void noteRawKeyboardTransition(AttachmentState &attachment, std::uint32_t usage, bool extended, bool pressed, std::uint32_t messageTime) noexcept
     {
         if(usage == 0)
         {
@@ -211,8 +211,8 @@ namespace GameWIP::Input::Platform::Win32
     }
 
     void queueWindowKeyboardTransition(
-        System::Impl &state,
-        Attachment::Impl &attachment,
+        SystemState &state,
+        AttachmentState &attachment,
         std::uint32_t usage,
         bool extended,
         bool pressed,
@@ -252,10 +252,10 @@ namespace GameWIP::Input::Platform::Win32
     }
 
     [[nodiscard]] static bool matchesRawKeyboardTransition(
-        Attachment::Impl &attachment,
-        const Attachment::Impl::KeyboardTransition &windowTransition) noexcept
+        AttachmentState &attachment,
+        const AttachmentState::KeyboardTransition &windowTransition) noexcept
     {
-        for(Attachment::Impl::KeyboardTransition &rawTransition : attachment.rawKeyboardTransitions)
+        for(AttachmentState::KeyboardTransition &rawTransition : attachment.rawKeyboardTransitions)
         {
             if(!rawTransition.valid || rawTransition.matched || rawTransition.usage != windowTransition.usage ||
                rawTransition.extended != windowTransition.extended || rawTransition.pressed != windowTransition.pressed ||
@@ -270,7 +270,7 @@ namespace GameWIP::Input::Platform::Win32
         return false;
     }
 
-    [[nodiscard]] static bool hasKeyboardTransition(const System::Impl &state, const Attachment::Impl::KeyboardTransition &transition) noexcept
+    [[nodiscard]] static bool hasKeyboardTransition(const SystemState &state, const AttachmentState::KeyboardTransition &transition) noexcept
     {
         for(const Types::Event &event : state.pendingEvents)
         {
@@ -291,12 +291,12 @@ namespace GameWIP::Input::Platform::Win32
         return false;
     }
 
-    void processWindowKeyboardTransitions(System::Impl &state, Attachment::Impl &attachment)
+    void processWindowKeyboardTransitions(SystemState &state, AttachmentState &attachment)
     {
         const std::size_t queuedCount = attachment.windowKeyboardTransitionCount;
         for(std::size_t index = 0; index < queuedCount; ++index)
         {
-            Attachment::Impl::KeyboardTransition transition = attachment.windowKeyboardTransitions[attachment.windowKeyboardTransitionHead];
+            AttachmentState::KeyboardTransition transition = attachment.windowKeyboardTransitions[attachment.windowKeyboardTransitionHead];
             attachment.windowKeyboardTransitionHead = (attachment.windowKeyboardTransitionHead + 1) % attachment.windowKeyboardTransitions.size();
             --attachment.windowKeyboardTransitionCount;
 
@@ -359,7 +359,7 @@ namespace GameWIP::Input::Platform::Win32
     /// ------------------------------------------------------------
 
     void appendRawReport(
-        System::Impl &state,
+        SystemState &state,
         const Types::Configuration &configuration,
         Types::DeviceId device,
         Types::BackendKind backend,

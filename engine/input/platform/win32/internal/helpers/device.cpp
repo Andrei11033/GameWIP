@@ -12,7 +12,7 @@ namespace GameWIP::Input::Platform::Win32
     /// ------------------------------------------------------------
 
     void appendDeviceEvent(
-        System::Impl &state,
+        SystemState &state,
         Types::EventKind kind,
         Types::EventCause cause,
         Types::DeviceId device,
@@ -26,7 +26,7 @@ namespace GameWIP::Input::Platform::Win32
         });
     }
 
-    [[nodiscard]] Types::DeviceInfo *findLogicalDevice(System::Impl &state, std::string_view persistentKey) noexcept
+    [[nodiscard]] Types::DeviceInfo *findLogicalDevice(SystemState &state, std::string_view persistentKey) noexcept
     {
         if(persistentKey.empty())
         {
@@ -46,7 +46,7 @@ namespace GameWIP::Input::Platform::Win32
     }
 
     void publishDeviceRegistration(
-        System::Impl &state,
+        SystemState &state,
         const Types::DeviceInfo &descriptor,
         bool newLogicalDevice,
         bool logicalWasConnected,

@@ -12,13 +12,13 @@
 #include <utility>
 #include <vector>
 
-namespace GameWIP::Input
+namespace GameWIP::Input::Internal
 {
     /// @brief Private storage for one owner-thread-affine System instance.
-    struct System::Impl
+    struct SystemState
     {
         /// @brief Callback used by an attached native source before a frame is copied.
-        using NativeCaptureHook = void (*)(Impl &, void *) noexcept;
+        using NativeCaptureHook = void (*)(SystemState &, void *) noexcept;
 
         // Session ownership and configuration
         /// @brief Thread that opened the system and owns its mutable operations.
@@ -104,4 +104,4 @@ namespace GameWIP::Input
         /// @return Immutable element descriptor, or null when absent.
         [[nodiscard]] const Types::ElementInfo *findElement(Types::ElementId id) const noexcept;
     };
-} // namespace GameWIP::Input
+} // namespace GameWIP::Input::Internal

@@ -12,7 +12,7 @@ namespace GameWIP::Input::Platform::Win32
     /// ------------------------------------------------------------
 
     void appendElementEvent(
-        System::Impl &state,
+        SystemState &state,
         Types::ElementId id,
         Types::Value value,
         Types::Value previous,
@@ -33,7 +33,7 @@ namespace GameWIP::Input::Platform::Win32
         });
     }
 
-    [[nodiscard]] static Types::SourceInfo *sourceInfo(System::Impl &state, const DeviceBinding &device) noexcept
+    [[nodiscard]] static Types::SourceInfo *sourceInfo(SystemState &state, const DeviceBinding &device) noexcept
     {
         const std::size_t deviceIndex = state.findDeviceIndex(device.id);
         if(deviceIndex == state.devices.size() || device.sourceIndex >= state.devices[deviceIndex].sources.size())
@@ -54,7 +54,7 @@ namespace GameWIP::Input::Platform::Win32
             });
     }
 
-    [[nodiscard]] static bool hasActiveElementSource(const Attachment::Impl &attachment, Types::DeviceId device, Types::ElementId element) noexcept
+    [[nodiscard]] static bool hasActiveElementSource(const AttachmentState &attachment, Types::DeviceId device, Types::ElementId element) noexcept
     {
         return std::any_of(
             attachment.devices.begin(),
@@ -76,7 +76,7 @@ namespace GameWIP::Input::Platform::Win32
             });
     }
 
-    void invalidateDevice(System::Impl &state, Attachment::Impl &attachment, DeviceBinding &device, Types::EventCause cause) noexcept
+    void invalidateDevice(SystemState &state, AttachmentState &attachment, DeviceBinding &device, Types::EventCause cause) noexcept
     {
         if(!device.connected)
         {
@@ -139,7 +139,7 @@ namespace GameWIP::Input::Platform::Win32
         appendDeviceEvent(state, Types::EventKind::DeviceDisconnected, cause, device.id, state.deviceRevision);
     }
 
-    void reconnectDevice(System::Impl &state, DeviceBinding &device) noexcept
+    void reconnectDevice(SystemState &state, DeviceBinding &device) noexcept
     {
         if(device.connected)
         {

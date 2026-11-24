@@ -26,11 +26,11 @@ namespace GameWIP::Input::Platform::Win32
     /// Device and element lookup
     /// ------------------------------------------------------------
 
-    [[nodiscard]] Types::ElementState *findState(System::Impl &state, Types::ElementId id) noexcept;
-    [[nodiscard]] Types::ElementInfo *findElement(System::Impl &state, Types::ElementId id) noexcept;
-    [[nodiscard]] DeviceBinding *findDevice(Attachment::Impl &attachment, DeviceRole role, std::uint32_t slot) noexcept;
-    [[nodiscard]] DeviceBinding *findNativeDevice(Attachment::Impl &attachment, DeviceRole role, void *nativeDevice) noexcept;
-    [[nodiscard]] DeviceBinding *findHidDevice(Attachment::Impl &attachment, void *nativeDevice) noexcept;
+    [[nodiscard]] Types::ElementState *findState(SystemState &state, Types::ElementId id) noexcept;
+    [[nodiscard]] Types::ElementInfo *findElement(SystemState &state, Types::ElementId id) noexcept;
+    [[nodiscard]] DeviceBinding *findDevice(AttachmentState &attachment, DeviceRole role, std::uint32_t slot) noexcept;
+    [[nodiscard]] DeviceBinding *findNativeDevice(AttachmentState &attachment, DeviceRole role, void *nativeDevice) noexcept;
+    [[nodiscard]] DeviceBinding *findHidDevice(AttachmentState &attachment, void *nativeDevice) noexcept;
     [[nodiscard]] ElementBinding *findHidElement(DeviceBinding &device, Types::HidControlId hid) noexcept;
     [[nodiscard]] ElementBinding *findRole(DeviceBinding &device, ElementRole role) noexcept;
     [[nodiscard]] ElementBinding *standardElement(DeviceBinding &device, Types::StandardId standard) noexcept;
@@ -39,23 +39,23 @@ namespace GameWIP::Input::Platform::Win32
     /// Attachment validation
     /// ------------------------------------------------------------
 
-    [[nodiscard]] IO::Types::Status checkAttached(const Attachment::Impl &attachment) noexcept;
+    [[nodiscard]] IO::Types::Status checkAttached(const AttachmentState &attachment) noexcept;
 
     /// ------------------------------------------------------------
     /// Device state and registration
     /// ------------------------------------------------------------
 
     void appendElementEvent(
-        System::Impl &state,
+        SystemState &state,
         Types::ElementId id,
         Types::Value value,
         Types::Value previous,
         bool previousKnown,
         Types::EventCause cause = Types::EventCause::Reported) noexcept;
-    void invalidateDevice(System::Impl &state, Attachment::Impl &attachment, DeviceBinding &device, Types::EventCause cause) noexcept;
-    void reconnectDevice(System::Impl &state, DeviceBinding &device) noexcept;
+    void invalidateDevice(SystemState &state, AttachmentState &attachment, DeviceBinding &device, Types::EventCause cause) noexcept;
+    void reconnectDevice(SystemState &state, DeviceBinding &device) noexcept;
     Types::ElementId addElement(
-        System::Impl &state,
+        SystemState &state,
         Types::DeviceInfo &device,
         DeviceBinding &binding,
         std::string name,
@@ -67,8 +67,8 @@ namespace GameWIP::Input::Platform::Win32
         ElementRole role,
         std::optional<Types::HidControlId> hid = std::nullopt);
     void addDevice(
-        System::Impl &state,
-        Attachment::Impl &attachment,
+        SystemState &state,
+        AttachmentState &attachment,
         DeviceRole role,
         std::uint32_t slot,
         std::string name,
@@ -83,14 +83,14 @@ namespace GameWIP::Input::Platform::Win32
     /// ------------------------------------------------------------
 
     void appendDeviceEvent(
-        System::Impl &state,
+        SystemState &state,
         Types::EventKind kind,
         Types::EventCause cause,
         Types::DeviceId device,
         std::uint64_t revision) noexcept;
-    [[nodiscard]] Types::DeviceInfo *findLogicalDevice(System::Impl &state, std::string_view persistentKey) noexcept;
+    [[nodiscard]] Types::DeviceInfo *findLogicalDevice(SystemState &state, std::string_view persistentKey) noexcept;
     void publishDeviceRegistration(
-        System::Impl &state,
+        SystemState &state,
         const Types::DeviceInfo &descriptor,
         bool newLogicalDevice,
         bool logicalWasConnected,

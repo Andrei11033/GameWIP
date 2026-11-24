@@ -36,6 +36,11 @@ namespace GameWIP::Input::Types
 
 namespace GameWIP::Input
 {
+    namespace Internal
+    {
+        struct SystemState;
+    }
+
     namespace Platform::Win32
     {
         class Attachment;
@@ -151,13 +156,10 @@ namespace GameWIP::Input
         /// @note Reducing the limit below currently pending text is rejected without changing the limit.
         [[nodiscard]] IO::Types::Status setMaximumPendingTextBytes(std::size_t maximumBytes) noexcept;
 
-        /// @brief Opaque implementation declaration used by in-tree producer attachments.
-        struct Impl;
-
     private:
         friend class Synthetic::Source;
         friend class Platform::Win32::Attachment;
 
-        std::unique_ptr<Impl> impl_{};
+        std::unique_ptr<Internal::SystemState> impl_{};
     };
 } // namespace GameWIP::Input

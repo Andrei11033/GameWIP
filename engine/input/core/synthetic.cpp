@@ -284,7 +284,7 @@ namespace GameWIP::Input::Synthetic
         }
 
         // Snapshot published state so allocation failures can roll back cleanly.
-        System::Impl &state = *impl_->system->impl_;
+        Internal::SystemState &state = *impl_->system->impl_;
 
         // Record collection sizes.
         const std::size_t initialDeviceCount = state.devices.size();
@@ -428,7 +428,7 @@ namespace GameWIP::Input::Synthetic
         }
 
         // Resolve the logical descriptor before invalidating its elements.
-        System::Impl &state = *impl_->system->impl_;
+        Internal::SystemState &state = *impl_->system->impl_;
         const std::size_t deviceIndex = state.findDeviceIndex(device);
         if(deviceIndex == state.devices.size())
         {
@@ -531,7 +531,7 @@ namespace GameWIP::Input::Synthetic
             return status(ErrorCode::NotFound);
         }
 
-        System::Impl &state = *impl_->system->impl_;
+        Internal::SystemState &state = *impl_->system->impl_;
         const Types::ElementInfo *info = state.findElement(element);
         const std::size_t stateIndex = state.findStateIndex(element);
         if(info == nullptr || stateIndex == state.states.size())
@@ -631,7 +631,7 @@ namespace GameWIP::Input::Synthetic
             return status(ErrorCode::NotFound);
         }
 
-        System::Impl &state = *impl_->system->impl_;
+        Internal::SystemState &state = *impl_->system->impl_;
         if(state.findElement(element) == nullptr)
         {
             return status(ErrorCode::NotFound);
@@ -679,7 +679,7 @@ namespace GameWIP::Input::Synthetic
             return status(ErrorCode::NotFound);
         }
 
-        System::Impl &state = *impl_->system->impl_;
+        Internal::SystemState &state = *impl_->system->impl_;
         const std::size_t stateIndex = state.findStateIndex(element);
         if(state.findElement(element) == nullptr || stateIndex == state.states.size())
         {
@@ -737,7 +737,7 @@ namespace GameWIP::Input::Synthetic
         }
 
         // Enforce the pending-text byte limit before copying the payload.
-        System::Impl &state = *impl_->system->impl_;
+        Internal::SystemState &state = *impl_->system->impl_;
         if(state.pendingTextUtf8.size() > state.configuration.maximumPendingTextBytes ||
            utf8.size() > state.configuration.maximumPendingTextBytes - state.pendingTextUtf8.size())
         {

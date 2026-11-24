@@ -16,15 +16,15 @@ namespace GameWIP::Input::Platform::Win32
     class DeviceRegistrationRollback final
     {
     public:
-        DeviceRegistrationRollback(System::Impl &state, Attachment::Impl &attachment) noexcept;
+        DeviceRegistrationRollback(SystemState &state, AttachmentState &attachment) noexcept;
 
         void saveMergedDevice(const Types::DeviceInfo &descriptor);
 
         void restore() noexcept;
 
     private:
-        System::Impl &state_;
-        Attachment::Impl &attachment_;
+        SystemState &state_;
+        AttachmentState &attachment_;
 
         // Session collection sizes
         std::size_t initialDeviceCount_ = 0;

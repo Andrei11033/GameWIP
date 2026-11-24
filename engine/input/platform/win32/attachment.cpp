@@ -3,6 +3,7 @@
 
 #include "input/platform/win32/internal/win32_attachment_state.h"
 #include "input/platform/win32/internal/device_helpers.h"
+#include "input/win32.h"
 
 #include <algorithm>
 #include <atomic>
@@ -16,7 +17,7 @@ namespace GameWIP::Input::Platform::Win32
 {
     namespace
     {
-        std::atomic<Attachment::Impl *> processRegistrationOwner{nullptr};
+        std::atomic<AttachmentState *> processRegistrationOwner{nullptr};
     }
 
     /// ------------------------------------------------------------
@@ -39,7 +40,7 @@ namespace GameWIP::Input::Platform::Win32
         return std::find(enabledBackends.begin(), enabledBackends.end(), backend) != enabledBackends.end();
     }
 
-    void setBackendStatus(Attachment::Impl &attachment, Types::BackendKind backend, Types::BackendStatus statusValue, std::string_view detail)
+    void setBackendStatus(AttachmentState &attachment, Types::BackendKind backend, Types::BackendStatus statusValue, std::string_view detail)
     {
         const auto entry = std::find_if(
             attachment.backendStatuses.begin(),
@@ -60,7 +61,7 @@ namespace GameWIP::Input::Platform::Win32
     /// ------------------------------------------------------------
 
     Attachment::Attachment() noexcept
-        : impl_(std::unique_ptr<Impl>(new (std::nothrow) Impl{}))
+        : impl_(std::unique_ptr<AttachmentState>(new (std::nothrow) AttachmentState{}))
     {
     }
 
@@ -106,7 +107,7 @@ namespace GameWIP::Input::Platform::Win32
         }
 
         // Claim the process-wide native registration slot.
-        Attachment::Impl *expected = nullptr;
+        AttachmentState *expected = nullptr;
         if(!processRegistrationOwner.compare_exchange_strong(expected, impl_.get(), std::memory_order_acq_rel))
         {
             return status(ErrorCode::ResourceBusy);
@@ -382,7 +383,7 @@ namespace GameWIP::Input::Platform::Win32
         shutdownGameInput(*impl_);
         shutdownDirectInput(*impl_);
 
-        Attachment::Impl *owner = impl_.get();
+        AttachmentState *owner = impl_.get();
         processRegistrationOwner.compare_exchange_strong(owner, nullptr, std::memory_order_acq_rel);
 
         // Clear attachment state.
@@ -445,11 +446,11 @@ namespace GameWIP::Input::Platform::Win32
         return ownerStatus.ok() ? pollNative(*impl_) : ownerStatus;
     }
 
-    IO::Types::Status Attachment::pollNative(Impl &implementation) noexcept
+    IO::Types::Status Attachment::pollNative(AttachmentState &implementation) noexcept
     {
         try
         {
-            System::Impl &state = *implementation.system->impl_;
+            SystemState &state = *implementation.system->impl_;
 
             // Poll XInput and publish changed controller state.
             if(implementation.xinputEnabled && implementation.xinputGetState != nullptr)
@@ -589,9 +590,9 @@ namespace GameWIP::Input::Platform::Win32
     /// Input session callbacks
     /// ------------------------------------------------------------
 
-    void Attachment::beforeCapture(System::Impl &, void *context) noexcept
+    void Attachment::beforeCapture(SystemState &, void *context) noexcept
     {
-        auto *attachment = static_cast<Impl *>(context);
+        auto *attachment = static_cast<AttachmentState *>(context);
         if(attachment == nullptr || attachment->system == nullptr)
         {
             return;
@@ -599,9 +600,9 @@ namespace GameWIP::Input::Platform::Win32
         (void)pollNative(*attachment);
     }
 
-    void Attachment::closeSystem(System::Impl &, void *context) noexcept
+    void Attachment::closeSystem(SystemState &, void *context) noexcept
     {
-        auto *attachment = static_cast<Impl *>(context);
+        auto *attachment = static_cast<AttachmentState *>(context);
         if(attachment == nullptr)
         {
             return;
@@ -614,7 +615,7 @@ namespace GameWIP::Input::Platform::Win32
         shutdownGameInput(*attachment);
         shutdownDirectInput(*attachment);
 
-        Attachment::Impl *owner = attachment;
+        AttachmentState *owner = attachment;
         processRegistrationOwner.compare_exchange_strong(owner, nullptr, std::memory_order_acq_rel);
 
         // Clear attachment state.

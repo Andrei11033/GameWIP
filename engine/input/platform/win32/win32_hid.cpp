@@ -176,7 +176,7 @@ namespace GameWIP::Input::Platform::Win32
     /// ------------------------------------------------------------
 
     static void addNormalizedGamepadElements(
-        System::Impl &state,
+        SystemState &state,
         Types::DeviceInfo &descriptor,
         DeviceBinding &binding,
         const HIDP_CAPS &capabilities,
@@ -189,12 +189,12 @@ namespace GameWIP::Input::Platform::Win32
         {
             return;
         }
-        const auto findValue = [&binding](USAGE usage) -> const Attachment::Impl::DeviceBinding::HidElement *
+        const auto findValue = [&binding](USAGE usage) -> const AttachmentState::DeviceBinding::HidElement *
         {
             const auto element = std::find_if(
                 binding.hidElements.begin(),
                 binding.hidElements.end(),
-                [usage](const Attachment::Impl::DeviceBinding::HidElement &candidate)
+                [usage](const AttachmentState::DeviceBinding::HidElement &candidate)
                 {
                     return !candidate.button && candidate.absolute && candidate.usagePage == 0x01 && candidate.usage == usage;
                 });
@@ -304,7 +304,7 @@ namespace GameWIP::Input::Platform::Win32
     /// HID device discovery
     /// ------------------------------------------------------------
 
-    [[nodiscard]] bool addHidDevice(System::Impl &state, Attachment::Impl &attachment, HANDLE nativeDevice)
+    [[nodiscard]] bool addHidDevice(SystemState &state, AttachmentState &attachment, HANDLE nativeDevice)
     {
         if(DeviceBinding *existing = findHidDevice(attachment, nativeDevice); existing != nullptr)
         {
@@ -614,7 +614,7 @@ namespace GameWIP::Input::Platform::Win32
         }
     }
 
-    [[nodiscard]] bool addOpaqueHidDevice(System::Impl &state, Attachment::Impl &attachment, HANDLE nativeDevice)
+    [[nodiscard]] bool addOpaqueHidDevice(SystemState &state, AttachmentState &attachment, HANDLE nativeDevice)
     {
         if(DeviceBinding *existing = findHidDevice(attachment, nativeDevice); existing != nullptr)
         {

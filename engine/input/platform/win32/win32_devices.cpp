@@ -19,7 +19,7 @@ namespace GameWIP::Input::Platform::Win32
     /// Native input registration
     /// ------------------------------------------------------------
 
-    [[nodiscard]] IO::Types::Status registerRawInputCollection(Attachment::Impl &attachment, USHORT usagePage, USHORT usage, DWORD flags)
+    [[nodiscard]] IO::Types::Status registerRawInputCollection(AttachmentState &attachment, USHORT usagePage, USHORT usage, DWORD flags)
     {
         const auto registered =
             std::find(attachment.rawInputCollections.begin(), attachment.rawInputCollections.end(), std::pair<USHORT, USHORT>{usagePage, usage});
@@ -57,7 +57,7 @@ namespace GameWIP::Input::Platform::Win32
         }
     }
 
-    [[nodiscard]] IO::Types::Status registerHidCollections(Attachment::Impl &attachment)
+    [[nodiscard]] IO::Types::Status registerHidCollections(AttachmentState &attachment)
     {
         UINT deviceCount = 0;
         if(GetRawInputDeviceList(nullptr, &deviceCount, sizeof(RAWINPUTDEVICELIST)) == static_cast<UINT>(-1))
@@ -102,7 +102,7 @@ namespace GameWIP::Input::Platform::Win32
         return IO::successStatus();
     }
 
-    [[nodiscard]] bool registerHidDeviceNotification(Attachment::Impl &attachment) noexcept
+    [[nodiscard]] bool registerHidDeviceNotification(AttachmentState &attachment) noexcept
     {
         constexpr GUID hidInterfaceGuid{0x4D1E55B2, 0xF16F, 0x11CF, {0x88, 0xCB, 0x00, 0x11, 0x11, 0x00, 0x00, 0x30}};
         DEV_BROADCAST_DEVICEINTERFACE_W filter{};
@@ -119,7 +119,7 @@ namespace GameWIP::Input::Platform::Win32
     /// Raw Input device discovery
     /// ------------------------------------------------------------
 
-    [[nodiscard]] bool addRawDevice(System::Impl &state, Attachment::Impl &attachment, DeviceRole role, HANDLE nativeDevice)
+    [[nodiscard]] bool addRawDevice(SystemState &state, AttachmentState &attachment, DeviceRole role, HANDLE nativeDevice)
     {
         if(nativeDevice == nullptr)
         {
@@ -167,7 +167,7 @@ namespace GameWIP::Input::Platform::Win32
         return true;
     }
 
-    [[nodiscard]] bool enumerateNativeDevices(System::Impl &state, Attachment::Impl &attachment)
+    [[nodiscard]] bool enumerateNativeDevices(SystemState &state, AttachmentState &attachment)
     {
         UINT deviceCount = 0;
         if(GetRawInputDeviceList(nullptr, &deviceCount, sizeof(RAWINPUTDEVICELIST)) == static_cast<UINT>(-1))
@@ -224,7 +224,7 @@ namespace GameWIP::Input::Platform::Win32
     /// Input registration cleanup
     /// ------------------------------------------------------------
 
-    void unregisterRawInput(Attachment::Impl &attachment) noexcept
+    void unregisterRawInput(AttachmentState &attachment) noexcept
     {
         for(const auto [usagePage, usage] : attachment.rawInputCollections)
         {
@@ -240,7 +240,7 @@ namespace GameWIP::Input::Platform::Win32
         attachment.rawInputCollections.clear();
     }
 
-    void unregisterHidDeviceNotification(Attachment::Impl &attachment) noexcept
+    void unregisterHidDeviceNotification(AttachmentState &attachment) noexcept
     {
         if(attachment.hidDeviceNotification != nullptr)
         {

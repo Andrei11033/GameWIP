@@ -2,6 +2,7 @@
 /// @brief Routes Win32 window messages to the Input attachment.
 
 #include "input/platform/win32/internal/win32_attachment_state.h"
+#include "input/win32.h"
 #include "input/platform/win32/internal/device_helpers.h"
 
 #include <algorithm>
@@ -38,7 +39,7 @@ namespace GameWIP::Input::Platform::Win32
 
         try
         {
-            System::Impl &state = *impl_->system->impl_;
+            SystemState &state = *impl_->system->impl_;
 
             // Read and validate the native packet before dispatching by device type.
             if(message == WM_INPUT)

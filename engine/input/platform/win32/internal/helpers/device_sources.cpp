@@ -99,7 +99,7 @@ namespace GameWIP::Input::Platform::Win32
     /// Standard control registration
     /// ------------------------------------------------------------
 
-    static void addKeyboardElements(System::Impl &state, Types::DeviceInfo &device, DeviceBinding &binding)
+    static void addKeyboardElements(SystemState &state, Types::DeviceInfo &device, DeviceBinding &binding)
     {
         constexpr std::array<std::pair<std::uint32_t, std::uint32_t>, 3> keyboardUsageRanges = {
             std::pair{0x04U, 0x31U},
@@ -138,7 +138,7 @@ namespace GameWIP::Input::Platform::Win32
             ElementRole::Standard);
     }
 
-    static void addMouseElements(System::Impl &state, Types::DeviceInfo &device, DeviceBinding &binding)
+    static void addMouseElements(SystemState &state, Types::DeviceInfo &device, DeviceBinding &binding)
     {
         const std::array<std::pair<Types::StandardId, std::string_view>, 5> buttons{
             {{Standard::Mouse::Left, "Left Button"},
@@ -187,7 +187,7 @@ namespace GameWIP::Input::Platform::Win32
             ElementRole::MouseWheel);
     }
 
-    static void addPointerElements(System::Impl &state, Types::DeviceInfo &device, DeviceBinding &binding)
+    static void addPointerElements(SystemState &state, Types::DeviceInfo &device, DeviceBinding &binding)
     {
         addElement(
             state,
@@ -203,7 +203,7 @@ namespace GameWIP::Input::Platform::Win32
             ElementRole::PointerPosition);
     }
 
-    static void addGamepadElements(System::Impl &state, Types::DeviceInfo &device, DeviceBinding &binding)
+    static void addGamepadElements(SystemState &state, Types::DeviceInfo &device, DeviceBinding &binding)
     {
         const std::array<std::pair<Types::StandardId, std::string_view>, 14> buttons{
             {{Standard::Gamepad::South, "South"},
@@ -288,7 +288,7 @@ namespace GameWIP::Input::Platform::Win32
     /// ------------------------------------------------------------
 
     Types::ElementId addElement(
-        System::Impl &state,
+        SystemState &state,
         Types::DeviceInfo &device,
         DeviceBinding &binding,
         std::string name,
@@ -393,8 +393,8 @@ namespace GameWIP::Input::Platform::Win32
     }
 
     void addDevice(
-        System::Impl &state,
-        Attachment::Impl &attachment,
+        SystemState &state,
+        AttachmentState &attachment,
         DeviceRole role,
         std::uint32_t slot,
         std::string name,

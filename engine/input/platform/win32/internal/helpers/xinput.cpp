@@ -22,7 +22,7 @@ namespace GameWIP::Input::Platform::Win32
         return value < 0 ? static_cast<float>(value) / 32768.0F : static_cast<float>(value) / 32767.0F;
     }
 
-    void releaseXInput(Attachment::Impl &attachment) noexcept
+    void releaseXInput(AttachmentState &attachment) noexcept
     {
         if(attachment.xinputModule != nullptr)
         {
@@ -36,7 +36,7 @@ namespace GameWIP::Input::Platform::Win32
         attachment.xinputHasPackets.fill(false);
     }
 
-    void loadXInput(Attachment::Impl &attachment) noexcept
+    void loadXInput(AttachmentState &attachment) noexcept
     {
         if(attachment.xinputLoadAttempted)
         {
@@ -53,7 +53,7 @@ namespace GameWIP::Input::Platform::Win32
                 continue;
             }
 
-            const auto function = GameWIP::Base::Platform::Win32::loadProcedure<Attachment::Impl::XInputGetStateFunction>(module, "XInputGetState");
+            const auto function = GameWIP::Base::Platform::Win32::loadProcedure<AttachmentState::XInputGetStateFunction>(module, "XInputGetState");
             if(function != nullptr)
             {
                 attachment.xinputModule = module;

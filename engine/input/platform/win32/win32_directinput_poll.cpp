@@ -97,7 +97,7 @@ namespace GameWIP::Input::Platform::Win32
     /// Device polling
     /// ------------------------------------------------------------
 
-    IO::Types::Status pollDirectInput(Attachment::Impl &attachment, System::Impl &state) noexcept
+    IO::Types::Status pollDirectInput(AttachmentState &attachment, SystemState &state) noexcept
     {
         try
         {

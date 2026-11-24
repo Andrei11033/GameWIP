@@ -27,7 +27,7 @@ namespace GameWIP::Input::Platform::Win32
         return static_cast<std::int64_t>(static_cast<std::int32_t>(value | mask));
     }
 
-    [[nodiscard]] static Types::Value hidValue(const Attachment::Impl::DeviceBinding::HidElement &element, ULONG value) noexcept
+    [[nodiscard]] static Types::Value hidValue(const AttachmentState::DeviceBinding::HidElement &element, ULONG value) noexcept
     {
         if(element.signedValue)
         {
@@ -41,7 +41,7 @@ namespace GameWIP::Input::Platform::Win32
     /// Normalized gamepad and HID report publication
     /// ------------------------------------------------------------
 
-    [[nodiscard]] static float normalizedHidValue(const Attachment::Impl::DeviceBinding::HidElement &element, const Types::Value &value) noexcept
+    [[nodiscard]] static float normalizedHidValue(const AttachmentState::DeviceBinding::HidElement &element, const Types::Value &value) noexcept
     {
         double raw = 0.0;
         if(const auto *signedValue = std::get_if<std::int64_t>(&value); signedValue != nullptr)
@@ -68,13 +68,13 @@ namespace GameWIP::Input::Platform::Win32
     }
 
     static void publishNormalizedGamepad(
-        System::Impl &state,
+        SystemState &state,
         DeviceBinding &device,
-        const Attachment::Impl::DeviceBinding::HidElement &source,
+        const AttachmentState::DeviceBinding::HidElement &source,
         const Types::Value &value) noexcept
     {
         const float normalized = normalizedHidValue(source, value);
-        for(Attachment::Impl::DeviceBinding::NormalizedElement &element : device.normalizedElements)
+        for(AttachmentState::DeviceBinding::NormalizedElement &element : device.normalizedElements)
         {
             if(element.isHat)
             {
@@ -129,7 +129,7 @@ namespace GameWIP::Input::Platform::Win32
         }
     }
 
-    void publishHidReport(System::Impl &state, DeviceBinding &device, std::span<const std::byte> report) noexcept
+    void publishHidReport(SystemState &state, DeviceBinding &device, std::span<const std::byte> report) noexcept
     {
         appendRawReport(state, state.configuration, device.id, Types::BackendKind::Win32Hid, report);
 
@@ -157,7 +157,7 @@ namespace GameWIP::Input::Platform::Win32
         const bool hasButtons = std::any_of(
             device.hidElements.begin(),
             device.hidElements.end(),
-            [reportId](const Attachment::Impl::DeviceBinding::HidElement &element)
+            [reportId](const AttachmentState::DeviceBinding::HidElement &element)
             {
                 return element.button && (element.reportId == 0 || element.reportId == reportId);
             });
@@ -180,7 +180,7 @@ namespace GameWIP::Input::Platform::Win32
             }
         }
 
-        for(const Attachment::Impl::DeviceBinding::HidElement &element : device.hidElements)
+        for(const AttachmentState::DeviceBinding::HidElement &element : device.hidElements)
         {
             if(element.reportId != 0 && reportId != element.reportId)
             {

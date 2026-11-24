@@ -8,6 +8,11 @@
 #include <memory>
 #include <vector>
 
+namespace GameWIP::Input::Internal::Win32
+{
+    struct AttachmentState;
+}
+
 namespace GameWIP::Input::Platform::Win32
 {
     /// @brief Connects an Input system to a caller-owned Win32 window.
@@ -88,14 +93,11 @@ namespace GameWIP::Input::Platform::Win32
         /// @return Success, NotOpen, ResourceBusy, Unsupported, or OutOfMemory.
         [[nodiscard]] IO::Types::Status poll() noexcept;
 
-        /// @brief Opaque implementation declaration reserved for the library binary.
-        struct Impl;
-
     private:
-        static void beforeCapture(System::Impl &state, void *context) noexcept;
-        static void closeSystem(System::Impl &state, void *context) noexcept;
-        static IO::Types::Status pollNative(Impl &implementation) noexcept;
+        static void beforeCapture(::GameWIP::Input::Internal::SystemState &state, void *context) noexcept;
+        static void closeSystem(::GameWIP::Input::Internal::SystemState &state, void *context) noexcept;
+        static IO::Types::Status pollNative(::GameWIP::Input::Internal::Win32::AttachmentState &implementation) noexcept;
 
-        std::unique_ptr<Impl> impl_{};
+        std::unique_ptr<::GameWIP::Input::Internal::Win32::AttachmentState> impl_{};
     };
 } // namespace GameWIP::Input::Platform::Win32

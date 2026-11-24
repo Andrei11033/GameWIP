@@ -12,9 +12,11 @@
 #include <bit>
 #include <cmath>
 #include <format>
+#include <memory>
 #include <new>
 #include <string>
 #include <string_view>
+#include <type_traits>
 
 #include <GameInput.h>
 
@@ -27,6 +29,35 @@ namespace GameWIP::Input::Platform::Win32
         constexpr std::size_t kMaximumAxes = 64;
         constexpr std::size_t kMaximumButtons = 256;
         constexpr std::size_t kMaximumSwitches = 32;
+
+        template <typename Interface> struct InterfaceReleaser
+        {
+            void operator()(Interface *value) const noexcept
+            {
+                if(value != nullptr)
+                {
+                    value->Release();
+                }
+            }
+        };
+
+        template <typename Interface> using InterfaceReference = std::unique_ptr<Interface, InterfaceReleaser<Interface>>;
+
+        struct ModuleReleaser
+        {
+            void operator()(std::remove_pointer_t<HMODULE> *module) const noexcept
+            {
+                if(module != nullptr)
+                {
+                    FreeLibrary(module);
+                }
+            }
+        };
+
+        using ModuleReference = std::unique_ptr<std::remove_pointer_t<HMODULE>, ModuleReleaser>;
+
+        using GameInputDeviceReference = InterfaceReference<GameInputApi::IGameInputDevice>;
+        using GameInputReadingReference = InterfaceReference<GameInputApi::IGameInputReading>;
 
         using GameInputInitializeFunction = HRESULT(WINAPI *)(REFIID interfaceId, void **instance);
         using GameInputCreateFunction = HRESULT(WINAPI *)(void **legacy);
@@ -56,7 +87,7 @@ namespace GameWIP::Input::Platform::Win32
         /// ------------------------------------------------------------
 
         void appendGameInputElements(
-            System::Impl &state,
+            SystemState &state,
             Types::DeviceInfo &descriptor,
             DeviceBinding &binding,
             const GameInputApi::GameInputDeviceInfo &info)
@@ -138,8 +169,8 @@ namespace GameWIP::Input::Platform::Win32
         /// ------------------------------------------------------------
 
         void addGameInputSource(
-            System::Impl &state,
-            Attachment::Impl &attachment,
+            SystemState &state,
+            AttachmentState &attachment,
             GameInputApi::IGameInputDevice *nativeDevice,
             const GameInputApi::GameInputDeviceInfo &info,
             DeviceRole role,
@@ -195,7 +226,7 @@ namespace GameWIP::Input::Platform::Win32
             }
         }
 
-        void registerGameInputDevice(System::Impl &state, Attachment::Impl &attachment, GameInputApi::IGameInputDevice *nativeDevice)
+        void registerGameInputDevice(SystemState &state, AttachmentState &attachment, GameInputApi::IGameInputDevice *nativeDevice)
         {
             const GameInputApi::GameInputDeviceInfo *info = nullptr;
             if(FAILED(nativeDevice->GetDeviceInfo(&info)) || info == nullptr || !isControllerInput(info->supportedInput))
@@ -216,7 +247,7 @@ namespace GameWIP::Input::Platform::Win32
             addGameInputSource(state, attachment, nativeDevice, *info, role, name, {});
         }
 
-        void disconnectGameInputDevice(System::Impl &state, Attachment::Impl &attachment, GameInputApi::IGameInputDevice *nativeDevice)
+        void disconnectGameInputDevice(SystemState &state, AttachmentState &attachment, GameInputApi::IGameInputDevice *nativeDevice)
         {
             for(DeviceBinding &binding : attachment.devices)
             {
@@ -236,7 +267,7 @@ namespace GameWIP::Input::Platform::Win32
             GameInputApi::GameInputDeviceStatus currentStatus,
             GameInputApi::GameInputDeviceStatus previousStatus)
         {
-            auto *attachment = static_cast<Attachment::Impl *>(context);
+            auto *attachment = static_cast<AttachmentState *>(context);
             if(attachment == nullptr || device == nullptr)
             {
                 return;
@@ -252,8 +283,9 @@ namespace GameWIP::Input::Platform::Win32
 
             const std::size_t tail = (attachment->gameInputEventHead + attachment->gameInputEventCount) % attachment->gameInputEvents.size();
             device->AddRef();
+            GameInputDeviceReference retainedDevice(device);
             attachment->gameInputEvents[tail] = {
-                .device = device,
+                .device = retainedDevice.release(),
                 .currentStatus = static_cast<std::uint32_t>(currentStatus),
                 .previousStatus = static_cast<std::uint32_t>(previousStatus),
             };
@@ -270,7 +302,7 @@ namespace GameWIP::Input::Platform::Win32
             return (static_cast<std::uint32_t>(buttons) & static_cast<std::uint32_t>(mask)) != 0;
         }
 
-        void publishGameInputController(System::Impl &state, DeviceBinding &binding, GameInputApi::IGameInputReading &reading)
+        void publishGameInputController(SystemState &state, DeviceBinding &binding, GameInputApi::IGameInputReading &reading)
         {
             // Read generic axes.
             std::array<float, kMaximumAxes> axes{};
@@ -321,7 +353,7 @@ namespace GameWIP::Input::Platform::Win32
             }
         }
 
-        void publishGameInputGamepad(System::Impl &state, DeviceBinding &binding, GameInputApi::IGameInputReading &reading)
+        void publishGameInputGamepad(SystemState &state, DeviceBinding &binding, GameInputApi::IGameInputReading &reading)
         {
             GameInputApi::GameInputGamepadState gamepad{};
             if(!reading.GetGamepadState(&gamepad))
@@ -382,7 +414,7 @@ namespace GameWIP::Input::Platform::Win32
     /// Provider lifecycle
     /// ------------------------------------------------------------
 
-    IO::Types::Status initializeGameInput(Attachment::Impl &attachment, System::Impl &state) noexcept
+    IO::Types::Status initializeGameInput(AttachmentState &attachment, SystemState &state) noexcept
     {
         // Load GameInput from the system directory and resolve a supported entry point.
         HMODULE module = LoadLibraryExW(L"GameInput.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
@@ -390,15 +422,16 @@ namespace GameWIP::Input::Platform::Win32
         {
             return status(IO::Types::ErrorCode::Unsupported);
         }
+        ModuleReference moduleReference(module);
 
-        GameInputApi::IGameInput *gameInput = nullptr;
+        GameInputApi::IGameInput *nativeGameInput = nullptr;
         HRESULT result = E_NOTIMPL;
 
         static_assert(sizeof(GameInputInitializeFunction) == sizeof(FARPROC));
         const GameInputInitializeFunction initialize = std::bit_cast<GameInputInitializeFunction>(GetProcAddress(module, "GameInputInitialize"));
         if(initialize != nullptr)
         {
-            result = initialize(GameInputApi::IID_IGameInput, reinterpret_cast<void **>(&gameInput));
+            result = initialize(GameInputApi::IID_IGameInput, reinterpret_cast<void **>(&nativeGameInput));
         }
         else
         {
@@ -406,16 +439,15 @@ namespace GameWIP::Input::Platform::Win32
             const GameInputCreateFunction create = std::bit_cast<GameInputCreateFunction>(GetProcAddress(module, "GameInputCreate"));
             if(create == nullptr)
             {
-                FreeLibrary(module);
                 return status(IO::Types::ErrorCode::Unsupported);
             }
 
-            IUnknown *legacy = nullptr;
-            result = create(reinterpret_cast<void **>(&legacy));
+            IUnknown *nativeLegacy = nullptr;
+            result = create(reinterpret_cast<void **>(&nativeLegacy));
+            InterfaceReference<IUnknown> legacy(nativeLegacy);
             if(SUCCEEDED(result) && legacy != nullptr)
             {
-                result = legacy->QueryInterface(GameInputApi::IID_IGameInput, reinterpret_cast<void **>(&gameInput));
-                legacy->Release();
+                result = legacy->QueryInterface(GameInputApi::IID_IGameInput, reinterpret_cast<void **>(&nativeGameInput));
             }
             else if(SUCCEEDED(result))
             {
@@ -423,13 +455,9 @@ namespace GameWIP::Input::Platform::Win32
             }
         }
 
+        InterfaceReference<GameInputApi::IGameInput> gameInput(nativeGameInput);
         if(FAILED(result) || gameInput == nullptr)
         {
-            if(gameInput != nullptr)
-            {
-                gameInput->Release();
-            }
-            FreeLibrary(module);
             return nativeStatus(static_cast<std::uint32_t>(FAILED(result) ? result : E_FAIL));
         }
 
@@ -450,17 +478,15 @@ namespace GameWIP::Input::Platform::Win32
             &attachment.gameInputCallbackToken);
         if(FAILED(result))
         {
-            gameInput->Release();
-            FreeLibrary(module);
             return nativeStatus(static_cast<std::uint32_t>(result));
         }
 
-        attachment.gameInputModule = module;
-        attachment.gameInput = gameInput;
+        attachment.gameInputModule = moduleReference.release();
+        attachment.gameInput = gameInput.release();
         return pollGameInput(attachment, state);
     }
 
-    void shutdownGameInput(Attachment::Impl &attachment) noexcept
+    void shutdownGameInput(AttachmentState &attachment) noexcept
     {
         // Stop callbacks before releasing queued and registered device references.
         auto *gameInput = static_cast<GameInputApi::IGameInput *>(attachment.gameInput);
@@ -471,21 +497,26 @@ namespace GameWIP::Input::Platform::Win32
         }
 
         // Drain callback notifications retained by the attachment.
+        std::array<GameInputDeviceReference, AttachmentState::kGameInputEventCapacity> queuedDevices{};
+        std::size_t queuedDeviceCount = 0;
+
         AcquireSRWLockExclusive(&attachment.gameInputEventLock);
         while(attachment.gameInputEventCount != 0)
         {
-            GameInputApi::IGameInputDevice *device =
-                static_cast<GameInputApi::IGameInputDevice *>(attachment.gameInputEvents[attachment.gameInputEventHead].device);
+            queuedDevices[queuedDeviceCount++].reset(
+                static_cast<GameInputApi::IGameInputDevice *>(attachment.gameInputEvents[attachment.gameInputEventHead].device));
+            attachment.gameInputEvents[attachment.gameInputEventHead].device = nullptr;
             attachment.gameInputEventHead = (attachment.gameInputEventHead + 1) % attachment.gameInputEvents.size();
             --attachment.gameInputEventCount;
-            if(device != nullptr)
-            {
-                device->Release();
-            }
         }
         attachment.gameInputEventHead = 0;
         attachment.gameInputEventOverflow = false;
         ReleaseSRWLockExclusive(&attachment.gameInputEventLock);
+
+        for(std::size_t index = 0; index < queuedDeviceCount; ++index)
+        {
+            queuedDevices[index].reset();
+        }
 
         // Release native device references before the provider interface.
         for(DeviceBinding &binding : attachment.devices)
@@ -511,7 +542,7 @@ namespace GameWIP::Input::Platform::Win32
         attachment.gameInputCallbackToken = 0;
     }
 
-    IO::Types::Status pollGameInput(Attachment::Impl &attachment, System::Impl &state) noexcept
+    IO::Types::Status pollGameInput(AttachmentState &attachment, SystemState &state) noexcept
     {
         if(attachment.gameInput == nullptr || attachment.system == nullptr)
         {
@@ -521,7 +552,8 @@ namespace GameWIP::Input::Platform::Win32
         try
         {
             // Move callback notifications to local storage before processing them.
-            std::array<Attachment::Impl::GameInputDeviceEvent, Attachment::Impl::kGameInputEventCapacity> events{};
+            std::array<AttachmentState::GameInputDeviceEvent, AttachmentState::kGameInputEventCapacity> events{};
+            std::array<GameInputDeviceReference, AttachmentState::kGameInputEventCapacity> eventDevices{};
             std::size_t eventCount = 0;
             bool overflow = false;
 
@@ -532,6 +564,8 @@ namespace GameWIP::Input::Platform::Win32
             for(std::size_t index = 0; index < eventCount; ++index)
             {
                 events[index] = attachment.gameInputEvents[attachment.gameInputEventHead];
+                eventDevices[index].reset(static_cast<GameInputApi::IGameInputDevice *>(events[index].device));
+                attachment.gameInputEvents[attachment.gameInputEventHead].device = nullptr;
                 attachment.gameInputEventHead = (attachment.gameInputEventHead + 1) % attachment.gameInputEvents.size();
             }
             attachment.gameInputEventCount = 0;
@@ -547,7 +581,7 @@ namespace GameWIP::Input::Platform::Win32
             // Apply arrivals and removals before polling current device state.
             for(std::size_t index = 0; index < eventCount; ++index)
             {
-                auto *device = static_cast<GameInputApi::IGameInputDevice *>(events[index].device);
+                GameInputApi::IGameInputDevice *device = eventDevices[index].get();
                 if(device == nullptr)
                 {
                     continue;
@@ -563,7 +597,7 @@ namespace GameWIP::Input::Platform::Win32
                 {
                     disconnectGameInputDevice(state, attachment, device);
                 }
-                device->Release();
+                eventDevices[index].reset();
             }
 
             // Read current controller snapshots and publish their available controls.
@@ -584,8 +618,10 @@ namespace GameWIP::Input::Platform::Win32
                 }
 
                 const auto inputKinds = static_cast<GameInputApi::GameInputKind>(binding.nativeKind);
-                GameInputApi::IGameInputReading *reading = nullptr;
-                if(FAILED(gameInput->GetCurrentReading(inputKinds, device, &reading)) || reading == nullptr)
+                GameInputApi::IGameInputReading *nativeReading = nullptr;
+                const HRESULT result = gameInput->GetCurrentReading(inputKinds, device, &nativeReading);
+                GameInputReadingReference reading(nativeReading);
+                if(FAILED(result) || reading == nullptr)
                 {
                     continue;
                 }
@@ -595,7 +631,6 @@ namespace GameWIP::Input::Platform::Win32
                     publishGameInputGamepad(state, binding, *reading);
                 }
                 publishGameInputController(state, binding, *reading);
-                reading->Release();
             }
 
             return IO::successStatus();

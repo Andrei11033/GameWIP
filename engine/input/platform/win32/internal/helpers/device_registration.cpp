@@ -9,7 +9,7 @@ namespace GameWIP::Input::Platform::Win32
     /// Registration snapshot and rollback
     /// ------------------------------------------------------------
 
-    DeviceRegistrationRollback::DeviceRegistrationRollback(System::Impl &state, Attachment::Impl &attachment) noexcept
+    DeviceRegistrationRollback::DeviceRegistrationRollback(SystemState &state, AttachmentState &attachment) noexcept
         : state_(state)
         , attachment_(attachment)
     {

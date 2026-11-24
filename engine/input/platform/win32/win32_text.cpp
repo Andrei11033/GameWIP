@@ -25,8 +25,8 @@ namespace GameWIP::Input::Platform::Win32
     }
 
     void appendTextUtf8(
-        System::Impl &state,
-        Attachment::Impl &attachment,
+        SystemState &state,
+        AttachmentState &attachment,
         std::string_view utf8,
         Types::EventKind kind,
         std::size_t selectionStartBytes,
@@ -90,7 +90,7 @@ namespace GameWIP::Input::Platform::Win32
         }
     }
 
-    void appendText(System::Impl &state, Attachment::Impl &attachment, char32_t scalar) noexcept
+    void appendText(SystemState &state, AttachmentState &attachment, char32_t scalar) noexcept
     {
         // Reject invalid Unicode scalars before encoding.
         if(!validScalar(scalar))
@@ -114,8 +114,8 @@ namespace GameWIP::Input::Platform::Win32
     }
 
     void appendImeText(
-        System::Impl &state,
-        Attachment::Impl &attachment,
+        SystemState &state,
+        AttachmentState &attachment,
         HIMC context,
         DWORD compositionFlag,
         Types::EventKind kind,
@@ -187,7 +187,7 @@ namespace GameWIP::Input::Platform::Win32
         }
     }
 
-    void handleUtf16(System::Impl &state, Attachment::Impl &attachment, char16_t codeUnit) noexcept
+    void handleUtf16(SystemState &state, AttachmentState &attachment, char16_t codeUnit) noexcept
     {
         const bool high = codeUnit >= 0xD800 && codeUnit <= 0xDBFF;
         const bool low = codeUnit >= 0xDC00 && codeUnit <= 0xDFFF;

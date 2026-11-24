@@ -24,8 +24,8 @@ namespace GameWIP::Input::Platform::Win32
         struct EnumerationContext
         {
             // Enumeration target
-            Attachment::Impl *attachment = nullptr;
-            System::Impl *state = nullptr;
+            AttachmentState *attachment = nullptr;
+            SystemState *state = nullptr;
             DeviceRole role = DeviceRole::DirectInputController;
             const DIDATAFORMAT *format = nullptr;
 
@@ -38,7 +38,7 @@ namespace GameWIP::Input::Platform::Win32
         struct ObjectContext
         {
             // Bound device
-            System::Impl *state = nullptr;
+            SystemState *state = nullptr;
             Types::DeviceInfo *descriptor = nullptr;
             DeviceBinding *binding = nullptr;
             DirectInputDevice *device = nullptr;
@@ -190,7 +190,7 @@ namespace GameWIP::Input::Platform::Win32
                    IsEqualGUID(binding.directInputInstance, guid) != FALSE;
         }
 
-        [[nodiscard]] DeviceBinding *findDirectInputDevice(Attachment::Impl &attachment, REFGUID guid) noexcept
+        [[nodiscard]] DeviceBinding *findDirectInputDevice(AttachmentState &attachment, REFGUID guid) noexcept
         {
             const auto found = std::find_if(
                 attachment.devices.begin(),
@@ -509,7 +509,7 @@ namespace GameWIP::Input::Platform::Win32
             return DIENUM_CONTINUE;
         }
 
-        void releaseDirectInputDevices(Attachment::Impl &attachment) noexcept
+        void releaseDirectInputDevices(AttachmentState &attachment) noexcept
         {
             for(DeviceBinding &binding : attachment.devices)
             {
@@ -532,7 +532,7 @@ namespace GameWIP::Input::Platform::Win32
     /// Provider lifecycle
     /// ------------------------------------------------------------
 
-    IO::Types::Status initializeDirectInput(Attachment::Impl &attachment) noexcept
+    IO::Types::Status initializeDirectInput(AttachmentState &attachment) noexcept
     {
         // Initialize COM before loading DirectInput.
         const HRESULT comResult = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
@@ -590,7 +590,7 @@ namespace GameWIP::Input::Platform::Win32
         return IO::successStatus();
     }
 
-    void shutdownDirectInput(Attachment::Impl &attachment) noexcept
+    void shutdownDirectInput(AttachmentState &attachment) noexcept
     {
         releaseDirectInputDevices(attachment);
 
@@ -619,7 +619,7 @@ namespace GameWIP::Input::Platform::Win32
     /// Device enumeration
     /// ------------------------------------------------------------
 
-    IO::Types::Status enumerateDirectInputDevices(Attachment::Impl &attachment, System::Impl &state) noexcept
+    IO::Types::Status enumerateDirectInputDevices(AttachmentState &attachment, SystemState &state) noexcept
     {
         auto *directInput = static_cast<IDirectInput8W *>(attachment.directInput);
         if(directInput == nullptr)
