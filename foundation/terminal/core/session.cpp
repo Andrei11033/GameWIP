@@ -49,6 +49,10 @@ namespace GameWIP::Terminal
     {
         using IO::Types::ErrorCode;
 
+        /// ------------------------------------------------------------
+        /// Input ownership state
+        /// ------------------------------------------------------------
+
         enum class ReadOperation
         {
             Event,
@@ -76,6 +80,10 @@ namespace GameWIP::Terminal
             static InputCoordinator stdinCoordinator;
             return stdinCoordinator;
         }
+
+        /// ------------------------------------------------------------
+        /// Input contract validation
+        /// ------------------------------------------------------------
 
         [[nodiscard]] bool validInputStream(Types::Input::Stream stream) noexcept
         {
@@ -260,6 +268,10 @@ namespace GameWIP::Terminal
             }
         }
 
+        /// ------------------------------------------------------------
+        /// Managed input acquisition and restoration
+        /// ------------------------------------------------------------
+
         [[nodiscard]] IO::Types::Status restoreManagedInput(
             Types::Input::Stream stream,
             PreparedInputOwnership &ownership,
@@ -393,6 +405,10 @@ namespace GameWIP::Terminal
             return status;
         }
 
+        /// ------------------------------------------------------------
+        /// Direct reads and result construction
+        /// ------------------------------------------------------------
+
         class DirectInputLease final
         {
         public:
@@ -477,6 +493,10 @@ namespace GameWIP::Terminal
 
     namespace Internal
     {
+        /// ------------------------------------------------------------
+        /// Input coordinator operations
+        /// ------------------------------------------------------------
+
         std::mutex &inputIoMutex(Types::Input::Stream stream) noexcept
         {
             return inputCoordinator(stream).ioMutex;
