@@ -42,12 +42,12 @@ status must be inspected before consuming the UTF-8 path, and changes to its
 layout or the `getLogFilePath()` signature require the normal exact-version
 package and validation review.
 
-Logger unregisters its MinGW formatting scratch FLS callback during module teardown. Before unloading the shared library, consumers must quiesce
-Logger calls and worker threads so no module code or retained objects remain in use.
+Logger unregisters its MinGW formatting scratch FLS callback during module teardown. Consumers must stop Logger calls, join worker threads,
+and ensure no retained Logger objects remain in use before unloading.
 
 ## Source-tree-only interfaces
 
-The short `Logger` target, `logger/internal/*`, `logger/platform/backend.h`, implementation sources, hooks, tests, and benchmarks are repository interfaces only.
+The short `Logger` target, `logger/internal/`, `logger/platform/backend.h`, sources, hooks, tests, and benchmarks are source-tree-only interfaces.
 
 ## Related pages
 
