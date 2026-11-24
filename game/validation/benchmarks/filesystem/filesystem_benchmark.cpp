@@ -56,6 +56,7 @@ namespace
             {
                 directoryPath /= "d";
             }
+
             std::filesystem::create_directories(directoryPath);
 
             for(int index = 0; index < entryCount; ++index)
@@ -103,7 +104,7 @@ namespace
         for(auto iteration : state)
         {
             static_cast<void>(iteration);
-            FileSystem::Types::Directory::ListResult listing = FileSystem::listDirectory(*directory);
+            const FileSystem::Types::Directory::ListResult listing = FileSystem::listDirectory(*directory);
 
             if(!listing.status.ok() || listing.entries.size() != static_cast<std::size_t>(entryCount))
             {
@@ -155,6 +156,7 @@ namespace
             }
 
             std::int64_t observedEntries = 0;
+            bool enumerationFailed = false;
 
             for(;;)
             {
@@ -167,6 +169,7 @@ namespace
                         IO::errorCodeName(next.status.code),
                         next.status.nativeCode);
                     state.SkipWithError(error);
+                    enumerationFailed = true;
                     break;
                 }
 
@@ -174,8 +177,14 @@ namespace
                 {
                     break;
                 }
+
                 ++observedEntries;
                 benchmark::DoNotOptimize(next.entry.info.kind);
+            }
+
+            if(enumerationFailed)
+            {
+                break;
             }
 
             if(observedEntries != entryCount)
