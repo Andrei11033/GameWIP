@@ -27,7 +27,6 @@ namespace GameWIP::Desktop
         using Internal::Helpers::error;
         using Internal::Helpers::requireState;
         using Internal::Helpers::sizeWithin;
-        using Internal::Helpers::validDisplayMode;
         using Internal::Helpers::validEnum;
         using Internal::Helpers::validLimits;
         using Internal::Helpers::validModeRequest;

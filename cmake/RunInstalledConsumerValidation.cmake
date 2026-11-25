@@ -70,6 +70,7 @@ set(expected_gamewip_headers
     filesystem/directory.h
     filesystem/entry.h
     filesystem/file.h
+    filesystem/file_types.h
     filesystem/filesystem.h
     filesystem/path.h
     io/memory.h
@@ -107,6 +108,16 @@ set(expected_gamewip_headers
     unicode/unicode.h
     desktop/child_surface.h
     desktop/accessibility.h
+    desktop/accessibility/actions.h
+    desktop/accessibility/collections.h
+    desktop/accessibility/facade.h
+    desktop/accessibility/geometry.h
+    desktop/accessibility/identity.h
+    desktop/accessibility/relations.h
+    desktop/accessibility/snapshot.h
+    desktop/accessibility/snapshot_types.h
+    desktop/accessibility/text.h
+    desktop/accessibility/types.h
     desktop/clipboard.h
     desktop/cursor.h
     desktop/data_transfer.h
@@ -116,6 +127,7 @@ set(expected_gamewip_headers
     desktop/display_info.h
     desktop/drag_drop.h
     desktop/events.h
+    desktop/icon_types.h
     desktop/native/win32.h
     desktop/renderer_bridge.h
     desktop/result.h

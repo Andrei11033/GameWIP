@@ -150,7 +150,14 @@ function Show-GameWipHygieneStatus
 {
     $tidyStatus = Get-GameWipToolStatus -Tool (Get-GameWipProjectTool -Id clang-tidy)
     $tidy = $tidyStatus.Detected
-    $runner = Resolve-GameWipToolCommand -Command run-clang-tidy
+    $runner = if ($tidy.Installed)
+    {
+        Resolve-GameWipHygieneRunner -ClangTidy ([string]$tidy.Location)
+    }
+    else
+    {
+        $null
+    }
     $python = Resolve-GameWipToolCommand -Command python
     $database = Join-Path (Get-GameWipBuildDirectory -PresetName ([string]$HygieneConfig.AnalyzePreset)) 'compile_commands.json'
     Write-GameWipSection 'Hygiene configuration status'
@@ -264,6 +271,25 @@ function ConvertFrom-GameWipClangTidyFinding
 # Provider execution
 # ------------------------------------------------------------
 
+function Resolve-GameWipHygieneRunner
+{
+    param([Parameter(Mandatory = $true)][string]$ClangTidy)
+
+    $clangTidyDirectory = Split-Path -Parent $ClangTidy
+
+    foreach ($runnerName in @('run-clang-tidy.py', 'run-clang-tidy'))
+    {
+        $runnerPath = Join-Path $clangTidyDirectory $runnerName
+
+        if (Test-Path -LiteralPath $runnerPath -PathType Leaf)
+        {
+            return [IO.Path]::GetFullPath($runnerPath)
+        }
+    }
+
+    return Resolve-GameWipToolCommand -Command run-clang-tidy
+}
+
 function Invoke-GameWipHygienePythonTool
 {
     param(
@@ -285,7 +311,7 @@ function Invoke-GameWipHygieneClangTidy
 {
     param([object[]]$Checks)
     $tidy = Get-GameWipQualityTool -Id clang-tidy
-    $runner = Resolve-GameWipToolCommand -Command run-clang-tidy
+    $runner = Resolve-GameWipHygieneRunner -ClangTidy $tidy
     $python = Resolve-GameWipToolCommand -Command python
 
     if (-not $runner -or -not $python)

@@ -44,8 +44,6 @@ namespace GameWIP::Test::TerminalPlatform
         namespace Terminal = GameWIP::Terminal;
         namespace TestSupport = GameWIP::TestSupport;
         namespace Hooks = GameWIP::Terminal::Internal::TestHooks;
-        namespace PlatformHooks = GameWIP::Terminal::Platform::Win32::Internal;
-
         using GameWIP::IO::Types::ErrorCode;
 
 #include "validation/tests/terminal/platform/win32/key_decoder_test.inl"

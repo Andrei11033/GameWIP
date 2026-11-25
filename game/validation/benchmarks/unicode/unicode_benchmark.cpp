@@ -103,7 +103,7 @@ namespace
 
             for(std::uint32_t codePoint = 0x10000U; codePoint < 0x10000U + kPropertyLookupBatchSize; ++codePoint)
             {
-                const auto properties = Unicode::Internal::unicodeProperties(static_cast<char32_t>(codePoint));
+                auto properties = Unicode::Internal::unicodeProperties(static_cast<char32_t>(codePoint));
                 benchmark::DoNotOptimize(properties);
             }
         }
@@ -120,7 +120,7 @@ namespace
 
             for(const char32_t scalar : kScatteredPropertyScalars)
             {
-                const auto properties = Unicode::Internal::unicodeProperties(scalar);
+                auto properties = Unicode::Internal::unicodeProperties(scalar);
                 benchmark::DoNotOptimize(properties);
             }
         }
@@ -142,7 +142,7 @@ namespace
 
             while(offset < text.size())
             {
-                const Unicode::Types::Utf8::DecodeResult decoded = Unicode::Utf8::decodeScalar(text.substr(offset));
+                Unicode::Types::Utf8::DecodeResult decoded = Unicode::Utf8::decodeScalar(text.substr(offset));
 
                 if(decoded.outcome != Unicode::Types::DecodeOutcome::Decoded)
                 {
@@ -164,7 +164,7 @@ namespace
         for(auto iteration : state)
         {
             static_cast<void>(iteration);
-            const Unicode::Types::Utf8::ValidationResult result = Unicode::Utf8::validate(text);
+            Unicode::Types::Utf8::ValidationResult result = Unicode::Utf8::validate(text);
 
             if(result.outcome != Unicode::Types::ValidationOutcome::Valid)
             {
@@ -188,7 +188,7 @@ namespace
 
             while(offset < text.size())
             {
-                const Unicode::Types::Utf8::BoundaryResult next = Unicode::Utf8::nextCodePointBoundary(text, offset);
+                Unicode::Types::Utf8::BoundaryResult next = Unicode::Utf8::nextCodePointBoundary(text, offset);
 
                 if(next.outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
                 {
@@ -214,7 +214,7 @@ namespace
 
             while(offset > 0)
             {
-                const Unicode::Types::Utf8::BoundaryResult previous = Unicode::Utf8::previousCodePointBoundary(text, offset);
+                Unicode::Types::Utf8::BoundaryResult previous = Unicode::Utf8::previousCodePointBoundary(text, offset);
 
                 if(previous.outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
                 {
@@ -244,7 +244,7 @@ namespace
 
             while(offset < text.size())
             {
-                const Unicode::Types::Utf8::BoundaryResult next = Unicode::Utf8::nextGraphemeBoundary(text, offset);
+                Unicode::Types::Utf8::BoundaryResult next = Unicode::Utf8::nextGraphemeBoundary(text, offset);
 
                 if(next.outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
                 {
@@ -270,7 +270,7 @@ namespace
 
             while(offset > 0)
             {
-                const Unicode::Types::Utf8::BoundaryResult previous = Unicode::Utf8::previousGraphemeBoundary(text, offset);
+                Unicode::Types::Utf8::BoundaryResult previous = Unicode::Utf8::previousGraphemeBoundary(text, offset);
 
                 if(previous.outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
                 {
@@ -292,7 +292,7 @@ namespace
         for(auto iteration : state)
         {
             static_cast<void>(iteration);
-            const Unicode::Types::Utf8::BoundaryResult next = Unicode::Utf8::nextGraphemeBoundary(text, byteOffset);
+            Unicode::Types::Utf8::BoundaryResult next = Unicode::Utf8::nextGraphemeBoundary(text, byteOffset);
 
             if(next.outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
             {
@@ -310,7 +310,7 @@ namespace
         for(auto iteration : state)
         {
             static_cast<void>(iteration);
-            const Unicode::Types::Utf8::BoundaryResult previous = Unicode::Utf8::previousGraphemeBoundary(text, byteOffset);
+            Unicode::Types::Utf8::BoundaryResult previous = Unicode::Utf8::previousGraphemeBoundary(text, byteOffset);
 
             if(previous.outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
             {
@@ -345,7 +345,7 @@ namespace
 
             while(cursor.byteOffset() < text.size())
             {
-                const Unicode::Types::Utf8::BoundaryResult next = cursor.next();
+                Unicode::Types::Utf8::BoundaryResult next = cursor.next();
 
                 if(next.outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
                 {
@@ -431,7 +431,7 @@ namespace
 
             for(const char32_t scalar : kScalars)
             {
-                const Unicode::Types::Utf8::EncodeResult encoded = Unicode::Utf8::encodeScalar(scalar);
+                Unicode::Types::Utf8::EncodeResult encoded = Unicode::Utf8::encodeScalar(scalar);
 
                 if(encoded.outcome != Unicode::Types::EncodeOutcome::Encoded)
                 {

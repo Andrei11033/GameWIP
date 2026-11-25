@@ -33,7 +33,6 @@ namespace GameWIP::Desktop::Platform
     namespace
     {
         using IO::Types::ErrorCode;
-        using Win32::closestIcon;
         using Win32::convertTip;
         using Win32::createIcon;
 

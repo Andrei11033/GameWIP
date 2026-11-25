@@ -1,5 +1,4 @@
 GameWIP::Input::Platform::Win32::Attachment::~Attachment
-GameWIP::Input::Platform::Win32::Attachment::afterCapture
 GameWIP::Input::Platform::Win32::Attachment::attach
 GameWIP::Input::Platform::Win32::Attachment::Attachment
 GameWIP::Input::Platform::Win32::Attachment::backends

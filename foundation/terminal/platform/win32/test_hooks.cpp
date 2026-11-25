@@ -35,6 +35,11 @@ namespace GameWIP::Terminal::Internal::TestHooks::Win32
         return Terminal::Platform::Win32::Internal::consoleWaitCallCount();
     }
 
+    Win32ConsoleWaitResult waitForConsoleRecordForTest(std::chrono::milliseconds timeout, const std::stop_token &stopToken)
+    {
+        return Terminal::Platform::Win32::Internal::waitForConsoleRecordForTest(timeout, stopToken);
+    }
+
     Win32KeyDecodeResult decodeWin32KeyRecord(
         bool keyDown,
         std::uint16_t virtualKey,

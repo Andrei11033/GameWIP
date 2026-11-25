@@ -1,4 +1,4 @@
 GameWIP::Debug::Assert::debugBreak
-GameWIP::Debug::Assert::Detail::handleAssertFailure
-GameWIP::Debug::Assert::Detail::handleCheckFailure
-GameWIP::Debug::Assert::Detail::handleInteractiveAssertFailure
+GameWIP::Debug::Assert::Internal::handleAssertFailure
+GameWIP::Debug::Assert::Internal::handleCheckFailure
+GameWIP::Debug::Assert::Internal::handleInteractiveAssertFailure

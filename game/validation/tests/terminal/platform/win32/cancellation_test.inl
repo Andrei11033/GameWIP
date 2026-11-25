@@ -14,11 +14,11 @@ int runCancellationSignalFailureChildMode()
     Hooks::forceNextCancellationSignalFailure();
     std::stop_source stopSource;
     const std::size_t initialWaits = Hooks::Win32::consoleWaitCallCount();
-    PlatformHooks::Win32ConsoleWaitResult result;
+    Hooks::Win32::Win32ConsoleWaitResult result;
     std::thread reader(
         [&]
         {
-            result = PlatformHooks::waitForConsoleRecordForTest(std::chrono::milliseconds{-1}, stopSource.get_token());
+            result = Hooks::Win32::waitForConsoleRecordForTest(std::chrono::milliseconds{-1}, stopSource.get_token());
         });
     const auto setupDeadline = std::chrono::steady_clock::now() + std::chrono::seconds{1};
 
@@ -94,11 +94,11 @@ void testCancellationSignalFailure(TestSupport::Context &context, const std::fil
         }
 
         const std::size_t initialWaits = Hooks::Win32::consoleWaitCallCount();
-        PlatformHooks::Win32ConsoleWaitResult result;
+        Hooks::Win32::Win32ConsoleWaitResult result;
         std::thread reader(
             [&]
             {
-                result = PlatformHooks::waitForConsoleRecordForTest(std::chrono::milliseconds{500}, stopSource.get_token());
+                result = Hooks::Win32::waitForConsoleRecordForTest(std::chrono::milliseconds{500}, stopSource.get_token());
             });
         const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds{2};
 
@@ -131,15 +131,15 @@ void testCancellationResetFailure(TestSupport::Context &context)
     Hooks::reset();
     const std::stop_source stopSource;
     Hooks::forceNextCancellationResetFailure();
-    const PlatformHooks::Win32ConsoleWaitResult failed =
-        PlatformHooks::waitForConsoleRecordForTest(std::chrono::milliseconds{0}, stopSource.get_token());
+    const Hooks::Win32::Win32ConsoleWaitResult failed =
+        Hooks::Win32::waitForConsoleRecordForTest(std::chrono::milliseconds{0}, stopSource.get_token());
     static_cast<void>(context.expectEq("ResetEvent failure is returned", ErrorCode::NativeFailure, failed.status.code));
     static_cast<void>(
         context.expectFalse("ResetEvent failure is not cancellation", failed.outcome == Terminal::Types::Input::ReadOutcome::Cancelled));
     static_cast<void>(context.expectEq("ResetEvent failure enters no native wait", std::size_t{0}, Hooks::Win32::consoleWaitCallCount()));
 
-    const PlatformHooks::Win32ConsoleWaitResult retry =
-        PlatformHooks::waitForConsoleRecordForTest(std::chrono::milliseconds{0}, stopSource.get_token());
+    const Hooks::Win32::Win32ConsoleWaitResult retry =
+        Hooks::Win32::waitForConsoleRecordForTest(std::chrono::milliseconds{0}, stopSource.get_token());
     static_cast<void>(context.expectTrue("cancellation wait can be retried", retry.status.ok()));
     static_cast<void>(context.expectTrue("next operation reaches normal wait path", Hooks::Win32::consoleWaitCallCount() > 0));
     Hooks::reset();

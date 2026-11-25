@@ -877,6 +877,27 @@ if ($syntheticFindings.Count -ne 2 -or $syntheticFindings[0].confidence -notin @
     throw 'clang-tidy hygiene findings were not normalized or centrally explained correctly.'
 }
 
+$runnerFixtureRoot = Join-Path (Get-GameWipStorageAreaPath -Area temp) ('gamewip-clang-tidy-' + [guid]::NewGuid().ToString('N'))
+$runnerFixtureBin = Join-Path $runnerFixtureRoot 'bin'
+New-Item -ItemType Directory -Force -Path $runnerFixtureBin | Out-Null
+$runnerFixturePath = Join-Path $runnerFixtureBin 'run-clang-tidy'
+[IO.File]::WriteAllText($runnerFixturePath, '')
+
+try
+{
+    $resolvedRunner = Resolve-GameWipHygieneRunner -ClangTidy (Join-Path $runnerFixtureBin 'clang-tidy.exe')
+
+    if ($resolvedRunner -cne [IO.Path]::GetFullPath($runnerFixturePath))
+    {
+        throw 'Hygiene runner discovery did not find the extensionless companion script beside clang-tidy.'
+    }
+}
+
+finally
+{
+    Remove-Item -LiteralPath $runnerFixtureRoot -Recurse -Force -ErrorAction SilentlyContinue
+}
+
 # ------------------------------------------------------------
 # Menu input and status rendering
 # ------------------------------------------------------------
