@@ -1,9 +1,6 @@
 # Copies the resolved Windows runtime dependency closure beside one executable.
 
-if(
-    NOT GAMEWIP_TARGET_PLATFORM STREQUAL "windows"
-    AND (GAMEWIP_TARGET_PLATFORM STREQUAL "linux" OR CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
-)
+if(NOT GAMEWIP_TARGET_PLATFORM STREQUAL "windows" AND (GAMEWIP_TARGET_PLATFORM STREQUAL "linux" OR CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux"))
     message(FATAL_ERROR "Linux runtime dependencies are resolved by the system loader; this copy script is Windows-only.")
 endif()
 

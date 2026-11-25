@@ -37,8 +37,9 @@ namespace
             "null module returns no procedure",
             Base::Platform::Win32::loadProcedure<ProcessIdFunction>(nullptr, "GetCurrentProcessId") == nullptr));
 
-        static_cast<void>(
-            context.expectTrue("null export name returns no procedure", Base::Platform::Win32::loadProcedure<ProcessIdFunction>(module, nullptr) == nullptr));
+        static_cast<void>(context.expectTrue(
+            "null export name returns no procedure",
+            Base::Platform::Win32::loadProcedure<ProcessIdFunction>(module, nullptr) == nullptr));
 
         static_cast<void>(context.expectTrue(
             "missing export returns no procedure",

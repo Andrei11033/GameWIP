@@ -44,14 +44,7 @@ add_executable(GameWIPIsolatedConsumer main.cpp ../consumer_probe.h)
 if(GAMEWIP_CONSUMER_PACKAGE STREQUAL "Logger")
     target_sources(
         GameWIPIsolatedConsumer
-        PRIVATE
-            logger_config.cpp
-            logger_logging.cpp
-            logger_macros.cpp
-            logger_message_format.cpp
-            logger_record.cpp
-            logger_reports.cpp
-            logger_types.cpp
+        PRIVATE logger_config.cpp logger_logging.cpp logger_macros.cpp logger_message_format.cpp logger_record.cpp logger_reports.cpp logger_types.cpp
     )
 elseif(GAMEWIP_CONSUMER_PACKAGE STREQUAL "Terminal")
     target_sources(GameWIPIsolatedConsumer PRIVATE terminal_style.cpp)
@@ -86,12 +79,7 @@ elseif(GAMEWIP_CONSUMER_PACKAGE STREQUAL "Desktop")
 elseif(GAMEWIP_CONSUMER_PACKAGE STREQUAL "TestSupport")
     target_sources(
         GameWIPIsolatedConsumer
-        PRIVATE
-            test_support_files.cpp
-            test_support_process.cpp
-            test_support_reporting.cpp
-            test_support_stress.cpp
-            test_support_types.cpp
+        PRIVATE test_support_files.cpp test_support_process.cpp test_support_reporting.cpp test_support_stress.cpp test_support_types.cpp
     )
 endif()
 

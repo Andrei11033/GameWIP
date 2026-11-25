@@ -95,7 +95,7 @@ function Install-GameWipLinuxCMake
         {
             $markerPath = Join-Path $toolRoot '.gamewip-tool.json'
 
-            if (-not (Test-Path -LiteralPath $markerPath -PathType Leaf))
+            if (-not (Test-GameWipPlainFile -Path $markerPath))
             {
                 throw "Refusing to replace an unowned CMake directory: '$toolRoot'."
             }

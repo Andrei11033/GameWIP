@@ -5,7 +5,6 @@ gamewip_add_test_module(
         module.cpp
         test_support_test.cpp
         test_support_test.h
-
         # Test suites
         child_modes_test.inl
         context_test.inl

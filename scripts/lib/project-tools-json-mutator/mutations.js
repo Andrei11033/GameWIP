@@ -148,5 +148,4 @@ function mutateProjectToolsSource(source, specification) {
     return output;
 }
 
-
 module.exports = { mutateProjectToolsSource };

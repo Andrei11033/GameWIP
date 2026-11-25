@@ -13,6 +13,8 @@
         'PSUseDeclaredVarsMoreThanAssignments'
         # The helper regression suite intentionally replaces Read-Host to exercise menus.
         'PSAvoidOverwritingBuiltInCmdlets'
+        # The rule misreads nested command scriptblocks and conflicts with their visual grouping.
+        'PSUseConsistentIndentation'
     )
     Rules = @{
         PSPlaceOpenBrace = @{

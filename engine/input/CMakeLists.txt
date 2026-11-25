@@ -27,8 +27,7 @@ gamewip_generate_export_header(
 )
 
 # Keep installation and generated API documentation on the same header inventory.
-set(
-    INPUT_PUBLIC_HEADERS
+set(INPUT_PUBLIC_HEADERS
     "${CMAKE_CURRENT_SOURCE_DIR}/frame.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/input.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/query.h"
@@ -50,9 +49,7 @@ target_sources(
         FILE_SET public_headers
             TYPE HEADERS
             BASE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/.." "${INPUT_GENERATED_INCLUDE_DIR}"
-            FILES
-                ${INPUT_PUBLIC_HEADERS}
-                "${INPUT_GENERATED_INCLUDE_DIR}/input/input_export.h"
+            FILES ${INPUT_PUBLIC_HEADERS} "${INPUT_GENERATED_INCLUDE_DIR}/input/input_export.h"
 )
 
 target_include_directories(
@@ -78,12 +75,7 @@ set_target_properties(
 )
 
 if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
-    gamewip_register_doxygen_library(
-        NAME Input
-        PAGE_ID input_library
-        PUBLIC_HEADERS ${INPUT_PUBLIC_HEADERS}
-        DOCS "${CMAKE_CURRENT_SOURCE_DIR}/docs"
-    )
+    gamewip_register_doxygen_library(NAME Input PAGE_ID input_library PUBLIC_HEADERS ${INPUT_PUBLIC_HEADERS} DOCS "${CMAKE_CURRENT_SOURCE_DIR}/docs")
 endif()
 
 install(

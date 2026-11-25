@@ -367,7 +367,7 @@ function Resolve-GameWipProjectExecutable
         {
             if ($targetSuffix -eq '')
             {
-                $RelativePath = [IO.Path]::ChangeExtension($RelativePath, $null)
+                $RelativePath = $RelativePath.Substring(0, $RelativePath.Length - $extension.Length)
             }
             else
             {
@@ -413,23 +413,42 @@ function Resolve-GameWipProjectExecutable
 function Start-GameWipTracyProfiler
 {
     $backend = Get-GameWipTracyProfilerBackend
-    $platform = if (Test-GameWipWindowsHost) { 'windows' } else { 'linux' }
+    $platform = if (Test-GameWipWindowsHost)
+    {
+        'windows'
+    }
+    else
+    {
+        'linux'
+    }
     $executable = switch ($backend)
     {
-        'windows' { 'tracy-profiler.exe' }
-        'wayland' { 'tracy-profiler-wayland' }
-        'x11' { 'tracy-profiler-x11' }
-        default { '' }
+        'windows'
+        {
+            'tracy-profiler.exe'
+        }
+        'wayland'
+        {
+            'tracy-profiler-wayland'
+        }
+        'x11'
+        {
+            'tracy-profiler-x11'
+        }
+        default
+        {
+            ''
+        }
     }
 
     if ([string]::IsNullOrWhiteSpace($executable))
     {
-        throw (New-GameWipDiagnosticException `
-                -Code 'profiler-session-missing' `
-                -Summary 'No Linux graphical session is available for Tracy.' `
-                -SuggestedActions @(
-                    'Run the profiling command from a Wayland or X11 desktop session.'
-                ))
+        $suggestedActions = @('Run the profiling command from a Wayland or X11 desktop session.')
+        $failure = New-GameWipDiagnosticException `
+            -Code 'profiler-session-missing' `
+            -Summary 'No Linux graphical session is available for Tracy.' `
+            -SuggestedActions $suggestedActions
+        throw $failure
     }
 
     $profilerPath = Join-Path (Get-GameWipManagedToolRoot) "tools/tracy/$platform/$executable"
@@ -442,12 +461,12 @@ function Start-GameWipTracyProfiler
 
     if (-not (Test-Path -LiteralPath $profilerPath -PathType Leaf))
     {
-        throw (New-GameWipDiagnosticException `
-                -Code 'profiler-missing' `
-                -Summary "Tracy profiler is missing: $profilerPath" `
-                -SuggestedActions @(
-                    "Run '$(Get-GameWipSetupHelperCommand) profiler' to install the matching Tracy profiler."
-                ))
+        $suggestedActions = @("Run '$(Get-GameWipSetupHelperCommand) profiler' to install the matching Tracy profiler.")
+        $failure = New-GameWipDiagnosticException `
+            -Code 'profiler-missing' `
+            -Summary "Tracy profiler is missing: $profilerPath" `
+            -SuggestedActions $suggestedActions
+        throw $failure
     }
 
     try
@@ -457,14 +476,16 @@ function Start-GameWipTracyProfiler
 
     catch
     {
-        throw (New-GameWipDiagnosticException `
-                -Code 'profiler-start-failed' `
-                -Summary "Could not start the Tracy profiler: $profilerPath" `
-                -Details $_.Exception.Message `
-                -SuggestedActions @(
-                    'Check that the managed Tracy tools are usable.',
-                    "Run '$(Get-GameWipSetupHelperCommand) profiler' to repair them."
-                ))
+        $suggestedActions = @(
+            'Check that the managed Tracy tools are usable.',
+            "Run '$(Get-GameWipSetupHelperCommand) profiler' to repair them."
+        )
+        $failure = New-GameWipDiagnosticException `
+            -Code 'profiler-start-failed' `
+            -Summary "Could not start the Tracy profiler: $profilerPath" `
+            -Details $_.Exception.Message `
+            -SuggestedActions $suggestedActions
+        throw $failure
     }
 }
 
@@ -482,14 +503,16 @@ function Initialize-GameWipProjectCommandBuild
 
     if ($NoBuild)
     {
-        throw (New-GameWipDiagnosticException `
-                -Code 'prerequisite-build-disabled' `
-                -Summary "Required executable is missing: $executable" `
-                -Details 'Automatic prerequisite builds were disabled with -SkipBuild.' `
-                -SuggestedActions @(
-                    "Build preset '$($Command.BuildPreset)' first.",
-                    'Rerun without -SkipBuild to let GameWIP ensure prerequisites.'
-                ))
+        $suggestedActions = @(
+            "Build preset '$($Command.BuildPreset)' first.",
+            'Rerun without -SkipBuild to let GameWIP ensure prerequisites.'
+        )
+        $failure = New-GameWipDiagnosticException `
+            -Code 'prerequisite-build-disabled' `
+            -Summary "Required executable is missing: $executable" `
+            -Details 'Automatic prerequisite builds were disabled with -SkipBuild.' `
+            -SuggestedActions $suggestedActions
+        throw $failure
     }
 
     Write-GameWipOperationEvent `

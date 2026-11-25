@@ -103,30 +103,33 @@ foreach ($requiredOption in @('Preview', 'NonInteractive', 'Yes', 'Json', 'Quiet
 # Bootstrap project internals without invoking the setup executable entrypoint.
 . (Join-Path $repositoryRoot 'scripts\lib\Bootstrap.ps1') -RepositoryRoot $repositoryRoot
 
-# Verify MSYS2 archive layout normalization without a network install.
-$msysLayoutTestRoot = Join-Path (Get-GameWipStorageAreaPath -Area temp) ('msys-layout-test-' + [guid]::NewGuid().ToString('N'))
-$msysNestedRoot = Join-Path $msysLayoutTestRoot 'msys64'
-$msysNestedBin = Join-Path $msysNestedRoot 'usr/bin'
-New-Item -ItemType Directory -Force -Path $msysNestedBin | Out-Null
-[IO.File]::WriteAllText((Join-Path $msysNestedBin 'bash.exe'), 'fixture')
-[IO.File]::WriteAllText((Join-Path $msysLayoutTestRoot '.gamewip-managed.json'), '{}')
-
-try
+if (Test-GameWipWindowsHost)
 {
-    Complete-GameWipMsys2BaseArchiveExtraction -MsysRoot $msysLayoutTestRoot
+    # Verify MSYS2 archive layout normalization without a network install.
+    $msysLayoutTestRoot = Join-Path (Get-GameWipStorageAreaPath -Area temp) ('msys-layout-test-' + [guid]::NewGuid().ToString('N'))
+    $msysNestedRoot = Join-Path $msysLayoutTestRoot 'msys64'
+    $msysNestedBin = Join-Path $msysNestedRoot 'usr/bin'
+    New-Item -ItemType Directory -Force -Path $msysNestedBin | Out-Null
+    [IO.File]::WriteAllText((Join-Path $msysNestedBin 'bash.exe'), 'fixture')
+    [IO.File]::WriteAllText((Join-Path $msysLayoutTestRoot '.gamewip-managed.json'), '{}')
 
-    if (-not (Test-Path -LiteralPath (Join-Path $msysLayoutTestRoot 'usr/bin/bash.exe') -PathType Leaf) -or
-        (Test-Path -LiteralPath $msysNestedRoot))
+    try
     {
-        throw 'MSYS2 archive contents were not moved to the selected installation root.'
+        Complete-GameWipMsys2BaseArchiveExtraction -MsysRoot $msysLayoutTestRoot
+
+        if (-not (Test-Path -LiteralPath (Join-Path $msysLayoutTestRoot 'usr/bin/bash.exe') -PathType Leaf) -or
+            (Test-Path -LiteralPath $msysNestedRoot))
+        {
+            throw 'MSYS2 archive contents were not moved to the selected installation root.'
+        }
     }
-}
 
-finally
-{
-    if (Test-Path -LiteralPath $msysLayoutTestRoot)
+    finally
     {
-        Remove-Item -LiteralPath $msysLayoutTestRoot -Recurse -Force -ErrorAction SilentlyContinue
+        if (Test-Path -LiteralPath $msysLayoutTestRoot)
+        {
+            Remove-Item -LiteralPath $msysLayoutTestRoot -Recurse -Force -ErrorAction SilentlyContinue
+        }
     }
 }
 
@@ -487,9 +490,9 @@ $editorStateRoot = 'temp/editor-state-test-' + [guid]::NewGuid().ToString('N')
 try
 {
     $ProjectConfig.storage.state = $editorStateRoot
-    Save-GameWipEditorSelection -RepositoryRoot $repositoryRoot -Editors @('vscode')
-    Save-GameWipEditorSelection -RepositoryRoot $repositoryRoot -Editors @('vscode', 'visual-studio')
-    $savedPreference = Get-Content -Raw -LiteralPath (Get-GameWipEditorPreferencePath -RepositoryRoot $repositoryRoot) | ConvertFrom-Json
+    Save-GameWipEditorSelection -Editors @('vscode')
+    Save-GameWipEditorSelection -Editors @('vscode', 'visual-studio')
+    $savedPreference = Get-Content -Raw -LiteralPath (Get-GameWipEditorPreferencePath) | ConvertFrom-Json
 
     if ($savedPreference.schemaVersion -ne 1 -or @($savedPreference.editors).Count -ne 2)
     {
@@ -525,24 +528,26 @@ if ($windowsSource -notmatch '\$OutputMode\s*=\s*''Stream''')
     throw 'Setup does not stream native output by default.'
 }
 
-$orchestrationSource = Get-Content -Raw -LiteralPath (Join-Path $SetupRoot 'lib\Orchestration.ps1')
+$executionSource = Get-Content -Raw -LiteralPath (Join-Path $SetupRoot 'lib\Orchestration\Execution.ps1')
+$stepsSource = Get-Content -Raw -LiteralPath (Join-Path $SetupRoot 'lib\Orchestration\Steps.ps1')
+$menuSource = Get-Content -Raw -LiteralPath (Join-Path $SetupRoot 'lib\Orchestration\Menu.ps1')
 
-if ($orchestrationSource -notmatch 'Invoke-GameWipOperation')
+if ($executionSource -notmatch 'Invoke-GameWipOperation')
 {
     throw 'Setup does not use the shared operation lifecycle.'
 }
 
-if ($orchestrationSource -notmatch 'Invoke-GameWipToolEnsure')
+if ($stepsSource -notmatch 'Invoke-GameWipToolEnsure')
 {
     throw 'Setup does not use the shared exact tool ensure path.'
 }
 
-if ($orchestrationSource -notmatch 'Read-GameWipActionMenuItem')
+if ($menuSource -notmatch 'Read-GameWipActionMenuItem')
 {
     throw 'Setup does not use the shared declarative menu renderer.'
 }
 
-if ($orchestrationSource -notmatch 'Uninstall owns its confirmation so inventory is always printed first')
+if ($executionSource -notmatch 'Uninstall owns its confirmation so inventory is always printed first')
 {
     throw 'Uninstall inventory/consent ordering is not explicit.'
 }
@@ -685,6 +690,83 @@ $marker = New-GameWipOwnershipMarker -Resource 'test-resource' -Origin created -
 if ($marker.schemaVersion -ne 1 -or $marker.owner -ne 'GameWIP' -or $marker.resource -ne 'test-resource' -or $marker.origin -ne 'created')
 {
     throw 'Ownership-marker envelope is incomplete.'
+}
+
+# Ownership markers must be regular files, not links to external metadata.
+$markerTestRoot = Join-Path (Get-GameWipStorageAreaPath -Area temp) ('marker-link-test-' + [guid]::NewGuid().ToString('N'))
+$markerRoot = Join-Path $markerTestRoot 'managed'
+$cmakeRoot = Join-Path $markerRoot 'cmake'
+$powerShellVersionRoot = Join-Path $markerRoot 'powershell/7.7.0'
+$rootMarkerPath = Join-Path $markerRoot '.gamewip-managed.json'
+$cmakeMarkerPath = Join-Path $cmakeRoot '.gamewip-tool.json'
+$powerShellMarkerPath = Join-Path $powerShellVersionRoot '.gamewip-tool'
+$script:originalFileAttributes = (Get-Command Get-GameWipFileSystemAttributes).ScriptBlock
+$script:simulatedReparseMarkerPaths = [System.Collections.Generic.HashSet[string]]::new((Get-GameWipPathComparer))
+. (Join-Path $SetupRoot 'platform/linux/Uninstall/Markers.ps1')
+
+try
+{
+    New-Item -ItemType Directory -Force -Path $cmakeRoot, $powerShellVersionRoot | Out-Null
+    Write-GameWipJsonAtomic `
+        -Path $rootMarkerPath `
+        -Value (New-GameWipOwnershipMarker -Resource project-tools -Origin created -Payload ([ordered]@{ installedBySetup = $true; adoptedByUser = $false }))
+    Write-GameWipJsonAtomic -Path $cmakeMarkerPath -Value ([ordered]@{
+            schemaVersion = 1
+            toolId = 'cmake'
+            version = '4.4.4'
+            archive = 'cmake-4.4.4-linux-x86_64.tar.gz'
+            sha256 = ('c' * 64)
+        })
+    Set-Content -LiteralPath $powerShellMarkerPath -Value @(
+        'version=7.7.0',
+        'archive=powershell-7.7.0-linux-x64.tar.gz',
+        ('sha256=' + ('d' * 64))
+    )
+    Set-Content -LiteralPath (Join-Path $powerShellVersionRoot 'pwsh') -Value 'runtime'
+
+    if ((Read-GameWipOwnershipMarker -Path $rootMarkerPath -Resource project-tools).Status -ne 'valid' -or
+        -not (Test-GameWipLinuxJsonToolMarker -Path $cmakeRoot -MarkerName '.gamewip-tool.json' -ToolId cmake) -or
+        -not (Test-GameWipLinuxPowerShellMarker -Path $powerShellVersionRoot))
+    {
+        throw 'Regular ownership markers were not accepted.'
+    }
+
+    $script:simulatedReparseMarkerPaths.Add([IO.Path]::GetFullPath($rootMarkerPath)) | Out-Null
+    $script:simulatedReparseMarkerPaths.Add([IO.Path]::GetFullPath($cmakeMarkerPath)) | Out-Null
+    $script:simulatedReparseMarkerPaths.Add([IO.Path]::GetFullPath($powerShellMarkerPath)) | Out-Null
+    Set-Item -Path function:Get-GameWipFileSystemAttributes -Value {
+        param([string]$Path)
+
+        $attributes = & $script:originalFileAttributes -Path $Path
+
+        if ($null -ne $attributes -and $script:simulatedReparseMarkerPaths.Contains([IO.Path]::GetFullPath($Path)))
+        {
+            return ($attributes -bor [IO.FileAttributes]::ReparsePoint)
+        }
+
+        return $attributes
+    }
+
+    $linkedRootMarker = Read-GameWipOwnershipMarker -Path $rootMarkerPath -Resource project-tools
+
+    if ($linkedRootMarker.Status -ne 'unknown' -or $linkedRootMarker.Reason -ne 'marker is not a plain file' -or
+        (Test-GameWipPlainFile -Path $cmakeMarkerPath) -or
+        (Test-GameWipLinuxJsonToolMarker -Path $cmakeRoot -MarkerName '.gamewip-tool.json' -ToolId cmake) -or
+        (Test-GameWipLinuxPowerShellMarker -Path $powerShellVersionRoot))
+    {
+        throw 'A linked ownership marker was accepted as proof.'
+    }
+}
+
+finally
+{
+    Set-Item -Path function:Get-GameWipFileSystemAttributes -Value $script:originalFileAttributes
+    Remove-Variable -Name simulatedReparseMarkerPaths, originalFileAttributes -Scope Script -ErrorAction SilentlyContinue
+
+    if (Test-Path -LiteralPath $markerTestRoot)
+    {
+        Remove-GameWipOwnedTreeEntries -Path $markerTestRoot
+    }
 }
 
 # Pacman retry remains bounded and reports each attempt.
@@ -917,6 +999,11 @@ if (-not (Test-GameWipWindowsHost))
                 })
         }
 
+        $linkedCMakeMarkerTarget = Join-Path $testRoot 'external-cmake-marker.json'
+        Copy-Item -LiteralPath (Join-Path $managedRoot 'cmake/.gamewip-tool.json') -Destination $linkedCMakeMarkerTarget
+        [IO.File]::Delete((Join-Path $managedRoot 'cmake/.gamewip-tool.json'))
+        [void][IO.File]::CreateSymbolicLink((Join-Path $managedRoot 'cmake/.gamewip-tool.json'), $linkedCMakeMarkerTarget)
+
         $powerShellRoot = Join-Path $managedRoot 'tools/powershell/7.7.0'
         Set-Content -LiteralPath (Join-Path $powerShellRoot 'pwsh') -Value 'runtime'
         Set-Content -LiteralPath (Join-Path $powerShellRoot '.gamewip-tool') -Value @(
@@ -973,7 +1060,9 @@ if (-not (Test-GameWipWindowsHost))
 
         $inventory = Get-GameWipLinuxUninstallInventory -RepositoryRoot $repositoryRoot
 
-        if ($inventory.RemovePaths -notcontains (Join-Path $managedRoot 'cmake') -or
+        if ($inventory.RemovePaths -contains (Join-Path $managedRoot 'cmake') -or
+            $inventory.Preserved -notcontains (Join-Path $managedRoot 'cmake') -or
+            $inventory.Unknown -notcontains "$(Join-Path $managedRoot 'cmake') (CMake ownership marker is missing or invalid)" -or
             $inventory.RemovePaths -notcontains (Join-Path $managedRoot 'tools/llvm-mingw/20261104') -or
             $inventory.Preserved -notcontains "$powerShellRoot (currently running helper)")
         {
@@ -989,12 +1078,18 @@ if (-not (Test-GameWipWindowsHost))
             throw 'Linux uninstall did not remove the recorded GameWIP-added package.'
         }
 
-        foreach ($name in @('bin', 'npm', 'python', 'powershell', 'cmake', 'tools/llvm-mingw/20261104'))
+        foreach ($name in @('bin', 'npm', 'python', 'powershell', 'tools/llvm-mingw/20261104'))
         {
             if (Test-Path -LiteralPath (Join-Path $managedRoot $name))
             {
                 throw "Linux uninstall left managed tool data at '$name'."
             }
+        }
+
+        if (-not (Test-Path -LiteralPath (Join-Path $managedRoot 'cmake/.gamewip-tool.json') -PathType Leaf) -or
+            -not (Test-Path -LiteralPath $linkedCMakeMarkerTarget -PathType Leaf))
+        {
+            throw 'Linux uninstall did not preserve the CMake directory with a linked ownership marker.'
         }
 
         foreach ($path in @(

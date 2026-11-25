@@ -32,14 +32,7 @@ set(TEST_SUPPORT_PUBLIC_HEADERS
 add_library(TestSupport STATIC)
 add_library(GameWIP::TestSupport ALIAS TestSupport)
 
-target_sources(
-    TestSupport
-    PUBLIC
-        FILE_SET public_headers
-            TYPE HEADERS
-            BASE_DIRS "${PROJECT_SOURCE_DIR}/tools"
-            FILES ${TEST_SUPPORT_PUBLIC_HEADERS}
-)
+target_sources(TestSupport PUBLIC FILE_SET public_headers TYPE HEADERS BASE_DIRS "${PROJECT_SOURCE_DIR}/tools" FILES ${TEST_SUPPORT_PUBLIC_HEADERS})
 
 add_subdirectory(core)
 add_subdirectory(internal)

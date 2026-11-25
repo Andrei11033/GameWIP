@@ -12,7 +12,6 @@ target_include_directories(GameWIPTestModules PUBLIC "${PROJECT_SOURCE_DIR}/game
 target_link_libraries(GameWIPTestModules PUBLIC GameWIPValidationProcess PRIVATE Terminal)
 
 if(GAMEWIP_BUILD_TESTS)
-
     # ------------------------------------------------------------
     # Standalone correctness-test process
     # ------------------------------------------------------------

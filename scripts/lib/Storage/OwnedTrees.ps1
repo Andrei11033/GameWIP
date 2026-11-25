@@ -63,6 +63,30 @@ function Get-GameWipFileSystemAttributes
     }
 }
 
+function Test-GameWipPlainFile
+{
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    try
+    {
+        $attributes = Get-GameWipFileSystemAttributes -Path $Path
+        if ($null -eq $attributes)
+        {
+            return $false
+        }
+
+        return (
+            ($attributes -band [IO.FileAttributes]::Directory) -eq 0 -and
+            ($attributes -band [IO.FileAttributes]::ReparsePoint) -eq 0
+        )
+    }
+
+    catch
+    {
+        return $false
+    }
+}
+
 function Assert-GameWipNoReparsePointInOwnedPath
 {
     param([Parameter(Mandatory = $true)][string]$Path, [Parameter(Mandatory = $true)][string]$OwnedRoot)

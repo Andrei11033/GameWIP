@@ -95,6 +95,7 @@ compiler setup are documented in @ref project_build.
 Set `GAMEWIP_MANAGED_TOOLS_ROOT` to another directory under `build/` or to an
 existing installation. New managed roots stay under `build/`. When GameWIP
 creates this tree it writes `.gamewip-managed.json` inside it.
+Ownership markers must be regular files; symlinked markers do not prove ownership.
 An existing non-empty tree without valid ownership proof must never be silently
 adopted or recursively removed.
 Interactive setup may show its top-level contents and ask whether the user

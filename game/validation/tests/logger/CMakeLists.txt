@@ -5,7 +5,6 @@ gamewip_add_test_module(
         logger_test.cpp
         logger_test.h
         module.cpp
-
         # Shared fixtures and test suites
         logger_test_support.inl
         configuration_test.inl

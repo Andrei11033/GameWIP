@@ -225,7 +225,7 @@ checks:
 
 - clang-format for maintained C/C++ formatting.
 - Ruff lint/format checks for maintained Python.
-- PSScriptAnalyzer formatting and warning/error analysis for maintained PowerShell.
+- PSScriptAnalyzer style and warning/error analysis for maintained PowerShell.
 - ESLint plus Prettier for maintained JavaScript and structured text; PowerShell
   formatting uses a guarded Prettier candidate followed by PSScriptAnalyzer
   validation and fallback formatting.

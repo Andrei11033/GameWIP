@@ -156,9 +156,25 @@ function Read-GameWipOwnershipMarker
         [Parameter(Mandatory = $true)][string]$Resource
     )
 
-    if (-not (Test-Path -LiteralPath $Path -PathType Leaf))
+    try
+    {
+        $attributes = Get-GameWipFileSystemAttributes -Path $Path
+    }
+
+    catch
+    {
+        return [pscustomobject]@{ Status = 'unknown'; Marker = $null; Reason = 'marker could not be inspected' }
+    }
+
+    if ($null -eq $attributes)
     {
         return [pscustomobject]@{ Status = 'missing'; Marker = $null; Reason = 'marker does not exist' }
+    }
+
+    if (($attributes -band [IO.FileAttributes]::Directory) -ne 0 -or
+        ($attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0)
+    {
+        return [pscustomobject]@{ Status = 'unknown'; Marker = $null; Reason = 'marker is not a plain file' }
     }
 
     try

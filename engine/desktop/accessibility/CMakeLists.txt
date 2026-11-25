@@ -1,6 +1,5 @@
 # Keep focused public Accessibility headers in this module.
-set(
-    DESKTOP_ACCESSIBILITY_PUBLIC_HEADERS
+set(DESKTOP_ACCESSIBILITY_PUBLIC_HEADERS
     "${CMAKE_CURRENT_SOURCE_DIR}/actions.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/collections.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/facade.h"

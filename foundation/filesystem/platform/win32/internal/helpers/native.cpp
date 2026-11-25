@@ -135,7 +135,8 @@ namespace GameWIP::FileSystem::Platform::Win32
             if(module != nullptr)
             {
                 result.createFile = GameWIP::Base::Platform::Win32::loadProcedure<NtApi::NtCreateFileFunction>(module, "NtCreateFile");
-                result.setInformationFile = GameWIP::Base::Platform::Win32::loadProcedure<NtApi::NtSetInformationFileFunction>(module, "NtSetInformationFile");
+                result.setInformationFile =
+                    GameWIP::Base::Platform::Win32::loadProcedure<NtApi::NtSetInformationFileFunction>(module, "NtSetInformationFile");
                 result.ntStatusToDosError =
                     GameWIP::Base::Platform::Win32::loadProcedure<NtApi::RtlNtStatusToDosErrorFunction>(module, "RtlNtStatusToDosError");
             }

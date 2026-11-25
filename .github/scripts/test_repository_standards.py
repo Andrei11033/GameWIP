@@ -29,7 +29,7 @@ class UnicodeAuthorityTests(unittest.TestCase):
 
             try:
                 failures: list[str] = []
-                CHECKER.check_unicode_conversion_authority(failures)
+                CHECKER.check_unicode_conversion_authority(failures, [fixture])
                 return failures
 
             finally:
@@ -156,7 +156,10 @@ class ValidationModuleDiscoveryTests(unittest.TestCase):
             CHECKER.ROOT = root
 
             try:
-                self.assertEqual(CHECKER.validation_test_module_names(), ["alpha", "zeta"])
+                failures: list[str] = []
+                module_names = CHECKER.validation_test_module_names(failures)
+                self.assertEqual(failures, [])
+                self.assertEqual(module_names, ["alpha", "zeta"])
 
             finally:
                 CHECKER.ROOT = previous_root

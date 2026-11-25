@@ -91,7 +91,7 @@ function Test-GameWipLinuxJsonToolMarker
 
     $markerPath = Join-Path $Path $MarkerName
 
-    if (-not (Test-Path -LiteralPath $markerPath -PathType Leaf))
+    if (-not (Test-GameWipPlainFile -Path $markerPath))
     {
         return $false
     }
@@ -142,7 +142,7 @@ function Test-GameWipLinuxPowerShellMarker
     param([Parameter(Mandatory = $true)][string]$Path)
     $markerPath = Join-Path $Path '.gamewip-tool'
 
-    if (-not (Test-Path -LiteralPath $markerPath -PathType Leaf))
+    if (-not (Test-GameWipPlainFile -Path $markerPath))
     {
         return $false
     }

@@ -126,8 +126,6 @@ $zigPreflightCompilerPath = Join-Path $zigPreflightRoot $(if (Test-GameWipWindow
     {
         'zig'
     })
-New-Item -ItemType Directory -Force -Path $zigPreflightRoot | Out-Null
-New-Item -ItemType File -Path $zigPreflightCompilerPath | Out-Null
 $preflightFunctions = @{}
 
 foreach ($functionName in @(
@@ -145,6 +143,16 @@ foreach ($functionName in @(
 
 try
 {
+    New-Item -ItemType Directory -Force -Path $zigPreflightRoot | Out-Null
+    New-Item -ItemType File -Path $zigPreflightCompilerPath | Out-Null
+    New-Item -ItemType Directory -Force -Path (Join-Path $zigPreflightRoot 'lib/std') | Out-Null
+
+    if (-not (Test-Path -LiteralPath (Join-Path $zigPreflightRoot 'zig')))
+    {
+        New-Item -ItemType File -Path (Join-Path $zigPreflightRoot 'zig') | Out-Null
+    }
+
+    New-Item -ItemType File -Path (Join-Path $zigPreflightRoot 'lib/std/std.zig') | Out-Null
     Set-Item -Path function:Get-GameWipSelectedBuildTarget -Value { return @{ platform = 'linux'; architecture = 'x64'; toolchain = 'zig' } }
     Set-Item -Path function:Test-GameWipWindowsHost -Value { return $false }
     Set-Item -Path function:Get-GameWipProjectTool -Value {
@@ -283,18 +291,22 @@ finally
 
 $savedExecutableHostCheck = (Get-Command Test-GameWipWindowsHost).ScriptBlock
 $savedBuildDirectoryResolver = (Get-Command Get-GameWipBuildDirectory).ScriptBlock
+$savedBuildTargetResolver = (Get-Command Get-GameWipSelectedBuildTarget).ScriptBlock
+$savedPathComparison = (Get-Command Get-GameWipPathComparison).ScriptBlock
 
 try
 {
     Set-Item -Path function:Test-GameWipWindowsHost -Value { return $false }
     Set-Item -Path function:Get-GameWipBuildDirectory -Value { param([string]$PresetName) return 'C:\gamewip-target-build' }
+    Set-Item -Path function:Get-GameWipSelectedBuildTarget -Value { return @{ platform = 'linux'; architecture = 'x64'; toolchain = 'zig' } }
+    Set-Item -Path function:Get-GameWipPathComparison -Value { return [StringComparison]::Ordinal }
     $caseMismatchCommand = @{ BuildPreset = 'dev'; Executable = 'build/DEV/GameWIP.exe' }
     $resolvedCaseMismatch = Resolve-GameWipProjectExecutable -Command $caseMismatchCommand
-    $expectedCaseMismatch = [IO.Path]::GetFullPath((Join-Path $RepositoryRoot 'build/DEV/GameWIP.exe'))
+    $expectedCaseMismatch = [IO.Path]::GetFullPath((Join-Path $RepositoryRoot 'build/DEV/GameWIP'))
 
     if ($resolvedCaseMismatch -cne $expectedCaseMismatch)
     {
-        throw 'Linux executable path resolution treated a case-mismatched build directory as the configured preset.'
+        throw "Linux executable path resolution returned '$resolvedCaseMismatch'; expected '$expectedCaseMismatch'."
     }
 }
 
@@ -302,6 +314,8 @@ finally
 {
     Set-Item -Path function:Test-GameWipWindowsHost -Value $savedExecutableHostCheck
     Set-Item -Path function:Get-GameWipBuildDirectory -Value $savedBuildDirectoryResolver
+    Set-Item -Path function:Get-GameWipSelectedBuildTarget -Value $savedBuildTargetResolver
+    Set-Item -Path function:Get-GameWipPathComparison -Value $savedPathComparison
 }
 
 # The module catalog follows registrations, not support-folder CMake files.
@@ -1082,79 +1096,82 @@ if (Test-Path -LiteralPath $configureArgumentPath)
 }
 
 # MSYS2 bootstrap must choose a dated stable release, not the nightly channel.
-$msys2ReleaseFunctionNames = @('Invoke-GameWipHttpJson', 'Invoke-GameWipHttpRead')
-$originalMsys2ReleaseFunctions = @{}
-
-foreach ($name in $msys2ReleaseFunctionNames)
+if (Test-GameWipWindowsHost)
 {
-    $originalMsys2ReleaseFunctions[$name] = (Get-Command -Name $name).ScriptBlock
-}
+    $msys2ReleaseFunctionNames = @('Invoke-GameWipHttpJson', 'Invoke-GameWipHttpRead')
+    $originalMsys2ReleaseFunctions = @{}
 
-$Script:Msys2ReleaseFixture = @(
-    [pscustomobject]@{ tag_name = '2026-06-11'; draft = $false; prerelease = $false; assets = @(
-            [pscustomobject]@{ name = 'msys2-base-x86_64-20260611.sfx.exe'; browser_download_url = 'https://example.test/20260611.exe' }
-            [pscustomobject]@{ name = 'msys2-base-x86_64-20260611.sfx.exe.sha256'; browser_download_url = 'https://example.test/20260611.sha256' }
-        )
-    }
-    [pscustomobject]@{ tag_name = 'nightly-x86_64'; draft = $false; prerelease = $false; assets = @() }
-    [pscustomobject]@{ tag_name = '2026-10-01'; draft = $false; prerelease = $true; assets = @() }
-    [pscustomobject]@{ tag_name = '2026-10-15'; draft = $true; prerelease = $false; assets = @() }
-    [pscustomobject]@{ tag_name = '2026-09-27'; draft = $false; prerelease = $false; assets = @(
-            [pscustomobject]@{ name = 'msys2-base-x86_64-20260927.sfx.exe'; browser_download_url = 'https://example.test/20260927.exe' }
-            [pscustomobject]@{ name = 'msys2-base-x86_64-20260927.sfx.exe.sha256'; browser_download_url = 'https://example.test/20260927.sha256' }
-        )
-    }
-)
-$Script:Msys2ReleaseChecksumUri = $null
-$Script:Msys2ReleaseHash = 'a' * 64
-
-try
-{
-    # Mock network responses and verify the selected archive and checksum.
-    Set-Item -Path function:Invoke-GameWipHttpJson -Value {
-        param([string]$Uri, [hashtable]$Headers)
-        $null = $Headers
-
-        if ($Uri -ne 'https://api.github.com/repos/msys2/msys2-installer/releases?per_page=100')
-        {
-            throw "Unexpected MSYS2 release query '$Uri'."
-        }
-
-        return [pscustomobject]@{ State = 'resolved'; Value = [object[]]$Script:Msys2ReleaseFixture; Reason = '' }
-    }
-    Set-Item -Path function:Invoke-GameWipHttpRead -Value {
-        param([string]$Uri, [int]$MaxAttempts, [int]$TimeoutSeconds)
-        $null = $MaxAttempts, $TimeoutSeconds
-        $Script:Msys2ReleaseChecksumUri = $Uri
-        return [pscustomobject]@{
-            State = 'resolved'
-            Value = [pscustomobject]@{
-                Content = [Text.Encoding]::UTF8.GetBytes("$($Script:Msys2ReleaseHash)  msys2-base.sfx.exe.sha256`n")
-            }
-            Reason = ''
-        }
-    }
-
-    $msys2Archive = Get-GameWipMsys2BaseArchive
-
-    if ($msys2Archive.Name -ne 'msys2-base-x86_64-20260927.sfx.exe' -or
-        $msys2Archive.Uri -ne 'https://example.test/20260927.exe' -or
-        $msys2Archive.Sha256 -ne $Script:Msys2ReleaseHash -or
-        $Script:Msys2ReleaseChecksumUri -ne 'https://example.test/20260927.sha256')
-    {
-        throw 'MSYS2 bootstrap did not select the latest stable archive and its checksum.'
-    }
-}
-
-finally
-{
-    # Restore the network functions and remove test state.
     foreach ($name in $msys2ReleaseFunctionNames)
     {
-        Set-Item -Path "function:$name" -Value $originalMsys2ReleaseFunctions[$name]
+        $originalMsys2ReleaseFunctions[$name] = (Get-Command -Name $name).ScriptBlock
     }
 
-    Remove-Variable -Name Msys2ReleaseFixture, Msys2ReleaseChecksumUri, Msys2ReleaseHash -Scope Script -ErrorAction SilentlyContinue
+    $Script:Msys2ReleaseFixture = @(
+        [pscustomobject]@{ tag_name = '2026-06-11'; draft = $false; prerelease = $false; assets = @(
+                [pscustomobject]@{ name = 'msys2-base-x86_64-20260611.sfx.exe'; browser_download_url = 'https://example.test/20260611.exe' }
+                [pscustomobject]@{ name = 'msys2-base-x86_64-20260611.sfx.exe.sha256'; browser_download_url = 'https://example.test/20260611.sha256' }
+            )
+        }
+        [pscustomobject]@{ tag_name = 'nightly-x86_64'; draft = $false; prerelease = $false; assets = @() }
+        [pscustomobject]@{ tag_name = '2026-10-01'; draft = $false; prerelease = $true; assets = @() }
+        [pscustomobject]@{ tag_name = '2026-10-15'; draft = $true; prerelease = $false; assets = @() }
+        [pscustomobject]@{ tag_name = '2026-09-27'; draft = $false; prerelease = $false; assets = @(
+                [pscustomobject]@{ name = 'msys2-base-x86_64-20260927.sfx.exe'; browser_download_url = 'https://example.test/20260927.exe' }
+                [pscustomobject]@{ name = 'msys2-base-x86_64-20260927.sfx.exe.sha256'; browser_download_url = 'https://example.test/20260927.sha256' }
+            )
+        }
+    )
+    $Script:Msys2ReleaseChecksumUri = $null
+    $Script:Msys2ReleaseHash = 'a' * 64
+
+    try
+    {
+        # Mock network responses and verify the selected archive and checksum.
+        Set-Item -Path function:Invoke-GameWipHttpJson -Value {
+            param([string]$Uri, [hashtable]$Headers)
+            $null = $Headers
+
+            if ($Uri -ne 'https://api.github.com/repos/msys2/msys2-installer/releases?per_page=100')
+            {
+                throw "Unexpected MSYS2 release query '$Uri'."
+            }
+
+            return [pscustomobject]@{ State = 'resolved'; Value = [object[]]$Script:Msys2ReleaseFixture; Reason = '' }
+        }
+        Set-Item -Path function:Invoke-GameWipHttpRead -Value {
+            param([string]$Uri, [int]$MaxAttempts, [int]$TimeoutSeconds)
+            $null = $MaxAttempts, $TimeoutSeconds
+            $Script:Msys2ReleaseChecksumUri = $Uri
+            return [pscustomobject]@{
+                State = 'resolved'
+                Value = [pscustomobject]@{
+                    Content = [Text.Encoding]::UTF8.GetBytes("$($Script:Msys2ReleaseHash)  msys2-base.sfx.exe.sha256`n")
+                }
+                Reason = ''
+            }
+        }
+
+        $msys2Archive = Get-GameWipMsys2BaseArchive
+
+        if ($msys2Archive.Name -ne 'msys2-base-x86_64-20260927.sfx.exe' -or
+            $msys2Archive.Uri -ne 'https://example.test/20260927.exe' -or
+            $msys2Archive.Sha256 -ne $Script:Msys2ReleaseHash -or
+            $Script:Msys2ReleaseChecksumUri -ne 'https://example.test/20260927.sha256')
+        {
+            throw 'MSYS2 bootstrap did not select the latest stable archive and its checksum.'
+        }
+    }
+
+    finally
+    {
+        # Restore the network functions and remove test state.
+        foreach ($name in $msys2ReleaseFunctionNames)
+        {
+            Set-Item -Path "function:$name" -Value $originalMsys2ReleaseFunctions[$name]
+        }
+
+        Remove-Variable -Name Msys2ReleaseFixture, Msys2ReleaseChecksumUri, Msys2ReleaseHash -Scope Script -ErrorAction SilentlyContinue
+    }
 }
 
 $conflictingBuildPolicyRejected = $false
@@ -1199,6 +1216,33 @@ else
 if ((Get-GameWipPythonEnvironmentInterpreterPath -Root $syntheticPythonRoot) -ne $expectedPythonPath)
 {
     throw 'Python provider interpreter-path resolution is not platform-correct.'
+}
+
+if (Test-GameWipWindowsHost)
+{
+    $pythonLayoutTestRoot = Join-Path (Get-GameWipStorageAreaPath -Area temp) ('python-layout-test-' + [guid]::NewGuid().ToString('N'))
+    $standardPythonRoot = Join-Path $pythonLayoutTestRoot 'standard'
+    $msysPythonRoot = Join-Path $pythonLayoutTestRoot 'msys2'
+
+    try
+    {
+        New-Item -ItemType Directory -Force -Path (Join-Path $standardPythonRoot 'Scripts'), (Join-Path $msysPythonRoot 'bin') | Out-Null
+        [IO.File]::WriteAllText((Join-Path $standardPythonRoot 'Scripts/python.exe'), 'fixture')
+        [IO.File]::WriteAllText((Join-Path $msysPythonRoot 'bin/python.exe'), 'fixture')
+
+        if ((Get-GameWipPythonEnvironmentInterpreterPath -Root $standardPythonRoot) -cne
+            (Join-Path $standardPythonRoot 'Scripts/python.exe') -or
+            (Get-GameWipPythonEnvironmentInterpreterPath -Root $msysPythonRoot) -cne
+            (Join-Path $msysPythonRoot 'bin/python.exe'))
+        {
+            throw 'Windows Python provider did not recognize both standard and MSYS2 virtual-environment layouts.'
+        }
+    }
+
+    finally
+    {
+        Remove-Item -LiteralPath $pythonLayoutTestRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
 }
 
 $jsonSchemaTool = Get-GameWipProjectTool -Id 'jsonschema'
@@ -1381,11 +1425,14 @@ finally
     }
 }
 
-$detectedJsonSchema = Get-GameWipDetectedTool -Tool $jsonSchemaTool
-
-if ((Get-GameWipToolCompatibility -Tool $jsonSchemaTool -Detected $detectedJsonSchema) -ne 'compatible')
+if (Test-GameWipWindowsHost)
 {
-    throw 'jsonschema discovery did not select an interpreter containing the package.'
+    $detectedJsonSchema = Get-GameWipDetectedTool -Tool $jsonSchemaTool
+
+    if ((Get-GameWipToolCompatibility -Tool $jsonSchemaTool -Detected $detectedJsonSchema) -ne 'compatible')
+    {
+        throw 'jsonschema discovery did not select an interpreter containing the package.'
+    }
 }
 
 $actionIds = @($CommandConfig.Actions | ForEach-Object { [string]$_.Id })
@@ -1539,6 +1586,9 @@ finally
 # ------------------------------------------------------------
 # Persistent state and process execution
 # ------------------------------------------------------------
+
+# Blank lines are valid process output.
+Write-GameWipProcessOutputLine -Line ''
 
 # Repository text persistence is strict UTF-8 without BOM and can atomically
 # replace an existing file without losing non-ASCII content.
@@ -2136,22 +2186,22 @@ try
             @{
                 id = 'alpha'; name = 'Alpha'; category = 'quality'; versionPolicy = 'exact'; requiredVersion = '1.0.0'
                 provider = @{ kind = 'npm'; package = 'alpha'; dependencies = @(@{ package = 'alpha-dependency'; version = '4.0.0' }) }
-                detection = Copy-GameWipValue -Value $commonDetection
-                capabilities = Copy-GameWipValue -Value $commonCapabilities
+                detection = ConvertTo-GameWipHashtable -Value $commonDetection
+                capabilities = ConvertTo-GameWipHashtable -Value $commonCapabilities
                 references = @(@{ path = 'shared.md'; kind = 'text'; pattern = 'alpha={version}'; expectedCount = 1 })
             },
             @{
                 id = 'beta'; name = 'Beta'; category = 'quality'; versionPolicy = 'exact'; requiredVersion = '2.0.0'
                 provider = @{ kind = 'npm'; package = 'beta' }
-                detection = Copy-GameWipValue -Value $commonDetection
-                capabilities = Copy-GameWipValue -Value $commonCapabilities
+                detection = ConvertTo-GameWipHashtable -Value $commonDetection
+                capabilities = ConvertTo-GameWipHashtable -Value $commonCapabilities
                 references = @(@{ path = 'shared.md'; kind = 'text'; pattern = 'beta={version}'; expectedCount = 1 })
             },
             @{
                 id = 'historical'; name = 'Historical'; category = 'quality'; versionPolicy = 'exact'; requiredVersion = '3.0.0'
                 provider = @{ kind = 'npm'; package = 'historical' }
-                detection = Copy-GameWipValue -Value $commonDetection
-                capabilities = Copy-GameWipValue -Value $commonCapabilities
+                detection = ConvertTo-GameWipHashtable -Value $commonDetection
+                capabilities = ConvertTo-GameWipHashtable -Value $commonCapabilities
                 references = @(@{ path = 'historical.md'; kind = 'path' })
             },
             @{
@@ -2163,8 +2213,8 @@ try
                         'linux-amd64' = @{ archive = 'release_5.0.0_linux.tar.gz'; sha256 = ('b' * 64) }
                     }
                 }
-                detection = Copy-GameWipValue -Value $commonDetection
-                capabilities = Copy-GameWipValue -Value $commonCapabilities
+                detection = ConvertTo-GameWipHashtable -Value $commonDetection
+                capabilities = ConvertTo-GameWipHashtable -Value $commonCapabilities
                 references = @()
             }
         )
@@ -2252,7 +2302,7 @@ try
         throw 'Structured registry mutations did not stage planned exact/dependency versions.'
     }
 
-    $badReferenceTool = Copy-GameWipValue -Value $testRegistry.tools[0]
+    $badReferenceTool = ConvertTo-GameWipHashtable -Value $testRegistry.tools[0]
     $badReferenceTool.references[0].expectedCount = 2
     $countRejected = $false
 

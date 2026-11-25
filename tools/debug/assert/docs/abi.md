@@ -30,8 +30,8 @@ Assert has two package forms:
 
 The runtime uses Logger for reporting and links Unicode statically for popup text conversion. Unicode is a private implementation dependency, and
 Assert's public headers do not expose Unicode types. The runtime package resolves Logger for its imported target and `GameWIPApplication` for the
-manifest helper; the latter is not linked to the runtime. The interface-only target has no package dependencies. Assert does not install manifest resources or
-attach them to consumers. Applications select their process requirements explicitly; see @ref assert_configuration.
+manifest helper; the latter is not linked to the runtime. The interface-only target has no package dependencies. Assert does not install
+manifest resources or attach them to consumers. Applications select their process requirements explicitly; see @ref assert_configuration.
 
 ## Exported symbols
 

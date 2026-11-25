@@ -113,11 +113,7 @@ run_test_git(restore tracked.txt)
 file(WRITE "${test_repository}/untracked.txt" "untracked version test\n")
 gamewip_detect_version(untracked_development SOURCE_DIR "${test_repository}" PROJECT_VERSION "0.1.0")
 expect_value("untracked development dirty state" "${untracked_development_DIRTY}" "TRUE")
-expect_value(
-    "untracked development display"
-    "${untracked_development_DISPLAY}"
-    "0.1.0-dev.1+g${untracked_development_GIT_COMMIT}.dirty"
-)
+expect_value("untracked development display" "${untracked_development_DISPLAY}" "0.1.0-dev.1+g${untracked_development_GIT_COMMIT}.dirty")
 file(REMOVE "${test_repository}/untracked.txt")
 
 run_test_git(tag v0.1.0)

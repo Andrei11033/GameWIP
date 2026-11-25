@@ -38,7 +38,22 @@ function Get-GameWipPathComparer
 function Get-GameWipPythonEnvironmentExecutableDirectory
 {
     param([Parameter(Mandatory = $true)][string]$Root)
-    return Join-Path $Root 'Scripts'
+    $scriptsDirectory = Join-Path $Root 'Scripts'
+
+    if (Test-Path -LiteralPath (Join-Path $scriptsDirectory 'python.exe') -PathType Leaf)
+    {
+        return $scriptsDirectory
+    }
+
+    # MSYS2 Python uses bin for virtual environments on Windows.
+    $binDirectory = Join-Path $Root 'bin'
+
+    if (Test-Path -LiteralPath (Join-Path $binDirectory 'python.exe') -PathType Leaf)
+    {
+        return $binDirectory
+    }
+
+    return $scriptsDirectory
 }
 
 function Get-GameWipPythonEnvironmentInterpreterPath

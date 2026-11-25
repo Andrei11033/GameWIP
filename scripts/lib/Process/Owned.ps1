@@ -25,7 +25,7 @@ function New-GameWipProcessOutputReader
 function Write-GameWipProcessOutputLine
 {
     param(
-        [Parameter(Mandatory = $true)][string]$Line,
+        [Parameter(Mandatory = $true)][AllowEmptyString()][string]$Line,
         [string]$Prefix = '',
         [string]$PrefixColor
     )
