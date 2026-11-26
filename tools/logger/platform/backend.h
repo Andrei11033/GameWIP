@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include "io/status.h"
 #include "logger/internal/format_scratch.h"
+#include "status/status.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -29,13 +29,13 @@ namespace GameWIP::Logger::Platform
     [[nodiscard]] Internal::FormatScratchStorage *findFormatScratchStorageForThread() noexcept;
 
     /// @brief Writes one UTF-8 diagnostic line to the platform debugger channel.
-    [[nodiscard]] IO::Types::Status writeDebugOutput(std::string_view line);
+    [[nodiscard]] GameWIP::Status::Types::Status writeDebugOutput(std::string_view line);
 
     /// @brief Shows a fatal diagnostic through the platform popup channel.
-    [[nodiscard]] IO::Types::Status showFatalPopup(std::string_view message);
+    [[nodiscard]] GameWIP::Status::Types::Status showFatalPopup(std::string_view message);
 
     /// @brief Formats local time using the platform C runtime/backend.
-    [[nodiscard]] IO::Types::Status formatLocalTime(std::time_t time, std::string_view timeFormat, std::string &outText);
+    [[nodiscard]] GameWIP::Status::Types::Status formatLocalTime(std::time_t time, std::string_view timeFormat, std::string &outText);
 
     /// @brief Queries process memory counters for Logger diagnostic snapshots.
     [[nodiscard]] ProcessMemory queryProcessMemory();

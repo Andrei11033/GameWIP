@@ -118,7 +118,7 @@ std::thread notifier(
     });
 const auto pump = GameWIP::Desktop::Events::wait(std::chrono::milliseconds{100});
 notifier.join();
-if(pump.status.ok() && workReady.load(std::memory_order_acquire))
+if(pump.ok() && workReady.load(std::memory_order_acquire))
 {
     // Consume application-owned work before returning to the event loop.
 }

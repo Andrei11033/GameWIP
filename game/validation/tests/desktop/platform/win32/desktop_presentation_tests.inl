@@ -38,7 +38,7 @@ void testPresentationPublication(TestSupport::Context &context)
     static_cast<void>(context.expectEq(
         "closed Window rejects concurrent presentation reads",
         ErrorCode::NotOpen,
-        Desktop::Renderer::enableConcurrentPresentationReads(closed).code));
+        Desktop::Renderer::enableConcurrentPresentationReads(closed).status().code()));
 
     Desktop::Types::Description description;
     description.title = "Window presentation publication validation";
@@ -72,7 +72,7 @@ void testPresentationPublication(TestSupport::Context &context)
     static_cast<void>(context.expectEq(
         "presentation publication allocation failure is reported",
         ErrorCode::OutOfMemory,
-        Desktop::Renderer::enableConcurrentPresentationReads(window).code));
+        Desktop::Renderer::enableConcurrentPresentationReads(window).status().code()));
     static_cast<void>(context.expectFalse(
         "allocation failure leaves presentation publication disabled",
         Desktop::Renderer::concurrentPresentationReadsEnabled(window)));
@@ -81,7 +81,7 @@ void testPresentationPublication(TestSupport::Context &context)
     std::thread wrongThread(
         [&]
         {
-            wrongThreadCode = Desktop::Renderer::enableConcurrentPresentationReads(window).code;
+            wrongThreadCode = Desktop::Renderer::enableConcurrentPresentationReads(window).status().code();
         });
     wrongThread.join();
     static_cast<void>(context.expectEq("wrong-thread enable is rejected", ErrorCode::ResourceBusy, wrongThreadCode));
@@ -177,7 +177,8 @@ void testPresentationPublication(TestSupport::Context &context)
         Desktop::Internal::TestHooks::presentationPublicationStorage(window)));
 
     Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::NativeCreation);
-    static_cast<void>(context.expectEq("failed reopen is reported", ErrorCode::OpenFailed, window.open(description, Desktop::Events::owned(4)).code));
+    static_cast<void>(context.expectEq(
+        "failed reopen is reported", ErrorCode::OpenFailed, window.open(description, Desktop::Events::owned(4)).status().code()));
     static_cast<void>(context.expectEq("failed reopen exposes closed client size", Desktop::Types::LogicalSize{}, window.clientSize()));
     static_cast<void>(context.expectFalse("failed reopen exposes no candidate monitor", window.currentMonitor().isValid()));
     static_cast<void>(context.expectEq(

@@ -14,24 +14,25 @@ metadata, `logger/message_format.h` for message-color helpers,
 
 - `Level`: `Trace`, `Debug`, `Info`, `Warn`, `Error`, `Fatal`.
 - `OutputMode`: `None`, `Console`, `File`, `Both`.
-- `Init::Result`: operation `status`, final `outcome`, adjustment bitmask, requested/effective output, and directly associated `outputSetupStatus`.
-- `FlushResult`: IO `status` plus `Completed`/`TimedOut`.
-- `Report::Result`: IO `status`, `Completed`/`TimedOut`, and `None`/`Partial`/`Complete` delivery.
+- `Init::Result`: shared operation status plus optional lifecycle details, including outcome, adjustments, requested/effective output, and recovered setup failure.
+- `FlushResult`: shared operation status plus `Completed`/`TimedOut` details.
+- `Report::Result`: shared operation status plus `Completed`/`TimedOut` and `None`/`Partial`/`Complete` delivery details.
 - `Health::Snapshot`: coherent current health and compact last-failure metadata.
 - `Config`, `QueueLimits`, `Stats`, and `MemoryStats`: configuration and runtime observation values.
-- `LogFilePathResult`: status-bearing UTF-8 path query result; the path is
-  meaningful only when its status succeeds.
+- `LogFilePathResult`: `Status::Types::Result<std::string>`; the path is
+  meaningful only when `ok()` is true.
 
 ## Lifecycle
 
-`init()`, `initDefault()`, `initConsole()`, and `initFile()` return `Types::Init::Result`. Calling init while an active Logger exists is rejected with
-`IO::Types::ErrorCode::AlreadyOpen` and leaves the existing runtime untouched.
+`init()`, `initDefault()`, `initConsole()`, and `initFile()` return `Types::Init::Result`. Calling init while an active Logger exists returns
+`Status::Types::Code::AlreadyOpen` and leaves the existing runtime untouched. Check `ok()` before reading `value()`; failed results may still carry
+useful initialization details.
 
 `flush(std::optional<std::chrono::milliseconds> timeout = std::nullopt)`: `nullopt` waits indefinitely, zero polls, negative returns `InvalidArgument`
 (see `logging.h`).
 
-`shutdown()` returns `IO::Types::Status`, drains/flushes/closes best effort, and always leaves Logger
-disabled. `running()` reports whether the worker accepts normal records.
+`shutdown()` returns `Status::Types::Result<void>`, drains/flushes/closes best effort, and always leaves Logger disabled. `running()` reports whether
+the worker accepts normal records.
 
 All queries are non-throwing and return bounded snapshots or safe defaults on failure.
 `getLogFilePath()` returns `Types::LogFilePathResult` so allocation or conversion failure is a
@@ -40,8 +41,8 @@ status, not an exception or an ambiguous empty path.
 ## Runtime filters
 
 `setSourceFilter`, `resetSourceFilter`, `resetSourceFilters`, `setLevelFilter`, `resetLevelFilter`, and `resetLevelFilters` return
-`IO::Types::Status`. `shouldLog()` is a lightweight boolean query with three forms: `(level)` and `(level, std::string_view)` apply severity
-filtering only; `(level, SourceId)` and enum-source forms also apply the registered-source filter.
+`Status::Types::Result<void>`. `shouldLog()` is a lightweight boolean query with three forms: `(level)` and `(level, std::string_view)` apply
+severity filtering only; `(level, SourceId)` and enum-source forms also apply the registered-source filter.
 
 ## Normal logging
 
@@ -76,8 +77,8 @@ Logger::info(Area::Input, "Loaded code {} from {}", Logger::code(errorCode), Log
 plus enabled emergency channels, flush normal sinks, and do not drain older queued work. Timed overloads take plain `std::chrono::milliseconds` before
 the message/format argument.
 
-`reportFatal` owns fatal-popup behavior when enabled. `fatalTerminate` performs that path and then terminates. `writeDebugOutput` returns direct IO
-status.
+`reportFatal` owns fatal-popup behavior when enabled. `fatalTerminate` performs that path and then terminates. `writeDebugOutput` returns
+`Status::Types::Result<void>`.
 
 `report`, `reportError`, and `reportFatal` also accept `Record` before preformatted, compile-time formatted, or `runtimeFormat()` messages, using
 the same fields and metadata layout as normal logging.

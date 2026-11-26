@@ -153,7 +153,7 @@ a foreign delayed-rendering call already entered by Windows.
 
 ## Clipboard write failed after changing contents
 
-Inspect `WriteResult::commitState` and `formatsPublished`. `Cleared` means the old contents are gone but the first requested format failed;
+Inspect `Result<WriteProgress>::value()`. `Cleared` means the old contents are gone but the first requested format failed;
 `PartiallyPublished` means the reported caller-order prefix is externally visible. A close failure may accompany `Published` because cleanup failure
 does not erase a completed side effect. Use `clear()` only for intentional clearing.
 
@@ -174,7 +174,7 @@ stride times height exactly. See @ref desktop_clipboard.
 
 ## Custom cursor selection fails
 
-Include `desktop/cursor.h` and check `Types::Capability::CustomCursor`. `createCursor()` returns `InvalidArgument` for an empty variant set, invalid
+Include `desktop/cursor.h` and check `Types::Capability::CustomCursor`. `createCursor()` returns a failed `GameWIP::Status::Types::Result<Cursor>` with `InvalidArgument` for an empty variant set, invalid
 dimensions or hotspot, zero or duplicate intended DPI, an undersized stride, or a payload whose size does not exactly match its resolved rows.
 `setCursor()` additionally requires a valid `Cursor` and an open Window on its owner thread. See @ref desktop_custom_cursors for the complete
 contract.

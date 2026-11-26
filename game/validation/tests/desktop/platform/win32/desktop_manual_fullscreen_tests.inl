@@ -18,12 +18,20 @@ void testManualFullscreenAndTopology(
     }
 
     const auto capabilitiesResult = Desktop::getCapabilities();
-    const Desktop::Types::Capabilities capabilities = capabilitiesResult.value_or({});
+    if(!capabilitiesResult.ok())
+    {
+        context.fail("Window fullscreen capabilities", manualStatusDetails(capabilitiesResult.status()));
+        return;
+    }
+    const Desktop::Types::Capabilities &capabilities = capabilitiesResult.value();
     const auto monitors = Desktop::Display::getMonitors();
 
-    if(!monitors.ok() || monitors->empty())
+    if(!monitors.ok() || monitors.value().empty())
     {
-        context.fail("fullscreen monitor enumeration", monitors.status.message);
+        const GameWIP::Status::Types::Diagnostic *diagnostic = monitors.status().diagnostic();
+        const std::string_view detail =
+            diagnostic != nullptr && !diagnostic->message.empty() ? diagnostic->message : GameWIP::Status::Types::codeName(monitors.status().code());
+        context.fail("fullscreen monitor enumeration", detail);
         return;
     }
 
@@ -46,22 +54,22 @@ void testManualFullscreenAndTopology(
         }
 
         const auto secondary = std::ranges::find_if(
-            *connected,
+            connected.value(),
             [](const Desktop::Types::Display::Info &monitor)
             {
                 return !monitor.primary;
             });
-        return secondary == connected->end() ? std::nullopt : std::optional{secondary->id};
+        return secondary == connected.value().end() ? std::nullopt : std::optional{secondary->id};
     };
 
     // Check borderless coverage and windowed placement restoration.
     if(sections.borderless)
     {
-        for(std::size_t index = 0; index < monitors->size(); ++index)
+        for(std::size_t index = 0; index < monitors.value().size(); ++index)
         {
-            const Desktop::Types::Display::Info &monitor = (*monitors)[index];
+            const Desktop::Types::Display::Info &monitor = monitors.value()[index];
             const Desktop::Types::WindowModeRequest borderless = Desktop::Types::WindowModes::borderlessFullscreen(monitor.id);
-            const IO::Types::Status enterStatus = setManualModeWithDiagnostics(context, window, "borderless-enter", borderless);
+            const GameWIP::Status::Types::Result<void> enterStatus = setManualModeWithDiagnostics(context, window, "borderless-enter", borderless);
 
             if(requireManualStatus(context, "borderless fullscreen enters", enterStatus))
             {
@@ -80,9 +88,9 @@ void testManualFullscreenAndTopology(
                         "present, or use Alt+Tab to verify the Window is listed. On monitor {}/{} ({}), does it exactly cover the display and "
                         "remain switchable without changing its display mode?",
                         index + 1,
-                        monitors->size(),
+                        monitors.value().size(),
                         monitor.name));
-                const IO::Types::Status leaveStatus = setManualModeWithDiagnostics(context, window, "borderless-leave", {});
+                const GameWIP::Status::Types::Result<void> leaveStatus = setManualModeWithDiagnostics(context, window, "borderless-leave", {});
                 static_cast<void>(requireManualStatus(context, "borderless fullscreen leaves", leaveStatus));
             }
             else
@@ -120,19 +128,19 @@ void testManualFullscreenAndTopology(
             const auto currentMode = Desktop::Display::getCurrentMode(monitor);
             const auto availableModes = Desktop::Display::getModes(monitor);
 
-            if(currentMode.ok() && availableModes.ok() && !availableModes->empty())
+            if(currentMode.ok() && availableModes.ok() && !availableModes.value().empty())
             {
                 const auto selected = std::ranges::min_element(
-                    *availableModes,
+                    availableModes.value(),
                     {},
                     [&](const Desktop::Types::Display::Mode &mode)
                     {
-                        const std::uint64_t resolutionPenalty = mode.resolution == currentMode->resolution ? 0 : std::uint64_t{1} << 48U;
-                        const std::uint64_t depthPenalty = mode.bitsPerPixel == currentMode->bitsPerPixel ? 0 : std::uint64_t{1} << 40U;
-                        const std::uint64_t interlacePenalty = mode.interlaced == currentMode->interlaced ? 0 : std::uint64_t{1} << 39U;
-                        const std::uint64_t refreshDifference = mode.refreshRateMillihertz > currentMode->refreshRateMillihertz
-                                                                    ? mode.refreshRateMillihertz - currentMode->refreshRateMillihertz
-                                                                    : currentMode->refreshRateMillihertz - mode.refreshRateMillihertz;
+                        const std::uint64_t resolutionPenalty = mode.resolution == currentMode.value().resolution ? 0 : std::uint64_t{1} << 48U;
+                        const std::uint64_t depthPenalty = mode.bitsPerPixel == currentMode.value().bitsPerPixel ? 0 : std::uint64_t{1} << 40U;
+                        const std::uint64_t interlacePenalty = mode.interlaced == currentMode.value().interlaced ? 0 : std::uint64_t{1} << 39U;
+                        const std::uint64_t refreshDifference = mode.refreshRateMillihertz > currentMode.value().refreshRateMillihertz
+                                                                    ? mode.refreshRateMillihertz - currentMode.value().refreshRateMillihertz
+                                                                    : currentMode.value().refreshRateMillihertz - mode.refreshRateMillihertz;
                         return resolutionPenalty + depthPenalty + interlacePenalty + refreshDifference;
                     });
                 const Desktop::Types::WindowModeRequest exclusive = Desktop::Types::WindowModes::exclusiveFullscreen(monitor, *selected);
@@ -151,7 +159,7 @@ void testManualFullscreenAndTopology(
 
                 if(sections.exclusive)
                 {
-                    const IO::Types::Status enterStatus = setManualModeWithDiagnostics(context, window, "exclusive-enter", exclusive);
+                    const GameWIP::Status::Types::Result<void> enterStatus = setManualModeWithDiagnostics(context, window, "exclusive-enter", exclusive);
 
                     if(requireManualStatus(context, "exclusive fullscreen enters", enterStatus))
                     {
@@ -187,7 +195,7 @@ void testManualFullscreenAndTopology(
                             });
                         static_cast<void>(context.expectTrue("exclusive activation state is observed", sawExclusiveActive));
                         static_cast<void>(context.expectTrue("exclusive suspension state is observed", sawExclusiveSuspended));
-                        const IO::Types::Status leaveStatus = setManualModeWithDiagnostics(context, window, "exclusive-leave", {});
+                        const GameWIP::Status::Types::Result<void> leaveStatus = setManualModeWithDiagnostics(context, window, "exclusive-leave", {});
 
                         if(requireManualStatus(context, "exclusive fullscreen leaves", leaveStatus))
                         {
@@ -215,7 +223,7 @@ void testManualFullscreenAndTopology(
                     }
                     unsupportedRequest.displayMode->resolution = {1, 1};
                     const Desktop::Types::WindowMode previousMode = window.windowMode();
-                    const IO::Types::Status unsupportedStatus = setManualModeWithDiagnostics(context, window, "exclusive-unsupported", unsupported);
+                    const GameWIP::Status::Types::Result<void> unsupportedStatus = setManualModeWithDiagnostics(context, window, "exclusive-unsupported", unsupported);
                     static_cast<void>(context.expectTrue("unsupported exact mode is rejected", !unsupportedStatus.ok()));
                     static_cast<void>(context.expectEq("unsupported exact mode preserves Window mode", previousMode, window.windowMode()));
                 }
@@ -228,7 +236,7 @@ void testManualFullscreenAndTopology(
                     }
                     else
                     {
-                        const IO::Types::Status recoveryEnter =
+                        const GameWIP::Status::Types::Result<void> recoveryEnter =
                             setManualModeWithDiagnostics(context, window, "exclusive-disconnect-enter", exclusive);
 
                         if(recoveryEnter.ok())
@@ -319,7 +327,7 @@ void testManualFullscreenAndTopology(
         else
         {
             const Desktop::Types::WindowModeRequest activeBorderless = Desktop::Types::WindowModes::borderlessFullscreen(*topologyMonitor);
-            const IO::Types::Status borderlessEnter = setManualModeWithDiagnostics(context, window, "borderless-disconnect-enter", activeBorderless);
+            const GameWIP::Status::Types::Result<void> borderlessEnter = setManualModeWithDiagnostics(context, window, "borderless-disconnect-enter", activeBorderless);
 
             if(borderlessEnter.ok())
             {

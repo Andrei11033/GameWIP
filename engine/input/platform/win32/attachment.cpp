@@ -3,6 +3,7 @@
 
 #include "input/platform/win32/internal/win32_attachment_state.h"
 #include "input/platform/win32/internal/device_helpers.h"
+#include "input/internal/results.h"
 #include "input/win32.h"
 
 #include <algorithm>
@@ -24,9 +25,25 @@ namespace GameWIP::Input::Platform::Win32
     /// Backend selection and status
     /// ------------------------------------------------------------
 
-    [[nodiscard]] static std::string nativeCodeDetail(std::int64_t nativeCode)
+    [[nodiscard]] static std::string nativeCodeDetail(
+        std::int64_t nativeCode,
+        GameWIP::Status::Types::NativeCodeDomain domain = GameWIP::Status::Types::NativeCodeDomain::Win32Error)
     {
-        return std::format("native=0x{:08X}", static_cast<std::uint32_t>(nativeCode));
+        return std::format(
+            "native={} 0x{:08X}",
+            GameWIP::Status::Types::nativeCodeDomainName(domain),
+            static_cast<std::uint32_t>(nativeCode));
+    }
+
+    [[nodiscard]] static std::string nativeCodeDetail(const GameWIP::Status::Types::Status &status)
+    {
+        const GameWIP::Status::Types::Diagnostic *diagnostic = status.diagnostic();
+        if(diagnostic == nullptr || !diagnostic->nativeCode.has_value())
+        {
+            return {};
+        }
+
+        return nativeCodeDetail(diagnostic->nativeCode->value, diagnostic->nativeCode->domain);
     }
 
     bool backendSelected(const Types::Configuration &configuration, Types::BackendKind backend) noexcept
@@ -73,44 +90,70 @@ namespace GameWIP::Input::Platform::Win32
         }
     }
 
-    IO::Types::Status Attachment::attach(System &system, void *windowHandle) noexcept
+    GameWIP::Status::Types::Result<void> Attachment::attach(System &system, void *windowHandle) noexcept
+    {
+        return GameWIP::Input::Internal::result(attachStatus(system, windowHandle));
+    }
+
+    GameWIP::Status::Types::Result<void> Attachment::detach() noexcept
+    {
+        return GameWIP::Input::Internal::result(detachStatus());
+    }
+
+    GameWIP::Status::Types::Result<std::vector<Types::BackendInfo>> Attachment::backends() const noexcept
+    {
+        std::vector<Types::BackendInfo> result;
+        const GameWIP::Status::Types::Status operationStatus = backendsStatus(result);
+        if(!operationStatus.ok())
+        {
+            return GameWIP::Input::Internal::failedResult<std::vector<Types::BackendInfo>>(operationStatus);
+        }
+        return GameWIP::Status::Types::Result<std::vector<Types::BackendInfo>>::success(std::move(result));
+    }
+
+    GameWIP::Status::Types::Result<void> Attachment::poll() noexcept
+    {
+        return GameWIP::Input::Internal::result(pollStatus());
+    }
+
+    GameWIP::Status::Types::Status Attachment::attachStatus(System &system, void *windowHandle) noexcept
     {
         // Validate the attachment target and Input session.
         if(impl_ == nullptr)
         {
-            return status(ErrorCode::OutOfMemory);
+            return status(Code::OutOfMemory);
         }
 
         if(impl_->attached)
         {
-            return impl_->system == &system ? status(ErrorCode::AlreadyOpen) : status(ErrorCode::ResourceBusy);
+            return impl_->system == &system ? status(Code::AlreadyOpen) : status(Code::ResourceBusy);
         }
 
         if(windowHandle == nullptr)
         {
-            return status(ErrorCode::InvalidArgument);
+            return status(Code::InvalidArgument);
         }
 
         if(!system.isOpen())
         {
-            return status(ErrorCode::NotOpen);
+            return status(Code::NotOpen);
         }
 
         if(!system.ownedByCurrentThread())
         {
-            return status(ErrorCode::ResourceBusy);
+            return status(Code::ResourceBusy);
         }
 
         if(system.impl_->nativeBeforeCapture != nullptr)
         {
-            return status(ErrorCode::AlreadyOpen);
+            return status(Code::AlreadyOpen);
         }
 
         // Claim the process-wide native registration slot.
         AttachmentState *expected = nullptr;
         if(!processRegistrationOwner.compare_exchange_strong(expected, impl_.get(), std::memory_order_acq_rel))
         {
-            return status(ErrorCode::ResourceBusy);
+            return status(Code::ResourceBusy);
         }
 
         try
@@ -139,7 +182,7 @@ namespace GameWIP::Input::Platform::Win32
             // Register Raw Input, HID, and XInput sources.
             if(impl_->rawInputEnabled)
             {
-                const IO::Types::Status rawInputStatus =
+                const GameWIP::Status::Types::Status rawInputStatus =
                     registerRawInputCollection(*impl_, HID_USAGE_PAGE_GENERIC, 0, RIDEV_PAGEONLY | RIDEV_DEVNOTIFY);
                 if(rawInputStatus.ok())
                 {
@@ -153,7 +196,7 @@ namespace GameWIP::Input::Platform::Win32
                         *impl_,
                         Types::BackendKind::Win32RawInput,
                         Types::BackendStatus::Failed,
-                        nativeCodeDetail(rawInputStatus.nativeCode));
+                        nativeCodeDetail(rawInputStatus));
                 }
             }
 
@@ -168,7 +211,7 @@ namespace GameWIP::Input::Platform::Win32
                 }
                 else
                 {
-                    const IO::Types::Status hidCollectionsStatus = registerHidCollections(*impl_);
+                    const GameWIP::Status::Types::Status hidCollectionsStatus = registerHidCollections(*impl_);
                     if(hidCollectionsStatus.ok())
                     {
                         setBackendStatus(*impl_, Types::BackendKind::Win32Hid, Types::BackendStatus::Enabled);
@@ -180,7 +223,7 @@ namespace GameWIP::Input::Platform::Win32
                             *impl_,
                             Types::BackendKind::Win32Hid,
                             Types::BackendStatus::Failed,
-                            nativeCodeDetail(hidCollectionsStatus.nativeCode));
+                            nativeCodeDetail(hidCollectionsStatus));
                         unregisterHidDeviceNotification(*impl_);
                         impl_->hidEnabled = false;
                     }
@@ -257,11 +300,11 @@ namespace GameWIP::Input::Platform::Win32
             // Initialize the optional polling backends.
             if(impl_->directInputEnabled)
             {
-                const IO::Types::Status directInputStatus = initializeDirectInput(*impl_);
+                const GameWIP::Status::Types::Status directInputStatus = initializeDirectInput(*impl_);
                 if(directInputStatus.ok())
                 {
                     setBackendStatus(*impl_, Types::BackendKind::DirectInput, Types::BackendStatus::Enabled);
-                    const IO::Types::Status enumerationStatus = enumerateDirectInputDevices(*impl_, *system.impl_);
+                    const GameWIP::Status::Types::Status enumerationStatus = enumerateDirectInputDevices(*impl_, *system.impl_);
                     if(!enumerationStatus.ok())
                     {
                         ++system.impl_->health.totalBackendFailures;
@@ -269,53 +312,53 @@ namespace GameWIP::Input::Platform::Win32
                             *impl_,
                             Types::BackendKind::DirectInput,
                             Types::BackendStatus::Failed,
-                            nativeCodeDetail(enumerationStatus.nativeCode));
+                            nativeCodeDetail(enumerationStatus));
                     }
                 }
                 else
                 {
-                    if(directInputStatus.code != ErrorCode::Unsupported)
+                    if(directInputStatus.code() != Code::Unsupported)
                     {
                         ++system.impl_->health.totalBackendFailures;
                     }
                     const Types::BackendStatus backendStatus =
-                        directInputStatus.code == ErrorCode::Unsupported ? Types::BackendStatus::Unavailable : Types::BackendStatus::Failed;
+                        directInputStatus.code() == Code::Unsupported ? Types::BackendStatus::Unavailable : Types::BackendStatus::Failed;
                     setBackendStatus(
                         *impl_,
                         Types::BackendKind::DirectInput,
                         backendStatus,
-                        directInputStatus.code == ErrorCode::Unsupported ? "DirectInput runtime not found"
-                                                                         : nativeCodeDetail(directInputStatus.nativeCode));
+                        directInputStatus.code() == Code::Unsupported ? "DirectInput runtime not found"
+                                                                           : nativeCodeDetail(directInputStatus));
                     impl_->directInputEnabled = false;
                 }
             }
 
             if(impl_->gameInputEnabled)
             {
-                const IO::Types::Status gameInputStatus = initializeGameInput(*impl_, *system.impl_);
+                const GameWIP::Status::Types::Status gameInputStatus = initializeGameInput(*impl_, *system.impl_);
                 if(gameInputStatus.ok())
                 {
                     setBackendStatus(*impl_, Types::BackendKind::GameInput, Types::BackendStatus::Enabled);
                 }
                 else
                 {
-                    if(gameInputStatus.code != ErrorCode::Unsupported)
+                    if(gameInputStatus.code() != Code::Unsupported)
                     {
                         ++system.impl_->health.totalBackendFailures;
                     }
                     const Types::BackendStatus backendStatus =
-                        gameInputStatus.code == ErrorCode::Unsupported ? Types::BackendStatus::Unavailable : Types::BackendStatus::Failed;
+                        gameInputStatus.code() == Code::Unsupported ? Types::BackendStatus::Unavailable : Types::BackendStatus::Failed;
                     setBackendStatus(
                         *impl_,
                         Types::BackendKind::GameInput,
                         backendStatus,
-                        gameInputStatus.code == ErrorCode::Unsupported ? "GameInput runtime not found"
-                                                                       : nativeCodeDetail(gameInputStatus.nativeCode));
+                        gameInputStatus.code() == Code::Unsupported ? "GameInput runtime not found"
+                                                                         : nativeCodeDetail(gameInputStatus));
                     impl_->gameInputEnabled = false;
                 }
             }
 
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
         catch(const std::bad_alloc &)
         {
@@ -342,21 +385,21 @@ namespace GameWIP::Input::Platform::Win32
             impl_->devices.clear();
             impl_->pendingHighSurrogate = 0;
             impl_->rawInputBuffer.clear();
-            return status(ErrorCode::OutOfMemory);
+            return status(Code::OutOfMemory);
         }
     }
 
-    IO::Types::Status Attachment::detach() noexcept
+    GameWIP::Status::Types::Status Attachment::detachStatus() noexcept
     {
         // Ignore repeated detach requests.
         if(impl_ == nullptr || !impl_->attached)
         {
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
 
         if(impl_->system != nullptr && impl_->system->isOpen())
         {
-            const IO::Types::Status ownerStatus = checkAttached(*impl_);
+            const GameWIP::Status::Types::Status ownerStatus = checkAttached(*impl_);
             if(!ownerStatus.ok())
             {
                 return ownerStatus;
@@ -394,7 +437,7 @@ namespace GameWIP::Input::Platform::Win32
         impl_->pendingHighSurrogate = 0;
         impl_->rawInputBuffer.clear();
 
-        return IO::successStatus();
+        return GameWIP::Status::Types::Status{};
     }
 
     bool Attachment::isAttached() const noexcept
@@ -402,14 +445,14 @@ namespace GameWIP::Input::Platform::Win32
         return impl_ != nullptr && impl_->attached && impl_->system != nullptr && impl_->system->isOpen();
     }
 
-    IO::Types::Status Attachment::backends(std::vector<Types::BackendInfo> &outBackends) const noexcept
+    GameWIP::Status::Types::Status Attachment::backendsStatus(std::vector<Types::BackendInfo> &outBackends) const noexcept
     {
         if(impl_ == nullptr)
         {
-            return status(ErrorCode::OutOfMemory);
+            return status(Code::OutOfMemory);
         }
 
-        const IO::Types::Status ownerStatus = checkAttached(*impl_);
+        const GameWIP::Status::Types::Status ownerStatus = checkAttached(*impl_);
         if(!ownerStatus.ok())
         {
             return ownerStatus;
@@ -418,11 +461,11 @@ namespace GameWIP::Input::Platform::Win32
         try
         {
             outBackends.assign(impl_->backendStatuses.begin(), impl_->backendStatuses.end());
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
         catch(const std::bad_alloc &)
         {
-            return status(ErrorCode::OutOfMemory);
+            return status(Code::OutOfMemory);
         }
     }
 
@@ -435,22 +478,23 @@ namespace GameWIP::Input::Platform::Win32
     /// Provider polling
     /// ------------------------------------------------------------
 
-    IO::Types::Status Attachment::poll() noexcept
+    GameWIP::Status::Types::Status Attachment::pollStatus() noexcept
     {
         if(impl_ == nullptr)
         {
-            return status(ErrorCode::OutOfMemory);
+            return status(Code::OutOfMemory);
         }
 
-        const IO::Types::Status ownerStatus = checkAttached(*impl_);
+        const GameWIP::Status::Types::Status ownerStatus = checkAttached(*impl_);
         return ownerStatus.ok() ? pollNative(*impl_) : ownerStatus;
     }
 
-    IO::Types::Status Attachment::pollNative(AttachmentState &implementation) noexcept
+    GameWIP::Status::Types::Status Attachment::pollNative(AttachmentState &implementation) noexcept
     {
         try
         {
             SystemState &state = *implementation.system->impl_;
+            GameWIP::Status::Types::Status pollStatus;
 
             // Poll XInput and publish changed controller state.
             if(implementation.xinputEnabled && implementation.xinputGetState != nullptr)
@@ -562,12 +606,20 @@ namespace GameWIP::Input::Platform::Win32
             // Poll the other selected backends and keyboard fallback.
             if(implementation.directInputEnabled)
             {
-                (void)pollDirectInput(implementation, state);
+                const GameWIP::Status::Types::Status directInputStatus = pollDirectInput(implementation, state);
+                if(!directInputStatus.ok() && pollStatus.ok())
+                {
+                    pollStatus = directInputStatus;
+                }
             }
 
             if(implementation.gameInputEnabled)
             {
-                (void)pollGameInput(implementation, state);
+                const GameWIP::Status::Types::Status gameInputStatus = pollGameInput(implementation, state);
+                if(!gameInputStatus.ok() && pollStatus.ok())
+                {
+                    pollStatus = gameInputStatus;
+                }
             }
 
             if(implementation.windowMessagesEnabled)
@@ -575,14 +627,14 @@ namespace GameWIP::Input::Platform::Win32
                 processWindowKeyboardTransitions(state, implementation);
             }
 
-            return IO::successStatus();
+            return pollStatus;
         }
         catch(const std::bad_alloc &)
         {
             // Mark this poll as incomplete for the next captured frame.
             ++implementation.system->impl_->health.totalBackendFailures;
             implementation.system->impl_->pendingDiscontinuity = true;
-            return status(ErrorCode::OutOfMemory);
+            return status(Code::OutOfMemory);
         }
     }
 

@@ -88,10 +88,10 @@ namespace GameWIP::Desktop::Platform
 
                     if(previous == 0 && error != ERROR_SUCCESS)
                     {
-                        recordPumpFailure(statusFromWin32(IO::Types::ErrorCode::NativeFailure, error, "clear destroyed window owner"));
+                        recordPumpFailure(statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, error, "clear destroyed window owner"));
                     }
 
-                    if(IO::Types::Status styleStatus = applyStyle(*candidate); !styleStatus.ok())
+                    if(GameWIP::Status::Types::Status styleStatus = applyStyle(*candidate); !styleStatus.ok())
                     {
                         recordPumpFailure(std::move(styleStatus));
                     }
@@ -168,23 +168,23 @@ namespace GameWIP::Desktop::Platform
     }
 
     /// @brief Wakes an owner dispatcher through its thread message queue.
-    IO::Types::Status postWakeMessage(DWORD threadId, std::string_view operation) noexcept
+    GameWIP::Status::Types::Status postWakeMessage(DWORD threadId, std::string_view operation) noexcept
     {
         const UINT message = wakeMessage();
 
         if(message == 0)
         {
-            return statusFromWin32(IO::Types::ErrorCode::Interrupted, wakeMessageError(), operation);
+            return statusFromWin32(GameWIP::Status::Types::Code::Interrupted, wakeMessageError(), operation);
         }
 
         SetLastError(ERROR_SUCCESS);
 
         if(PostThreadMessageW(threadId, message, 0, 0) == FALSE)
         {
-            return statusFromWin32(IO::Types::ErrorCode::Interrupted, GetLastError(), operation);
+            return statusFromWin32(GameWIP::Status::Types::Code::Interrupted, GetLastError(), operation);
         }
 
-        return IO::successStatus();
+        return GameWIP::Status::Types::Status{};
     }
 
     /// @brief Publishes the progress-owner restoration message once per process.
@@ -236,14 +236,14 @@ namespace GameWIP::Desktop::Platform
     }
 
     /// @brief Queries a native window value with test-hook injection and error translation.
-    IO::Types::Status queryWindowLong(HWND window, int index, LONG_PTR &value, const char *operation) noexcept
+    GameWIP::Status::Types::Status queryWindowLong(HWND window, int index, LONG_PTR &value, const char *operation) noexcept
     {
 #if DESKTOP_INTERNAL_TEST_HOOKS
         if((index == GWL_STYLE || index == GWL_EXSTYLE) &&
            Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::WindowStyleQuery))
         {
             value = 0;
-            return statusFromWin32(IO::Types::ErrorCode::NativeFailure, ERROR_GEN_FAILURE, operation);
+            return statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, ERROR_GEN_FAILURE, operation);
         }
 
 #endif
@@ -253,10 +253,10 @@ namespace GameWIP::Desktop::Platform
 
         if(value == 0 && nativeCode != ERROR_SUCCESS)
         {
-            return statusFromWin32(IO::Types::ErrorCode::NativeFailure, nativeCode, operation);
+            return statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, nativeCode, operation);
         }
 
-        return IO::successStatus();
+        return GameWIP::Status::Types::Status{};
     }
 
     /// @brief Enqueues a Window event and updates the active pump accounting.
@@ -266,29 +266,29 @@ namespace GameWIP::Desktop::Platform
         const EnqueueResult result = enqueueEvent(state, std::move(data));
         Dispatcher &current = dispatcher();
 
-        if(current.activeResult != nullptr)
+        if(current.activePumpInfo != nullptr)
         {
-            current.activeResult->eventsDropped += state.droppedEvents - droppedBefore;
+            current.activePumpInfo->eventsDropped += state.droppedEvents - droppedBefore;
 
             if(result != EnqueueResult::Dropped)
             {
-                ++current.activeResult->eventsQueued;
+                ++current.activePumpInfo->eventsQueued;
             }
         }
     }
 
     /// @brief Publishes the first pump failure while retaining deferred failures for later polling.
-    void recordPumpFailure(IO::Types::Status status) noexcept
+    void recordPumpFailure(GameWIP::Status::Types::Status status) noexcept
     {
         Dispatcher &current = dispatcher();
 
-        if(current.activeResult != nullptr && current.activeResult->status.ok())
+        if(current.activePumpStatus != nullptr && current.activePumpStatus->ok())
         {
-            current.activeResult->status = std::move(status);
+            *current.activePumpStatus = std::move(status);
             return;
         }
 
-        if(current.activeResult == nullptr && !current.deferredPumpFailure)
+        if(current.activePumpStatus == nullptr && !current.deferredPumpFailure)
         {
             current.deferredPumpFailure = std::move(status);
         }
@@ -393,13 +393,13 @@ namespace GameWIP::Desktop::Platform
         const ChildSurfaceEnqueueResult result = enqueueChildSurfaceEvent(state, data);
         Dispatcher &current = dispatcher();
 
-        if(current.activeResult != nullptr)
+        if(current.activePumpInfo != nullptr)
         {
-            current.activeResult->eventsDropped += state.droppedEvents - droppedBefore;
+            current.activePumpInfo->eventsDropped += state.droppedEvents - droppedBefore;
 
             if(result != ChildSurfaceEnqueueResult::Dropped)
             {
-                ++current.activeResult->eventsQueued;
+                ++current.activePumpInfo->eventsQueued;
             }
         }
     }

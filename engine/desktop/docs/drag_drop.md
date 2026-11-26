@@ -167,7 +167,7 @@ Desktop::DragDropTarget target;
 const auto opened = target.open(window, DD::TargetDescription{regions});
 if(!opened.ok())
 {
-    // Inspect opened.code/nativeCode; the target remains closed.
+    // Inspect opened.status().code() and optional diagnostics; the target remains closed.
 }
 
 DD::Event event;
@@ -216,16 +216,16 @@ std::array<Transfer::ItemView, 1> items{text};
 DD::Description description{items, DD::EffectPolicy::source(DD::Effect::Copy), DD::TriggerButton::Left};
 
 const DD::Result result = Desktop::DragDrop::beginDrag(window, description);
-if(result.status.ok() && result.outcome == DD::Outcome::Dropped)
+if(result.ok() && result.value().outcome == DD::Outcome::Dropped)
 {
-    // result.effect is the performed Copy/Move/Link operation.
+    // result.value().effect is the performed Copy/Move/Link operation.
 }
 ```
 
-Cancellation is not an IO error: it returns successful status,
-`Outcome::Cancelled`, and `Effect::None`. An accepted completion returns
-successful status, `Outcome::Dropped`, and the performed effect. Setup,
-conversion, allocation, OLE, and native failures use failed status.
+Cancellation is a normal drag outcome, not a failure: it returns a successful result
+with `Outcome::Cancelled` and `Effect::None`. An accepted completion returns a
+successful result with `Outcome::Dropped` and the performed effect. Setup,
+conversion, allocation, OLE, and native failures return a failed result without a payload.
 
 ## Choosing a file-drop API
 

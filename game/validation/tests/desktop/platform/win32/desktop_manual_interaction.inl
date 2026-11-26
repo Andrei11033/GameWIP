@@ -80,15 +80,15 @@ TestSupport::Types::Reporting::ManualAnswer recordManualCheck(
             static_cast<void>(window.wakeEventWait());
         });
 
-    IO::Types::Status pumpFailure;
+    OperationStatus pumpFailure;
 
     while(!answered.load(std::memory_order_acquire))
     {
         const Desktop::Types::Events::PumpResult pump = Desktop::Events::wait(std::chrono::milliseconds{50});
 
-        if(!pump.status.ok() && pumpFailure.ok())
+        if(!pump.ok() && pumpFailure.ok())
         {
-            pumpFailure = pump.status;
+            pumpFailure = pump.status();
         }
         paintManualValidationSurface(window, surfaceLayout);
 
@@ -107,9 +107,9 @@ TestSupport::Types::Reporting::ManualAnswer recordManualCheck(
     // Drain the final events and report any pump failure before the answer.
     const Desktop::Types::Events::PumpResult finalPump = Desktop::Events::poll();
 
-    if(!finalPump.status.ok() && pumpFailure.ok())
+    if(!finalPump.ok() && pumpFailure.ok())
     {
-        pumpFailure = finalPump.status;
+        pumpFailure = finalPump.status();
     }
     paintManualValidationSurface(window, surfaceLayout);
 
@@ -126,7 +126,7 @@ TestSupport::Types::Reporting::ManualAnswer recordManualCheck(
     if(!pumpFailure.ok())
     {
         ++manualObservationCounts.failed;
-        context.fail(name, pumpFailure.message);
+        context.fail(name, manualStatusDetails(pumpFailure));
         return TestSupport::Types::Reporting::ManualAnswer::No;
     }
 

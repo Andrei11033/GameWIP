@@ -51,50 +51,50 @@ namespace GameWIP::FileSystem
     /// Size and attributes
     /// ------------------------------------------------------------
 
-    IO::Types::Status resizeFile(const Types::Path &path, std::uint64_t sizeBytes, const Types::File::ResizeOptions &options) noexcept
+    GameWIP::Status::Types::Result<void> resizeFile(const Types::Path &path, std::uint64_t sizeBytes, const Types::File::ResizeOptions &options) noexcept
     {
         try
         {
             File file;
-            IO::Types::Status openStatus = file.open(
+            auto openResult = file.open(
                 path,
                 Types::File::OpenOptions{
                     .access = Types::File::Access::Write,
                     .mode = Types::File::OpenMode::OpenExisting,
                     .symlinkPolicy = options.symlinkPolicy});
 
-            if(!openStatus.ok())
+            if(!openResult.ok())
             {
-                return openStatus;
+                return openResult;
             }
 
             // Resize without restoring the private handle position.
-            IO::Types::Status resizeStatus = file.resizeWithoutPositionRestore(sizeBytes);
-            IO::Types::Status closeStatus = file.close();
+            auto resizeResult = file.resizeWithoutPositionRestore(sizeBytes);
+            auto closeResult = file.close();
 
-            if(!resizeStatus.ok())
+            if(!resizeResult.ok())
             {
-                return resizeStatus;
+                return resizeResult;
             }
 
-            return closeStatus;
+            return closeResult;
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(ErrorCode::OutOfMemory);
+            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::OutOfMemory));
         }
         catch(...)
         {
-            return IO::makeStatus(ErrorCode::Unknown);
+            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::Unknown));
         }
     }
 
-    IO::Types::Status truncateFile(const Types::Path &path, const Types::File::ResizeOptions &options) noexcept
+    GameWIP::Status::Types::Result<void> truncateFile(const Types::Path &path, const Types::File::ResizeOptions &options) noexcept
     {
         return resizeFile(path, 0, options);
     }
 
-    IO::Types::Status setReadOnly(const Types::Path &path, bool readOnly, const Types::EntryOptions &options) noexcept
+    GameWIP::Status::Types::Result<void> setReadOnly(const Types::Path &path, bool readOnly, const Types::EntryOptions &options) noexcept
     {
         try
         {
@@ -102,11 +102,11 @@ namespace GameWIP::FileSystem
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(ErrorCode::OutOfMemory);
+            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::OutOfMemory));
         }
         catch(...)
         {
-            return IO::makeStatus(ErrorCode::Unknown);
+            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::Unknown));
         }
     }
 
@@ -114,7 +114,7 @@ namespace GameWIP::FileSystem
     /// File copy
     /// ------------------------------------------------------------
 
-    IO::Types::Status copyFile(const Types::Path &from, const Types::Path &to, const Types::File::CopyOptions &options) noexcept
+    GameWIP::Status::Types::Result<void> copyFile(const Types::Path &from, const Types::Path &to, const Types::File::CopyOptions &options) noexcept
     {
         try
         {
@@ -122,39 +122,39 @@ namespace GameWIP::FileSystem
             if(from.empty() || to.empty() || !isValidReplaceMode(options.replaceMode) || !isValidSymlinkPolicy(options.symlinkPolicy) ||
                !isValidCopyMetadataMode(options.metadataMode) || !IO::isValidFlushMode(options.flushMode))
             {
-                return IO::makeStatus(ErrorCode::InvalidArgument);
+                return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::InvalidArgument));
             }
 
-            Types::EntryInfoResult source = getEntryInfo(from, Types::EntryOptions{.symlinkPolicy = options.symlinkPolicy});
+            auto source = getEntryInfo(from, Types::EntryOptions{.symlinkPolicy = options.symlinkPolicy});
 
-            if(!source.status.ok())
+            if(!source.ok())
             {
-                return std::move(source.status);
+                return GameWIP::Status::Types::Result<void>::failure(source.status());
             }
 
-            if(source.info.kind != Types::EntryKind::RegularFile)
+            if(source.value().kind != Types::EntryKind::RegularFile)
             {
-                return IO::makeStatus(ErrorCode::InvalidArgument);
+                return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::InvalidArgument));
             }
 
             if(equivalentOrSameLexically(from, to))
             {
-                return IO::makeStatus(ErrorCode::InvalidArgument);
+                return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::InvalidArgument));
             }
 
-            Platform::EntryQueryResult destination = queryEntry(to, Types::SymlinkPolicy::DoNotFollow);
+            auto destination = queryEntry(to, Types::SymlinkPolicy::DoNotFollow);
 
-            if(destination.status.ok() && options.replaceMode == Types::ReplaceMode::FailIfExists)
+            if(destination.ok() && options.replaceMode == Types::ReplaceMode::FailIfExists)
             {
-                return IO::makeStatus(ErrorCode::AlreadyExists);
+                return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::AlreadyExists));
             }
 
-            if(!destination.status.ok() && destination.status.code != ErrorCode::NotFound)
+            if(!destination.ok() && destination.status().code() != ErrorCode::NotFound)
             {
-                return std::move(destination.status);
+                return GameWIP::Status::Types::Result<void>::failure(destination.status());
             }
 
-            IO::Types::Status parentStatus = validateParentDirectory(to, options.createParentDirectories, options.symlinkPolicy);
+            auto parentStatus = validateParentDirectory(to, options.createParentDirectories, options.symlinkPolicy);
 
             if(!parentStatus.ok())
             {
@@ -163,12 +163,12 @@ namespace GameWIP::FileSystem
 
             // Open the source before creating or truncating the destination.
             FileReader reader;
-            IO::Types::Status readerOpenStatus =
+            auto readerOpenResult =
                 reader.open(from, Types::File::ReaderOpenOptions{.share = Types::File::Share::All, .symlinkPolicy = options.symlinkPolicy});
 
-            if(!readerOpenStatus.ok())
+            if(!readerOpenResult.ok())
             {
-                return readerOpenStatus;
+                return readerOpenResult;
             }
 
             // Copy is non-transactional after the destination opens.
@@ -176,7 +176,7 @@ namespace GameWIP::FileSystem
                                                            ? Types::File::WriterMode::CreateOrTruncate
                                                            : Types::File::WriterMode::CreateNew;
             FileWriter writer;
-            IO::Types::Status writerOpenStatus = writer.open(
+            auto writerOpenResult = writer.open(
                 to,
                 Types::File::WriterOpenOptions{
                     .mode = writerMode,
@@ -184,10 +184,10 @@ namespace GameWIP::FileSystem
                     .symlinkPolicy = options.symlinkPolicy,
                     .createParentDirectories = false});
 
-            if(!writerOpenStatus.ok())
+            if(!writerOpenResult.ok())
             {
                 static_cast<void>(reader.close());
-                return writerOpenStatus;
+                return writerOpenResult;
             }
 
             // Copy through a bounded buffer and preserve the first I/O failure.
@@ -196,61 +196,61 @@ namespace GameWIP::FileSystem
 
             while(true)
             {
-                IO::Types::ReadResult readResult = reader.read(buffer);
+                auto readResult = reader.read(buffer);
 
-                if(!readResult.status.ok())
+                if(!readResult.ok())
                 {
                     static_cast<void>(writer.close());
                     static_cast<void>(reader.close());
-                    return std::move(readResult.status);
+                    return GameWIP::Status::Types::Result<void>::failure(readResult.status());
                 }
 
-                if(readResult.bytesRead > 0)
+                if(readResult.value().bytesRead > 0)
                 {
-                    IO::Types::WriteResult writeResult = IO::writeAllBytes(writer, std::span{buffer}.first(readResult.bytesRead));
+                    auto writeResult = IO::writeAllBytes(writer, std::span{buffer}.first(readResult.value().bytesRead));
 
-                    if(!writeResult.status.ok())
+                    if(!writeResult.ok())
                     {
                         static_cast<void>(writer.close());
                         static_cast<void>(reader.close());
-                        return std::move(writeResult.status);
+                        return GameWIP::Status::Types::Result<void>::failure(writeResult.status());
                     }
 
-                    copiedBytes += writeResult.bytesWritten;
+                    copiedBytes += writeResult.value().bytesWritten;
                 }
 
-                if(readResult.endOfStream)
+                if(readResult.value().endOfStream)
                 {
                     break;
                 }
             }
 
             // A changing source is not a coherent snapshot; reject a byte-count mismatch rather than reporting a misleading successful copy.
-            if(source.info.hasSize && copiedBytes != source.info.sizeBytes)
+            if(source.value().hasSize && copiedBytes != source.value().sizeBytes)
             {
                 static_cast<void>(writer.close());
                 static_cast<void>(reader.close());
-                return IO::makeStatus(ErrorCode::CopyFailed);
+                return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::CopyFailed));
             }
 
             // Close both streams before applying optional metadata.
-            IO::Types::Status flushStatus = writer.flush(options.flushMode);
-            IO::Types::Status writerCloseStatus = writer.close();
-            IO::Types::Status readerCloseStatus = reader.close();
+            auto flushResult = writer.flush(options.flushMode);
+            auto writerCloseResult = writer.close();
+            auto readerCloseResult = reader.close();
 
-            if(!flushStatus.ok())
+            if(!flushResult.ok())
             {
-                return flushStatus;
+                return flushResult;
             }
 
-            if(!writerCloseStatus.ok())
+            if(!writerCloseResult.ok())
             {
-                return writerCloseStatus;
+                return writerCloseResult;
             }
 
-            if(!readerCloseStatus.ok())
+            if(!readerCloseResult.ok())
             {
-                return readerCloseStatus;
+                return readerCloseResult;
             }
 
             if(options.metadataMode == Types::File::CopyMetadataMode::Basic)
@@ -258,15 +258,15 @@ namespace GameWIP::FileSystem
                 return Platform::copyBasicMetadata(from, to, options.symlinkPolicy);
             }
 
-            return IO::successStatus();
+            return GameWIP::Status::Types::Result<void>::success();
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(ErrorCode::OutOfMemory);
+            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::OutOfMemory));
         }
         catch(...)
         {
-            return IO::makeStatus(ErrorCode::Unknown);
+            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::Unknown));
         }
     }
 
@@ -274,98 +274,98 @@ namespace GameWIP::FileSystem
     /// Move and remove
     /// ------------------------------------------------------------
 
-    IO::Types::Status movePath(const Types::Path &from, const Types::Path &to, const Types::MoveOptions &options) noexcept
+    GameWIP::Status::Types::Result<void> movePath(const Types::Path &from, const Types::Path &to, const Types::MoveOptions &options) noexcept
     {
         try
         {
             // Validate the request before querying either path.
             if(from.empty() || to.empty() || !isValidReplaceMode(options.replaceMode) || !isValidSymlinkPolicy(options.symlinkPolicy))
             {
-                return IO::makeStatus(ErrorCode::InvalidArgument);
+                return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::InvalidArgument));
             }
 
             // Resolve the source under the selected symlink policy.
             if(options.symlinkPolicy != Types::SymlinkPolicy::DoNotFollow && finalEntryIsSymlink(from))
             {
-                return IO::makeStatus(ErrorCode::Unsupported);
+                return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::Unsupported));
             }
 
-            Types::EntryInfoResult source = getEntryInfo(from, Types::EntryOptions{.symlinkPolicy = options.symlinkPolicy});
+            auto source = getEntryInfo(from, Types::EntryOptions{.symlinkPolicy = options.symlinkPolicy});
 
-            if(!source.status.ok())
+            if(!source.ok())
             {
-                return std::move(source.status);
+                return GameWIP::Status::Types::Result<void>::failure(source.status());
             }
 
             // A move to the same entry is already complete.
             if(equivalentOrSameLexically(from, to))
             {
-                return IO::successStatus();
+                return GameWIP::Status::Types::Result<void>::success();
             }
 
             // Check destination conflicts before creating its parent or moving.
-            Platform::EntryQueryResult destination = queryEntry(to, Types::SymlinkPolicy::DoNotFollow);
+            auto destination = queryEntry(to, Types::SymlinkPolicy::DoNotFollow);
 
-            if(destination.status.ok() && options.replaceMode == Types::ReplaceMode::FailIfExists)
+            if(destination.ok() && options.replaceMode == Types::ReplaceMode::FailIfExists)
             {
-                return IO::makeStatus(ErrorCode::AlreadyExists);
+                return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::AlreadyExists));
             }
 
-            if(!destination.status.ok() && destination.status.code != ErrorCode::NotFound)
+            if(!destination.ok() && destination.status().code() != ErrorCode::NotFound)
             {
-                return std::move(destination.status);
+                return GameWIP::Status::Types::Result<void>::failure(destination.status());
             }
 
-            IO::Types::Status parentStatus = validateParentDirectory(to, options.createParentDirectories, options.symlinkPolicy);
+            auto parentStatus = validateParentDirectory(to, options.createParentDirectories, options.symlinkPolicy);
 
             if(!parentStatus.ok())
             {
                 return parentStatus;
             }
 
-            IO::Types::Status moveStatus = Platform::movePath(from, to, options.replaceMode, options.symlinkPolicy);
+            auto moveResult = Platform::movePath(from, to, options.replaceMode, options.symlinkPolicy);
 
-            if(!moveStatus.ok())
+            if(!moveResult.ok())
             {
-                return moveStatus;
+                return moveResult;
             }
 
             // Native rename success is final even if the names change afterward.
-            return IO::successStatus();
+            return GameWIP::Status::Types::Result<void>::success();
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(ErrorCode::OutOfMemory);
+            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::OutOfMemory));
         }
         catch(...)
         {
-            return IO::makeStatus(ErrorCode::Unknown);
+            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::Unknown));
         }
     }
 
-    IO::Types::Status removeFile(const Types::Path &path, const Types::RemoveOptions &options) noexcept
+    GameWIP::Status::Types::Result<void> removeFile(const Types::Path &path, const Types::RemoveOptions &options) noexcept
     {
         try
         {
             if(path.empty() || !isValidSymlinkPolicy(options.symlinkPolicy))
             {
-                return IO::makeStatus(ErrorCode::InvalidArgument);
+                return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::InvalidArgument));
             }
 
             if(options.symlinkPolicy != Types::SymlinkPolicy::DoNotFollow && finalEntryIsSymlink(path))
             {
-                return IO::makeStatus(ErrorCode::Unsupported);
+                return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::Unsupported));
             }
 
             return Platform::removeFile(path, options);
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(ErrorCode::OutOfMemory);
+            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::OutOfMemory));
         }
         catch(...)
         {
-            return IO::makeStatus(ErrorCode::Unknown);
+            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::Unknown));
         }
     }
 } // namespace GameWIP::FileSystem

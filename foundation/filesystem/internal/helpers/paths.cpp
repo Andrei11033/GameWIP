@@ -41,11 +41,12 @@ namespace GameWIP::FileSystem::Internal
     /// Validated entry queries
     /// ------------------------------------------------------------
 
-    Platform::EntryQueryResult queryEntry(const Types::Path &path, Types::SymlinkPolicy symlinkPolicy)
+    GameWIP::Status::Types::Result<Types::EntryInfo> queryEntry(const Types::Path &path, Types::SymlinkPolicy symlinkPolicy)
     {
         if(path.empty() || !isValidSymlinkPolicy(symlinkPolicy))
         {
-            return {.status = IO::makeStatus(ErrorCode::InvalidArgument)};
+            return GameWIP::Status::Types::Result<Types::EntryInfo>::failure(
+                GameWIP::Status::Types::Status(ErrorCode::InvalidArgument));
         }
 
         return Platform::queryEntry(path, symlinkPolicy);
@@ -53,7 +54,7 @@ namespace GameWIP::FileSystem::Internal
 
     bool finalEntryIsSymlink(const Types::Path &path) noexcept
     {
-        const Platform::EntryQueryResult result = queryEntry(path, Types::SymlinkPolicy::DoNotFollow);
-        return result.status.ok() && result.info.kind == Types::EntryKind::Symlink;
+        const auto result = queryEntry(path, Types::SymlinkPolicy::DoNotFollow);
+        return result.ok() && result.value().kind == Types::EntryKind::Symlink;
     }
 } // namespace GameWIP::FileSystem::Internal

@@ -253,7 +253,7 @@ void testWin32EventDecoder(TestSupport::Context &context)
 
         Hooks::Win32::resetWin32KeyDecoder();
         const Hooks::Win32::Win32KeyDecodeResult malformed = Hooks::Win32::decodeWin32KeyRecord(true, VK_PACKET, static_cast<char16_t>(0xde00));
-        static_cast<void>(context.expectEq("lone low surrogate fails", ErrorCode::EncodingFailed, malformed.status.code));
+        static_cast<void>(context.expectEq("lone low surrogate fails", ErrorCode::EncodingFailed, malformed.status.code()));
         static_cast<void>(context.expectEq("lone low surrogate disposition", Hooks::Win32::Win32KeyDecodeDisposition::Failed, malformed.disposition));
     }
 }

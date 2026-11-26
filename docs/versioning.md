@@ -63,6 +63,18 @@ milestone, fixes normally move forward to the active line instead of creating
 maintenance branches for old pre-1.0 lines. If real backport maintenance
 becomes necessary, define that policy from the demonstrated need.
 
+### Shared status and result API
+
+Operation status types now belong to `GameWIP::Status`. Replace
+`GameWIP::IO::Types::ErrorCode` and `GameWIP::IO::Types::Status` with
+`GameWIP::Status::Types::Code` and `GameWIP::Status::Types::Status`. Link the
+Status package directly when a public header exposes its types. Use
+`GameWIP::Status::Types::Result<T>` for value-bearing operations and
+`Result<void>` for fallible operations without a payload. Use `Status` to
+construct or combine outcomes, not as a public operation return. Check
+`status().code()` for decisions and `hasValue()` before reading partial
+progress.
+
 Version `1.0.0` means that the V1 public API, package, save-data, and compatibility promises have been explicitly defined and validated. It does not
 mean GameWIP development is finished.
 

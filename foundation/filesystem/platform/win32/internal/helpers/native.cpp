@@ -175,23 +175,23 @@ namespace GameWIP::FileSystem::Platform::Win32
         state.flushOnClose = IO::Types::FlushMode::None;
     }
 
-    IO::Types::Status closeNativeHandle(void *&nativeHandleValue) noexcept
+    Result<void> closeNativeHandle(void *&nativeHandleValue) noexcept
     {
         HANDLE handle = static_cast<HANDLE>(nativeHandleValue);
 
         if(!isValidHandle(handle))
         {
             nativeHandleValue = nullptr;
-            return IO::successStatus();
+            return success();
         }
 
         if(CloseHandle(handle) == FALSE)
         {
-            return makeLastErrorStatus(ErrorCode::CloseFailed);
+            return failure<void>(makeLastErrorStatus(ErrorCode::CloseFailed));
         }
 
         nativeHandleValue = nullptr;
-        return IO::successStatus();
+        return success();
     }
 
     /// ------------------------------------------------------------

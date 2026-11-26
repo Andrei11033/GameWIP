@@ -1,6 +1,7 @@
 /// @file win32_message_dialogs.cpp
 /// @brief Win32 TaskDialog presentations.
 
+#include "desktop/internal/results.h"
 #include "desktop/platform/dialogs.h"
 
 #include "desktop/internal/desktop_test_hooks.h"
@@ -21,9 +22,42 @@ namespace GameWIP::Desktop::Platform
 
     namespace
     {
-        using IO::Types::ErrorCode;
+        using ErrorCode = GameWIP::Status::Types::Code;
         using Win32::convertText;
         using Win32::ownerHandle;
+
+        struct MessageDialogOperation
+        {
+            GameWIP::Status::Types::Status status;
+            Types::Dialogs::Outcome outcome = Types::Dialogs::Outcome::Cancelled;
+            Types::Dialogs::Message::Button button = Types::Dialogs::Message::Button::None;
+        };
+
+        struct PromptDialogOperation
+        {
+            GameWIP::Status::Types::Status status;
+            Types::Dialogs::Outcome outcome = Types::Dialogs::Outcome::Cancelled;
+            std::optional<Types::Dialogs::Prompt::ButtonId> button;
+            std::optional<Types::Dialogs::Prompt::OptionId> option;
+            std::optional<bool> checkBoxChecked;
+        };
+
+        [[nodiscard]] MessageDialogResult sharedResult(MessageDialogOperation operation)
+        {
+            Types::Dialogs::Message::Selection selection{operation.outcome, operation.button};
+            const bool hasPartialValue = operation.outcome == Types::Dialogs::Outcome::Accepted ||
+                                         operation.button != Types::Dialogs::Message::Button::None;
+            return Internal::resultWithPartial(std::move(operation.status), std::move(selection), hasPartialValue);
+        }
+
+        [[nodiscard]] PromptDialogResult sharedResult(PromptDialogOperation operation)
+        {
+            Types::Dialogs::Prompt::Selection selection{
+                operation.outcome, operation.button, operation.option, operation.checkBoxChecked};
+            const bool hasPartialValue = operation.outcome == Types::Dialogs::Outcome::Accepted || operation.button.has_value() ||
+                                         operation.option.has_value() || operation.checkBoxChecked.has_value();
+            return Internal::resultWithPartial(std::move(operation.status), std::move(selection), hasPartialValue);
+        }
 
         /// @brief Maps portable severity to the TaskDialog icon resource.
         [[nodiscard]] PCWSTR severityIcon(Types::Dialogs::Severity severity) noexcept
@@ -103,9 +137,9 @@ namespace GameWIP::Desktop::Platform
     /// Message and prompt dialogs
     /// ------------------------------------------------------------
 
-    Types::Dialogs::Message::Result showMessage(const Types::Dialogs::Message::Description &description) noexcept
+    MessageDialogResult showMessage(const Types::Dialogs::Message::Description &description) noexcept
     {
-        Types::Dialogs::Message::Result output;
+        MessageDialogOperation output;
         try
         {
 #if DESKTOP_INTERNAL_TEST_HOOKS
@@ -114,8 +148,8 @@ namespace GameWIP::Desktop::Platform
 
             if(simulated && Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::Allocation))
             {
-                output.status = IO::makeStatus(ErrorCode::OutOfMemory);
-                return output;
+                output.status = GameWIP::Desktop::Internal::statusFor(ErrorCode::OutOfMemory);
+                return sharedResult(std::move(output));
             }
 #endif
             std::wstring title;
@@ -124,14 +158,14 @@ namespace GameWIP::Desktop::Platform
 
             if(!output.status.ok())
             {
-                return output;
+                return sharedResult(std::move(output));
             }
 
             output.status = convertText(description.message, message);
 
             if(!output.status.ok())
             {
-                return output;
+                return sharedResult(std::move(output));
             }
             TASKDIALOGCONFIG config{};
             config.cbSize = sizeof(config);
@@ -201,10 +235,10 @@ namespace GameWIP::Desktop::Platform
             if(FAILED(result))
             {
                 output.status = statusFromHResult(result);
-                return output;
+                return sharedResult(std::move(output));
             }
 
-            output.status = IO::successStatus();
+            output.status = GameWIP::Status::Types::Status{};
 
             if(selected == IDCANCEL)
             {
@@ -219,27 +253,27 @@ namespace GameWIP::Desktop::Platform
                 if(output.button == Types::Dialogs::Message::Button::None)
                 {
                     output = {};
-                    output.status = IO::makeStatus(ErrorCode::NativeFailure);
-                    return output;
+                    output.status = GameWIP::Desktop::Internal::statusFor(ErrorCode::NativeFailure);
+                    return sharedResult(std::move(output));
                 }
                 output.outcome = Types::Dialogs::Outcome::Accepted;
             }
         }
         catch(const std::bad_alloc &)
         {
-            output.status = IO::makeStatus(ErrorCode::OutOfMemory);
+            output.status = GameWIP::Desktop::Internal::statusFor(ErrorCode::OutOfMemory);
         }
         catch(...)
         {
-            output.status = IO::makeStatus(ErrorCode::Unknown);
+            output.status = GameWIP::Desktop::Internal::statusFor(ErrorCode::Unknown);
         }
 
-        return output;
+        return sharedResult(std::move(output));
     }
 
-    Types::Dialogs::Prompt::Result showPrompt(const Types::Dialogs::Prompt::Description &description) noexcept
+    PromptDialogResult showPrompt(const Types::Dialogs::Prompt::Description &description) noexcept
     {
-        Types::Dialogs::Prompt::Result output;
+        PromptDialogOperation output;
         try
         {
 #if DESKTOP_INTERNAL_TEST_HOOKS
@@ -248,8 +282,8 @@ namespace GameWIP::Desktop::Platform
 
             if(simulated && Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::Allocation))
             {
-                output.status = IO::makeStatus(ErrorCode::OutOfMemory);
-                return output;
+                output.status = GameWIP::Desktop::Internal::statusFor(ErrorCode::OutOfMemory);
+                return sharedResult(std::move(output));
             }
 #endif
             constexpr int nativeBase = 1000;
@@ -257,8 +291,8 @@ namespace GameWIP::Desktop::Platform
             if(description.buttons.size() > static_cast<std::size_t>(std::numeric_limits<int>::max() - nativeBase) ||
                description.options.size() > static_cast<std::size_t>(std::numeric_limits<int>::max() - nativeBase) - description.buttons.size())
             {
-                output.status = IO::makeStatus(ErrorCode::InvalidArgument);
-                return output;
+                output.status = GameWIP::Desktop::Internal::statusFor(ErrorCode::InvalidArgument);
+                return sharedResult(std::move(output));
             }
             std::wstring title;
             std::wstring heading;
@@ -278,7 +312,7 @@ namespace GameWIP::Desktop::Platform
 
                 if(!output.status.ok())
                 {
-                    return output;
+                    return sharedResult(std::move(output));
                 }
             }
 
@@ -288,7 +322,7 @@ namespace GameWIP::Desktop::Platform
 
                 if(!output.status.ok())
                 {
-                    return output;
+                    return sharedResult(std::move(output));
                 }
             }
 
@@ -312,14 +346,14 @@ namespace GameWIP::Desktop::Platform
 
                 if(!output.status.ok())
                 {
-                    return output;
+                    return sharedResult(std::move(output));
                 }
 
                 output.status = convertText(description.buttons[index].description, detail);
 
                 if(!output.status.ok())
                 {
-                    return output;
+                    return sharedResult(std::move(output));
                 }
 
                 if(!detail.empty())
@@ -347,7 +381,7 @@ namespace GameWIP::Desktop::Platform
 
                 if(!output.status.ok())
                 {
-                    return output;
+                    return sharedResult(std::move(output));
                 }
                 optionText.push_back(std::move(label));
             }
@@ -480,15 +514,15 @@ namespace GameWIP::Desktop::Platform
             if(FAILED(result))
             {
                 output.status = statusFromHResult(result);
-                return output;
+                return sharedResult(std::move(output));
             }
 
-            output.status = IO::successStatus();
+            output.status = GameWIP::Status::Types::Status{};
 
             if(selectedOption != 0 && (selectedOption < optionBase || selectedOption >= optionBase + static_cast<int>(description.options.size())))
             {
-                output.status = IO::makeStatus(ErrorCode::NativeFailure);
-                return output;
+                output.status = GameWIP::Desktop::Internal::statusFor(ErrorCode::NativeFailure);
+                return sharedResult(std::move(output));
             }
 
             if(selectedOption >= optionBase && selectedOption < optionBase + static_cast<int>(description.options.size()))
@@ -505,7 +539,7 @@ namespace GameWIP::Desktop::Platform
             {
                 output.outcome = Types::Dialogs::Outcome::Cancelled;
                 output.button = description.cancelButton;
-                return output;
+                return sharedResult(std::move(output));
             }
 
             if(selectedButton >= nativeBase && selectedButton < nativeBase + static_cast<int>(description.buttons.size()))
@@ -513,23 +547,23 @@ namespace GameWIP::Desktop::Platform
                 output.button = description.buttons[static_cast<std::size_t>(selectedButton - nativeBase)].id;
                 output.outcome = description.cancelButton && output.button == description.cancelButton ? Types::Dialogs::Outcome::Cancelled
                                                                                                        : Types::Dialogs::Outcome::Accepted;
-                return output;
+                return sharedResult(std::move(output));
             }
             output = {};
-            output.status = IO::makeStatus(ErrorCode::NativeFailure);
+            output.status = GameWIP::Desktop::Internal::statusFor(ErrorCode::NativeFailure);
         }
         catch(const std::bad_alloc &)
         {
             output = {};
-            output.status = IO::makeStatus(ErrorCode::OutOfMemory);
+            output.status = GameWIP::Desktop::Internal::statusFor(ErrorCode::OutOfMemory);
         }
         catch(...)
         {
             output = {};
-            output.status = IO::makeStatus(ErrorCode::Unknown);
+            output.status = GameWIP::Desktop::Internal::statusFor(ErrorCode::Unknown);
         }
 
-        return output;
+        return sharedResult(std::move(output));
     }
 
 } // namespace GameWIP::Desktop::Platform
@@ -539,11 +573,11 @@ namespace GameWIP::Desktop::Internal::Win32
 {
     using namespace GameWIP::Desktop::Platform;
 
-    IO::Types::Status testDialogApartment() noexcept
+    GameWIP::Status::Types::Status testDialogApartment() noexcept
     {
         ApartmentLease apartment;
-        const IO::Types::Status &status = apartment.status();
-        return status.ok() ? IO::successStatus() : IO::makeStatus(status.code, status.nativeCode);
+        const GameWIP::Status::Types::Status &status = apartment.status();
+        return status.ok() ? GameWIP::Status::Types::Status{} : status;
     }
 } // namespace GameWIP::Desktop::Internal::Win32
 #endif

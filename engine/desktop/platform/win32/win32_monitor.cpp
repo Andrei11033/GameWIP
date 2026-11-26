@@ -21,6 +21,8 @@
 
 namespace GameWIP::Desktop::Platform
 {
+    namespace StatusTypes = GameWIP::Status::Types;
+
     using Win32::ActiveDisplayPath;
     using Win32::findActiveDisplayPath;
     using Win32::interlaced;
@@ -32,6 +34,15 @@ namespace GameWIP::Desktop::Platform
 
     namespace
     {
+        /// @brief Builds a shared display-query failure with native Win32 detail.
+        [[nodiscard]] StatusTypes::Status displayQueryFailure(DWORD nativeCode, std::string_view operation) noexcept
+        {
+            return StatusTypes::Status::withDiagnostic(
+                StatusTypes::Code::StatFailed,
+                {StatusTypes::NativeCodeDomain::Win32Error, static_cast<std::int64_t>(nativeCode)},
+                operation);
+        }
+
         std::mutex monitorRegistryMutex;
         std::unordered_map<std::wstring, Types::Display::MonitorId> monitorIds;
         std::unordered_map<std::uint64_t, std::wstring> monitorDevices;
@@ -73,11 +84,11 @@ namespace GameWIP::Desktop::Platform
         }
 
         /// @brief Queries one current or preferred mode from the monitor device.
-        [[nodiscard]] Types::Result<Types::Display::Mode> queryDisplayMode(Types::Display::MonitorId monitor, DWORD selector) noexcept
+        [[nodiscard]] StatusTypes::Result<Types::Display::Mode> queryDisplayMode(Types::Display::MonitorId monitor, DWORD selector) noexcept
         {
             if(!monitor.isValid())
             {
-                return {.status = IO::makeStatus(IO::Types::ErrorCode::InvalidArgument)};
+                return StatusTypes::Result<Types::Display::Mode>::failure(StatusTypes::Status(StatusTypes::Code::InvalidArgument));
             }
 
             try
@@ -86,14 +97,14 @@ namespace GameWIP::Desktop::Platform
 
                 if(device.empty())
                 {
-                    return {.status = IO::makeStatus(IO::Types::ErrorCode::NotFound)};
+                    return StatusTypes::Result<Types::Display::Mode>::failure(StatusTypes::Status(StatusTypes::Code::NotFound));
                 }
                 DEVMODEW native{};
                 native.dmSize = sizeof(native);
 
                 if(EnumDisplaySettingsExW(device.c_str(), selector, &native, 0) == FALSE)
                 {
-                    return {.status = statusFromWin32(IO::Types::ErrorCode::StatFailed, GetLastError(), "EnumDisplaySettingsExW")};
+                    return StatusTypes::Result<Types::Display::Mode>::failure(displayQueryFailure(GetLastError(), "EnumDisplaySettingsExW"));
                 }
                 Types::Display::Mode mode = toDisplayMode(native);
 
@@ -101,28 +112,28 @@ namespace GameWIP::Desktop::Platform
                 {
                     // Prefer DisplayConfig's precise refresh data when available.
                     ActiveDisplayPath active;
-                    IO::Types::Status displayPathStatus = findActiveDisplayPath(device, active);
+                    GameWIP::Status::Types::Status displayPathStatus = findActiveDisplayPath(device, active);
 
                     if(displayPathStatus.ok())
                     {
                         mode.refreshRateMillihertz = rationalMillihertz(active.path.targetInfo.refreshRate);
                         mode.interlaced = interlaced(active.path.targetInfo.scanLineOrdering);
                     }
-                    else if(displayPathStatus.code == IO::Types::ErrorCode::OutOfMemory)
+                    else if(displayPathStatus.code() == GameWIP::Status::Types::Code::OutOfMemory)
                     {
-                        return {.status = std::move(displayPathStatus)};
+                        return StatusTypes::Result<Types::Display::Mode>::failure(displayPathStatus);
                     }
                 }
 
-                return {.status = IO::successStatus(), .value = mode};
+                return StatusTypes::Result<Types::Display::Mode>::success(mode);
             }
             catch(const std::bad_alloc &)
             {
-                return {.status = IO::makeStatus(IO::Types::ErrorCode::OutOfMemory)};
+                return StatusTypes::Result<Types::Display::Mode>::failure(StatusTypes::Status(StatusTypes::Code::OutOfMemory));
             }
             catch(...)
             {
-                return {.status = IO::makeStatus(IO::Types::ErrorCode::Unknown)};
+                return StatusTypes::Result<Types::Display::Mode>::failure(StatusTypes::Status(StatusTypes::Code::Unknown));
             }
         }
 
@@ -130,40 +141,34 @@ namespace GameWIP::Desktop::Platform
         struct EnumerationContext
         {
             std::vector<Types::Display::Info> *monitors = nullptr;
-            IO::Types::Status status;
+            StatusTypes::Status status;
         };
 
         /// @brief Appends one enumerated native monitor to the portable result.
         BOOL CALLBACK enumerateMonitor(HMONITOR monitor, HDC, LPRECT, LPARAM userData)
         {
             auto &context = *reinterpret_cast<EnumerationContext *>(userData);
-            Types::Result<Types::Display::Info> result = monitorFromNative(monitor);
+            StatusTypes::Result<Types::Display::Info> result = monitorFromNative(monitor);
 
-            if(!result.status.ok())
+            if(!result.ok())
             {
-                context.status = std::move(result.status);
-                return FALSE;
-            }
-
-            if(!result.value)
-            {
-                context.status = IO::makeStatus(IO::Types::ErrorCode::Unknown);
+                context.status = result.status();
                 return FALSE;
             }
 
             try
             {
-                context.monitors->push_back(std::move(*result.value));
+                context.monitors->push_back(std::move(result).value());
                 return TRUE;
             }
             catch(const std::bad_alloc &)
             {
-                context.status = IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
+                context.status = StatusTypes::Status(StatusTypes::Code::OutOfMemory);
                 return FALSE;
             }
             catch(...)
             {
-                context.status = IO::makeStatus(IO::Types::ErrorCode::Unknown);
+                context.status = StatusTypes::Status(StatusTypes::Code::Unknown);
                 return FALSE;
             }
         }
@@ -245,7 +250,7 @@ namespace GameWIP::Desktop::Platform
     }
 
     /// @brief Computes all Window capabilities from the current Windows build.
-    Types::Result<Types::Capabilities> getCapabilities() noexcept
+    GameWIP::Status::Types::Result<Types::Capabilities> getCapabilities() noexcept
     {
         using C = Types::Capability;
         std::uint64_t flags = capabilityBit(C::MultipleWindows) | capabilityBit(C::MultipleWindowThreads) | capabilityBit(C::OwnedWindows) |
@@ -267,9 +272,8 @@ namespace GameWIP::Desktop::Platform
             flags |= capabilityBit(C::TransparentFramebuffer);
         }
 
-        return {
-            .status = IO::successStatus(),
-            .value = Types::Capabilities{.flags = flags, .maximumCustomChromeRegions = kMaximumChromeRegions, .maximumPointerInputRegions = 0}};
+        return GameWIP::Status::Types::Result<Types::Capabilities>::success(
+            Types::Capabilities{.flags = flags, .maximumCustomChromeRegions = kMaximumChromeRegions, .maximumPointerInputRegions = 0});
     }
 
     /// ------------------------------------------------------------
@@ -277,16 +281,16 @@ namespace GameWIP::Desktop::Platform
     /// ------------------------------------------------------------
 
     /// @brief Converts a native monitor handle into portable geometry and color information.
-    Types::Result<Types::Display::Info> monitorFromNative(HMONITOR monitor) noexcept
+    StatusTypes::Result<Types::Display::Info> monitorFromNative(HMONITOR monitor) noexcept
     {
         if(monitor == nullptr)
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::InvalidArgument)};
+            return StatusTypes::Result<Types::Display::Info>::failure(StatusTypes::Status(StatusTypes::Code::InvalidArgument));
         }
 
         if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::MonitorQuery))
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::StatFailed)};
+            return StatusTypes::Result<Types::Display::Info>::failure(StatusTypes::Status(StatusTypes::Code::StatFailed));
         }
 
         try
@@ -296,7 +300,8 @@ namespace GameWIP::Desktop::Platform
 
             if(GetMonitorInfoW(monitor, &native) == FALSE)
             {
-                return {.status = statusFromWin32(IO::Types::ErrorCode::StatFailed, GetLastError(), "GetMonitorInfoW")};
+                return StatusTypes::Result<Types::Display::Info>::failure(
+                    statusFromWin32(GameWIP::Status::Types::Code::StatFailed, GetLastError(), "GetMonitorInfoW"));
             }
             UINT dpiX = kBaselineDpi;
             UINT dpiY = kBaselineDpi;
@@ -318,11 +323,11 @@ namespace GameWIP::Desktop::Platform
 
                 if(!utf16ToUtf8(display.DeviceString, name, nativeCode))
                 {
-                    return {
-                        .status = statusFromWin32(
-                            unicodeConversionError(nativeCode, IO::Types::ErrorCode::EncodingFailed),
+                    return StatusTypes::Result<Types::Display::Info>::failure(
+                        statusFromWin32(
+                            unicodeConversionError(nativeCode, GameWIP::Status::Types::Code::EncodingFailed),
                             nativeCode,
-                            "monitor name conversion")};
+                            "monitor name conversion"));
                 }
             }
 
@@ -332,11 +337,11 @@ namespace GameWIP::Desktop::Platform
 
                 if(!utf16ToUtf8(native.szDevice, name, nativeCode))
                 {
-                    return {
-                        .status = statusFromWin32(
-                            unicodeConversionError(nativeCode, IO::Types::ErrorCode::EncodingFailed),
+                    return StatusTypes::Result<Types::Display::Info>::failure(
+                        statusFromWin32(
+                            unicodeConversionError(nativeCode, GameWIP::Status::Types::Code::EncodingFailed),
                             nativeCode,
-                            "monitor device conversion")};
+                            "monitor device conversion"));
                 }
             }
 
@@ -360,9 +365,8 @@ namespace GameWIP::Desktop::Platform
                         static_cast<std::uint32_t>(std::max<LONG>(0, rect.bottom - rect.top))}};
             };
 
-            return {
-                .status = IO::successStatus(),
-                .value = Types::Display::Info{
+            return StatusTypes::Result<Types::Display::Info>::success(
+                Types::Display::Info{
                     .id = idForDevice(native.szDevice),
                     .name = std::move(name),
                     .bounds = makeRect(native.rcMonitor),
@@ -372,80 +376,80 @@ namespace GameWIP::Desktop::Platform
                     .effectiveDpi = {static_cast<float>(dpiX), static_cast<float>(dpiY)},
                     .physicalWidthMillimeters = widthMillimeters,
                     .physicalHeightMillimeters = heightMillimeters,
-                    .primary = (native.dwFlags & MONITORINFOF_PRIMARY) != 0}};
+                    .primary = (native.dwFlags & MONITORINFOF_PRIMARY) != 0});
         }
         catch(const std::bad_alloc &)
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::OutOfMemory)};
+            return StatusTypes::Result<Types::Display::Info>::failure(StatusTypes::Status(StatusTypes::Code::OutOfMemory));
         }
         catch(...)
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::Unknown)};
+            return StatusTypes::Result<Types::Display::Info>::failure(StatusTypes::Status(StatusTypes::Code::Unknown));
         }
     }
 
     /// @brief Enumerates current native monitors in stable portable form.
-    Types::Result<std::vector<Types::Display::Info>> getMonitors() noexcept
+    StatusTypes::Result<std::vector<Types::Display::Info>> getMonitors() noexcept
     {
-        Types::Result<std::vector<Types::Display::Info>> result;
-
         if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::DisplayEnumeration))
         {
-            result.status = IO::makeStatus(IO::Types::ErrorCode::StatFailed);
-            return result;
+            return StatusTypes::Result<std::vector<Types::Display::Info>>::failure(StatusTypes::Status(StatusTypes::Code::StatFailed));
         }
+
+        std::vector<Types::Display::Info> monitors;
 
         try
         {
-            result.value.emplace();
-            EnumerationContext context{&*result.value, IO::successStatus()};
+            EnumerationContext context{&monitors, StatusTypes::Status{}};
 
             if(EnumDisplayMonitors(nullptr, nullptr, enumerateMonitor, reinterpret_cast<LPARAM>(&context)) == FALSE)
             {
-                if(!context.status.ok())
-                {
-                    result.status = std::move(context.status);
-                }
-                else
-                {
-                    result.status = statusFromWin32(IO::Types::ErrorCode::StatFailed, GetLastError(), "EnumDisplayMonitors");
-                }
-                result.value.reset();
-                return result;
+                const StatusTypes::Status failure =
+                    context.status.ok()
+                        ? statusFromWin32(GameWIP::Status::Types::Code::StatFailed, GetLastError(), "EnumDisplayMonitors")
+                        : std::move(context.status);
+
+                return monitors.empty() ? StatusTypes::Result<std::vector<Types::Display::Info>>::failure(failure)
+                                        : StatusTypes::Result<std::vector<Types::Display::Info>>::failure(failure, std::move(monitors));
             }
 
-            result.status = IO::successStatus();
-            return result;
+            return StatusTypes::Result<std::vector<Types::Display::Info>>::success(std::move(monitors));
         }
         catch(const std::bad_alloc &)
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::OutOfMemory)};
+            const StatusTypes::Status failure(StatusTypes::Code::OutOfMemory);
+
+            return monitors.empty() ? StatusTypes::Result<std::vector<Types::Display::Info>>::failure(failure)
+                                    : StatusTypes::Result<std::vector<Types::Display::Info>>::failure(failure, std::move(monitors));
         }
         catch(...)
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::Unknown)};
+            const StatusTypes::Status failure(StatusTypes::Code::Unknown);
+
+            return monitors.empty() ? StatusTypes::Result<std::vector<Types::Display::Info>>::failure(failure)
+                                    : StatusTypes::Result<std::vector<Types::Display::Info>>::failure(failure, std::move(monitors));
         }
     }
 
     /// @brief Returns the primary native monitor in portable form.
-    Types::Result<Types::Display::Info> getPrimaryMonitor() noexcept
+    StatusTypes::Result<Types::Display::Info> getPrimaryMonitor() noexcept
     {
         const POINT origin{};
         return monitorFromNative(MonitorFromPoint(origin, MONITOR_DEFAULTTOPRIMARY));
     }
 
     /// @brief Resolves a stable portable monitor identity to current native information.
-    Types::Result<Types::Display::Info> getMonitor(Types::Display::MonitorId monitor) noexcept
+    StatusTypes::Result<Types::Display::Info> getMonitor(Types::Display::MonitorId monitor) noexcept
     {
         if(!monitor.isValid())
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::InvalidArgument)};
+            return StatusTypes::Result<Types::Display::Info>::failure(StatusTypes::Status(StatusTypes::Code::InvalidArgument));
         }
         const HMONITOR native = nativeMonitor(monitor);
 
         if(native == nullptr)
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::NotFound)};
+            return StatusTypes::Result<Types::Display::Info>::failure(StatusTypes::Status(StatusTypes::Code::NotFound));
         }
         return monitorFromNative(native);
     }
@@ -489,17 +493,19 @@ namespace GameWIP::Desktop::Platform
     /// ------------------------------------------------------------
 
     /// @brief Enumerates supported native display modes for one monitor.
-    Types::Result<std::vector<Types::Display::Mode>> getModes(Types::Display::MonitorId monitor) noexcept
+    StatusTypes::Result<std::vector<Types::Display::Mode>> getModes(Types::Display::MonitorId monitor) noexcept
     {
         if(!monitor.isValid())
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::InvalidArgument)};
+            return StatusTypes::Result<std::vector<Types::Display::Mode>>::failure(StatusTypes::Status(StatusTypes::Code::InvalidArgument));
         }
 
         if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::DisplayEnumeration))
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::StatFailed)};
+            return StatusTypes::Result<std::vector<Types::Display::Mode>>::failure(StatusTypes::Status(StatusTypes::Code::StatFailed));
         }
+
+        std::vector<Types::Display::Mode> modes;
 
         try
         {
@@ -507,11 +513,8 @@ namespace GameWIP::Desktop::Platform
 
             if(device.empty())
             {
-                return {.status = IO::makeStatus(IO::Types::ErrorCode::NotFound)};
+                return StatusTypes::Result<std::vector<Types::Display::Mode>>::failure(StatusTypes::Status(StatusTypes::Code::NotFound));
             }
-            Types::Result<std::vector<Types::Display::Mode>> result;
-            result.value.emplace();
-            auto &modes = *result.value;
 
             for(DWORD index = 0;; ++index)
             {
@@ -525,7 +528,10 @@ namespace GameWIP::Desktop::Platform
 
                     if(nativeCode != ERROR_SUCCESS)
                     {
-                        return {.status = statusFromWin32(IO::Types::ErrorCode::StatFailed, nativeCode, "EnumDisplaySettingsExW")};
+                        const StatusTypes::Status failure = displayQueryFailure(nativeCode, "EnumDisplaySettingsExW");
+
+                        return modes.empty() ? StatusTypes::Result<std::vector<Types::Display::Mode>>::failure(failure)
+                                             : StatusTypes::Result<std::vector<Types::Display::Mode>>::failure(failure, std::move(modes));
                     }
                     break;
                 }
@@ -566,31 +572,36 @@ namespace GameWIP::Desktop::Platform
                     }
                     return left.interlaced < right.interlaced;
                 });
-            result.status = IO::successStatus();
-            return result;
+            return StatusTypes::Result<std::vector<Types::Display::Mode>>::success(std::move(modes));
         }
         catch(const std::bad_alloc &)
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::OutOfMemory)};
+            const StatusTypes::Status failure(StatusTypes::Code::OutOfMemory);
+
+            return modes.empty() ? StatusTypes::Result<std::vector<Types::Display::Mode>>::failure(failure)
+                                 : StatusTypes::Result<std::vector<Types::Display::Mode>>::failure(failure, std::move(modes));
         }
         catch(...)
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::Unknown)};
+            const StatusTypes::Status failure(StatusTypes::Code::Unknown);
+
+            return modes.empty() ? StatusTypes::Result<std::vector<Types::Display::Mode>>::failure(failure)
+                                 : StatusTypes::Result<std::vector<Types::Display::Mode>>::failure(failure, std::move(modes));
         }
     }
 
     /// @brief Returns the currently active display mode for one monitor.
-    Types::Result<Types::Display::Mode> getCurrentMode(Types::Display::MonitorId monitor) noexcept
+    StatusTypes::Result<Types::Display::Mode> getCurrentMode(Types::Display::MonitorId monitor) noexcept
     {
         return queryDisplayMode(monitor, ENUM_CURRENT_SETTINGS);
     }
 
     /// @brief Returns the preferred display mode for one monitor.
-    Types::Result<Types::Display::Mode> getPreferredMode(Types::Display::MonitorId monitor) noexcept
+    StatusTypes::Result<Types::Display::Mode> getPreferredMode(Types::Display::MonitorId monitor) noexcept
     {
         if(!monitor.isValid())
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::InvalidArgument)};
+            return StatusTypes::Result<Types::Display::Mode>::failure(StatusTypes::Status(StatusTypes::Code::InvalidArgument));
         }
 
         try
@@ -599,14 +610,14 @@ namespace GameWIP::Desktop::Platform
 
             if(device.empty())
             {
-                return {.status = IO::makeStatus(IO::Types::ErrorCode::NotFound)};
+                return StatusTypes::Result<Types::Display::Mode>::failure(StatusTypes::Status(StatusTypes::Code::NotFound));
             }
             ActiveDisplayPath active;
-            IO::Types::Status status = findActiveDisplayPath(device, active);
+            GameWIP::Status::Types::Status status = findActiveDisplayPath(device, active);
 
             if(!status.ok())
             {
-                return {.status = std::move(status)};
+                return StatusTypes::Result<Types::Display::Mode>::failure(status);
             }
             DISPLAYCONFIG_TARGET_PREFERRED_MODE preferred{
                 .header = {
@@ -618,30 +629,26 @@ namespace GameWIP::Desktop::Platform
 
             if(nativeResult != ERROR_SUCCESS)
             {
-                return {
-                    .status = statusFromWin32(
-                        IO::Types::ErrorCode::StatFailed,
-                        static_cast<DWORD>(nativeResult),
-                        "DisplayConfigGetDeviceInfo preferred mode")};
+                return StatusTypes::Result<Types::Display::Mode>::failure(
+                    displayQueryFailure(static_cast<DWORD>(nativeResult), "DisplayConfigGetDeviceInfo preferred mode"));
             }
 
-            const Types::Result<Types::Display::Mode> current = queryDisplayMode(monitor, ENUM_CURRENT_SETTINGS);
+            const StatusTypes::Result<Types::Display::Mode> current = queryDisplayMode(monitor, ENUM_CURRENT_SETTINGS);
             const DISPLAYCONFIG_VIDEO_SIGNAL_INFO &signal = preferred.targetMode.targetVideoSignalInfo;
-            return {
-                .status = IO::successStatus(),
-                .value = Types::Display::Mode{
+            return StatusTypes::Result<Types::Display::Mode>::success(
+                Types::Display::Mode{
                     .resolution = {preferred.width, preferred.height},
                     .refreshRateMillihertz = rationalMillihertz(signal.vSyncFreq),
-                    .bitsPerPixel = current.ok() ? current->bitsPerPixel : std::uint16_t{0},
-                    .interlaced = interlaced(signal.scanLineOrdering)}};
+                    .bitsPerPixel = current.ok() ? current.value().bitsPerPixel : std::uint16_t{0},
+                    .interlaced = interlaced(signal.scanLineOrdering)});
         }
         catch(const std::bad_alloc &)
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::OutOfMemory)};
+            return StatusTypes::Result<Types::Display::Mode>::failure(StatusTypes::Status(StatusTypes::Code::OutOfMemory));
         }
         catch(...)
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::Unknown)};
+            return StatusTypes::Result<Types::Display::Mode>::failure(StatusTypes::Status(StatusTypes::Code::Unknown));
         }
     }
 

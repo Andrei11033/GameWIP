@@ -8,8 +8,15 @@ Constructing `std::filesystem::path` directly from narrow text happens before Fi
 as UTF-8 on every platform. Use:
 
 ```cpp
-const auto pathResult = GameWIP::FileSystem::pathFromUtf8(utf8Text);
-const auto textResult = GameWIP::FileSystem::pathToUtf8(pathResult.path);
+const auto path = GameWIP::FileSystem::pathFromUtf8(utf8Text);
+if(path.ok())
+{
+    const auto text = GameWIP::FileSystem::pathToUtf8(path.value());
+    if(text.ok())
+    {
+        // Use text.value().
+    }
+}
 ```
 
 `pathFromUtf8()` converts UTF-8 text to the native `Path` representation. It accepts both `std::string_view` and explicit `std::u8string_view`,

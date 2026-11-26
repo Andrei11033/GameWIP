@@ -46,7 +46,7 @@ int main()
 
     const auto init =
         GameWIP::Logger::initConsole(GameWIP::Logger::Types::Level::Debug);
-    if(!init.status.ok())
+    if(!init.ok())
     {
         return 1;
     }
@@ -54,8 +54,7 @@ int main()
     GameWIP::Logger::info("Startup", "ready {}", 1);
 
     const auto flush = GameWIP::Logger::flush(500ms);
-    if(!flush.status.ok() ||
-       flush.outcome != GameWIP::Logger::Types::FlushOutcome::Completed)
+    if(!flush.ok() || flush.value().outcome != GameWIP::Logger::Types::FlushOutcome::Completed)
     {
         static_cast<void>(GameWIP::Logger::shutdown());
         return 2;
@@ -72,11 +71,10 @@ draining and always leaves Logger disabled.
 
 ## Failure handling
 
-Initialization returns `Types::Init::Result`. Inspect `status` first, then use
-`outcome`, requested/effective output, adjustment flags, and
-`outputSetupStatus` when fallback behavior matters. Lifecycle and synchronous
-operations carry direct IO status. Asynchronous sink failures are observed
-through `getHealth()`.
+Initialization returns `Types::Init::Result`. Check `ok()` before reading
+`value()`. The payload reports the outcome, requested/effective output,
+adjustments, and any recovered setup failure. `status()` gives the exact
+operation status. Asynchronous sink failures are observed through `getHealth()`.
 
 Use `reportError()` or `reportFatal()` for synchronous emergency diagnostics.
 Reports do not drain older queued logs; call `flush()` first when backlog

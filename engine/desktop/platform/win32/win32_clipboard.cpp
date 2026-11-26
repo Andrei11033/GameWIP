@@ -1,6 +1,7 @@
 /// @file win32_clipboard.cpp
 /// @brief Win32 Clipboard service backend and native data-transfer conversion.
 
+#include "desktop/internal/results.h"
 #include "desktop/platform/clipboard.h"
 #include "desktop/internal/desktop_test_hooks.h"
 #include "desktop/platform/win32/internal/win32_data_transfer.h"
@@ -29,7 +30,7 @@ namespace GameWIP::Desktop::Platform
 
     namespace
     {
-        using IO::Types::ErrorCode;
+        using ErrorCode = GameWIP::Status::Types::Code;
         namespace Transfer = Types::DataTransfer;
         namespace ClipboardTypes = Types::Clipboard;
 
@@ -49,17 +50,18 @@ namespace GameWIP::Desktop::Platform
 #endif
 
         /// @brief Converts a portable error and optional Win32 code into a Clipboard status.
-        [[nodiscard]] IO::Types::Status status(ErrorCode code, DWORD nativeCode = 0) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status status(ErrorCode code, DWORD nativeCode = 0) noexcept
         {
-            return IO::makeStatus(code, static_cast<std::int64_t>(nativeCode));
+            return GameWIP::Desktop::Internal::statusFor(
+                code,
+                static_cast<std::int64_t>(nativeCode),
+                GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
         }
 
         /// @brief Builds a failed result with its payload left at the deterministic default.
         template <typename Result> [[nodiscard]] Result failure(ErrorCode code, DWORD nativeCode = 0) noexcept
         {
-            Result result;
-            result.status = status(code, nativeCode);
-            return result;
+            return Result::failure(status(code, nativeCode));
         }
 
         /// @brief Rejects negative access timeouts before entering retry logic.
@@ -170,7 +172,7 @@ namespace GameWIP::Desktop::Platform
                 }
             }
 
-            [[nodiscard]] IO::Types::Status open(HWND owner, std::chrono::milliseconds timeout) noexcept
+            [[nodiscard]] GameWIP::Status::Types::Status open(HWND owner, std::chrono::milliseconds timeout) noexcept
             {
                 const auto started = std::chrono::steady_clock::now();
                 const auto maximumWait =
@@ -189,7 +191,7 @@ namespace GameWIP::Desktop::Platform
                     if(OpenClipboard(owner) != FALSE)
                     {
                         open_ = true;
-                        return IO::successStatus();
+                        return GameWIP::Status::Types::Status{};
                     }
                     const DWORD nativeCode = GetLastError();
 
@@ -207,11 +209,11 @@ namespace GameWIP::Desktop::Platform
                 }
             }
 
-            [[nodiscard]] IO::Types::Status close() noexcept
+            [[nodiscard]] GameWIP::Status::Types::Status close() noexcept
             {
                 if(!open_)
                 {
-                    return IO::successStatus();
+                    return GameWIP::Status::Types::Status{};
                 }
                 open_ = false;
                 SetLastError(ERROR_SUCCESS);
@@ -227,7 +229,7 @@ namespace GameWIP::Desktop::Platform
                     return status(ErrorCode::CloseFailed, ERROR_GEN_FAILURE);
                 }
 
-                return IO::successStatus();
+                return GameWIP::Status::Types::Status{};
             }
 
         private:
@@ -280,14 +282,14 @@ namespace GameWIP::Desktop::Platform
         };
 
         /// @brief Validates portable format identity before native clipboard lookup.
-        [[nodiscard]] IO::Types::Status validateFormatView(Transfer::FormatView format) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status validateFormatView(Transfer::FormatView format) noexcept
         {
             switch(format.kind())
             {
             case Transfer::FormatKind::Text:
             case Transfer::FormatKind::FileList:
             case Transfer::FormatKind::Image:
-                return format.customName().empty() ? IO::successStatus() : status(ErrorCode::InvalidArgument);
+                return format.customName().empty() ? GameWIP::Status::Types::Status{} : status(ErrorCode::InvalidArgument);
             case Transfer::FormatKind::Custom:
                 if(format.customName().empty() || format.customName().contains('\0'))
                 {
@@ -299,7 +301,7 @@ namespace GameWIP::Desktop::Platform
                     std::wstring wide;
                     DWORD nativeCode = 0;
                     return utf8ToUtf16(format.customName(), wide, nativeCode)
-                               ? IO::successStatus()
+                               ? GameWIP::Status::Types::Status{}
                                : status(unicodeConversionError(nativeCode, ErrorCode::InvalidArgument), nativeCode);
                 }
                 catch(const std::bad_alloc &)
@@ -384,7 +386,7 @@ namespace GameWIP::Desktop::Platform
         }
 
         /// @brief Allocates and copies one prepared payload into transferable global memory.
-        [[nodiscard]] IO::Types::Status allocateAndCopy(std::span<const std::byte> bytes, GlobalMemory &memory) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status allocateAndCopy(std::span<const std::byte> bytes, GlobalMemory &memory) noexcept
         {
             // A zero-byte GMEM_MOVEABLE allocation is a discarded handle that SetClipboardData
             // rejects. A one-byte substitute would corrupt the opaque extent, while nullptr would
@@ -406,11 +408,11 @@ namespace GameWIP::Desktop::Platform
             }
             const auto destination = mutableNativeSpan<std::byte>(lock.get(), bytes.size());
             std::ranges::copy(bytes, destination.begin());
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
 
         /// @brief Converts one portable item and owns its native clipboard storage.
-        [[nodiscard]] IO::Types::Status prepareItem(const Transfer::ItemView &item, PreparedItem &prepared)
+        [[nodiscard]] GameWIP::Status::Types::Status prepareItem(const Transfer::ItemView &item, PreparedItem &prepared)
         {
             if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ClipboardAllocation))
             {
@@ -418,7 +420,7 @@ namespace GameWIP::Desktop::Platform
             }
 
             DataTransfer::PreparedItem shared;
-            IO::Types::Status result = DataTransfer::prepare(item, shared);
+            GameWIP::Status::Types::Status result = DataTransfer::prepare(item, shared);
 
             if(!result.ok())
             {
@@ -430,7 +432,7 @@ namespace GameWIP::Desktop::Platform
         }
 
         /// @brief Materializes one native clipboard handle through the shared transfer decoder.
-        [[nodiscard]] IO::Types::Status materializeClipboardItem(UINT nativeFormat, const Transfer::Format &format, Transfer::Item &item) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status materializeClipboardItem(UINT nativeFormat, const Transfer::Format &format, Transfer::Item &item) noexcept
         {
             SetLastError(ERROR_SUCCESS);
             HGLOBAL memory = static_cast<HGLOBAL>(GetClipboardData(nativeFormat));
@@ -443,9 +445,9 @@ namespace GameWIP::Desktop::Platform
         }
 
         /// @brief Closes Clipboard access without hiding an earlier read/write failure.
-        [[nodiscard]] IO::Types::Status closePreservingPrimary(ClipboardSession &session, IO::Types::Status primary) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status closePreservingPrimary(ClipboardSession &session, GameWIP::Status::Types::Status primary) noexcept
         {
-            IO::Types::Status cleanup = session.close();
+            GameWIP::Status::Types::Status cleanup = session.close();
             return primary.ok() ? std::move(cleanup) : std::move(primary);
         }
 
@@ -468,7 +470,7 @@ namespace GameWIP::Desktop::Platform
         }
 
         /// @brief Reads one Clipboard payload after applying the shared read-failure hook.
-        [[nodiscard]] IO::Types::Status readClipboardItem(UINT nativeFormat, const Transfer::Format &format, Transfer::Item &item) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status readClipboardItem(UINT nativeFormat, const Transfer::Format &format, Transfer::Item &item) noexcept
         {
             if(clipboardReadShouldFail())
             {
@@ -480,47 +482,58 @@ namespace GameWIP::Desktop::Platform
 
         /// @brief Opens Clipboard once and transfers a decoded payload only after successful close.
         template <typename Payload, typename Read>
-        [[nodiscard]] Types::Result<Payload> readClipboardWithSession(std::chrono::milliseconds timeout, Read &&read) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Result<Payload> readClipboardWithSession(
+            std::chrono::milliseconds timeout,
+            Read &&read,
+            bool preservePartial = false) noexcept
         {
             if(!validTimeout(timeout))
             {
-                return failure<Types::Result<Payload>>(ErrorCode::InvalidArgument);
+                return failure<GameWIP::Status::Types::Result<Payload>>(ErrorCode::InvalidArgument);
             }
 
-            Types::Result<Payload> result;
             Payload payload{};
+            GameWIP::Status::Types::Status operationStatus;
 
             try
             {
                 // Hold Clipboard access while the format-specific reader materializes its value.
                 ClipboardSession session;
-                result.status = session.open(nullptr, timeout);
+                operationStatus = session.open(nullptr, timeout);
 
-                if(!result.status.ok())
+                if(!operationStatus.ok())
                 {
-                    return result;
+                    return GameWIP::Status::Types::Result<Payload>::failure(std::move(operationStatus));
                 }
 
-                result.status = read(payload);
+                operationStatus = read(payload);
 
                 // Do not expose data unless both the read and Clipboard close succeed.
-                result.status = closePreservingPrimary(session, std::move(result.status));
-
-                if(result.status.ok())
-                {
-                    result.value = std::move(payload);
-                }
+                operationStatus = closePreservingPrimary(session, std::move(operationStatus));
             }
             catch(const std::bad_alloc &)
             {
-                result.status = status(ErrorCode::OutOfMemory);
+                operationStatus = status(ErrorCode::OutOfMemory);
             }
             catch(...)
             {
-                result.status = status(ErrorCode::Unknown);
+                operationStatus = status(ErrorCode::Unknown);
             }
 
-            return result;
+            if(operationStatus.ok())
+            {
+                return GameWIP::Status::Types::Result<Payload>::success(std::move(payload));
+            }
+
+            if constexpr(requires(const Payload &value) { value.empty(); })
+            {
+                if(preservePartial && !payload.empty())
+                {
+                    return GameWIP::Status::Types::Result<Payload>::failure(std::move(operationStatus), std::move(payload));
+                }
+            }
+
+            return GameWIP::Status::Types::Result<Payload>::failure(std::move(operationStatus));
         }
 
     } // namespace
@@ -529,24 +542,24 @@ namespace GameWIP::Desktop::Platform
     /// Clipboard queries and reads
     /// ------------------------------------------------------------
 
-    Types::Result<bool> clipboardHasFormat(Transfer::FormatView format, std::chrono::milliseconds timeout) noexcept
+    GameWIP::Status::Types::Result<bool> clipboardHasFormat(Transfer::FormatView format, std::chrono::milliseconds timeout) noexcept
     {
         if(!validTimeout(timeout))
         {
-            return failure<Types::Result<bool>>(ErrorCode::InvalidArgument);
+            return failure<GameWIP::Status::Types::Result<bool>>(ErrorCode::InvalidArgument);
         }
 
-        IO::Types::Status validation = validateFormatView(format);
+        GameWIP::Status::Types::Status validation = validateFormatView(format);
         if(!validation.ok())
         {
-            return {.status = std::move(validation)};
+            return GameWIP::Status::Types::Result<bool>::failure(std::move(validation));
         }
 
         return readClipboardWithSession<bool>(
             timeout,
             [format](bool &available)
             {
-                IO::Types::Status result = IO::successStatus();
+                GameWIP::Status::Types::Status result = GameWIP::Status::Types::Status{};
 
                 switch(format.kind())
                 {
@@ -586,7 +599,7 @@ namespace GameWIP::Desktop::Platform
             });
     }
 
-    Types::Result<std::vector<Transfer::Format>> clipboardGetFormats(std::chrono::milliseconds timeout) noexcept
+    GameWIP::Status::Types::Result<std::vector<Transfer::Format>> clipboardGetFormats(std::chrono::milliseconds timeout) noexcept
     {
         return readClipboardWithSession<std::vector<Transfer::Format>>(
             timeout,
@@ -596,7 +609,7 @@ namespace GameWIP::Desktop::Platform
                 bool filesSeen = false;
                 bool imageSeen = false;
                 UINT current = 0;
-                IO::Types::Status result = IO::successStatus();
+                GameWIP::Status::Types::Status result = GameWIP::Status::Types::Status{};
 
                 for(;;)
                 {
@@ -665,10 +678,11 @@ namespace GameWIP::Desktop::Platform
                     }
                 }
                 return result;
-            });
+            },
+            true);
     }
 
-    Types::Result<std::string> clipboardReadText(std::chrono::milliseconds timeout) noexcept
+    GameWIP::Status::Types::Result<std::string> clipboardReadText(std::chrono::milliseconds timeout) noexcept
     {
         return readClipboardWithSession<std::string>(
             timeout,
@@ -680,7 +694,7 @@ namespace GameWIP::Desktop::Platform
                 }
 
                 Transfer::Item item;
-                IO::Types::Status result = readClipboardItem(CF_UNICODETEXT, {Transfer::FormatKind::Text, {}}, item);
+                GameWIP::Status::Types::Status result = readClipboardItem(CF_UNICODETEXT, {Transfer::FormatKind::Text, {}}, item);
 
                 if(result.ok())
                 {
@@ -691,7 +705,7 @@ namespace GameWIP::Desktop::Platform
             });
     }
 
-    Types::Result<std::vector<FileSystem::Types::Path>> clipboardReadFiles(std::chrono::milliseconds timeout) noexcept
+    GameWIP::Status::Types::Result<std::vector<FileSystem::Types::Path>> clipboardReadFiles(std::chrono::milliseconds timeout) noexcept
     {
         return readClipboardWithSession<std::vector<FileSystem::Types::Path>>(
             timeout,
@@ -703,7 +717,7 @@ namespace GameWIP::Desktop::Platform
                 }
 
                 Transfer::Item item;
-                IO::Types::Status result = readClipboardItem(CF_HDROP, {Transfer::FormatKind::FileList, {}}, item);
+                GameWIP::Status::Types::Status result = readClipboardItem(CF_HDROP, {Transfer::FormatKind::FileList, {}}, item);
 
                 if(result.ok())
                 {
@@ -714,7 +728,7 @@ namespace GameWIP::Desktop::Platform
             });
     }
 
-    Types::Result<Transfer::Image> clipboardReadImage(std::chrono::milliseconds timeout) noexcept
+    GameWIP::Status::Types::Result<Transfer::Image> clipboardReadImage(std::chrono::milliseconds timeout) noexcept
     {
         return readClipboardWithSession<Transfer::Image>(
             timeout,
@@ -730,7 +744,7 @@ namespace GameWIP::Desktop::Platform
                 }
 
                 Transfer::Item item;
-                IO::Types::Status result = readClipboardItem(format, {Transfer::FormatKind::Image, {}}, item);
+                GameWIP::Status::Types::Status result = readClipboardItem(format, {Transfer::FormatKind::Image, {}}, item);
 
                 if(result.ok())
                 {
@@ -741,18 +755,18 @@ namespace GameWIP::Desktop::Platform
             });
     }
 
-    Types::Result<std::vector<std::byte>> clipboardReadCustomData(std::string_view formatName, std::chrono::milliseconds timeout) noexcept
+    GameWIP::Status::Types::Result<std::vector<std::byte>> clipboardReadCustomData(std::string_view formatName, std::chrono::milliseconds timeout) noexcept
     {
         if(!validTimeout(timeout))
         {
-            return failure<Types::Result<std::vector<std::byte>>>(ErrorCode::InvalidArgument);
+            return failure<GameWIP::Status::Types::Result<std::vector<std::byte>>>(ErrorCode::InvalidArgument);
         }
 
-        IO::Types::Status validation = validateFormatView(Transfer::FormatView::custom(formatName));
+        GameWIP::Status::Types::Status validation = validateFormatView(Transfer::FormatView::custom(formatName));
 
         if(!validation.ok())
         {
-            return {.status = std::move(validation)};
+            return GameWIP::Status::Types::Result<std::vector<std::byte>>::failure(std::move(validation));
         }
 
         try
@@ -762,7 +776,7 @@ namespace GameWIP::Desktop::Platform
 
             if(!utf8ToUtf16(formatName, wide, nativeCode))
             {
-                return failure<Types::Result<std::vector<std::byte>>>(unicodeConversionError(nativeCode, ErrorCode::InvalidArgument), nativeCode);
+                return failure<GameWIP::Status::Types::Result<std::vector<std::byte>>>(unicodeConversionError(nativeCode, ErrorCode::InvalidArgument), nativeCode);
             }
             return readClipboardWithSession<std::vector<std::byte>>(
                 timeout,
@@ -781,7 +795,7 @@ namespace GameWIP::Desktop::Platform
                     }
 
                     Transfer::Item item;
-                    IO::Types::Status result = materializeClipboardItem(format, {Transfer::FormatKind::Custom, std::string(formatName)}, item);
+                    GameWIP::Status::Types::Status result = materializeClipboardItem(format, {Transfer::FormatKind::Custom, std::string(formatName)}, item);
 
                     if(result.ok())
                     {
@@ -793,11 +807,11 @@ namespace GameWIP::Desktop::Platform
         }
         catch(const std::bad_alloc &)
         {
-            return failure<Types::Result<std::vector<std::byte>>>(ErrorCode::OutOfMemory);
+            return failure<GameWIP::Status::Types::Result<std::vector<std::byte>>>(ErrorCode::OutOfMemory);
         }
         catch(...)
         {
-            return failure<Types::Result<std::vector<std::byte>>>(ErrorCode::Unknown);
+            return failure<GameWIP::Status::Types::Result<std::vector<std::byte>>>(ErrorCode::Unknown);
         }
     }
 
@@ -805,14 +819,13 @@ namespace GameWIP::Desktop::Platform
     /// Clipboard publication
     /// ------------------------------------------------------------
 
-    Types::Clipboard::WriteResult clipboardWrite(std::span<const Transfer::ItemView> items, std::chrono::milliseconds timeout) noexcept
+    ClipboardWriteResult clipboardWrite(std::span<const Transfer::ItemView> items, std::chrono::milliseconds timeout) noexcept
     {
-        ClipboardTypes::WriteResult result;
+        ClipboardTypes::WriteProgress progress;
 
         if(!validTimeout(timeout) || items.empty())
         {
-            result.status = status(ErrorCode::InvalidArgument);
-            return result;
+            return Internal::result(status(ErrorCode::InvalidArgument), progress);
         }
 
         try
@@ -822,21 +835,21 @@ namespace GameWIP::Desktop::Platform
             prepared.reserve(items.size());
             std::unordered_set<UINT> identities;
             identities.reserve(items.size());
+            GameWIP::Status::Types::Status operationStatus;
 
             for(const Transfer::ItemView &item : items)
             {
                 PreparedItem native;
-                result.status = prepareItem(item, native);
+                operationStatus = prepareItem(item, native);
 
-                if(!result.status.ok())
+                if(!operationStatus.ok())
                 {
-                    return result;
+                    return Internal::result(std::move(operationStatus), progress);
                 }
 
                 if(!identities.insert(native.format).second)
                 {
-                    result.status = status(ErrorCode::InvalidArgument);
-                    return result;
+                    return Internal::result(status(ErrorCode::InvalidArgument), progress);
                 }
 
                 prepared.push_back(std::move(native));
@@ -845,32 +858,30 @@ namespace GameWIP::Desktop::Platform
             // Create a native owner and acquire exclusive Clipboard access.
             if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ClipboardOwnerCreation))
             {
-                result.status = status(ErrorCode::OpenFailed, ERROR_GEN_FAILURE);
-                return result;
+                return Internal::result(status(ErrorCode::OpenFailed, ERROR_GEN_FAILURE), progress);
             }
             PublicationOwner owner;
 
             if(owner.get() == nullptr)
             {
-                result.status = status(ErrorCode::OpenFailed, GetLastError());
-                return result;
+                return Internal::result(status(ErrorCode::OpenFailed, GetLastError()), progress);
             }
             ClipboardSession session;
-            result.status = session.open(owner.get(), timeout);
+            operationStatus = session.open(owner.get(), timeout);
 
-            if(!result.status.ok())
+            if(!operationStatus.ok())
             {
-                return result;
+                return Internal::result(std::move(operationStatus), progress);
             }
             SetLastError(ERROR_SUCCESS);
 
             if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ClipboardClear) || EmptyClipboard() == FALSE)
             {
-                result.status = status(ErrorCode::WriteFailed, GetLastError());
-                result.status = closePreservingPrimary(session, std::move(result.status));
-                return result;
+                operationStatus = status(ErrorCode::WriteFailed, GetLastError());
+                operationStatus = closePreservingPrimary(session, std::move(operationStatus));
+                return Internal::result(std::move(operationStatus), progress);
             }
-            result.commitState = ClipboardTypes::CommitState::Cleared;
+            progress.commitState = ClipboardTypes::CommitState::Cleared;
 
             // Transfer each allocation to Windows only after its format is published.
             for(std::size_t index = 0; index < prepared.size(); ++index)
@@ -880,75 +891,69 @@ namespace GameWIP::Desktop::Platform
 
                 if(Internal::consumeClipboardPublicationFailure(index) || SetClipboardData(item.format, item.memory.get()) == nullptr)
                 {
-                    result.status = status(ErrorCode::WriteFailed, GetLastError());
-                    result.commitState =
-                        result.formatsPublished == 0 ? ClipboardTypes::CommitState::Cleared : ClipboardTypes::CommitState::PartiallyPublished;
-                    result.status = closePreservingPrimary(session, std::move(result.status));
-                    return result;
+                    operationStatus = status(ErrorCode::WriteFailed, GetLastError());
+                    progress.commitState = progress.formatsPublished == 0 ? ClipboardTypes::CommitState::Cleared
+                                                                          : ClipboardTypes::CommitState::PartiallyPublished;
+                    operationStatus = closePreservingPrimary(session, std::move(operationStatus));
+                    return Internal::result(std::move(operationStatus), progress);
                 }
                 static_cast<void>(item.memory.release());
-                ++result.formatsPublished;
+                ++progress.formatsPublished;
             }
-            result.commitState = ClipboardTypes::CommitState::Published;
-            result.status = closePreservingPrimary(session, IO::successStatus());
-            return result;
+            progress.commitState = ClipboardTypes::CommitState::Published;
+            operationStatus = closePreservingPrimary(session, GameWIP::Status::Types::Status{});
+            return Internal::result(std::move(operationStatus), progress);
         }
         catch(const std::bad_alloc &)
         {
-            result.status = status(ErrorCode::OutOfMemory);
+            return Internal::result(status(ErrorCode::OutOfMemory), progress);
         }
         catch(...)
         {
-            result.status = status(ErrorCode::Unknown);
+            return Internal::result(status(ErrorCode::Unknown), progress);
         }
-
-        return result;
     }
 
-    Types::Clipboard::ClearResult clipboardClear(std::chrono::milliseconds timeout) noexcept
+    ClipboardClearResult clipboardClear(std::chrono::milliseconds timeout) noexcept
     {
-        ClipboardTypes::ClearResult result;
+        ClipboardTypes::ClearProgress progress;
 
         if(!validTimeout(timeout))
         {
-            result.status = status(ErrorCode::InvalidArgument);
-            return result;
+            return Internal::result(status(ErrorCode::InvalidArgument), progress);
         }
 
         if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ClipboardOwnerCreation))
         {
-            result.status = status(ErrorCode::OpenFailed, ERROR_GEN_FAILURE);
-            return result;
+            return Internal::result(status(ErrorCode::OpenFailed, ERROR_GEN_FAILURE), progress);
         }
 
         PublicationOwner owner;
 
         if(owner.get() == nullptr)
         {
-            result.status = status(ErrorCode::OpenFailed, GetLastError());
-            return result;
+            return Internal::result(status(ErrorCode::OpenFailed, GetLastError()), progress);
         }
 
         ClipboardSession session;
-        result.status = session.open(owner.get(), timeout);
+        GameWIP::Status::Types::Status operationStatus = session.open(owner.get(), timeout);
 
-        if(!result.status.ok())
+        if(!operationStatus.ok())
         {
-            return result;
+            return Internal::result(std::move(operationStatus), progress);
         }
 
         SetLastError(ERROR_SUCCESS);
 
         if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ClipboardClear) || EmptyClipboard() == FALSE)
         {
-            result.status = status(ErrorCode::WriteFailed, GetLastError());
+            operationStatus = status(ErrorCode::WriteFailed, GetLastError());
         }
         else
         {
-            result.status = IO::successStatus();
-            result.cleared = true;
+            progress.cleared = true;
         }
-        result.status = closePreservingPrimary(session, std::move(result.status));
-        return result;
+        operationStatus = closePreservingPrimary(session, std::move(operationStatus));
+        return Internal::result(std::move(operationStatus), progress);
     }
 } // namespace GameWIP::Desktop::Platform

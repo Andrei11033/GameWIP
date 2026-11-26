@@ -14,47 +14,54 @@ namespace GameWIP::Input::Platform::Win32
 {
     /// @brief Attaches Win32 Input to an open Desktop Window.
     /// @details Registers native Input and Desktop message delivery as one operation.
-    [[nodiscard]] inline IO::Types::Status attachToWindow(System &system, Attachment &attachment, GameWIP::Desktop::Window &window) noexcept
+    [[nodiscard]] inline GameWIP::Status::Types::Result<void> attachToWindow(
+        System &system,
+        Attachment &attachment,
+        GameWIP::Desktop::Window &window) noexcept
     {
         const auto nativeHandle = GameWIP::Desktop::Native::Win32::getHandle(window);
-
-        if(!nativeHandle.ok() || nativeHandle->window == nullptr)
+        if(!nativeHandle.ok())
         {
-            return nativeHandle.status;
+            return GameWIP::Status::Types::Result<void>::failure(nativeHandle.status());
+        }
+
+        if(nativeHandle.value().window == nullptr)
+        {
+            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(GameWIP::Status::Types::Code::NotOpen));
         }
 
         const GameWIP::Desktop::Native::Win32::MessageSink forwardMessage =
-            [](void *context, HWND, UINT message, WPARAM wParam, LPARAM lParam) noexcept -> IO::Types::Status
+            [](void *context, HWND, UINT message, WPARAM wParam, LPARAM lParam) noexcept -> GameWIP::Status::Types::Result<void>
         {
             auto *messageAttachment = static_cast<Attachment *>(context);
             if(messageAttachment == nullptr)
             {
-                return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
+                return GameWIP::Status::Types::Result<void>::failure(
+                    GameWIP::Status::Types::Status(GameWIP::Status::Types::Code::InvalidArgument));
             }
 
-            bool handled = false;
-            return messageAttachment
-                ->handleMessage(static_cast<std::uint32_t>(message), static_cast<std::uint64_t>(wParam), static_cast<std::int64_t>(lParam), handled);
+            const auto result = messageAttachment->handleMessage(
+                static_cast<std::uint32_t>(message),
+                static_cast<std::uint64_t>(wParam),
+                static_cast<std::int64_t>(lParam));
+            return result.ok() ? GameWIP::Status::Types::Result<void>::success()
+                               : GameWIP::Status::Types::Result<void>::failure(result.status());
         };
 
-        // Attach Input before registering Desktop message delivery.
-        const IO::Types::Status inputStatus = attachment.attach(system, static_cast<void *>(nativeHandle->window));
-
+        const auto inputStatus = attachment.attach(system, static_cast<void *>(nativeHandle.value().window));
         if(!inputStatus.ok())
         {
-            return inputStatus;
+            return GameWIP::Status::Types::Result<void>::failure(inputStatus.status());
         }
 
-        const IO::Types::Status sinkStatus = GameWIP::Desktop::Native::Win32::attachMessageSink(window, forwardMessage, &attachment);
-
-        // Roll back Input if Desktop cannot register the sink.
+        const auto sinkStatus = GameWIP::Desktop::Native::Win32::attachMessageSink(window, forwardMessage, &attachment);
         if(!sinkStatus.ok())
         {
             static_cast<void>(attachment.detach());
-            return sinkStatus;
+            return GameWIP::Status::Types::Result<void>::failure(sinkStatus.status());
         }
 
-        return IO::successStatus();
+        return GameWIP::Status::Types::Result<void>::success();
     }
 } // namespace GameWIP::Input::Platform::Win32
 

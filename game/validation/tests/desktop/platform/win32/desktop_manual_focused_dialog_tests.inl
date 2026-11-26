@@ -68,11 +68,11 @@ void testManualFocusedDialogs(TestSupport::Context &context)
             // Confirm the accepted path and preserve the existing file.
             static_cast<void>(context.expectTrue(
                 "overwrite picker accepts exact fixture and filter",
-                result.status.ok() && result.outcome == DialogTypes::Outcome::Accepted && result.path == path &&
-                    result.selectedFilterIndex == std::optional<std::size_t>{0}));
+                result.ok() && result.value().outcome == DialogTypes::Outcome::Accepted && result.value().path == path &&
+                    result.value().selectedFilterIndex == std::optional<std::size_t>{0}));
             const auto unchanged = TestSupport::readTextFile(path);
             static_cast<void>(
-                context.expectTrue("overwrite path selection preserves existing file bytes", unchanged.status.ok() && unchanged.text == marker));
+                context.expectTrue("overwrite path selection preserves existing file bytes", unchanged.ok() && unchanged.value() == marker));
         }
     }
 
@@ -113,7 +113,7 @@ void testManualFocusedDialogs(TestSupport::Context &context)
                     if(!updated.ok())
                     {
                         updateFailed = true;
-                        context.fail("live progress update", updated.message);
+                        context.fail("live progress update", manualStatusDetails(updated.status()));
                     }
                 }
 

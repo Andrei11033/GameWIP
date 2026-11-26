@@ -15,8 +15,17 @@
 
 namespace
 {
+    using Status = GameWIP::Status::Types::Status;
+    using StatusCode = GameWIP::Status::Types::Code;
+
+    /// @brief Retains a Win32 error code as supplementary diagnostic detail.
+    [[nodiscard]] Status makeWin32Status(StatusCode code, DWORD nativeCode) noexcept
+    {
+        return Status::withDiagnostic(code, {GameWIP::Status::Types::NativeCodeDomain::Win32Error, nativeCode});
+    }
+
     /// @brief Converts validated UTF-8 text to a native UTF-16 string for Win32 APIs.
-    [[nodiscard]] GameWIP::IO::Types::Status utf8ToWide(std::string_view text, std::wstring &outText)
+    [[nodiscard]] GameWIP::Status::Types::Status utf8ToWide(std::string_view text, std::wstring &outText)
     {
         outText.clear();
 
@@ -29,24 +38,24 @@ namespace
         const auto measurement = GameWIP::Unicode::Utf8::measureToUtf16(text);
         if(measurement.outcome == GameWIP::Unicode::Types::MeasureOutcome::SizeLimitExceeded)
         {
-            return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::SizeLimitExceeded, ERROR_INSUFFICIENT_BUFFER);
+            return makeWin32Status(StatusCode::SizeLimitExceeded, ERROR_INSUFFICIENT_BUFFER);
         }
 
         if(measurement.outcome != GameWIP::Unicode::Types::MeasureOutcome::Measured)
         {
-            return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::EncodingFailed, ERROR_NO_UNICODE_TRANSLATION);
+            return makeWin32Status(StatusCode::EncodingFailed, ERROR_NO_UNICODE_TRANSLATION);
         }
 
         std::vector<char16_t> converted(measurement.requiredCodeUnits);
         const auto conversion = GameWIP::Unicode::Utf8::convertToUtf16(text, converted);
         if(conversion.outcome == GameWIP::Unicode::Types::ConversionOutcome::DestinationTooSmall)
         {
-            return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::SizeLimitExceeded, ERROR_INSUFFICIENT_BUFFER);
+            return makeWin32Status(StatusCode::SizeLimitExceeded, ERROR_INSUFFICIENT_BUFFER);
         }
 
         if(conversion.outcome != GameWIP::Unicode::Types::ConversionOutcome::Converted)
         {
-            return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::EncodingFailed, ERROR_NO_UNICODE_TRANSLATION);
+            return makeWin32Status(StatusCode::EncodingFailed, ERROR_NO_UNICODE_TRANSLATION);
         }
 
         try
@@ -55,11 +64,11 @@ namespace
         }
         catch(const std::bad_alloc &)
         {
-            return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::OutOfMemory);
+            return GameWIP::Status::Types::Status(StatusCode::OutOfMemory);
         }
         catch(...)
         {
-            return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::Unknown);
+            return Status(StatusCode::Unknown);
         }
 
         // Copy the converted code units into the Windows string type.
@@ -93,9 +102,9 @@ namespace
     }
 
     /// @brief Prepares text for NUL-terminated Win32 diagnostic APIs.
-    [[nodiscard]] GameWIP::IO::Types::Status prepareNativeDiagnosticText(std::string_view text, std::wstring &outText)
+    [[nodiscard]] GameWIP::Status::Types::Status prepareNativeDiagnosticText(std::string_view text, std::wstring &outText)
     {
-        GameWIP::IO::Types::Status status = utf8ToWide(text, outText);
+        GameWIP::Status::Types::Status status = utf8ToWide(text, outText);
         if(!status.ok())
         {
             return status;
@@ -115,12 +124,12 @@ namespace GameWIP::Logger::Platform
     /// Platform diagnostics
     /// ------------------------------------------------------------
 
-    IO::Types::Status writeDebugOutput(std::string_view line)
+    GameWIP::Status::Types::Status writeDebugOutput(std::string_view line)
     {
         try
         {
             std::wstring output;
-            const IO::Types::Status status = prepareNativeDiagnosticText(line, output);
+            const GameWIP::Status::Types::Status status = prepareNativeDiagnosticText(line, output);
             if(!status.ok())
             {
                 return status;
@@ -131,20 +140,20 @@ namespace GameWIP::Logger::Platform
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
+            return GameWIP::Status::Types::Status(StatusCode::OutOfMemory);
         }
         catch(...)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::NativeFailure, GetLastError());
+            return makeWin32Status(StatusCode::NativeFailure, GetLastError());
         }
     }
 
-    IO::Types::Status showFatalPopup(std::string_view message)
+    GameWIP::Status::Types::Status showFatalPopup(std::string_view message)
     {
         try
         {
             std::wstring messageText;
-            const IO::Types::Status status = prepareNativeDiagnosticText(message, messageText);
+            const GameWIP::Status::Types::Status status = prepareNativeDiagnosticText(message, messageText);
             if(!status.ok())
             {
                 return status;
@@ -152,17 +161,17 @@ namespace GameWIP::Logger::Platform
 
             if(MessageBoxW(nullptr, messageText.c_str(), L"Fatal Error", MB_ICONERROR | MB_OK) == 0)
             {
-                return IO::makeStatus(IO::Types::ErrorCode::NativeFailure, GetLastError());
+                return makeWin32Status(StatusCode::NativeFailure, GetLastError());
             }
             return {};
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
+            return GameWIP::Status::Types::Status(StatusCode::OutOfMemory);
         }
         catch(...)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::NativeFailure, GetLastError());
+            return makeWin32Status(StatusCode::NativeFailure, GetLastError());
         }
     }
 } // namespace GameWIP::Logger::Platform

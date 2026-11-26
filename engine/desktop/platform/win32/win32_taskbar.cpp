@@ -1,6 +1,7 @@
 /// @file win32_taskbar.cpp
 /// @brief Implements Win32 taskbar integration.
 
+#include "desktop/internal/results.h"
 #include "desktop/internal/desktop_test_hooks.h"
 #include "desktop/platform/shell.h"
 #include "desktop/platform/win32/internal/win32_com.h"
@@ -32,7 +33,7 @@ namespace GameWIP::Desktop::Platform
 
     namespace
     {
-        using IO::Types::ErrorCode;
+        using ErrorCode = GameWIP::Status::Types::Code;
         using Win32::convertTip;
         using Win32::createIcon;
 
@@ -63,7 +64,7 @@ namespace GameWIP::Desktop::Platform
         }
 
         /// @brief Applies taskbar progress state through the COM taskbar interface.
-        [[nodiscard]] IO::Types::Status applyTaskbarProgress(TaskbarNative &native, const std::optional<Types::Shell::Progress> &progress) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status applyTaskbarProgress(TaskbarNative &native, const std::optional<Types::Shell::Progress> &progress) noexcept
         {
             ApartmentLease apartment;
 
@@ -106,7 +107,7 @@ namespace GameWIP::Desktop::Platform
                     flag = TBPF_ERROR;
                     break;
                 default:
-                    return IO::makeStatus(ErrorCode::InvalidArgument);
+                    return GameWIP::Desktop::Internal::statusFor(ErrorCode::InvalidArgument);
                 }
             }
             result = taskbar->SetProgressState(native.window, flag);
@@ -127,18 +128,18 @@ namespace GameWIP::Desktop::Platform
                 }
             }
 
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
 
         /// @brief Rebuilds taskbar thumbnail buttons while retaining icon cleanup on failure.
-        [[nodiscard]] IO::Types::Status applyTaskbarButtons(
+        [[nodiscard]] GameWIP::Status::Types::Status applyTaskbarButtons(
             TaskbarNative &native,
             std::span<const OwnedThumbnailButton> buttons,
             std::vector<HICON> &newIcons) noexcept
         {
             if(buttons.size() > kTaskbarButtonCapacity)
             {
-                return IO::makeStatus(ErrorCode::SizeLimitExceeded);
+                return GameWIP::Desktop::Internal::statusFor(ErrorCode::SizeLimitExceeded);
             }
 
             const auto cleanupIcons = [&] noexcept
@@ -191,7 +192,7 @@ namespace GameWIP::Desktop::Platform
                     nativeButton.iId = button.id.value;
                     nativeButton.dwFlags = button.enabled ? THBF_ENABLED : THBF_DISABLED;
                     std::array<wchar_t, 260> tooltip{};
-                    IO::Types::Status tipStatus = convertTip(button.label, tooltip);
+                    GameWIP::Status::Types::Status tipStatus = convertTip(button.label, tooltip);
 
                     if(!tipStatus.ok())
                     {
@@ -231,17 +232,17 @@ namespace GameWIP::Desktop::Platform
                     return statusFromHResult(result);
                 }
                 native.buttonsInitialized = true;
-                return IO::successStatus();
+                return GameWIP::Status::Types::Status{};
             }
             catch(const std::bad_alloc &)
             {
                 cleanupIcons();
-                return IO::makeStatus(ErrorCode::OutOfMemory);
+                return GameWIP::Desktop::Internal::statusFor(ErrorCode::OutOfMemory);
             }
             catch(...)
             {
                 cleanupIcons();
-                return IO::makeStatus(ErrorCode::Unknown);
+                return GameWIP::Desktop::Internal::statusFor(ErrorCode::Unknown);
             }
         }
 
@@ -251,22 +252,22 @@ namespace GameWIP::Desktop::Platform
     /// Taskbar integration
     /// ------------------------------------------------------------
 
-    IO::Types::Status openTaskbar(TaskbarItemState &state) noexcept
+    GameWIP::Status::Types::Status openTaskbar(TaskbarItemState &state) noexcept
     {
         if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ShellNativeOpen))
         {
-            return IO::makeStatus(ErrorCode::NativeFailure);
+            return GameWIP::Desktop::Internal::statusFor(ErrorCode::NativeFailure);
         }
 
         if(state.window == nullptr)
         {
-            return IO::makeStatus(ErrorCode::NotOpen);
+            return GameWIP::Desktop::Internal::statusFor(ErrorCode::NotOpen);
         }
         const NativeHandleView nativeHandleView = nativeHandle(*state.window);
 
         if(nativeHandleView.window == nullptr)
         {
-            return IO::makeStatus(ErrorCode::NotOpen);
+            return GameWIP::Desktop::Internal::statusFor(ErrorCode::NotOpen);
         }
 
         try
@@ -274,7 +275,7 @@ namespace GameWIP::Desktop::Platform
             auto *native = new TaskbarNative();
             native->window = static_cast<HWND>(nativeHandleView.window);
             state.platform = native;
-            IO::Types::Status status = applyTaskbar(state);
+            GameWIP::Status::Types::Status status = applyTaskbar(state);
 
             if(!status.ok())
             {
@@ -285,26 +286,26 @@ namespace GameWIP::Desktop::Platform
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(ErrorCode::OutOfMemory);
+            return GameWIP::Desktop::Internal::statusFor(ErrorCode::OutOfMemory);
         }
         catch(...)
         {
-            return IO::makeStatus(ErrorCode::Unknown);
+            return GameWIP::Desktop::Internal::statusFor(ErrorCode::Unknown);
         }
     }
 
-    IO::Types::Status applyTaskbar(TaskbarItemState &state) noexcept
+    GameWIP::Status::Types::Status applyTaskbar(TaskbarItemState &state) noexcept
     {
         if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ShellNativeApply))
         {
-            return IO::makeStatus(ErrorCode::NativeFailure);
+            return GameWIP::Desktop::Internal::statusFor(ErrorCode::NativeFailure);
         }
 
         auto *native = static_cast<TaskbarNative *>(state.platform);
 
         if(native == nullptr || native->window == nullptr)
         {
-            return IO::makeStatus(ErrorCode::NotOpen);
+            return GameWIP::Desktop::Internal::statusFor(ErrorCode::NotOpen);
         }
 
         std::vector<HICON> newIcons;
@@ -316,7 +317,7 @@ namespace GameWIP::Desktop::Platform
         try
         {
             // Update buttons and progress before applying the overlay icon.
-            IO::Types::Status status = applyTaskbarButtons(*native, state.thumbnailButtons, newIcons);
+            GameWIP::Status::Types::Status status = applyTaskbarButtons(*native, state.thumbnailButtons, newIcons);
 
             if(!status.ok())
             {
@@ -390,25 +391,25 @@ namespace GameWIP::Desktop::Platform
             // Replace button icon ownership after every native update succeeds.
             destroyIcons(native->buttonIcons);
             native->buttonIcons = std::move(newIcons);
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
         catch(const std::bad_alloc &)
         {
             cleanupIcons();
-            return IO::makeStatus(ErrorCode::OutOfMemory);
+            return GameWIP::Desktop::Internal::statusFor(ErrorCode::OutOfMemory);
         }
         catch(...)
         {
             cleanupIcons();
-            return IO::makeStatus(ErrorCode::Unknown);
+            return GameWIP::Desktop::Internal::statusFor(ErrorCode::Unknown);
         }
     }
 
-    IO::Types::Status closeTaskbar(TaskbarItemState &state) noexcept
+    GameWIP::Status::Types::Status closeTaskbar(TaskbarItemState &state) noexcept
     {
         if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ShellNativeClose))
         {
-            return IO::makeStatus(ErrorCode::NativeFailure);
+            return GameWIP::Desktop::Internal::statusFor(ErrorCode::NativeFailure);
         }
 
         auto *native = static_cast<TaskbarNative *>(state.platform);
@@ -416,7 +417,7 @@ namespace GameWIP::Desktop::Platform
         if(native == nullptr)
         {
             state.open = false;
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
 
         // Clear the taskbar overlay before releasing its icon.
@@ -442,7 +443,7 @@ namespace GameWIP::Desktop::Platform
         delete native;
         state.platform = nullptr;
         state.open = false;
-        return IO::successStatus();
+        return GameWIP::Status::Types::Status{};
     }
 
     void closeTaskbarBestEffort(TaskbarItemState &state) noexcept

@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <span>
 #include <vector>
 
@@ -88,43 +89,11 @@ namespace GameWIP::FileSystem::Platform
     /// Native operation results
     /// ------------------------------------------------------------
 
-    /// @brief Result returned by backend entry metadata queries.
-    struct EntryQueryResult
+    /// @brief Backend entry retained until the core applies public filters.
+    struct DirectoryCursorEntry
     {
-        /// @brief Success or portable/backend-native failure status.
-        IO::Types::Status status;
-        /// @brief Entry metadata when status is successful.
-        Types::EntryInfo info{};
-    };
-
-    /// @brief Backend result for non-blocking native lock acquisition.
-    struct NativeLockResult
-    {
-        /// @brief Operation status. WouldBlock is represented by outcome, not an error.
-        IO::Types::Status status;
-        /// @brief Whether the native lock was acquired.
-        Types::Lock::Outcome outcome = Types::Lock::Outcome::WouldBlock;
-        /// @brief Native lock state when outcome is Acquired.
-        std::unique_ptr<Internal::FileLockState> state;
-    };
-
-    /// @brief Cursor-open result; state is present only on success.
-    struct DirectoryCursorOpenResult
-    {
-        IO::Types::Status status;
-        std::unique_ptr<Internal::DirectoryCursorState> state;
-    };
-
-    /// @brief One cursor step; successful exhaustion is represented by hasEntry=false.
-    struct DirectoryCursorNextResult
-    {
-        // Result status
-        IO::Types::Status status;
-
-        // Candidate entry
         Types::Directory::Entry entry;
         bool hidden = false;
-        bool hasEntry = false;
     };
 
     /// ------------------------------------------------------------
@@ -136,7 +105,7 @@ namespace GameWIP::FileSystem::Platform
     /// during handle-relative traversal rather than checking a path and reopening it later.
     /// @param symlinkPolicy Symlink policy requested by the public operation.
     /// @return Entry metadata, InvalidArgument for invalid policy, or a portable/backend-native failure status.
-    [[nodiscard]] EntryQueryResult queryEntry(const Types::Path &path, Types::SymlinkPolicy symlinkPolicy) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<Types::EntryInfo> queryEntry(const Types::Path &path, Types::SymlinkPolicy symlinkPolicy) noexcept;
 
     /// ------------------------------------------------------------
     /// File operations
@@ -146,7 +115,7 @@ namespace GameWIP::FileSystem::Platform
     /// @param state Receives newly opened native state on success. Failure leaves it unchanged.
     /// @param options Sharing and symlink-resolution behavior.
     /// @return Success, or a validation/open failure status.
-    [[nodiscard]] IO::Types::Status openReader(
+    [[nodiscard]] GameWIP::Status::Types::Result<void> openReader(
         std::unique_ptr<Internal::FileState> &state,
         const Types::Path &path,
         const Types::File::ReaderOpenOptions &options) noexcept;
@@ -155,7 +124,7 @@ namespace GameWIP::FileSystem::Platform
     /// @param state Receives newly opened native state on success. Failure leaves it unchanged.
     /// @param options Creation, append, sharing, symlink, and close-flush behavior.
     /// @return Success, or a validation/open failure status.
-    [[nodiscard]] IO::Types::Status openWriter(
+    [[nodiscard]] GameWIP::Status::Types::Result<void> openWriter(
         std::unique_ptr<Internal::FileState> &state,
         const Types::Path &path,
         const Types::File::WriterOpenOptions &options) noexcept;
@@ -164,47 +133,48 @@ namespace GameWIP::FileSystem::Platform
     /// @param state Receives newly opened native state on success. Failure leaves it unchanged.
     /// @param options Access, creation, sharing, initial-position, symlink, and close-flush behavior.
     /// @return Success, or a validation/open/seek failure status.
-    [[nodiscard]] IO::Types::Status openFile(
+    [[nodiscard]] GameWIP::Status::Types::Result<void> openFile(
         std::unique_ptr<Internal::FileState> &state,
         const Types::Path &path,
         const Types::File::OpenOptions &options) noexcept;
 
     /// @brief Reads from an open native file handle.
-    [[nodiscard]] IO::Types::ReadResult readFile(Internal::FileState &state, std::span<std::byte> destination) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<IO::Types::ReadProgress> readFile(Internal::FileState &state, std::span<std::byte> destination) noexcept;
 
     /// @brief Writes to an open native file handle.
-    [[nodiscard]] IO::Types::WriteResult writeFile(Internal::FileState &state, std::span<const std::byte> bytes) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<IO::Types::WriteProgress> writeFile(Internal::FileState &state, std::span<const std::byte> bytes) noexcept;
 
     /// @brief Flushes an open native file handle.
-    [[nodiscard]] IO::Types::Status flushFile(Internal::FileState &state, IO::Types::FlushMode mode) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<void> flushFile(Internal::FileState &state, IO::Types::FlushMode mode) noexcept;
 
     /// @brief Closes an open native file handle. ResourceBusy is returned while active locks remain.
-    [[nodiscard]] IO::Types::Status closeFile(Internal::FileState &state) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<void> closeFile(Internal::FileState &state) noexcept;
 
     /// @brief Returns the current file position for a seekable native handle.
-    [[nodiscard]] IO::Types::PositionResult filePosition(const Internal::FileState &state) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<std::uint64_t> filePosition(const Internal::FileState &state) noexcept;
 
     /// @brief Returns the current file size for an open native handle.
-    [[nodiscard]] IO::Types::SizeResult fileSize(const Internal::FileState &state) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<std::uint64_t> fileSize(const Internal::FileState &state) noexcept;
 
     /// @brief Moves the current file position for a seekable native handle.
-    [[nodiscard]] IO::Types::Status seekFile(Internal::FileState &state, std::int64_t offset, IO::Types::SeekOrigin origin) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<void> seekFile(Internal::FileState &state, std::int64_t offset, IO::Types::SeekOrigin origin) noexcept;
 
     /// @brief Resizes an open writable native file handle, optionally preserving its observable position.
-    [[nodiscard]] IO::Types::Status resizeFile(Internal::FileState &state, std::uint64_t sizeBytes, bool restorePosition) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<void> resizeFile(Internal::FileState &state, std::uint64_t sizeBytes, bool restorePosition) noexcept;
 
     /// @brief Attempts to acquire a non-blocking whole-file lock from an open native handle.
-    [[nodiscard]] NativeLockResult tryLockFile(Internal::FileState &state, Types::Lock::Mode mode) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<std::unique_ptr<Internal::FileLockState>>
+    tryLockFile(Internal::FileState &state, Types::Lock::Mode mode) noexcept;
 
     /// @brief Unlocks a whole-file lock. Failure leaves the lock active.
-    [[nodiscard]] IO::Types::Status unlockFile(Internal::FileLockState &state) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<void> unlockFile(Internal::FileLockState &state) noexcept;
 
     /// ------------------------------------------------------------
     /// Path operations
     /// ------------------------------------------------------------
 
     /// @brief Moves or replaces one path with the platform-native rename primitive.
-    [[nodiscard]] IO::Types::Status movePath(
+    [[nodiscard]] GameWIP::Status::Types::Result<void> movePath(
         const Types::Path &from,
         const Types::Path &to,
         Types::ReplaceMode replaceMode,
@@ -215,49 +185,51 @@ namespace GameWIP::FileSystem::Platform
     /// ------------------------------------------------------------
 
     /// @brief Creates one directory level using backend-native path traversal.
-    [[nodiscard]] IO::Types::Status createDirectory(const Types::Path &path, const Types::Directory::CreateOptions &options) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<void> createDirectory(const Types::Path &path, const Types::Directory::CreateOptions &options) noexcept;
 
     /// @brief Creates a directory and any missing parents using backend-native path traversal.
-    [[nodiscard]] IO::Types::Status createDirectories(const Types::Path &path, const Types::Directory::CreateOptions &options) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<void> createDirectories(const Types::Path &path, const Types::Directory::CreateOptions &options) noexcept;
 
     /// @brief Reports whether a path names a filesystem root.
-    [[nodiscard]] Types::BoolResult isRootPath(const Types::Path &path) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<bool> isRootPath(const Types::Path &path) noexcept;
 
     /// @brief Lists direct directory children using backend-native path traversal.
-    [[nodiscard]] Types::Directory::ListResult listDirectory(const Types::Path &path, const Types::Directory::ListOptions &options) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<std::vector<Types::Directory::Entry>>
+    listDirectory(const Types::Path &path, const Types::Directory::ListOptions &options) noexcept;
 
     /// @brief Opens a streaming cursor over direct children while stabilizing strict-policy path components.
-    [[nodiscard]] DirectoryCursorOpenResult openDirectoryCursor(const Types::Path &path, Types::SymlinkPolicy symlinkPolicy) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<std::unique_ptr<Internal::DirectoryCursorState>>
+    openDirectoryCursor(const Types::Path &path, Types::SymlinkPolicy symlinkPolicy) noexcept;
 
     /// @brief Opens a nested cursor relative to its active parent, retaining only the new directory handle.
     /// The parent cursor must outlive the returned cursor.
-    [[nodiscard]] DirectoryCursorOpenResult openChildDirectoryCursor(
+    [[nodiscard]] GameWIP::Status::Types::Result<std::unique_ptr<Internal::DirectoryCursorState>> openChildDirectoryCursor(
         const Internal::DirectoryCursorState &parent,
         const Types::Path &path,
         Types::SymlinkPolicy symlinkPolicy) noexcept;
 
     /// @brief Reads one direct child without collecting siblings; exhaustion remains successful.
-    [[nodiscard]] DirectoryCursorNextResult readDirectoryCursor(Internal::DirectoryCursorState &state) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<std::optional<DirectoryCursorEntry>> readDirectoryCursor(Internal::DirectoryCursorState &state) noexcept;
 
     /// ------------------------------------------------------------
     /// Metadata and entry mutations
     /// ------------------------------------------------------------
 
     /// @brief Changes read-only metadata through a backend-native entry handle.
-    [[nodiscard]] IO::Types::Status setReadOnly(const Types::Path &path, bool readOnly, Types::SymlinkPolicy symlinkPolicy) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<void> setReadOnly(const Types::Path &path, bool readOnly, Types::SymlinkPolicy symlinkPolicy) noexcept;
 
     /// @brief Copies portable basic metadata from one regular file to another through backend-native entry handles.
-    [[nodiscard]] IO::Types::Status copyBasicMetadata(const Types::Path &from, const Types::Path &to, Types::SymlinkPolicy symlinkPolicy) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<void> copyBasicMetadata(const Types::Path &from, const Types::Path &to, Types::SymlinkPolicy symlinkPolicy) noexcept;
 
     /// @brief Removes one file-like entry through a backend-native entry handle.
-    [[nodiscard]] IO::Types::Status removeFile(const Types::Path &path, const Types::RemoveOptions &options) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<void> removeFile(const Types::Path &path, const Types::RemoveOptions &options) noexcept;
 
     /// @brief Removes one empty directory through a backend-native entry handle.
-    [[nodiscard]] IO::Types::Status removeEmptyDirectory(const Types::Path &path, const Types::RemoveOptions &options) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<void> removeEmptyDirectory(const Types::Path &path, const Types::RemoveOptions &options) noexcept;
 
     /// @brief Flushes filesystem metadata for a directory path.
-    [[nodiscard]] IO::Types::Status flushDirectory(const Types::Path &path) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<void> flushDirectory(const Types::Path &path) noexcept;
 
     /// @brief Returns whether a backend considers an entry hidden.
-    [[nodiscard]] Types::BoolResult isHidden(const Types::Path &path) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<bool> isHidden(const Types::Path &path) noexcept;
 } // namespace GameWIP::FileSystem::Platform

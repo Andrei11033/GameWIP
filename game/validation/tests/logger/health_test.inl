@@ -7,7 +7,7 @@ void testQueryDefaultsAndLifecycle(TestContext &context)
 
     // Compare query defaults before, during, and after initialization.
     const Logger::Types::LogFilePathResult beforeInitPath = Logger::getLogFilePath();
-    context.expectEq("log path before init reports NotOpen", beforeInitPath.status.code, IO::Types::ErrorCode::NotOpen);
+    context.expectEq("log path before init reports NotOpen", beforeInitPath.status().code(), GameWIP::Status::Types::Code::NotOpen);
     context.expectEq("output before init is disabled", Logger::getOutput(), Logger::Types::OutputMode::None);
     context.expectEq("queue limits before init are empty", Logger::getQueueLimits().softQueueSize, std::size_t{0});
     context.expectEq("health before init is disabled", Logger::getHealth().state, Logger::Types::Health::State::Disabled);
@@ -15,11 +15,11 @@ void testQueryDefaultsAndLifecycle(TestContext &context)
     expectStarted(context, "query lifecycle console init", Logger::init(makeConsoleConfig()));
     context.expectEq("output while active is console", Logger::getOutput(), Logger::Types::OutputMode::Console);
     const Logger::Types::LogFilePathResult consolePath = Logger::getLogFilePath();
-    context.expectEq("log path without file output reports NotOpen", consolePath.status.code, IO::Types::ErrorCode::NotOpen);
+    context.expectEq("log path without file output reports NotOpen", consolePath.status().code(), GameWIP::Status::Types::Code::NotOpen);
 
     static_cast<void>(Logger::shutdown());
     const Logger::Types::LogFilePathResult afterShutdownPath = Logger::getLogFilePath();
-    context.expectEq("log path after shutdown reports NotOpen", afterShutdownPath.status.code, IO::Types::ErrorCode::NotOpen);
+    context.expectEq("log path after shutdown reports NotOpen", afterShutdownPath.status().code(), GameWIP::Status::Types::Code::NotOpen);
     context.expectEq("output after shutdown is disabled", Logger::getOutput(), Logger::Types::OutputMode::None);
 }
 
@@ -42,11 +42,11 @@ void testShutdownAndHealthEpoch(TestContext &context)
                 const bool healthy = snapshot.state == Logger::Types::Health::State::Healthy &&
                                      snapshot.effectiveOutput == Logger::Types::OutputMode::File &&
                                      snapshot.lastFailureSource == Logger::Types::Health::FailureSource::None &&
-                                     snapshot.lastError == IO::Types::ErrorCode::Success && snapshot.failureCount == 0;
+                                     snapshot.lastError == GameWIP::Status::Types::Code::Success && snapshot.failureCount == 0;
                 const bool failed = snapshot.state == Logger::Types::Health::State::Disabled &&
                                     snapshot.effectiveOutput == Logger::Types::OutputMode::None &&
                                     snapshot.lastFailureSource == Logger::Types::Health::FailureSource::File &&
-                                    snapshot.lastError != IO::Types::ErrorCode::Success && snapshot.failureCount > 0;
+                                    snapshot.lastError != GameWIP::Status::Types::Code::Success && snapshot.failureCount > 0;
 
                 if(!healthy && !failed)
                 {
@@ -72,10 +72,10 @@ void testShutdownAndHealthEpoch(TestContext &context)
 #endif
 
     // Verify shutdown and reinitialization begin distinct health epochs.
-    const IO::Types::Status shutdownStatus = Logger::shutdown();
+    const auto shutdownStatus = Logger::shutdown();
     context.expectFalse("shutdown always stops Logger", Logger::running());
     context.expectEq("shutdown health disabled", Logger::getHealth().state, Logger::Types::Health::State::Disabled);
-    static_cast<void>(shutdownStatus);
+    context.expectTrue("shutdown succeeds", shutdownStatus.ok());
 
     const Logger::Types::Init::Result reinit = Logger::init(makeConsoleConfig());
     expectStarted(context, "health epoch reinit", reinit);

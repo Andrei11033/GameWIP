@@ -217,7 +217,7 @@ namespace GameWIP::TestSupport
     {
         const Types::BoolResult result = fileContains(path, expectedSubstring);
 
-        if(result.status.ok() && result.value)
+        if(result.ok() && result.value())
         {
             pass(name);
             return true;
@@ -226,9 +226,9 @@ namespace GameWIP::TestSupport
         std::ostringstream reason;
         reason << "expected file '" << Internal::pathText(path) << "' to contain '" << expectedSubstring << "'";
 
-        if(!result.status.ok())
+        if(!result.ok())
         {
-            reason << ", infrastructure error " << formatInfrastructureStatus(result.status);
+            reason << ", infrastructure error " << formatStatus(result.status());
         }
 
         fail(name, reason.str(), location);
@@ -244,19 +244,23 @@ namespace GameWIP::TestSupport
     {
         const Types::CountResult result = countFileOccurrences(path, text);
 
-        if(result.status.ok() && result.count == expectedCount)
+        if(result.ok() && result.value() == expectedCount)
         {
             pass(name);
             return true;
         }
 
         std::ostringstream reason;
-        reason << "expected " << expectedCount << " occurrences of '" << text << "' in file '" << Internal::pathText(path) << "', got "
-               << result.count;
+        reason << "expected " << expectedCount << " occurrences of '" << text << "' in file '" << Internal::pathText(path) << "'";
 
-        if(!result.status.ok())
+        if(result.hasValue())
         {
-            reason << ", infrastructure error " << formatInfrastructureStatus(result.status);
+            reason << ", got " << result.value();
+        }
+
+        if(!result.ok())
+        {
+            reason << ", infrastructure error " << formatStatus(result.status());
         }
 
         fail(name, reason.str(), location);

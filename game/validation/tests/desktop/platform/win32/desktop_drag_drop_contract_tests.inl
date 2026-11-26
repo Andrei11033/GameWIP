@@ -49,55 +49,59 @@ void testDragDropContracts(TestSupport::Context &context)
         Desktop::Internal::TestHooks::negotiateDragDropEffect(static_cast<DD::Effect>(0x80), all, DD::Effect::Copy)));
 
     const DD::Result rejectedDrop = Win32TestHooks::droppedDragDropSourceResult(DD::Effect::None, DD::Effect::Copy);
-    static_cast<void>(context.expectTrue("rejected native drop completes successfully", rejectedDrop.status.ok()));
-    static_cast<void>(context.expectEq("rejected native drop is cancelled", DD::Outcome::Cancelled, rejectedDrop.outcome));
-    static_cast<void>(context.expectEq("rejected native drop performs no effect", DD::Effect::None, rejectedDrop.effect));
+    if(context.expectTrue("rejected native drop completes successfully", rejectedDrop.ok()))
+    {
+        static_cast<void>(context.expectEq("rejected native drop is cancelled", DD::Outcome::Cancelled, rejectedDrop.value().outcome));
+        static_cast<void>(context.expectEq("rejected native drop performs no effect", DD::Effect::None, rejectedDrop.value().effect));
+    }
 
     const DD::Result acceptedDrop = Win32TestHooks::droppedDragDropSourceResult(DD::Effect::Move, all);
-    static_cast<void>(context.expectTrue("accepted native drop completes successfully", acceptedDrop.status.ok()));
-    static_cast<void>(context.expectEq("accepted native drop is dropped", DD::Outcome::Dropped, acceptedDrop.outcome));
-    static_cast<void>(context.expectEq("accepted native drop reports its effect", DD::Effect::Move, acceptedDrop.effect));
+    if(context.expectTrue("accepted native drop completes successfully", acceptedDrop.ok()))
+    {
+        static_cast<void>(context.expectEq("accepted native drop is dropped", DD::Outcome::Dropped, acceptedDrop.value().outcome));
+        static_cast<void>(context.expectEq("accepted native drop reports its effect", DD::Effect::Move, acceptedDrop.value().effect));
+    }
     static_cast<void>(context.expectEq(
         "multiple native completion effects fail",
         ErrorCode::NativeFailure,
-        Win32TestHooks::droppedDragDropSourceResult(DD::Effect::Copy | DD::Effect::Move, all).status.code));
+        Win32TestHooks::droppedDragDropSourceResult(DD::Effect::Copy | DD::Effect::Move, all).status().code()));
     static_cast<void>(context.expectEq(
         "unadvertised native completion effect fails",
         ErrorCode::NativeFailure,
-        Win32TestHooks::droppedDragDropSourceResult(DD::Effect::Move, DD::Effect::Copy).status.code));
+        Win32TestHooks::droppedDragDropSourceResult(DD::Effect::Move, DD::Effect::Copy).status().code()));
 
     // Validate text payloads.
     std::array<Transfer::ItemView, 1> validTextItems{{Transfer::TextView{"text"}}};
     const DD::Description validSource{validTextItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left};
     static_cast<void>(context.expectTrue("valid source data prepares", Win32TestHooks::prepareDragDropSource(validSource).ok()));
-    static_cast<void>(context.expectEq("empty source is invalid", ErrorCode::InvalidArgument, Win32TestHooks::prepareDragDropSource({}).code));
+    static_cast<void>(context.expectEq("empty source is invalid", ErrorCode::InvalidArgument, Win32TestHooks::prepareDragDropSource({}).code()));
     DD::Description invalidSourceEffects = validSource;
     invalidSourceEffects.effects.allowed = static_cast<DD::Effect>(0x80);
     static_cast<void>(context.expectEq(
         "invalid source effect bits are rejected",
         ErrorCode::InvalidArgument,
-        Win32TestHooks::prepareDragDropSource(invalidSourceEffects).code));
+        Win32TestHooks::prepareDragDropSource(invalidSourceEffects).code()));
     DD::Description invalidTrigger = validSource;
     invalidTrigger.triggerButton = static_cast<DD::TriggerButton>(99);
     static_cast<void>(context.expectEq(
         "invalid source trigger is rejected",
         ErrorCode::InvalidArgument,
-        Win32TestHooks::prepareDragDropSource(invalidTrigger).code));
+        Win32TestHooks::prepareDragDropSource(invalidTrigger).code()));
     std::array<Transfer::ItemView, 2> duplicateTextItems{{Transfer::TextView{"one"}, Transfer::TextView{"two"}}};
     static_cast<void>(context.expectEq(
         "duplicate native source formats are rejected",
         ErrorCode::InvalidArgument,
-        Win32TestHooks::prepareDragDropSource({duplicateTextItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
+        Win32TestHooks::prepareDragDropSource({duplicateTextItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code()));
     std::array<Transfer::ItemView, 1> malformedTextItems{{Transfer::TextView{std::string_view{"\xC3", 1}}}};
     static_cast<void>(context.expectEq(
         "malformed source UTF-8 is rejected",
         ErrorCode::InvalidArgument,
-        Win32TestHooks::prepareDragDropSource({malformedTextItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
+        Win32TestHooks::prepareDragDropSource({malformedTextItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code()));
     std::array<Transfer::ItemView, 1> nulTextItems{{Transfer::TextView{std::string_view{"a\0b", 3}}}};
     static_cast<void>(context.expectEq(
         "source text embedded NUL is rejected",
         ErrorCode::InvalidArgument,
-        Win32TestHooks::prepareDragDropSource({nulTextItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
+        Win32TestHooks::prepareDragDropSource({nulTextItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code()));
 
     // Validate custom format names and image dimensions.
     std::array<std::byte, 1> oneByte{std::byte{1}};
@@ -105,35 +109,35 @@ void testDragDropContracts(TestSupport::Context &context)
     static_cast<void>(context.expectEq(
         "malformed source custom name is rejected",
         ErrorCode::InvalidArgument,
-        Win32TestHooks::prepareDragDropSource({malformedCustomItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
+        Win32TestHooks::prepareDragDropSource({malformedCustomItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code()));
     std::array<Transfer::ItemView, 1> nulCustomItems{{Transfer::CustomView{std::string_view{"a\0b", 3}, oneByte}}};
     static_cast<void>(context.expectEq(
         "source custom name embedded NUL is rejected",
         ErrorCode::InvalidArgument,
-        Win32TestHooks::prepareDragDropSource({nulCustomItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
+        Win32TestHooks::prepareDragDropSource({nulCustomItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code()));
     std::array<Transfer::ItemView, 1> emptyCustomItems{{Transfer::CustomView{"GameWIP.Empty", {}}}};
     static_cast<void>(context.expectEq(
         "zero-byte custom source is unsupported",
         ErrorCode::Unsupported,
-        Win32TestHooks::prepareDragDropSource({emptyCustomItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
+        Win32TestHooks::prepareDragDropSource({emptyCustomItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code()));
 
     std::array<std::byte, 3> invalidImageBytes{};
     std::array<Transfer::ItemView, 1> invalidImageItems{{Transfer::ImageView::strided({1, 1}, 0, invalidImageBytes)}};
     static_cast<void>(context.expectEq(
         "invalid image extent is rejected",
         ErrorCode::InvalidArgument,
-        Win32TestHooks::prepareDragDropSource({invalidImageItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
+        Win32TestHooks::prepareDragDropSource({invalidImageItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code()));
     std::array<Transfer::ItemView, 1> zeroImageItems{{Transfer::ImageView::strided({0, 1}, 0, {})}};
     static_cast<void>(context.expectEq(
         "zero image dimension is rejected",
         ErrorCode::InvalidArgument,
-        Win32TestHooks::prepareDragDropSource({zeroImageItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
+        Win32TestHooks::prepareDragDropSource({zeroImageItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code()));
     std::array<std::byte, 4> onePixel{};
     std::array<Transfer::ItemView, 1> invalidStrideItems{{Transfer::ImageView::strided({1, 1}, 3, onePixel)}};
     static_cast<void>(context.expectEq(
         "undersized image stride is rejected",
         ErrorCode::InvalidArgument,
-        Win32TestHooks::prepareDragDropSource({invalidStrideItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
+        Win32TestHooks::prepareDragDropSource({invalidStrideItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code()));
 
     // Validate source file paths.
     std::array<GameWIP::FileSystem::Types::Path, 1> relativePaths{{L"relative.txt"}};
@@ -141,7 +145,7 @@ void testDragDropContracts(TestSupport::Context &context)
     static_cast<void>(context.expectEq(
         "relative source file path is rejected",
         ErrorCode::InvalidArgument,
-        Win32TestHooks::prepareDragDropSource({relativeFileItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
+        Win32TestHooks::prepareDragDropSource({relativeFileItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code()));
     std::wstring malformedNativePath = L"C:\\";
     malformedNativePath.push_back(static_cast<wchar_t>(0xD800));
     std::array<GameWIP::FileSystem::Types::Path, 1> malformedPaths{{malformedNativePath}};
@@ -149,21 +153,21 @@ void testDragDropContracts(TestSupport::Context &context)
     static_cast<void>(context.expectEq(
         "malformed native Unicode source path is rejected",
         ErrorCode::InvalidArgument,
-        Win32TestHooks::prepareDragDropSource({malformedFileItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
+        Win32TestHooks::prepareDragDropSource({malformedFileItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code()));
 
     // Verify preparation allocation failure.
     Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::DragDropPreparation);
     static_cast<void>(context.expectEq(
         "source preparation failure is deterministic",
         ErrorCode::OutOfMemory,
-        Win32TestHooks::prepareDragDropSource(validSource).code));
+        Win32TestHooks::prepareDragDropSource(validSource).code()));
 
     // Check apartment compatibility and native source materialization failures.
     Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::DragDropOleInitialization);
     static_cast<void>(context.expectEq(
         "source OLE initialization failure is deterministic",
         ErrorCode::OpenFailed,
-        Win32TestHooks::testDragDropOleInitialization().code));
+        Win32TestHooks::testDragDropOleInitialization().code()));
     ErrorCode compatiblePreinitialized = ErrorCode::Unknown;
     ErrorCode incompatibleApartment = ErrorCode::Unknown;
     std::thread compatibleApartmentThread(
@@ -173,7 +177,7 @@ void testDragDropContracts(TestSupport::Context &context)
 
             if(initialized == S_OK || initialized == S_FALSE)
             {
-                compatiblePreinitialized = Win32TestHooks::testDragDropOleInitialization().code;
+                compatiblePreinitialized = Win32TestHooks::testDragDropOleInitialization().code();
             }
 
             if(initialized == S_OK || initialized == S_FALSE)
@@ -190,7 +194,7 @@ void testDragDropContracts(TestSupport::Context &context)
 
             if(initialized == S_OK || initialized == S_FALSE)
             {
-                incompatibleApartment = Win32TestHooks::testDragDropOleInitialization().code;
+                incompatibleApartment = Win32TestHooks::testDragDropOleInitialization().code();
             }
 
             if(initialized == S_OK || initialized == S_FALSE)
@@ -204,6 +208,6 @@ void testDragDropContracts(TestSupport::Context &context)
     static_cast<void>(context.expectEq(
         "target materialization failure is deterministic",
         ErrorCode::ReadFailed,
-        Win32TestHooks::testDragDropMaterialization().code));
+        Win32TestHooks::testDragDropMaterialization().code()));
     static_cast<void>(context.expectTrue("source COM data-object and enumerator contracts hold", Win32TestHooks::dragDropComContractsValid()));
 }

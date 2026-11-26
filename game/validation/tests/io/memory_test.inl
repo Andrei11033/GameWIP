@@ -15,67 +15,67 @@ void testMemoryReader(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("MemoryReader can seek while open", reader.canSeek()));
 
     std::array<std::byte, 2> firstChunk{};
-    const IO::Types::ReadResult firstRead = reader.read(firstChunk);
+    const ReadResult firstRead = reader.read(firstChunk);
 
-    if(!context.expectEq("MemoryReader first read status", ErrorCode::Success, firstRead.status.code) ||
-       !context.expectEq("MemoryReader first read byte count", firstChunk.size(), firstRead.bytesRead))
+    if(!context.expectEq("MemoryReader first read status", ErrorCode::Success, firstRead.status().code()) ||
+       !context.expectEq("MemoryReader first read byte count", firstChunk.size(), firstRead.value().bytesRead))
     {
         return;
     }
-    static_cast<void>(context.expectFalse("MemoryReader first read not EOS", firstRead.endOfStream));
+    static_cast<void>(context.expectFalse("MemoryReader first read not EOS", firstRead.value().endOfStream));
     static_cast<void>(
         context.expectEq("MemoryReader preserves first binary chunk", makeBytes({0x41, 0x00}), copyBytes(std::span<const std::byte>(firstChunk))));
 
     IO::MemoryReader movedReader(std::move(reader));
     static_cast<void>(context.expectTrue("MemoryReader move preserves open state", movedReader.isOpen()));
-    const IO::Types::PositionResult position = movedReader.position();
+    const ScalarResult position = movedReader.position();
 
-    if(context.expectEq("moved MemoryReader position status", ErrorCode::Success, position.status.code))
+    if(context.expectEq("moved MemoryReader position status", ErrorCode::Success, position.status().code()))
     {
-        static_cast<void>(context.expectEq("MemoryReader move preserves position", std::uint64_t{2}, position.position));
+        static_cast<void>(context.expectEq("MemoryReader move preserves position", std::uint64_t{2}, position.value()));
     }
 
-    const IO::Types::SizeResult size = movedReader.size();
+    const ScalarResult size = movedReader.size();
 
-    if(context.expectEq("moved MemoryReader size status", ErrorCode::Success, size.status.code))
+    if(context.expectEq("moved MemoryReader size status", ErrorCode::Success, size.status().code()))
     {
-        static_cast<void>(context.expectEq("MemoryReader move preserves source size", std::uint64_t{4}, size.sizeBytes));
+        static_cast<void>(context.expectEq("MemoryReader move preserves source size", std::uint64_t{4}, size.value()));
     }
 
     std::array<std::byte, 8> finalChunk{};
-    const IO::Types::ReadResult finalRead = movedReader.read(finalChunk);
+    const ReadResult finalRead = movedReader.read(finalChunk);
 
-    if(!context.expectEq("moved MemoryReader final read status", ErrorCode::Success, finalRead.status.code) ||
-       !context.expectEq("moved MemoryReader final read byte count", std::size_t{2}, finalRead.bytesRead))
+    if(!context.expectEq("moved MemoryReader final read status", ErrorCode::Success, finalRead.status().code()) ||
+       !context.expectEq("moved MemoryReader final read byte count", std::size_t{2}, finalRead.value().bytesRead))
     {
         return;
     }
 
-    static_cast<void>(context.expectTrue("MemoryReader final read reports EOS", finalRead.endOfStream));
+    static_cast<void>(context.expectTrue("MemoryReader final read reports EOS", finalRead.value().endOfStream));
     static_cast<void>(context.expectEq(
         "MemoryReader move continues from the preserved position",
         makeBytes({0x42, 0xff}),
-        copyBytes(std::span{finalChunk}.first(finalRead.bytesRead))));
+        copyBytes(std::span{finalChunk}.first(finalRead.value().bytesRead))));
 
-    const IO::Types::ReadResult eosRead = movedReader.read(finalChunk);
-    static_cast<void>(context.expectTrue("MemoryReader EOS read succeeds", eosRead.status.ok()));
-    static_cast<void>(context.expectEq("MemoryReader EOS read returns zero bytes", std::size_t{0}, eosRead.bytesRead));
-    static_cast<void>(context.expectTrue("MemoryReader EOS read remains EOS", eosRead.endOfStream));
+    const ReadResult eosRead = movedReader.read(finalChunk);
+    static_cast<void>(context.expectTrue("MemoryReader EOS read succeeds", eosRead.ok()));
+    static_cast<void>(context.expectEq("MemoryReader EOS read returns zero bytes", std::size_t{0}, eosRead.value().bytesRead));
+    static_cast<void>(context.expectTrue("MemoryReader EOS read remains EOS", eosRead.value().endOfStream));
 
-    const IO::Types::ReadResult emptyRead = movedReader.read(std::span<std::byte>{});
-    static_cast<void>(context.expectTrue("MemoryReader empty read succeeds", emptyRead.status.ok()));
-    static_cast<void>(context.expectTrue("MemoryReader empty read reports EOS at end", emptyRead.endOfStream));
+    const ReadResult emptyRead = movedReader.read(std::span<std::byte>{});
+    static_cast<void>(context.expectTrue("MemoryReader empty read succeeds", emptyRead.ok()));
+    static_cast<void>(context.expectTrue("MemoryReader empty read reports EOS at end", emptyRead.value().endOfStream));
 
     // Check character-backed bytes and overlapping reads.
     IO::MemoryReader textReader("abc");
-    const IO::Types::ReadAllTextResult textResult = IO::readAllText(textReader);
-    static_cast<void>(context.expectTrue("MemoryReader string view read succeeds", textResult.status.ok()));
-    static_cast<void>(context.expectEq("MemoryReader string view preserves text", std::string{"abc"}, textResult.text));
+    const StatusTypes::Result<std::string> textResult = IO::readAllText(textReader);
+    static_cast<void>(context.expectTrue("MemoryReader string view read succeeds", textResult.ok()));
+    static_cast<void>(context.expectEq("MemoryReader string view preserves text", std::string{"abc"}, textResult.value()));
 
     std::vector<std::byte> overlapSource = makeBytes({0x10, 0x20, 0x30, 0x40});
     IO::MemoryReader overlapReader(overlapSource);
-    const IO::Types::ReadResult overlapRead = overlapReader.read(std::span<std::byte>(overlapSource).subspan(1, 3));
-    static_cast<void>(context.expectTrue("MemoryReader overlapping read succeeds", overlapRead.status.ok()));
+    const ReadResult overlapRead = overlapReader.read(std::span<std::byte>(overlapSource).subspan(1, 3));
+    static_cast<void>(context.expectTrue("MemoryReader overlapping read succeeds", overlapRead.ok()));
     static_cast<void>(context.expectEq("MemoryReader overlapping read preserves source order", makeBytes({0x10, 0x10, 0x20, 0x30}), overlapSource));
 
     // Check closed-state behavior.
@@ -83,13 +83,13 @@ void testMemoryReader(TestSupport::Context &context)
     static_cast<void>(context.expectFalse("MemoryReader reports closed state", movedReader.isOpen()));
     static_cast<void>(context.expectFalse("MemoryReader cannot seek after close", movedReader.canSeek()));
     static_cast<void>(
-        context.expectEq("MemoryReader read after close reports NotOpen", ErrorCode::NotOpen, movedReader.read(firstChunk).status.code));
-    static_cast<void>(context.expectEq("MemoryReader position after close reports NotOpen", ErrorCode::NotOpen, movedReader.position().status.code));
-    static_cast<void>(context.expectEq("MemoryReader size after close reports NotOpen", ErrorCode::NotOpen, movedReader.size().status.code));
+        context.expectEq("MemoryReader read after close reports NotOpen", ErrorCode::NotOpen, movedReader.read(firstChunk).status().code()));
+    static_cast<void>(context.expectEq("MemoryReader position after close reports NotOpen", ErrorCode::NotOpen, movedReader.position().status().code()));
+    static_cast<void>(context.expectEq("MemoryReader size after close reports NotOpen", ErrorCode::NotOpen, movedReader.size().status().code()));
     static_cast<void>(context.expectEq(
         "MemoryReader seek after close reports NotOpen",
         ErrorCode::NotOpen,
-        movedReader.seek(0, IO::Types::SeekOrigin::Begin).code));
+        movedReader.seek(0, IO::Types::SeekOrigin::Begin).status().code()));
     static_cast<void>(context.expectTrue("MemoryReader repeated close succeeds", movedReader.close().ok()));
 }
 
@@ -118,28 +118,28 @@ void testMemoryReaderSeek(TestSupport::Context &context)
     {
         const std::string name = std::format("MemoryReader seek from {}", test.name);
 
-        if(!context.expectEq(name + " status", ErrorCode::Success, reader.seek(test.offset, test.origin).code))
+        if(!context.expectEq(name + " status", ErrorCode::Success, reader.seek(test.offset, test.origin).status().code()))
         {
             return;
         }
         const auto position = reader.position();
 
-        if(context.expectEq(name + " position status", ErrorCode::Success, position.status.code))
+        if(context.expectEq(name + " position status", ErrorCode::Success, position.status().code()))
         {
-            static_cast<void>(context.expectEq(name + " position", test.position, position.position));
+            static_cast<void>(context.expectEq(name + " position", test.position, position.value()));
         }
         std::array<std::byte, 1> byte{};
         const auto read = reader.read(byte);
 
-        if(!context.expectEq(name + " read status", ErrorCode::Success, read.status.code) ||
-           !context.expectEq(name + " read count", byte.size(), read.bytesRead))
+        if(!context.expectEq(name + " read status", ErrorCode::Success, read.status().code()) ||
+           !context.expectEq(name + " read count", byte.size(), read.value().bytesRead))
         {
             return;
         }
         static_cast<void>(context.expectEq(name + " payload", test.byte, byte[0]));
     }
 
-    if(!context.expectEq("MemoryReader position before rejected seeks", ErrorCode::Success, reader.seek(2, IO::Types::SeekOrigin::Begin).code))
+    if(!context.expectEq("MemoryReader position before rejected seeks", ErrorCode::Success, reader.seek(2, IO::Types::SeekOrigin::Begin).status().code()))
     {
         return;
     }
@@ -161,12 +161,12 @@ void testMemoryReaderSeek(TestSupport::Context &context)
     for(const RejectedSeek &test : rejected)
     {
         const std::string name = std::format("MemoryReader rejected seek {}", test.name);
-        static_cast<void>(context.expectEq(name + " status", test.error, reader.seek(test.offset, test.origin).code));
+        static_cast<void>(context.expectEq(name + " status", test.error, reader.seek(test.offset, test.origin).status().code()));
         const auto position = reader.position();
 
-        if(context.expectEq(name + " position status", ErrorCode::Success, position.status.code))
+        if(context.expectEq(name + " position status", ErrorCode::Success, position.status().code()))
         {
-            static_cast<void>(context.expectEq(name + " preserves position", std::uint64_t{2}, position.position));
+            static_cast<void>(context.expectEq(name + " preserves position", std::uint64_t{2}, position.value()));
         }
     }
 }
@@ -181,59 +181,60 @@ void testMemoryWriter(TestSupport::Context &context)
     // Check open-state, append, and reusable capacity behavior.
     IO::MemoryWriter writer;
     const std::vector<std::byte> source = makeBytes({0x01, 0x00, 0x02, 0xff});
-    const IO::Types::Status initialReserve = writer.reserve(8);
+    const StatusTypes::Result<void> initialReserve = writer.reserve(8);
 
-    if(!context.expectEq("MemoryWriter initial reserve status", ErrorCode::Success, initialReserve.code))
+    if(!context.expectEq("MemoryWriter initial reserve status", ErrorCode::Success, initialReserve.status().code()))
     {
         return;
     }
     static_cast<void>(context.expectTrue("MemoryWriter starts open", writer.isOpen()));
     static_cast<void>(context.expectFalse("MemoryWriter is append-only", writer.canSeek()));
     static_cast<void>(context.expectTrue("MemoryWriter initial capacity is reserved", writer.capacity() >= 8));
-    static_cast<void>(context.expectEq("MemoryWriter initial position is zero", std::uint64_t{0}, writer.position().position));
+    static_cast<void>(context.expectEq("MemoryWriter initial position is zero", std::uint64_t{0}, writer.position().value()));
     static_cast<void>(
-        context.expectEq("MemoryWriter seek reports NotSeekable", ErrorCode::NotSeekable, writer.seek(0, IO::Types::SeekOrigin::Begin).code));
+        context.expectEq("MemoryWriter seek reports NotSeekable", ErrorCode::NotSeekable, writer.seek(0, IO::Types::SeekOrigin::Begin).status().code()));
 
-    const IO::Types::WriteResult write = writer.write(source);
+    const WriteResult write = writer.write(source);
 
-    if(!context.expectEq("MemoryWriter write status", ErrorCode::Success, write.status.code) ||
-       !context.expectEq("MemoryWriter write byte count", source.size(), write.bytesWritten))
+    if(!context.expectEq("MemoryWriter write status", ErrorCode::Success, write.status().code()) ||
+       !context.expectEq("MemoryWriter write byte count", source.size(), write.value().bytesWritten))
     {
         return;
     }
     static_cast<void>(context.expectEq("MemoryWriter size reports bytes written", source.size(), writer.size()));
     static_cast<void>(
-        context.expectEq("MemoryWriter position reports bytes written", static_cast<std::uint64_t>(source.size()), writer.position().position));
+        context.expectEq("MemoryWriter position reports bytes written", static_cast<std::uint64_t>(source.size()), writer.position().value()));
     static_cast<void>(context.expectFalse("MemoryWriter no longer empty", writer.empty()));
     static_cast<void>(context.expectEq("MemoryWriter preserves binary data", source, copyBytes(writer.bytes())));
 
-    const IO::Types::WriteResult emptyWrite = writer.write(std::span<const std::byte>{});
-    static_cast<void>(context.expectTrue("MemoryWriter empty write succeeds", emptyWrite.status.ok()));
-    static_cast<void>(context.expectEq("MemoryWriter empty write accepts zero bytes", std::size_t{0}, emptyWrite.bytesWritten));
+    const WriteResult emptyWrite = writer.write(std::span<const std::byte>{});
+    static_cast<void>(context.expectTrue("MemoryWriter empty write succeeds", emptyWrite.ok()));
+    static_cast<void>(context.expectEq("MemoryWriter empty write accepts zero bytes", std::size_t{0}, emptyWrite.value().bytesWritten));
 
     const std::size_t capacityBeforeClear = writer.capacity();
     writer.clear();
     static_cast<void>(context.expectTrue("MemoryWriter clear leaves writer empty", writer.empty()));
     static_cast<void>(context.expectEq("MemoryWriter clear resets size", std::size_t{0}, writer.size()));
-    static_cast<void>(context.expectEq("MemoryWriter clear resets position", std::uint64_t{0}, writer.position().position));
+    static_cast<void>(context.expectEq("MemoryWriter clear resets position", std::uint64_t{0}, writer.position().value()));
     static_cast<void>(context.expectEq("MemoryWriter clear preserves capacity", capacityBeforeClear, writer.capacity()));
     static_cast<void>(context.expectEq(
         "MemoryWriter rejects invalid flush modes",
         ErrorCode::InvalidArgument,
-        writer.flush(static_cast<IO::Types::FlushMode>(-1)).code));
+        writer.flush(static_cast<IO::Types::FlushMode>(-1)).status().code()));
 
-    const IO::Types::Status largerReserve = writer.reserve(32);
+    const StatusTypes::Result<void> largerReserve = writer.reserve(32);
     static_cast<void>(context.expectTrue("MemoryWriter larger reserve succeeds", largerReserve.ok()));
     static_cast<void>(context.expectTrue("MemoryWriter reserve grows capacity", writer.capacity() >= 32));
     constexpr std::string_view retainedText = "retained";
 
-    if(!context.expectEq("MemoryWriter retained fixture write", ErrorCode::Success, writer.write(bytesOf(retainedText)).status.code))
+    if(!context.expectEq("MemoryWriter retained fixture write", ErrorCode::Success, writer.write(bytesOf(retainedText)).status().code()))
     {
         return;
     }
     const std::size_t capacityBeforeFailure = writer.capacity();
-    const IO::Types::Status impossibleReserve = writer.reserve((std::numeric_limits<std::size_t>::max)());
-    static_cast<void>(context.expectEq("MemoryWriter reserve rejects impossible capacity", ErrorCode::SizeLimitExceeded, impossibleReserve.code));
+    const StatusTypes::Result<void> impossibleReserve = writer.reserve((std::numeric_limits<std::size_t>::max)());
+    static_cast<void>(context.expectEq(
+        "MemoryWriter reserve rejects impossible capacity", ErrorCode::SizeLimitExceeded, impossibleReserve.status().code()));
     static_cast<void>(context.expectEq("MemoryWriter rejected reserve preserves bytes", copyBytes(bytesOf(retainedText)), copyBytes(writer.bytes())));
     static_cast<void>(context.expectEq("MemoryWriter rejected reserve preserves capacity", capacityBeforeFailure, writer.capacity()));
 
@@ -241,55 +242,55 @@ void testMemoryWriter(TestSupport::Context &context)
     IO::MemoryWriter textWriter;
     const auto textWrite = IO::writeAllText(textWriter, std::string_view{"a\0b", 3});
 
-    if(!context.expectEq("MemoryWriter text fixture write", ErrorCode::Success, textWrite.status.code))
+    if(!context.expectEq("MemoryWriter text fixture write", ErrorCode::Success, textWrite.status().code()))
     {
         return;
     }
 
-    const IO::Types::CopyTextResult textCopy = textWriter.copyText();
-    static_cast<void>(context.expectTrue("MemoryWriter text copy succeeds", textCopy.status.ok()));
-    static_cast<void>(context.expectEq("MemoryWriter text copy preserves NUL bytes", std::string("a\0b", 3), textCopy.text));
+    const StatusTypes::Result<std::string> textCopy = textWriter.copyText();
+    static_cast<void>(context.expectTrue("MemoryWriter text copy succeeds", textCopy.ok()));
+    static_cast<void>(context.expectEq("MemoryWriter text copy preserves NUL bytes", std::string("a\0b", 3), textCopy.value()));
     const IO::MemoryWriter movedWriter(std::move(textWriter));
-    const IO::Types::CopyTextResult movedText = movedWriter.copyText();
-    static_cast<void>(context.expectTrue("MemoryWriter moved text copy succeeds", movedText.status.ok()));
-    static_cast<void>(context.expectEq("MemoryWriter move preserves bytes", std::string("a\0b", 3), movedText.text));
+    const StatusTypes::Result<std::string> movedText = movedWriter.copyText();
+    static_cast<void>(context.expectTrue("MemoryWriter moved text copy succeeds", movedText.ok()));
+    static_cast<void>(context.expectEq("MemoryWriter move preserves bytes", std::string("a\0b", 3), movedText.value()));
     static_cast<void>(context.expectTrue("MemoryWriter move preserves open state", movedWriter.isOpen()));
 
     const IO::MemoryWriter emptyTextWriter;
-    const IO::Types::CopyTextResult emptyText = emptyTextWriter.copyText();
-    static_cast<void>(context.expectTrue("MemoryWriter empty text copy succeeds", emptyText.status.ok()));
-    static_cast<void>(context.expectTrue("MemoryWriter empty text copy is empty", emptyText.text.empty()));
+    const StatusTypes::Result<std::string> emptyText = emptyTextWriter.copyText();
+    static_cast<void>(context.expectTrue("MemoryWriter empty text copy succeeds", emptyText.ok()));
+    static_cast<void>(context.expectTrue("MemoryWriter empty text copy is empty", emptyText.value().empty()));
 
     IO::MemoryWriter invalidTextWriter;
     const auto malformedWrite = invalidTextWriter.write(makeBytes({0x6f, 0x6b, 0xff}));
 
-    if(!context.expectEq("MemoryWriter malformed fixture write", ErrorCode::Success, malformedWrite.status.code))
+    if(!context.expectEq("MemoryWriter malformed fixture write", ErrorCode::Success, malformedWrite.status().code()))
     {
         return;
     }
 
-    const IO::Types::CopyTextResult invalidText = invalidTextWriter.copyText();
-    static_cast<void>(context.expectEq("MemoryWriter text copy rejects malformed UTF-8", ErrorCode::EncodingFailed, invalidText.status.code));
-    static_cast<void>(context.expectTrue("MemoryWriter malformed text copy returns no text", invalidText.text.empty()));
+    const StatusTypes::Result<std::string> invalidText = invalidTextWriter.copyText();
+    static_cast<void>(context.expectEq("MemoryWriter text copy rejects malformed UTF-8", ErrorCode::EncodingFailed, invalidText.status().code()));
+    static_cast<void>(context.expectFalse("MemoryWriter malformed text copy has no value", invalidText.hasValue()));
 
     // Check self-aliasing appends and ownership transfer.
     IO::MemoryWriter aliasWriter;
 
-    if(!context.expectEq("MemoryWriter alias fixture reserve", ErrorCode::Success, aliasWriter.reserve(source.size()).code))
+    if(!context.expectEq("MemoryWriter alias fixture reserve", ErrorCode::Success, aliasWriter.reserve(source.size()).status().code()))
     {
         return;
     }
     const auto aliasSeed = aliasWriter.write(source);
 
-    if(!context.expectEq("MemoryWriter alias fixture write", ErrorCode::Success, aliasSeed.status.code) ||
-       !context.expectEq("MemoryWriter alias fixture write count", source.size(), aliasSeed.bytesWritten) ||
+    if(!context.expectEq("MemoryWriter alias fixture write", ErrorCode::Success, aliasSeed.status().code()) ||
+       !context.expectEq("MemoryWriter alias fixture write count", source.size(), aliasSeed.value().bytesWritten) ||
        !context.expectEq("MemoryWriter alias fixture size", source.size(), aliasWriter.size()))
     {
         return;
     }
-    const IO::Types::WriteResult aliasWrite = aliasWriter.write(aliasWriter.bytes().subspan(1, 2));
-    static_cast<void>(context.expectTrue("MemoryWriter aliased write succeeds", aliasWrite.status.ok()));
-    static_cast<void>(context.expectEq("MemoryWriter aliased write reports byte count", std::size_t{2}, aliasWrite.bytesWritten));
+    const WriteResult aliasWrite = aliasWriter.write(aliasWriter.bytes().subspan(1, 2));
+    static_cast<void>(context.expectTrue("MemoryWriter aliased write succeeds", aliasWrite.ok()));
+    static_cast<void>(context.expectEq("MemoryWriter aliased write reports byte count", std::size_t{2}, aliasWrite.value().bytesWritten));
     static_cast<void>(context.expectEq(
         "MemoryWriter aliased write preserves source bytes",
         makeBytes({0x01, 0x00, 0x02, 0xff, 0x00, 0x02}),
@@ -300,22 +301,22 @@ void testMemoryWriter(TestSupport::Context &context)
         context.expectEq("MemoryWriter takeBytes returns collected bytes", makeBytes({0x01, 0x00, 0x02, 0xff, 0x00, 0x02}), takenBytes));
     static_cast<void>(context.expectTrue("MemoryWriter takeBytes leaves writer empty", aliasWriter.empty()));
     static_cast<void>(context.expectTrue("MemoryWriter remains open after takeBytes", aliasWriter.isOpen()));
-    static_cast<void>(context.expectEq("MemoryWriter takeBytes resets position", std::uint64_t{0}, aliasWriter.position().position));
+    static_cast<void>(context.expectEq("MemoryWriter takeBytes resets position", std::uint64_t{0}, aliasWriter.position().value()));
 
     // Check close preserves collected output and rejects new writes.
     static_cast<void>(context.expectTrue("MemoryWriter close succeeds", writer.close().ok()));
     static_cast<void>(context.expectEq("MemoryWriter close preserves bytes", copyBytes(bytesOf(retainedText)), copyBytes(writer.bytes())));
     static_cast<void>(context.expectFalse("MemoryWriter reports closed state", writer.isOpen()));
     static_cast<void>(context.expectFalse("MemoryWriter remains non-seekable after close", writer.canSeek()));
-    static_cast<void>(context.expectEq("MemoryWriter write after close reports NotOpen", ErrorCode::NotOpen, writer.write(source).status.code));
-    static_cast<void>(context.expectEq("MemoryWriter flush after close reports NotOpen", ErrorCode::NotOpen, writer.flush().code));
-    static_cast<void>(context.expectEq("MemoryWriter position after close reports NotOpen", ErrorCode::NotOpen, writer.position().status.code));
+    static_cast<void>(context.expectEq("MemoryWriter write after close reports NotOpen", ErrorCode::NotOpen, writer.write(source).status().code()));
+    static_cast<void>(context.expectEq("MemoryWriter flush after close reports NotOpen", ErrorCode::NotOpen, writer.flush().status().code()));
+    static_cast<void>(context.expectEq("MemoryWriter position after close reports NotOpen", ErrorCode::NotOpen, writer.position().status().code()));
     static_cast<void>(context.expectTrue("MemoryWriter reserve remains available after close", writer.reserve(64).ok()));
     const auto closedText = writer.copyText();
 
-    if(context.expectEq("MemoryWriter text copy after close status", ErrorCode::Success, closedText.status.code))
+    if(context.expectEq("MemoryWriter text copy after close status", ErrorCode::Success, closedText.status().code()))
     {
-        static_cast<void>(context.expectEq("MemoryWriter text copy after close preserves content", retainedText, closedText.text));
+        static_cast<void>(context.expectEq("MemoryWriter text copy after close preserves content", retainedText, closedText.value()));
     }
     static_cast<void>(context.expectTrue("MemoryWriter repeated close succeeds", writer.close().ok()));
 }

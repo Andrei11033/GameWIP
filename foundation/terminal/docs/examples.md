@@ -33,20 +33,21 @@ int main()
     using namespace GameWIP::Terminal;
 
     const Types::Input::LineResult result = readLine();
-    if(!result.status.ok())
+    if(!result.ok())
     {
         return 1;
     }
 
-    if(!result.line.empty())
+    const auto &line = result.value();
+    if(!line.line.empty())
     {
-        if(!writeLine("received: " + result.line).ok())
+        if(!writeLine("received: " + line.line).ok())
         {
             return 1;
         }
     }
 
-    switch(result.outcome)
+    switch(line.outcome)
     {
     case Types::Input::ReadOutcome::Completed:
         return 0;
@@ -78,7 +79,7 @@ int main()
     using namespace GameWIP::Terminal;
 
     const auto capabilities = getInputCapabilities();
-    if(!capabilities.status.ok() || !capabilities.capabilities.supportsNonBlockingReads)
+    if(!capabilities.ok() || !capabilities.value().supportsNonBlockingReads)
     {
         return 0;
     }
@@ -88,7 +89,7 @@ int main()
     options.timeout = kNoWait;
 
     const auto result = readBytes(std::span<std::byte>{storage}, options);
-    return result.status.ok() ? 0 : 1;
+    return result.ok() ? 0 : 1;
 }
 ```
 
@@ -195,14 +196,14 @@ int main()
     }
 
     const Types::Input::LineResult line = session.readLine();
-    if(!line.status.ok() || !session.println("hello {}", line.line).ok())
+    if(!line.ok() || !session.println("hello {}", line.value().line).ok())
     {
         static_cast<void>(session.close());
         return 3;
     }
 
     const auto closeStatus = session.close();
-    return line.outcome == Types::Input::ReadOutcome::Completed && closeStatus.ok() ? 0 : 4;
+    return line.value().outcome == Types::Input::ReadOutcome::Completed && closeStatus.ok() ? 0 : 4;
 }
 ```
 
@@ -224,15 +225,15 @@ int main()
     }
 
     const Types::Input::EventResult result = session.readEvent();
-    if(!result.status.ok())
+    if(!result.ok())
     {
         static_cast<void>(session.close());
         return 2;
     }
 
-    if(result.outcome == Types::Input::ReadOutcome::Completed && result.event.has_value())
+    if(result.value().outcome == Types::Input::ReadOutcome::Completed && result.value().event.has_value())
     {
-        if(const Types::Events::Resize *resize = result.event->getIf<Types::Events::Resize>())
+        if(const Types::Events::Resize *resize = result.value().event->getIf<Types::Events::Resize>())
         {
             // resize->size uses the same viewport semantics as getTerminalSize().
         }
@@ -263,7 +264,7 @@ int main()
     options.stopToken = source.get_token();
 
     const Types::Input::TextResult result = readText(options);
-    return result.status.ok() && result.outcome == Types::Input::ReadOutcome::Cancelled ? 0 : 1;
+    return result.ok() && result.value().outcome == Types::Input::ReadOutcome::Cancelled ? 0 : 1;
 }
 ```
 
@@ -298,18 +299,18 @@ int main()
     using namespace GameWIP::Terminal;
 
     const auto capabilities = getOutputCapabilities();
-    if(!capabilities.status.ok() || !capabilities.capabilities.supportsTerminalSize)
+    if(!capabilities.ok() || !capabilities.value().supportsTerminalSize)
     {
         return 0;
     }
 
     const auto size = getTerminalSize();
-    if(!size.status.ok())
+    if(!size.ok())
     {
         return 1;
     }
 
-    return println("{} columns x {} rows", size.size.columns, size.size.rows).ok() ? 0 : 2;
+    return println("{} columns x {} rows", size.value().columns, size.value().rows).ok() ? 0 : 2;
 }
 ```
 
@@ -327,14 +328,14 @@ int main()
     using namespace GameWIP::Terminal;
 
     const auto capabilities = getOutputCapabilities();
-    if(!capabilities.status.ok() || !capabilities.capabilities.supportsByteOutput)
+    if(!capabilities.ok() || !capabilities.value().supportsByteOutput)
     {
         return 0;
     }
 
     const std::array payload{std::byte{'O'}, std::byte{'K'}, std::byte{'\n'}};
     const auto result = writeBytes(std::span<const std::byte>{payload});
-    return result.status.ok() && result.bytesWritten == payload.size() ? 0 : 1;
+    return result.ok() && result.value().bytesWritten == payload.size() ? 0 : 1;
 }
 ```
 

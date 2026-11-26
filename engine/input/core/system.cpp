@@ -2,6 +2,7 @@
 /// @brief Implements the portable owner-thread-affine Input system.
 
 #include "input/internal/system_state.h"
+#include "input/internal/results.h"
 #include "input/internal/value.h"
 
 #include <atomic>
@@ -14,27 +15,30 @@ namespace GameWIP::Input
     {
         std::atomic<std::uint64_t> nextSystemInstance{1};
 
-        [[nodiscard]] IO::Types::Status status(IO::Types::ErrorCode code) noexcept
+        using StatusCode = GameWIP::Status::Types::Code;
+        using OperationStatus = GameWIP::Status::Types::Status;
+
+        [[nodiscard]] OperationStatus status(StatusCode code) noexcept
         {
-            return IO::makeStatus(code);
+            return OperationStatus(code);
         }
 
-        template <typename State> [[nodiscard]] IO::Types::Status requireOwner(const State &state) noexcept
+        template <typename State> [[nodiscard]] OperationStatus requireOwner(const State &state) noexcept
         {
             if(!state.open)
             {
-                return IO::successStatus();
+                return {};
             }
-            return state.ownerThread == std::this_thread::get_id() ? IO::successStatus() : status(IO::Types::ErrorCode::ResourceBusy);
+            return state.ownerThread == std::this_thread::get_id() ? OperationStatus{} : status(StatusCode::ResourceBusy);
         }
 
-        template <typename State> [[nodiscard]] IO::Types::Status requireOpenOwner(const State &state) noexcept
+        template <typename State> [[nodiscard]] OperationStatus requireOpenOwner(const State &state) noexcept
         {
             if(!state.open)
             {
-                return status(IO::Types::ErrorCode::NotOpen);
+                return status(StatusCode::NotOpen);
             }
-            return state.ownerThread == std::this_thread::get_id() ? IO::successStatus() : status(IO::Types::ErrorCode::ResourceBusy);
+            return state.ownerThread == std::this_thread::get_id() ? OperationStatus{} : status(StatusCode::ResourceBusy);
         }
 
     } // namespace
@@ -145,24 +149,24 @@ namespace GameWIP::Input
         }
     }
 
-    IO::Types::Status System::open(const Types::Configuration &configuration) noexcept
+    GameWIP::Status::Types::Result<void> System::open(const Types::Configuration &configuration) noexcept
     {
         if(impl_ == nullptr)
         {
-            return status(IO::Types::ErrorCode::OutOfMemory);
+            return Internal::result(status(StatusCode::OutOfMemory));
         }
 
         if(impl_->open)
         {
-            return impl_->ownerThread == std::this_thread::get_id() ? status(IO::Types::ErrorCode::AlreadyOpen)
-                                                                    : status(IO::Types::ErrorCode::ResourceBusy);
+            return Internal::result(impl_->ownerThread == std::this_thread::get_id() ? status(StatusCode::AlreadyOpen)
+                                                                                     : status(StatusCode::ResourceBusy));
         }
 
         // Validate queue capacities before allocating session state.
         if(configuration.eventCapacity == 0 || configuration.maximumPendingTextBytes == 0 ||
            (configuration.captureRawReports && (configuration.rawReportCapacity == 0 || configuration.maximumRawReportBytes == 0)))
         {
-            return status(IO::Types::ErrorCode::InvalidArgument);
+            return Internal::result(status(StatusCode::InvalidArgument));
         }
 
         try
@@ -211,31 +215,31 @@ namespace GameWIP::Input
             impl_->pendingDiscontinuity = false;
             impl_->health = {};
             impl_->open = true;
-            return IO::successStatus();
+            return GameWIP::Status::Types::Result<void>::success();
         }
         catch(const std::bad_alloc &)
         {
             impl_->open = false;
-            return status(IO::Types::ErrorCode::OutOfMemory);
+            return Internal::result(status(StatusCode::OutOfMemory));
         }
     }
 
-    IO::Types::Status System::close() noexcept
+    GameWIP::Status::Types::Result<void> System::close() noexcept
     {
         if(impl_ == nullptr)
         {
-            return status(IO::Types::ErrorCode::OutOfMemory);
+            return Internal::result(status(StatusCode::OutOfMemory));
         }
 
         if(!impl_->open)
         {
-            return IO::successStatus();
+            return GameWIP::Status::Types::Result<void>::success();
         }
 
-        const IO::Types::Status ownerStatus = requireOwner(*impl_);
+        const OperationStatus ownerStatus = requireOwner(*impl_);
         if(!ownerStatus.ok())
         {
-            return ownerStatus;
+            return Internal::result(ownerStatus);
         }
 
         if(impl_->nativeClose != nullptr)
@@ -254,7 +258,7 @@ namespace GameWIP::Input
         impl_->pendingRawReports.clear();
         impl_->pendingTextUtf8.clear();
         impl_->health.activeDeviceCount = 0;
-        return IO::successStatus();
+        return GameWIP::Status::Types::Result<void>::success();
     }
 
     bool System::isOpen() const noexcept
@@ -269,19 +273,15 @@ namespace GameWIP::Input
 
     Types::CaptureResult System::capture(Types::Frame &destination) noexcept
     {
-        Types::CaptureResult result{};
-
         if(impl_ == nullptr)
         {
-            result.status = status(IO::Types::ErrorCode::OutOfMemory);
-            return result;
+            return Internal::failedResult<Types::CaptureInfo>(status(StatusCode::OutOfMemory));
         }
 
-        const IO::Types::Status ownerStatus = requireOpenOwner(*impl_);
+        const OperationStatus ownerStatus = requireOpenOwner(*impl_);
         if(!ownerStatus.ok())
         {
-            result.status = ownerStatus;
-            return result;
+            return Internal::failedResult<Types::CaptureInfo>(ownerStatus);
         }
 
         // Collect native input before publishing this frame.
@@ -346,18 +346,15 @@ namespace GameWIP::Input
             impl_->pendingDiscontinuity = false;
 
             // Return metadata for the published frame.
-            result.status = IO::successStatus();
-            result.published = true;
-            result.captureSequence = destination.sequence();
-            result.droppedEvents = destination.droppedEvents();
-            result.discontinuity = destination.discontinuity();
-
-            return result;
+            return Types::CaptureResult::success({
+                .captureSequence = destination.sequence(),
+                .droppedEvents = destination.droppedEvents(),
+                .discontinuity = destination.discontinuity(),
+            });
         }
         catch(const std::bad_alloc &)
         {
-            result.status = status(IO::Types::ErrorCode::OutOfMemory);
-            return result;
+            return Internal::failedResult<Types::CaptureInfo>(status(StatusCode::OutOfMemory));
         }
     }
 
@@ -365,113 +362,106 @@ namespace GameWIP::Input
     /// Descriptor and health queries
     /// ------------------------------------------------------------
 
-    IO::Types::Status System::devices(std::span<const Types::DeviceInfo> &outDevices) const noexcept
+    GameWIP::Status::Types::Result<std::span<const Types::DeviceInfo>> System::devices() const noexcept
     {
-        outDevices = {};
-
         if(impl_ == nullptr)
         {
-            return status(IO::Types::ErrorCode::OutOfMemory);
+            return Internal::failedResult<std::span<const Types::DeviceInfo>>(status(StatusCode::OutOfMemory));
         }
 
-        const IO::Types::Status ownerStatus = requireOpenOwner(*impl_);
+        const OperationStatus ownerStatus = requireOpenOwner(*impl_);
         if(!ownerStatus.ok())
         {
-            return ownerStatus;
+            return Internal::failedResult<std::span<const Types::DeviceInfo>>(ownerStatus);
         }
 
-        outDevices = impl_->devices;
-        return IO::successStatus();
+        return GameWIP::Status::Types::Result<std::span<const Types::DeviceInfo>>::success(impl_->devices);
     }
 
-    IO::Types::Status System::findDevice(Types::DeviceId id, const Types::DeviceInfo *&outInfo) const noexcept
+    GameWIP::Status::Types::Result<const Types::DeviceInfo *> System::findDevice(Types::DeviceId id) const noexcept
     {
-        outInfo = nullptr;
-
         if(impl_ == nullptr)
         {
-            return status(IO::Types::ErrorCode::OutOfMemory);
+            return Internal::failedResult<const Types::DeviceInfo *>(status(StatusCode::OutOfMemory));
         }
 
-        const IO::Types::Status ownerStatus = requireOpenOwner(*impl_);
+        const OperationStatus ownerStatus = requireOpenOwner(*impl_);
         if(!ownerStatus.ok())
         {
-            return ownerStatus;
+            return Internal::failedResult<const Types::DeviceInfo *>(ownerStatus);
         }
 
         if(!id.isValid())
         {
-            return status(IO::Types::ErrorCode::InvalidArgument);
+            return Internal::failedResult<const Types::DeviceInfo *>(status(StatusCode::InvalidArgument));
         }
 
         const std::size_t index = impl_->findDeviceIndex(id);
         if(index == impl_->devices.size())
         {
-            return status(IO::Types::ErrorCode::NotFound);
+            return Internal::failedResult<const Types::DeviceInfo *>(status(StatusCode::NotFound));
         }
 
-        outInfo = &impl_->devices[index];
-        return IO::successStatus();
+        return GameWIP::Status::Types::Result<const Types::DeviceInfo *>::success(&impl_->devices[index]);
     }
 
-    IO::Types::Status System::findElement(Types::ElementId id, const Types::ElementInfo *&outInfo) const noexcept
+    GameWIP::Status::Types::Result<const Types::ElementInfo *> System::findElement(Types::ElementId id) const noexcept
     {
-        outInfo = nullptr;
-
         if(impl_ == nullptr)
         {
-            return status(IO::Types::ErrorCode::OutOfMemory);
+            return Internal::failedResult<const Types::ElementInfo *>(status(StatusCode::OutOfMemory));
         }
 
-        const IO::Types::Status ownerStatus = requireOpenOwner(*impl_);
+        const OperationStatus ownerStatus = requireOpenOwner(*impl_);
         if(!ownerStatus.ok())
         {
-            return ownerStatus;
+            return Internal::failedResult<const Types::ElementInfo *>(ownerStatus);
         }
 
         if(!id.isValid())
         {
-            return status(IO::Types::ErrorCode::InvalidArgument);
+            return Internal::failedResult<const Types::ElementInfo *>(status(StatusCode::InvalidArgument));
         }
 
-        outInfo = impl_->findElement(id);
-        return outInfo == nullptr ? status(IO::Types::ErrorCode::NotFound) : IO::successStatus();
+        const Types::ElementInfo *info = impl_->findElement(id);
+        if(info == nullptr)
+        {
+            return Internal::failedResult<const Types::ElementInfo *>(status(StatusCode::NotFound));
+        }
+        return GameWIP::Status::Types::Result<const Types::ElementInfo *>::success(info);
     }
 
-    IO::Types::Status System::health(Types::Health &outHealth) const noexcept
+    GameWIP::Status::Types::Result<Types::Health> System::health() const noexcept
     {
         if(impl_ == nullptr)
         {
-            return status(IO::Types::ErrorCode::OutOfMemory);
+            return Internal::failedResult<Types::Health>(status(StatusCode::OutOfMemory));
         }
 
-        const IO::Types::Status ownerStatus = requireOpenOwner(*impl_);
+        const OperationStatus ownerStatus = requireOpenOwner(*impl_);
         if(!ownerStatus.ok())
         {
-            return ownerStatus;
+            return Internal::failedResult<Types::Health>(ownerStatus);
         }
 
-        outHealth = impl_->health;
-        return IO::successStatus();
+        return GameWIP::Status::Types::Result<Types::Health>::success(impl_->health);
     }
 
-    IO::Types::Status System::copyDeviceInfo(Types::DeviceId id, Types::DeviceInfo &outInfo) const noexcept
+    GameWIP::Status::Types::Result<Types::DeviceInfo> System::copyDeviceInfo(Types::DeviceId id) const noexcept
     {
-        const Types::DeviceInfo *source = nullptr;
-        const IO::Types::Status findStatus = findDevice(id, source);
-        if(!findStatus.ok())
+        const auto sourceResult = findDevice(id);
+        if(!sourceResult.ok())
         {
-            return findStatus;
+            return Internal::failedResult<Types::DeviceInfo>(sourceResult.status());
         }
 
         try
         {
-            outInfo = *source;
-            return IO::successStatus();
+            return GameWIP::Status::Types::Result<Types::DeviceInfo>::success(*sourceResult.value());
         }
         catch(const std::bad_alloc &)
         {
-            return status(IO::Types::ErrorCode::OutOfMemory);
+            return Internal::failedResult<Types::DeviceInfo>(status(StatusCode::OutOfMemory));
         }
     }
 
@@ -479,58 +469,58 @@ namespace GameWIP::Input
     /// Text capture configuration
     /// ------------------------------------------------------------
 
-    IO::Types::Status System::setTextEnabled(bool enabled) noexcept
+    GameWIP::Status::Types::Result<void> System::setTextEnabled(bool enabled) noexcept
     {
         if(impl_ == nullptr)
         {
-            return status(IO::Types::ErrorCode::OutOfMemory);
+            return Internal::result(status(StatusCode::OutOfMemory));
         }
 
-        const IO::Types::Status ownerStatus = requireOpenOwner(*impl_);
+        const OperationStatus ownerStatus = requireOpenOwner(*impl_);
         if(!ownerStatus.ok())
         {
-            return ownerStatus;
+            return Internal::result(ownerStatus);
         }
 
         if(!enabled)
         {
             impl_->textEnabled = false;
-            return IO::successStatus();
+            return GameWIP::Status::Types::Result<void>::success();
         }
 
         try
         {
             impl_->pendingTextUtf8.reserve(impl_->configuration.maximumPendingTextBytes);
             impl_->textEnabled = true;
-            return IO::successStatus();
+            return GameWIP::Status::Types::Result<void>::success();
         }
         catch(const std::bad_alloc &)
         {
-            return status(IO::Types::ErrorCode::OutOfMemory);
+            return Internal::result(status(StatusCode::OutOfMemory));
         }
     }
 
-    IO::Types::Status System::setMaximumPendingTextBytes(std::size_t maximumBytes) noexcept
+    GameWIP::Status::Types::Result<void> System::setMaximumPendingTextBytes(std::size_t maximumBytes) noexcept
     {
         if(impl_ == nullptr)
         {
-            return status(IO::Types::ErrorCode::OutOfMemory);
+            return Internal::result(status(StatusCode::OutOfMemory));
         }
 
-        const IO::Types::Status ownerStatus = requireOpenOwner(*impl_);
+        const OperationStatus ownerStatus = requireOpenOwner(*impl_);
         if(!ownerStatus.ok())
         {
-            return ownerStatus;
+            return Internal::result(ownerStatus);
         }
 
         if(maximumBytes == 0)
         {
-            return status(IO::Types::ErrorCode::InvalidArgument);
+            return Internal::result(status(StatusCode::InvalidArgument));
         }
 
         if(impl_->pendingTextUtf8.size() > maximumBytes)
         {
-            return status(IO::Types::ErrorCode::SizeLimitExceeded);
+            return Internal::result(status(StatusCode::SizeLimitExceeded));
         }
 
         try
@@ -540,11 +530,11 @@ namespace GameWIP::Input
                 impl_->pendingTextUtf8.reserve(maximumBytes);
             }
             impl_->configuration.maximumPendingTextBytes = maximumBytes;
-            return IO::successStatus();
+            return GameWIP::Status::Types::Result<void>::success();
         }
         catch(const std::bad_alloc &)
         {
-            return status(IO::Types::ErrorCode::OutOfMemory);
+            return Internal::result(status(StatusCode::OutOfMemory));
         }
     }
 } // namespace GameWIP::Input

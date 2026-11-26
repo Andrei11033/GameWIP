@@ -15,8 +15,8 @@ Reaching `maxBytes` is not successful truncation. A normal `FileReader` supplies
 limit before reading and accepts a size exactly equal to the limit. Otherwise IO's probe applies (@ref io_reader_writer_contract). Size metadata is a
 snapshot, so concurrent file mutation remains subject to the documented filesystem race limitations.
 
-A failure can return collected bytes or text. This includes failures after partial reads and close failures after all data was collected. Inspect the
-status and payload together.
+A failed result can retain collected bytes or text, including data collected before a read or close failure. Check `.hasValue()` before reading
+`.value()` and inspect `.status()` to determine the operation outcome.
 
 ## Exact-content writes
 
@@ -32,8 +32,8 @@ Modes are deliberately limited to exact-content behavior:
 An empty payload still performs the requested open/create/truncate, flush, and close sequence. In particular, `CreateOrTruncate` can replace existing
 content with an empty file.
 
-These operations are not atomic. A create or truncate can occur before a later write, flush, or close failure. `bytesWritten` reports payload accepted
-before the final status; it may equal the full payload when a later flush or close fails.
+These operations are not atomic. A create or truncate can occur before a later write, flush, or close failure. The `WriteProgress` value reports payload
+accepted before the final status and may equal the full payload when a later flush or close fails.
 
 ## Append
 
@@ -58,8 +58,8 @@ Vector byte overloads forward to the span overloads. FileSystem does not retain 
 
 ## Partial progress and terminal failures
 
-Direct handle writes and whole-file helpers can return a nonzero count with failure. A successful direct `write()` may also accept fewer bytes than
-requested; callers using handles must inspect `bytesWritten` and loop or use IO's whole-stream helper when complete transfer is required.
+Direct handle writes and whole-file helpers can retain a nonzero count with failure. A successful direct `write()` may also accept fewer bytes than
+requested; inspect its `WriteProgress` and loop or use IO's whole-stream helper when complete transfer is required.
 
 A close failure leaves an explicit handle open and can be retried. This includes allocation or unexpected failures contained while producing a close
 status. Whole-file helpers cannot return their internal handle, so they preserve the close status and any useful payload progress in the returned

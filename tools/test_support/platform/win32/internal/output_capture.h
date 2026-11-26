@@ -29,5 +29,5 @@ namespace GameWIP::TestSupport::Internal::Win32
         std::size_t captureLimit,
         std::string &outputBytes,
         bool &outputTruncated,
-        Types::InfrastructureStatus &outputStatus) noexcept;
+        Types::Status &outputStatus) noexcept;
 } // namespace GameWIP::TestSupport::Internal::Win32

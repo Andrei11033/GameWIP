@@ -17,26 +17,32 @@ namespace GameWIP::FileSystem
     {
         // List failures
 
-        [[nodiscard]] Types::Directory::ListResult listDirectoryFailure(IO::Types::Status status) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Result<std::vector<Types::Directory::Entry>> listDirectoryFailure(
+            GameWIP::Status::Types::Status status,
+            std::vector<Types::Directory::Entry> entries = {}) noexcept
         {
-            return {.status = std::move(status), .entries = {}};
+            return GameWIP::Status::Types::Result<std::vector<Types::Directory::Entry>>::failure(std::move(status), std::move(entries));
         }
 
-        [[nodiscard]] Types::Directory::ListResult listDirectoryFailure(ErrorCode code) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Result<std::vector<Types::Directory::Entry>> listDirectoryFailure(
+            ErrorCode code,
+            std::vector<Types::Directory::Entry> entries = {}) noexcept
         {
-            return {.status = IO::makeStatus(code), .entries = {}};
+            return listDirectoryFailure(GameWIP::Status::Types::Status(code), std::move(entries));
         }
 
         // Tree-removal failures
 
-        [[nodiscard]] Types::Directory::RemoveTreeResult removeTreeFailure(IO::Types::Status status, std::uint64_t removedEntries = 0) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Result<std::uint64_t> removeTreeFailure(
+            GameWIP::Status::Types::Status status,
+            std::uint64_t removedEntries = 0) noexcept
         {
-            return {.status = std::move(status), .removedEntries = removedEntries};
+            return GameWIP::Status::Types::Result<std::uint64_t>::failure(std::move(status), removedEntries);
         }
 
-        [[nodiscard]] Types::Directory::RemoveTreeResult removeTreeFailure(ErrorCode code, std::uint64_t removedEntries = 0) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Result<std::uint64_t> removeTreeFailure(ErrorCode code, std::uint64_t removedEntries = 0) noexcept
         {
-            return {.status = IO::makeStatus(code), .removedEntries = removedEntries};
+            return removeTreeFailure(GameWIP::Status::Types::Status(code), removedEntries);
         }
     } // namespace
 
@@ -44,7 +50,7 @@ namespace GameWIP::FileSystem
     /// Directory creation and listing
     /// ------------------------------------------------------------
 
-    IO::Types::Status createDirectory(const Types::Path &path, const Types::Directory::CreateOptions &options) noexcept
+    GameWIP::Status::Types::Result<void> createDirectory(const Types::Path &path, const Types::Directory::CreateOptions &options) noexcept
     {
         try
         {
@@ -52,15 +58,15 @@ namespace GameWIP::FileSystem
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(ErrorCode::OutOfMemory);
+            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::OutOfMemory));
         }
         catch(...)
         {
-            return IO::makeStatus(ErrorCode::Unknown);
+            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::Unknown));
         }
     }
 
-    IO::Types::Status createDirectories(const Types::Path &path, const Types::Directory::CreateOptions &options) noexcept
+    GameWIP::Status::Types::Result<void> createDirectories(const Types::Path &path, const Types::Directory::CreateOptions &options) noexcept
     {
         try
         {
@@ -68,53 +74,53 @@ namespace GameWIP::FileSystem
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(ErrorCode::OutOfMemory);
+            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::OutOfMemory));
         }
         catch(...)
         {
-            return IO::makeStatus(ErrorCode::Unknown);
+            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::Unknown));
         }
     }
 
-    Types::Directory::ListResult listDirectory(const Types::Path &path, const Types::Directory::ListOptions &options) noexcept
+    GameWIP::Status::Types::Result<std::vector<Types::Directory::Entry>>
+    listDirectory(const Types::Path &path, const Types::Directory::ListOptions &options) noexcept
     {
+        std::vector<Types::Directory::Entry> entries;
+
         try
         {
             DirectoryCursor cursor;
-            IO::Types::Status openStatus = cursor.open(path, options);
+            auto openResult = cursor.open(path, options);
 
-            if(!openStatus.ok())
+            if(!openResult.ok())
             {
-                return listDirectoryFailure(std::move(openStatus));
+                return listDirectoryFailure(openResult.status());
             }
-
-            Types::Directory::ListResult result{.status = IO::successStatus()};
 
             while(true)
             {
-                Types::Directory::CursorNextResult next = cursor.next();
+                auto next = cursor.next();
 
-                if(!next.status.ok())
+                if(!next.ok())
                 {
-                    result.status = std::move(next.status);
-                    return result;
+                    return listDirectoryFailure(next.status(), std::move(entries));
                 }
 
-                if(!next.hasEntry)
+                if(!next.value())
                 {
-                    return result;
+                    return GameWIP::Status::Types::Result<std::vector<Types::Directory::Entry>>::success(std::move(entries));
                 }
 
-                result.entries.push_back(std::move(next.entry));
+                entries.push_back(std::move(*next.value()));
             }
         }
         catch(const std::bad_alloc &)
         {
-            return listDirectoryFailure(ErrorCode::OutOfMemory);
+            return listDirectoryFailure(ErrorCode::OutOfMemory, std::move(entries));
         }
         catch(...)
         {
-            return listDirectoryFailure(ErrorCode::Unknown);
+            return listDirectoryFailure(ErrorCode::Unknown, std::move(entries));
         }
     }
 
@@ -122,33 +128,34 @@ namespace GameWIP::FileSystem
     /// Directory removal
     /// ------------------------------------------------------------
 
-    IO::Types::Status removeEmptyDirectory(const Types::Path &path, const Types::RemoveOptions &options) noexcept
+    GameWIP::Status::Types::Result<void> removeEmptyDirectory(const Types::Path &path, const Types::RemoveOptions &options) noexcept
     {
         try
         {
             if(path.empty() || !isValidSymlinkPolicy(options.symlinkPolicy))
             {
-                return IO::makeStatus(ErrorCode::InvalidArgument);
+                return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::InvalidArgument));
             }
 
             if(options.symlinkPolicy != Types::SymlinkPolicy::DoNotFollow && finalEntryIsSymlink(path))
             {
-                return IO::makeStatus(ErrorCode::Unsupported);
+                return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::Unsupported));
             }
 
             return Platform::removeEmptyDirectory(path, options);
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(ErrorCode::OutOfMemory);
+            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::OutOfMemory));
         }
         catch(...)
         {
-            return IO::makeStatus(ErrorCode::Unknown);
+            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::Unknown));
         }
     }
 
-    Types::Directory::RemoveTreeResult removeDirectoryTree(const Types::Path &path, const Types::Directory::RemoveTreeOptions &options) noexcept
+    GameWIP::Status::Types::Result<std::uint64_t>
+    removeDirectoryTree(const Types::Path &path, const Types::Directory::RemoveTreeOptions &options) noexcept
     {
         try
         {
@@ -158,18 +165,18 @@ namespace GameWIP::FileSystem
                 return removeTreeFailure(ErrorCode::InvalidArgument);
             }
 
-            Platform::EntryQueryResult existing = queryEntry(path, options.symlinkPolicy);
+            auto existing = queryEntry(path, options.symlinkPolicy);
 
-            if(!existing.status.ok())
+            if(!existing.ok())
             {
-                if(existing.status.code == ErrorCode::NotFound && options.succeedIfMissing)
+                if(existing.status().code() == ErrorCode::NotFound && options.succeedIfMissing)
                 {
-                    return {.status = IO::successStatus(), .removedEntries = 0};
+                    return GameWIP::Status::Types::Result<std::uint64_t>::success(0);
                 }
-                return removeTreeFailure(std::move(existing.status));
+                return removeTreeFailure(existing.status());
             }
 
-            if(existing.info.kind != Types::EntryKind::Directory)
+            if(existing.value().kind != Types::EntryKind::Directory)
             {
                 return removeTreeFailure(ErrorCode::NotDirectory);
             }
@@ -179,11 +186,11 @@ namespace GameWIP::FileSystem
                 return removeTreeFailure(ErrorCode::Unsupported);
             }
 
-            const Types::BoolResult rootPath = Platform::isRootPath(path);
+            const auto rootPath = Platform::isRootPath(path);
 
-            if(!rootPath.status.ok())
+            if(!rootPath.ok())
             {
-                return removeTreeFailure(rootPath.status);
+                return removeTreeFailure(rootPath.status());
             }
 
             if(options.maxEntries == 0)
@@ -203,14 +210,14 @@ namespace GameWIP::FileSystem
 
             // Keep only active ancestry so retained state grows with depth, not total entry count.
             std::vector<RemovalFrame> pending;
-            pending.push_back(RemovalFrame{.path = path, .info = existing.info});
+            pending.push_back(RemovalFrame{.path = path, .info = existing.value()});
 
             std::uint64_t removedEntries = 0;
 
             while(!pending.empty())
             {
                 // Enforce the limit before removing the next entry.
-                if(removedEntries >= options.maxEntries && !(rootPath.value && pending.size() == 1))
+                if(removedEntries >= options.maxEntries && !(rootPath.value() && pending.size() == 1))
                 {
                     return removeTreeFailure(ErrorCode::SizeLimitExceeded, removedEntries);
                 }
@@ -223,36 +230,33 @@ namespace GameWIP::FileSystem
                     if(!current.cursor)
                     {
                         // Open the root once and children relative to their retained parent.
-                        Platform::DirectoryCursorOpenResult opened;
+                        GameWIP::Status::Types::Result<std::unique_ptr<Internal::DirectoryCursorState>> opened =
+                            pending.size() == 1
+                                ? Platform::openDirectoryCursor(current.path, Types::SymlinkPolicy::DoNotFollow)
+                                : Platform::openChildDirectoryCursor(
+                                      *pending[pending.size() - 2].cursor,
+                                      current.path,
+                                      Types::SymlinkPolicy::DoNotFollow);
 
-                        if(pending.size() == 1)
+                        if(!opened.ok())
                         {
-                            opened = Platform::openDirectoryCursor(current.path, Types::SymlinkPolicy::DoNotFollow);
-                        }
-                        else
-                        {
-                            const RemovalFrame &parent = pending[pending.size() - 2];
-                            opened = Platform::openChildDirectoryCursor(*parent.cursor, current.path, Types::SymlinkPolicy::DoNotFollow);
-                        }
-
-                        if(!opened.status.ok())
-                        {
-                            return removeTreeFailure(opened.status, removedEntries);
+                            return removeTreeFailure(opened.status(), removedEntries);
                         }
 
-                        current.cursor = std::move(opened.state);
+                        current.cursor = std::move(opened).value();
                     }
 
-                    Platform::DirectoryCursorNextResult child = Platform::readDirectoryCursor(*current.cursor);
+                    auto child = Platform::readDirectoryCursor(*current.cursor);
 
-                    if(!child.status.ok())
+                    if(!child.ok())
                     {
-                        return removeTreeFailure(child.status, removedEntries);
+                        return removeTreeFailure(child.status(), removedEntries);
                     }
 
-                    if(child.hasEntry)
+                    if(child.value())
                     {
-                        pending.push_back(RemovalFrame{.path = std::move(child.entry.path), .info = child.entry.info});
+                        Types::Directory::Entry &entry = child.value()->entry;
+                        pending.push_back(RemovalFrame{.path = std::move(entry.path), .info = entry.info});
                         continue;
                     }
 
@@ -260,14 +264,14 @@ namespace GameWIP::FileSystem
                 }
 
                 // Filesystem roots contain removable entries but cannot be removed themselves.
-                if(rootPath.value && pending.size() == 1)
+                if(rootPath.value() && pending.size() == 1)
                 {
                     pending.pop_back();
                     continue;
                 }
 
                 // Remove the leaf or the now-empty directory.
-                const IO::Types::Status removeStatus =
+                auto removeResult =
                     current.info.kind == Types::EntryKind::Directory
                         ? removeEmptyDirectory(
                               current.path,
@@ -276,9 +280,9 @@ namespace GameWIP::FileSystem
                               current.path,
                               Types::RemoveOptions{.succeedIfMissing = false, .symlinkPolicy = Types::SymlinkPolicy::DoNotFollow});
 
-                if(!removeStatus.ok())
+                if(!removeResult.ok())
                 {
-                    return removeTreeFailure(removeStatus, removedEntries);
+                    return removeTreeFailure(removeResult.status(), removedEntries);
                 }
 
                 // Record progress only after removal succeeds.
@@ -286,7 +290,7 @@ namespace GameWIP::FileSystem
                 ++removedEntries;
             }
 
-            return {.status = IO::successStatus(), .removedEntries = removedEntries};
+            return GameWIP::Status::Types::Result<std::uint64_t>::success(removedEntries);
         }
         catch(const std::bad_alloc &)
         {

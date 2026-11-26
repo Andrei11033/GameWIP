@@ -11,14 +11,18 @@ namespace GameWIP::Input::Platform::Win32
     /// Status and time helpers
     /// ------------------------------------------------------------
 
-    [[nodiscard]] IO::Types::Status status(ErrorCode code) noexcept
+    [[nodiscard]] GameWIP::Status::Types::Status status(Code code) noexcept
     {
-        return IO::makeStatus(code);
+        return GameWIP::Status::Types::Status(code);
     }
 
-    [[nodiscard]] IO::Types::Status nativeStatus(std::uint32_t code) noexcept
+    [[nodiscard]] GameWIP::Status::Types::Status nativeStatus(
+        std::uint32_t code,
+        GameWIP::Status::Types::NativeCodeDomain domain) noexcept
     {
-        return IO::makeStatus(ErrorCode::NativeFailure, static_cast<std::int64_t>(code));
+        return GameWIP::Status::Types::Status::withDiagnostic(
+            Code::NativeFailure,
+            GameWIP::Status::Types::NativeCode{domain, static_cast<std::int64_t>(code)});
     }
 
     [[nodiscard]] Types::Timestamp now() noexcept
@@ -104,18 +108,18 @@ namespace GameWIP::Input::Platform::Win32
     /// Attachment validation
     /// ------------------------------------------------------------
 
-    [[nodiscard]] IO::Types::Status checkAttached(const AttachmentState &attachment) noexcept
+    [[nodiscard]] GameWIP::Status::Types::Status checkAttached(const AttachmentState &attachment) noexcept
     {
         if(!attachment.attached || attachment.system == nullptr)
         {
-            return status(ErrorCode::NotOpen);
+            return status(Code::NotOpen);
         }
 
         if(!attachment.system->isOpen())
         {
-            return status(ErrorCode::NotOpen);
+            return status(Code::NotOpen);
         }
-        return attachment.system->ownedByCurrentThread() ? IO::successStatus() : status(ErrorCode::ResourceBusy);
+        return attachment.system->ownedByCurrentThread() ? GameWIP::Status::Types::Status{} : status(Code::ResourceBusy);
     }
 
     /// ------------------------------------------------------------

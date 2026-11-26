@@ -392,11 +392,9 @@ namespace GameWIP::Logger
         }
 
         /// @brief Builds a report result for failures that happen before report delivery begins.
-        [[nodiscard]] inline Types::Report::Result reportFailure(IO::Types::ErrorCode code) noexcept
+        [[nodiscard]] inline Types::Report::Result reportFailure(GameWIP::Status::Types::Code code) noexcept
         {
-            Types::Report::Result result;
-            result.status = IO::makeStatus(code);
-            return result;
+            return Types::Report::Result::failure(GameWIP::Status::Types::Status(code));
         }
 
         /// @brief Formats a synchronous report and maps formatting/allocation failures into the report result.
@@ -420,17 +418,17 @@ namespace GameWIP::Logger
             catch(const std::format_error &)
             {
                 recordFormatFailure();
-                return reportFailure(IO::Types::ErrorCode::InvalidArgument);
+                return reportFailure(GameWIP::Status::Types::Code::InvalidArgument);
             }
             catch(const std::bad_alloc &)
             {
                 recordAllocationFailure();
-                return reportFailure(IO::Types::ErrorCode::OutOfMemory);
+                return reportFailure(GameWIP::Status::Types::Code::OutOfMemory);
             }
             catch(...)
             {
                 recordAllocationFailure();
-                return reportFailure(IO::Types::ErrorCode::Unknown);
+                return reportFailure(GameWIP::Status::Types::Code::Unknown);
             }
         }
 
@@ -455,17 +453,17 @@ namespace GameWIP::Logger
             catch(const std::format_error &)
             {
                 recordFormatFailure();
-                return reportFailure(IO::Types::ErrorCode::InvalidArgument);
+                return reportFailure(GameWIP::Status::Types::Code::InvalidArgument);
             }
             catch(const std::bad_alloc &)
             {
                 recordAllocationFailure();
-                return reportFailure(IO::Types::ErrorCode::OutOfMemory);
+                return reportFailure(GameWIP::Status::Types::Code::OutOfMemory);
             }
             catch(...)
             {
                 recordAllocationFailure();
-                return reportFailure(IO::Types::ErrorCode::Unknown);
+                return reportFailure(GameWIP::Status::Types::Code::Unknown);
             }
         }
     } // namespace Internal::Core

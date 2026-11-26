@@ -19,6 +19,7 @@ and runtime semantics regardless of include style.
 
 | Package | Imported target | Form |
 | --- | --- | --- |
+| `Status` | `GameWIP::Status` | Interface |
 | `Unicode` | `GameWIP::Unicode` | Static |
 | `IO` | `GameWIP::IO` | Static |
 | `FileSystem` | `GameWIP::FileSystem` | Static |
@@ -112,29 +113,32 @@ Unicode is standalone: `GameWIP::Unicode` has no link dependency on another
 GameWIP library, and its package config needs no first-party
 `find_dependency()` call.
 
-IO uses Unicode privately to enforce strict UTF-8 semantics for its text helpers.
-Because IO is static, the installed IO package resolves Unicode automatically,
-so a consumer that requests only `IO` still receives a complete link
+Status is the dependency-neutral source of shared operation results. Libraries
+that expose these types declare Status as a public dependency.
+
+IO uses Status publicly and Unicode privately to enforce strict UTF-8 semantics
+for its text helpers. Because IO is static, its installed package resolves both
+dependencies, so a consumer that requests only `IO` receives a complete link
 interface. `io/io.h` itself does not expose Unicode types.
 
-TestSupport keeps its public status and result model locally owned, but uses
-Unicode privately to enforce strict UTF-8 semantics for text fixtures. Because
-TestSupport is static, its installed package resolves the exact matching Unicode
-package automatically, so a consumer that requests only TestSupport receives a
-complete link interface. TestSupport public headers do not expose Unicode types,
-and source-tree CMake checks prohibit higher-level or unrelated GameWIP
-dependencies.
+TestSupport uses the shared Status types and Unicode privately to enforce strict
+UTF-8 semantics for text fixtures. Because TestSupport is static, its installed
+package resolves both dependencies, so a consumer that requests only
+TestSupport receives a complete link interface. TestSupport public headers do
+not expose Unicode types, and source-tree CMake checks prohibit higher-level or
+unrelated GameWIP dependencies.
 
-Input exposes IO status types in its public API and uses Unicode for UTF-8
-validation and Win32 text conversion. Its installed package config resolves
-exact matching IO and Unicode packages.
+Input exposes Status result types in its public API and uses Unicode privately
+for text conversion. Its installed package config resolves Status; its shared
+library keeps implementation dependencies private.
 
 ## Shared-library export policy
 
 Shared-library exports are declaration-driven and checked against reviewed symbol-root allowlists.
 
-`Detail` symbols and headers may be exposed only when public templates, macros, or ABI-safe bridges require implementation support. They remain
-implementation details, are hidden from generated API documentation when practical, and carry no independent compatibility guarantee.
+Implementation symbols and headers may be exposed only when public templates,
+macros, or ABI bridges require them. Keep them out of API docs when practical;
+they carry no compatibility guarantee.
 
 Test-hook symbols may exist in validation builds, but their headers are not installed and they are not production API.
 

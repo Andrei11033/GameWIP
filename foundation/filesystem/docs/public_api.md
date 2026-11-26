@@ -46,7 +46,6 @@ The nested namespace supplies the domain context, so repeated `File`, `Directory
 - `Types::File::Share`: `None`, `Read`, `Write`, `Delete`, `ReadWrite`, `All`. Its bitwise operators combine and test masks.
 - `SymlinkPolicy`: `DoNotFollow`, `FollowFinal`, `FollowAll`.
 - `Types::Lock::Mode`: `Shared`, `Exclusive`.
-- `Types::Lock::Outcome`: `Acquired`, `WouldBlock`.
 - `Types::File::CopyMetadataMode`: `None`, `Basic`.
 
 See @ref filesystem_file_open_modes and @ref filesystem_symlink_policies for operational meaning.
@@ -93,19 +92,18 @@ Unknown enum values and invalid option combinations return `InvalidArgument`.
 ## Metadata and result structures
 
 - `EntryInfo`: `kind`, optional `sizeBytes`/`hasSize`, optional `lastWriteTime`/`hasLastWriteTime`, and portable `readOnly` state.
-- `BoolResult`: `status`, `value`.
-- `EntryInfoResult`: `status`, `info`.
-- `LastWriteTimeResult`: `status`, `time`.
-- `PathResult`: `status`, `path`.
-- `Utf8PathResult`: `status`, `utf8`.
 - `Types::Directory::Entry`: child `path` and `info`. The path is the parent path joined with the child name; it is not necessarily absolute.
-- `Types::Directory::CursorNextResult`: `status`, one `entry`, and `hasEntry`; successful exhaustion has `hasEntry == false`.
-- `Types::Directory::ListResult`: `status`, collected `entries`.
-- `Types::Directory::RemoveTreeResult`: `status`, completed `removedEntries`.
-- `Types::Lock::Result`: `status`, `outcome`, and active `lock` only when acquired.
+- `GameWIP::Status::Types::Result<T>`: every fallible operation's status and optional complete or partial value.
+- `Result<void>`: status-only result used when an operation has no payload.
+- `Result<std::optional<Types::Directory::Entry>>`: next cursor entry; an empty optional means successful exhaustion.
+- `Result<std::vector<Types::Directory::Entry>>`: materialized listing; accepted entries remain available on failure.
+- `Result<std::uint64_t>`: entries removed before tree-removal completion or failure.
+- `Result<FileLock>`: acquired lock owner; contention is a failure with `Code::WouldBlock`.
+- File transfers use `Result<IO::Types::ReadProgress>` and `Result<IO::Types::WriteProgress>`.
 
-A failed status can coexist with meaningful progress for listing and tree removal. Payload values in ordinary query results are meaningful only when
-their status is successful.
+Use `.ok()` to check completion, `.status()` for the exact operation outcome, and `.value()` only when `.hasValue()` is true. A failed result may
+retain partial progress for reads, writes, listing, and tree removal. Portable decisions use `status().code()`; optional native diagnostics are for
+debugging.
 
 ## Resource owners
 
@@ -179,10 +177,9 @@ See @ref filesystem_path_operations and @ref filesystem_unicode_paths.
 
 ## Failure, exceptions, blocking, and threading
 
-Every public FileSystem operation is `noexcept`. Allocation and standard-library exceptions arising inside an operation are translated to
-`OutOfMemory`, `EncodingFailed`, `InvalidArgument`, or `Unknown` according to the operation. Expected native failures use the portable IO error model
-and may include native diagnostic data. Diagnostic message creation is best-effort: if it cannot allocate, the portable and native codes are preserved
-with an empty message.
+Every public FileSystem operation is `noexcept`. Allocation and standard-library exceptions arising inside an operation are translated to shared
+status codes such as `OutOfMemory`, `EncodingFailed`, `InvalidArgument`, or `Unknown`. Native error codes and messages may be attached as optional
+diagnostics; callers must base portable decisions on `status().code()`.
 
 Caller-side construction of `std::filesystem::path`, owning strings, options, or other arguments occurs before function entry and is not contained by
 the FileSystem `noexcept` boundary.
@@ -193,7 +190,7 @@ concurrently. The same handle or lock object is not internally synchronized. Cur
 ## Package and binary boundary
 
 FileSystem is a static library. Its installed package exports `GameWIP::FileSystem`, installs its public headers under `filesystem/`, and resolves the
-exact matching IO and Unicode packages. IO remains the public API dependency; Unicode is used internally for FileSystem-owned text/native trust boundaries.
+exact matching Status, IO, and Unicode packages. Status and IO are public API dependencies; Unicode supports FileSystem-owned text/native trust boundaries.
 FileSystem has no generated export header.
 
 Public inheritance from IO interfaces and exposure of standard-library types require compatible compiler, standard-library, runtime, and build

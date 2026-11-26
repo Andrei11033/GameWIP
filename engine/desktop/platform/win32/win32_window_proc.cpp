@@ -1,6 +1,7 @@
 /// @file win32_window_proc.cpp
 /// @brief Win32 native message callback and event translation.
 
+#include "desktop/internal/results.h"
 #include "desktop/platform/win32/internal/win32_window_backend.h"
 
 #include "desktop/internal/accessibility_state.h"
@@ -59,7 +60,7 @@ namespace GameWIP::Desktop::Platform
             const Types::ScreenPosition previousPosition = state.clientPosition;
             const Types::LogicalSize previousClient = state.clientSize;
             const Types::PixelSize previousFramebuffer = state.framebufferSize;
-            const IO::Types::Status geometry = refreshCachedGeometry(state);
+            const GameWIP::Status::Types::Status geometry = refreshCachedGeometry(state);
 
             if(!geometry.ok())
             {
@@ -253,11 +254,11 @@ namespace GameWIP::Desktop::Platform
         if(messageSink != nullptr)
         {
             // Give the caller first observation before Desktop handles the message.
-            IO::Types::Status messageStatus = messageSink(messageSinkContext, window, message, wParam, lParam);
+            const GameWIP::Status::Types::Result<void> messageResult = messageSink(messageSinkContext, window, message, wParam, lParam);
 
-            if(!messageStatus.ok())
+            if(!messageResult.ok())
             {
-                recordPumpFailure(std::move(messageStatus));
+                recordPumpFailure(messageResult.status());
             }
         }
 
@@ -376,7 +377,7 @@ namespace GameWIP::Desktop::Platform
                     state->presentationPublication->publishVisible(visible);
                 }
                 routeEvent(*state, Types::Events::VisibilityChanged{visible});
-                const IO::Types::Status cursorStatus = applyCursorState(*state);
+                const GameWIP::Status::Types::Status cursorStatus = applyCursorState(*state);
 
                 if(!cursorStatus.ok())
                 {
@@ -401,7 +402,7 @@ namespace GameWIP::Desktop::Platform
         {
             // Focus can move among this process's windows without surrendering the exclusive
             // display mode. Only application activation crosses that ownership boundary.
-            const IO::Types::Status fullscreenStatus = wParam != FALSE ? resumeExclusive(*state) : suspendExclusive(*state);
+            const GameWIP::Status::Types::Status fullscreenStatus = wParam != FALSE ? resumeExclusive(*state) : suspendExclusive(*state);
 
             if(!fullscreenStatus.ok())
             {
@@ -417,7 +418,7 @@ namespace GameWIP::Desktop::Platform
                 state->focused = true;
                 publishAccessibilityGeometry(*state);
                 routeEvent(*state, Types::Events::FocusChanged{true});
-                const IO::Types::Status cursorStatus = applyCursorState(*state);
+                const GameWIP::Status::Types::Status cursorStatus = applyCursorState(*state);
 
                 if(!cursorStatus.ok())
                 {
@@ -432,7 +433,7 @@ namespace GameWIP::Desktop::Platform
                 state->focused = false;
                 publishAccessibilityGeometry(*state);
                 routeEvent(*state, Types::Events::FocusChanged{false});
-                const IO::Types::Status cursorStatus = applyCursorState(*state);
+                const GameWIP::Status::Types::Status cursorStatus = applyCursorState(*state);
 
                 if(!cursorStatus.ok())
                 {
@@ -467,7 +468,7 @@ namespace GameWIP::Desktop::Platform
             {
                 routeEvent(*state, Types::Events::PresentationStateChanged{state->presentation});
             }
-            const IO::Types::Status cursorStatus = applyCursorState(*state);
+            const GameWIP::Status::Types::Status cursorStatus = applyCursorState(*state);
 
             if(!cursorStatus.ok())
             {
@@ -481,7 +482,7 @@ namespace GameWIP::Desktop::Platform
         {
             refreshGeometryAndEmitChanges(*state);
             updateCurrentMonitor(*state);
-            const IO::Types::Status cursorStatus = applyCursorState(*state);
+            const GameWIP::Status::Types::Status cursorStatus = applyCursorState(*state);
 
             if(!cursorStatus.ok())
             {
@@ -517,17 +518,17 @@ namespace GameWIP::Desktop::Platform
                    desiredClient.height > static_cast<std::uint32_t>(std::numeric_limits<LONG>::max()))
                 {
                     recordPumpFailure(
-                        IO::makeStatus(
-                            IO::Types::ErrorCode::InvalidArgument,
+                        GameWIP::Desktop::Internal::statusFor(
+                            GameWIP::Status::Types::Code::InvalidArgument,
                             ERROR_ARITHMETIC_OVERFLOW,
                             "WM_DPICHANGED client size exceeds Win32 range"));
                     return 0;
                 }
                 RECT desiredOuter{0, 0, static_cast<LONG>(desiredClient.width), static_cast<LONG>(desiredClient.height)};
                 LONG_PTR styleValue = 0;
-                IO::Types::Status styleStatus = queryWindowLong(window, GWL_STYLE, styleValue, "GetWindowLongPtrW failed during DPI transition");
+                GameWIP::Status::Types::Status styleStatus = queryWindowLong(window, GWL_STYLE, styleValue, "GetWindowLongPtrW failed during DPI transition");
                 LONG_PTR extendedStyleValue = 0;
-                IO::Types::Status extendedStyleStatus =
+                GameWIP::Status::Types::Status extendedStyleStatus =
                     queryWindowLong(window, GWL_EXSTYLE, extendedStyleValue, "GetWindowLongPtrW failed during DPI transition");
 
                 if(!styleStatus.ok() || !extendedStyleStatus.ok())
@@ -542,7 +543,7 @@ namespace GameWIP::Desktop::Platform
                 if(suggested == nullptr || adjusted == FALSE)
                 {
                     recordPumpFailure(statusFromWin32(
-                        IO::Types::ErrorCode::NativeFailure,
+                        GameWIP::Status::Types::Code::NativeFailure,
                         adjusted == FALSE ? GetLastError() : ERROR_INVALID_PARAMETER,
                         "calculate WM_DPICHANGED bounds"));
                     return 0;
@@ -557,7 +558,7 @@ namespace GameWIP::Desktop::Platform
                        desiredOuter.bottom - desiredOuter.top,
                        SWP_NOZORDER | SWP_NOACTIVATE) == FALSE)
                 {
-                    recordPumpFailure(statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "apply WM_DPICHANGED bounds"));
+                    recordPumpFailure(statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, GetLastError(), "apply WM_DPICHANGED bounds"));
                 }
             }
             else if(!transitionActive && !state->fullscreen.suspended)
@@ -569,13 +570,13 @@ namespace GameWIP::Desktop::Platform
                     monitor = MonitorFromWindow(window, MONITOR_DEFAULTTONEAREST);
                 }
 
-                if(IO::Types::Status placement = placeFullscreenOnMonitor(*state, monitor, true); !placement.ok())
+                if(GameWIP::Status::Types::Status placement = placeFullscreenOnMonitor(*state, monitor, true); !placement.ok())
                 {
                     recordPumpFailure(std::move(placement));
                 }
             }
 
-            const IO::Types::Status geometry = refreshCachedGeometry(*state);
+            const GameWIP::Status::Types::Status geometry = refreshCachedGeometry(*state);
 
             if(!geometry.ok())
             {
@@ -613,7 +614,7 @@ namespace GameWIP::Desktop::Platform
 
             if(AdjustWindowRectExForDpi(&frame, styleFor(*state), FALSE, extendedStyleFor(*state), dpi) == FALSE)
             {
-                recordPumpFailure(statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "AdjustWindowRectExForDpi limits"));
+                recordPumpFailure(statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, GetLastError(), "AdjustWindowRectExForDpi limits"));
                 return 0;
             }
             const LONG frameWidth = frame.right - frame.left;
@@ -712,7 +713,7 @@ namespace GameWIP::Desktop::Platform
 
                 if(TrackMouseEvent(&tracking) == FALSE)
                 {
-                    recordPumpFailure(statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "TrackMouseEvent"));
+                    recordPumpFailure(statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, GetLastError(), "TrackMouseEvent"));
                 }
                 else
                 {
@@ -762,7 +763,7 @@ namespace GameWIP::Desktop::Platform
 
                     if(copied != length)
                     {
-                        recordPumpFailure(statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "DragQueryFileW"));
+                        recordPumpFailure(statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, GetLastError(), "DragQueryFileW"));
                         DragFinish(drop);
                         return 0;
                     }
@@ -774,18 +775,18 @@ namespace GameWIP::Desktop::Platform
             }
             catch(const std::bad_alloc &)
             {
-                recordPumpFailure(IO::makeStatus(IO::Types::ErrorCode::OutOfMemory));
+                recordPumpFailure(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::OutOfMemory));
             }
             catch(...)
             {
-                recordPumpFailure(IO::makeStatus(IO::Types::ErrorCode::Unknown));
+                recordPumpFailure(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::Unknown));
             }
             DragFinish(drop);
             return 0;
         }
 
         case WM_DISPLAYCHANGE:
-            if(IO::Types::Status recovery = recoverAfterDisplayChange(*state); !recovery.ok())
+            if(GameWIP::Status::Types::Status recovery = recoverAfterDisplayChange(*state); !recovery.ok())
             {
                 recordPumpFailure(std::move(recovery));
             }
@@ -831,7 +832,7 @@ namespace GameWIP::Desktop::Platform
                 if(unexpected)
                 {
                     invalidatePointerHitMask(*state);
-                    IO::Types::Status restoreStatus = leaveExclusive(*state);
+                    GameWIP::Status::Types::Status restoreStatus = leaveExclusive(*state);
 
                     if(!restoreStatus.ok())
                     {

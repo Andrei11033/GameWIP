@@ -3,6 +3,7 @@
 
 #include "terminal/output.h"
 #include "terminal/platform/backend.h"
+#include "terminal/internal/results.h"
 #include "terminal/internal/status.h"
 #include "unicode/unicode.h"
 
@@ -20,7 +21,7 @@ namespace GameWIP::Terminal
 
     namespace
     {
-        using IO::Types::ErrorCode;
+        using ErrorCode = GameWIP::Status::Types::Code;
 
         [[nodiscard]] bool validLineEnding(Types::Output::LineEnding lineEnding) noexcept
         {
@@ -50,7 +51,7 @@ namespace GameWIP::Terminal
             return {};
         }
 
-        [[nodiscard]] IO::Types::Status invalidArgumentStatus(std::string_view message = {}) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status invalidArgumentStatus(std::string_view message = {}) noexcept
         {
             return Internal::statusWithMessage(ErrorCode::InvalidArgument, message);
         }
@@ -78,26 +79,26 @@ namespace GameWIP::Terminal
         return lineEnding_;
     }
 
-    IO::Types::Status OutputBuffer::setLineEnding(Types::Output::LineEnding lineEnding) noexcept
+    GameWIP::Status::Types::Result<void> OutputBuffer::setLineEnding(Types::Output::LineEnding lineEnding) noexcept
     {
         if(!validLineEnding(lineEnding))
         {
-            return invalidArgumentStatus("Unknown terminal line ending.");
+            return Internal::result(invalidArgumentStatus("Unknown terminal line ending."));
         }
         lineEnding_ = lineEnding;
-        return IO::successStatus();
+        return GameWIP::Status::Types::Result<void>::success();
     }
 
-    IO::Types::Status OutputBuffer::reserve(std::size_t bytes) noexcept
+    GameWIP::Status::Types::Result<void> OutputBuffer::reserve(std::size_t bytes) noexcept
     {
         try
         {
             text_.reserve(bytes);
-            return IO::successStatus();
+            return GameWIP::Status::Types::Result<void>::success();
         }
         catch(...)
         {
-            return Internal::exceptionStatus();
+            return Internal::result(Internal::exceptionStatus());
         }
     }
 
@@ -121,31 +122,31 @@ namespace GameWIP::Terminal
         return text_;
     }
 
-    IO::Types::Status OutputBuffer::appendText(std::string_view utf8Text) noexcept
+    GameWIP::Status::Types::Result<void> OutputBuffer::appendText(std::string_view utf8Text) noexcept
     {
         if(!validUtf8(utf8Text))
         {
-            return IO::makeStatus(ErrorCode::EncodingFailed);
+            return Internal::result(GameWIP::Terminal::Internal::backendStatus(ErrorCode::EncodingFailed));
         }
 
         const std::size_t previousSize = text_.size();
         try
         {
             text_.append(utf8Text);
-            return IO::successStatus();
+            return GameWIP::Status::Types::Result<void>::success();
         }
         catch(...)
         {
             rollbackString(text_, previousSize);
-            return Internal::exceptionStatus();
+            return Internal::result(Internal::exceptionStatus());
         }
     }
 
-    IO::Types::Status OutputBuffer::appendLine(std::string_view utf8Text) noexcept
+    GameWIP::Status::Types::Result<void> OutputBuffer::appendLine(std::string_view utf8Text) noexcept
     {
         if(!validUtf8(utf8Text))
         {
-            return IO::makeStatus(ErrorCode::EncodingFailed);
+            return Internal::result(GameWIP::Terminal::Internal::backendStatus(ErrorCode::EncodingFailed));
         }
 
         const std::size_t previousSize = text_.size();
@@ -153,16 +154,16 @@ namespace GameWIP::Terminal
         {
             text_.append(utf8Text);
             text_.append(lineEndingText(lineEnding_));
-            return IO::successStatus();
+            return GameWIP::Status::Types::Result<void>::success();
         }
         catch(...)
         {
             rollbackString(text_, previousSize);
-            return Internal::exceptionStatus();
+            return Internal::result(Internal::exceptionStatus());
         }
     }
 
-    IO::Types::Status OutputBuffer::vprint(std::string_view format, std::format_args arguments, bool appendLineEnding) noexcept
+    GameWIP::Status::Types::Result<void> OutputBuffer::vprint(std::string_view format, std::format_args arguments, bool appendLineEnding) noexcept
     {
         const std::size_t previousSize = text_.size();
         try
@@ -177,23 +178,23 @@ namespace GameWIP::Terminal
             if(!validUtf8(std::string_view(text_).substr(previousSize)))
             {
                 rollbackString(text_, previousSize);
-                return IO::makeStatus(ErrorCode::EncodingFailed);
+                return Internal::result(GameWIP::Terminal::Internal::backendStatus(ErrorCode::EncodingFailed));
             }
-            return IO::successStatus();
+            return GameWIP::Status::Types::Result<void>::success();
         }
         catch(...)
         {
             rollbackString(text_, previousSize);
-            return Internal::exceptionStatus();
+            return Internal::result(Internal::exceptionStatus());
         }
     }
 
-    IO::Types::Status OutputBuffer::writeTo(const Types::Output::TextOptions &options) const noexcept
+    GameWIP::Status::Types::Result<void> OutputBuffer::writeTo(const Types::Output::TextOptions &options) const noexcept
     {
         return writeTo(Types::Output::Stream::Stdout, options);
     }
 
-    IO::Types::Status OutputBuffer::writeTo(Types::Output::Stream stream, const Types::Output::TextOptions &options) const noexcept
+    GameWIP::Status::Types::Result<void> OutputBuffer::writeTo(Types::Output::Stream stream, const Types::Output::TextOptions &options) const noexcept
     {
         try
         {
@@ -201,18 +202,18 @@ namespace GameWIP::Terminal
         }
         catch(...)
         {
-            return Internal::exceptionStatus();
+            return Internal::result(Internal::exceptionStatus());
         }
     }
 
-    IO::Types::Status OutputBuffer::flushTo(const Types::Output::TextOptions &options) noexcept
+    GameWIP::Status::Types::Result<void> OutputBuffer::flushTo(const Types::Output::TextOptions &options) noexcept
     {
         return flushTo(Types::Output::Stream::Stdout, options);
     }
 
-    IO::Types::Status OutputBuffer::flushTo(Types::Output::Stream stream, const Types::Output::TextOptions &options) noexcept
+    GameWIP::Status::Types::Result<void> OutputBuffer::flushTo(Types::Output::Stream stream, const Types::Output::TextOptions &options) noexcept
     {
-        IO::Types::Status status = writeTo(stream, options);
+        GameWIP::Status::Types::Result<void> status = writeTo(stream, options);
         if(status.ok())
         {
             clear();

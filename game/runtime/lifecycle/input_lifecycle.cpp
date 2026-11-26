@@ -18,10 +18,10 @@ namespace GameWIP::Game::RuntimeDiagnostics
         bool ok = true;
 
         // Capture final health before detaching or closing the session.
-        GameWIP::Input::Types::Health health;
-        const GameWIP::IO::Types::Status healthStatus = input.health(health);
+        const auto healthStatus = input.health();
         if(healthStatus.ok())
         {
+            const GameWIP::Input::Types::Health &health = healthStatus.value();
             if(Logger::shouldLog(Logger::Types::Level::Trace, LogArea::Input))
             {
                 Logger::trace(
@@ -43,25 +43,25 @@ namespace GameWIP::Game::RuntimeDiagnostics
         }
         else
         {
-            GameWIP::Game::RuntimeDiagnostics::reportWarning(LogArea::Input, "Failed to query input health", healthStatus);
+            GameWIP::Game::RuntimeDiagnostics::reportWarning(LogArea::Input, "Failed to query input health", healthStatus.status());
         }
 
         // Detach native sources before closing Input.
         if(detach != nullptr)
         {
-            const GameWIP::IO::Types::Status detachStatus = detach(context);
+            const auto detachStatus = detach(context);
             if(!detachStatus.ok())
             {
-                GameWIP::Game::RuntimeDiagnostics::reportFailure(LogArea::Input, "Failed to detach input source", detachStatus);
+                GameWIP::Game::RuntimeDiagnostics::reportFailure(LogArea::Input, "Failed to detach input source", detachStatus.status());
                 ok = false;
             }
         }
 
         // Close the portable session after all providers are detached.
-        const GameWIP::IO::Types::Status closeStatus = input.close();
+        const auto closeStatus = input.close();
         if(!closeStatus.ok())
         {
-            GameWIP::Game::RuntimeDiagnostics::reportFailure(LogArea::Input, "Failed to close input system", closeStatus);
+            GameWIP::Game::RuntimeDiagnostics::reportFailure(LogArea::Input, "Failed to close input system", closeStatus.status());
             ok = false;
         }
         else

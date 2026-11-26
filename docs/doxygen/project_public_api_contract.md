@@ -74,8 +74,8 @@ byte offsets, with callers required to supply valid code-point or grapheme bound
 An operation status reports whether the operation completed and why it failed. Expected domain outcomes such as cancellation, timeout policy
 successfully enforced, user choice, fallback, adjustment, or truncation remain distinct from operational failure.
 
-- Return a status directly when no value or domain outcome is needed.
-- Use a named result containing status plus values or outcomes when callers need both.
+- Use `Result<void>` for fallible operations with no payload and `Result<T>` when callers need a value or outcome.
+- Use `Status` to construct, inspect, or combine operation outcomes; do not return it directly from public operations.
 - Preserve meaningful partial progress.
 - Associate diagnostics with the operation result or a coherent health snapshot. Do not use mutable process-wide or thread-local last-operation
   pairings.

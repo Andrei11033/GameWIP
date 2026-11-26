@@ -29,7 +29,6 @@ The supported public headers are:
 - `desktop/window.h`
 - `desktop/dialogs.h`
 - `desktop/renderer_bridge.h`
-- `desktop/result.h`
 - `desktop/shell.h`
 - `desktop/shell_types.h`
 - `desktop/shell_taskbar.h`
@@ -53,8 +52,8 @@ integration, and native interop are explicit opt-in includes.
 
 ## Dependencies
 
-`IO` and `FileSystem` are public package dependencies because public types expose their contracts. Unicode is a private
-dependency for strict native text conversion; no Unicode type appears in public headers.
+`Status` and `FileSystem` are public package dependencies because public types expose their contracts. FileSystem brings its own IO dependency.
+Unicode is private for strict native text conversion; no Unicode type appears in public headers.
 
 The package is exact-version matched. Applications must call
 `gamewip_attach_application_manifest(TARGET <executable> PER_MONITOR_V2)` from the

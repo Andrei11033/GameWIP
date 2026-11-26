@@ -5,7 +5,7 @@
 
 #include "desktop/internal/shell_state.h"
 #include "desktop/types.h"
-#include "io/status.h"
+#include "status/result.h"
 
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -46,6 +46,6 @@ namespace GameWIP::Desktop::Platform
         /// @brief Selects the retained icon nearest to the requested dimensions.
         [[nodiscard]] const OwnedIconImage &closestIcon(std::span<const OwnedIconImage> images, int desiredWidth, int desiredHeight) noexcept;
         /// @brief Converts bounded UTF-8 shell text to a native tooltip buffer.
-        [[nodiscard]] IO::Types::Status convertTip(std::string_view text, std::array<wchar_t, 260> &output);
+        [[nodiscard]] GameWIP::Status::Types::Status convertTip(std::string_view text, std::array<wchar_t, 260> &output);
     } // namespace Win32
 } // namespace GameWIP::Desktop::Platform

@@ -35,6 +35,7 @@ control values. Standard identifiers and lookup helpers live under
   values instead of being discarded because they lack a standard identifier.
 - Capture is frame-based and preserves the event and state information needed
   by a higher-level action system.
+- Fallible operations use the shared `Status::Types::Result` contract.
 
 ## Dependency boundary
 

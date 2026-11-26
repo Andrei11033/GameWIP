@@ -192,12 +192,12 @@ namespace
         }
         catch(const std::exception &exception)
         {
-            Logger::shutdown();
+            static_cast<void>(Logger::shutdown());
             context.fail(name, exception.what());
         }
         catch(...)
         {
-            Logger::shutdown();
+            static_cast<void>(Logger::shutdown());
             context.fail(name, "unknown exception");
         }
     }
@@ -209,22 +209,27 @@ namespace
     /// Test helpers
     /// ------------------------------------------------------------
 
-    bool requireInfrastructure(TestContext &context, std::string_view operation, const TestSupport::Types::InfrastructureStatus &status)
+    bool requireInfrastructure(TestContext &context, std::string_view operation, const TestSupport::Types::Status &status)
     {
         if(status.ok())
         {
             return true;
         }
 
-        context.fail(operation, TestSupport::formatInfrastructureStatus(status));
+        context.fail(operation, TestSupport::formatStatus(status));
         return false;
+    }
+
+    bool requireInfrastructure(TestContext &context, std::string_view operation, const TestSupport::Types::Result<void> &result)
+    {
+        return requireInfrastructure(context, operation, result.status());
     }
 
     struct ScopedLoggerShutdown
     {
         ~ScopedLoggerShutdown()
         {
-            Logger::shutdown();
+            static_cast<void>(Logger::shutdown());
         }
     };
 
@@ -252,27 +257,25 @@ namespace
     {
         const Logger::Types::LogFilePathResult result = Logger::getLogFilePath();
 
-        if(!result.status.ok())
+        if(!result.ok())
         {
-            context.fail(
-                "query Assert log file path",
-                std::format("code={} native={}", static_cast<int>(result.status.code), result.status.nativeCode));
+            context.fail("query Assert log file path", TestSupport::formatStatus(result.status()));
             return {};
         }
 
-        return GameWIP::Test::Internal::pathFromUtf8(context, result.utf8, "convert Assert log path");
+        return GameWIP::Test::Internal::pathFromUtf8(context, result.value(), "convert Assert log path");
     }
 
     std::string readFile(TestContext &context, const std::filesystem::path &path)
     {
         TestSupport::Types::TextResult result = TestSupport::readTextFile(path);
 
-        if(!requireInfrastructure(context, "read Assert log fixture", result.status))
+        if(!requireInfrastructure(context, "read Assert log fixture", result.status()))
         {
             return {};
         }
 
-        return std::move(result.text);
+        return std::move(result).value();
     }
 
     std::string readDirectoryFiles(TestContext &context, const std::filesystem::path &directory)
@@ -322,7 +325,7 @@ namespace
 
     bool initFileLogger(TestContext &context, std::string_view name)
     {
-        Logger::shutdown();
+        static_cast<void>(Logger::shutdown());
         const std::filesystem::path directory = context.logRoot / std::string(name);
 
         if(!TestSupport::createDirectories(directory).ok())
@@ -343,7 +346,7 @@ namespace
         config.logDirectory = directoryText;
         config.enableDebugOutput = false;
         config.enableFatalPopup = false;
-        return Logger::init(config).status.ok();
+        return Logger::init(config).ok();
     }
 
 #include "validation/tests/assert/macro_behavior_test.inl"
@@ -409,7 +412,7 @@ namespace GameWIP::Test
 
                 if(!context.processState.status().ok())
                 {
-                    context.fail("acquire Assert process-state scope", TestSupport::formatInfrastructureStatus(context.processState.status()));
+                    context.fail("acquire Assert process-state scope", TestSupport::formatStatus(context.processState.status()));
                     return;
                 }
 
@@ -583,7 +586,7 @@ namespace GameWIP::Test
                             context.manualObservations.failed,
                             context.manualObservations.skipped));
                 }
-                Logger::shutdown();
+                static_cast<void>(Logger::shutdown());
                 printSummary(context);
             });
 
@@ -594,7 +597,7 @@ namespace GameWIP::Test
                 suite.summary.failed,
                 suite.summary.skipped,
                 suite.elapsedMilliseconds));
-        Logger::shutdown();
+        static_cast<void>(Logger::shutdown());
         return GameWIP::Test::Internal::RunnerHelpers::finalizeRunner(runner);
     }
 } // namespace GameWIP::Test

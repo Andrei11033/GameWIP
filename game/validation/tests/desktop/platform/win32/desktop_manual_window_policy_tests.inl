@@ -30,8 +30,8 @@ void testManualWindowPolicyAndControls(TestSupport::Context &context, Desktop::W
             static_cast<void>(window.setResizable(true));
             Desktop::Types::Controls controls = window.controls();
             controls.maximizable = maximizable;
-            const IO::Types::Status controlsStatus = window.setControls(controls);
-            const IO::Types::Status resizeStatus = window.setResizable(resizable);
+            const GameWIP::Status::Types::Result<void> controlsStatus = window.setControls(controls);
+            const GameWIP::Status::Types::Result<void> resizeStatus = window.setResizable(resizable);
 
             if(!resizable && maximizable)
             {

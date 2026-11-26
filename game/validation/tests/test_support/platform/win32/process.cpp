@@ -91,7 +91,7 @@ namespace GameWIP::Test::TestSupportPlatform
         const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
         static_cast<void>(context.expectTrue(
             "Handle inheritance probe child succeeds",
-            result.status.ok() && result.outcome == TestSupport::Types::Process::Outcome::Exited && result.exitCode == 0));
+            result.ok() && result.value().outcome == TestSupport::Types::Process::Outcome::Exited && result.value().exitCode == 0));
         static_cast<void>(context.expectEq(
             "Child does not inherit unrelated parent handles",
             static_cast<DWORD>(WAIT_TIMEOUT),
@@ -126,10 +126,10 @@ namespace GameWIP::Test::TestSupportPlatform
             childOptions.waitTimeout = std::chrono::seconds{30};
 
             const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
-            static_cast<void>(context.expectTrue("Boundary child exit has successful infrastructure", result.status.ok()));
+            static_cast<void>(context.expectTrue("Boundary child exit has successful infrastructure", result.ok()));
             static_cast<void>(
-                context.expectEq("Boundary child reports exited outcome", TestSupport::Types::Process::Outcome::Exited, result.outcome));
-            static_cast<void>(context.expectEq("Boundary child exit preserves all native bits", boundary.expected, result.exitCode));
+                context.expectEq("Boundary child reports exited outcome", TestSupport::Types::Process::Outcome::Exited, result.value().outcome));
+            static_cast<void>(context.expectEq("Boundary child exit preserves all native bits", boundary.expected, result.value().exitCode));
         }
     }
 } // namespace GameWIP::Test::TestSupportPlatform

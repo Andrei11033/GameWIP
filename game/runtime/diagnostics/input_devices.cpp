@@ -36,13 +36,13 @@ namespace GameWIP::Game::RuntimeDiagnostics
         }
 
         // Resolve the descriptor list once for this inventory pass.
-        std::span<const Input::Types::DeviceInfo> devices;
-        const IO::Types::Status devicesStatus = input.devices(devices);
-        if(!devicesStatus.ok())
+        const auto devicesResult = input.devices();
+        if(!devicesResult.ok())
         {
-            reportWarning(LogArea::Input, "Failed to enumerate input devices", devicesStatus);
+            reportWarning(LogArea::Input, "Failed to enumerate input devices", devicesResult.status());
             return;
         }
+        const std::span<const Input::Types::DeviceInfo> devices = devicesResult.value();
 
         // Count connected devices for the Info summary.
         std::size_t connectedDevices = 0;

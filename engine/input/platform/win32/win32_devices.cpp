@@ -19,13 +19,13 @@ namespace GameWIP::Input::Platform::Win32
     /// Native input registration
     /// ------------------------------------------------------------
 
-    [[nodiscard]] IO::Types::Status registerRawInputCollection(AttachmentState &attachment, USHORT usagePage, USHORT usage, DWORD flags)
+    [[nodiscard]] GameWIP::Status::Types::Status registerRawInputCollection(AttachmentState &attachment, USHORT usagePage, USHORT usage, DWORD flags)
     {
         const auto registered =
             std::find(attachment.rawInputCollections.begin(), attachment.rawInputCollections.end(), std::pair<USHORT, USHORT>{usagePage, usage});
         if(registered != attachment.rawInputCollections.end())
         {
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
 
         RAWINPUTDEVICE device{
@@ -42,7 +42,7 @@ namespace GameWIP::Input::Platform::Win32
         try
         {
             attachment.rawInputCollections.emplace_back(usagePage, usage);
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
         catch(const std::bad_alloc &)
         {
@@ -53,11 +53,11 @@ namespace GameWIP::Input::Platform::Win32
                 .hwndTarget = nullptr,
             };
             (void)RegisterRawInputDevices(&removal, 1, sizeof(removal));
-            return status(ErrorCode::OutOfMemory);
+            return status(Code::OutOfMemory);
         }
     }
 
-    [[nodiscard]] IO::Types::Status registerHidCollections(AttachmentState &attachment)
+    [[nodiscard]] GameWIP::Status::Types::Status registerHidCollections(AttachmentState &attachment)
     {
         UINT deviceCount = 0;
         if(GetRawInputDeviceList(nullptr, &deviceCount, sizeof(RAWINPUTDEVICELIST)) == static_cast<UINT>(-1))
@@ -67,7 +67,7 @@ namespace GameWIP::Input::Platform::Win32
 
         if(deviceCount == 0)
         {
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
 
         std::vector<RAWINPUTDEVICELIST> devices(static_cast<std::size_t>(deviceCount));
@@ -91,7 +91,7 @@ namespace GameWIP::Input::Platform::Win32
                 continue;
             }
 
-            const IO::Types::Status registrationStatus =
+            const GameWIP::Status::Types::Status registrationStatus =
                 registerRawInputCollection(attachment, info.hid.usUsagePage, info.hid.usUsage, RIDEV_DEVNOTIFY);
             if(!registrationStatus.ok())
             {
@@ -99,7 +99,7 @@ namespace GameWIP::Input::Platform::Win32
             }
         }
 
-        return IO::successStatus();
+        return GameWIP::Status::Types::Status{};
     }
 
     [[nodiscard]] bool registerHidDeviceNotification(AttachmentState &attachment) noexcept

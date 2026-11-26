@@ -22,7 +22,6 @@ namespace GameWIP::Game::Runtime::Platform::Win32
 
     namespace Diagnostics = GameWIP::Game::RuntimeDiagnostics;
     namespace Format = GameWIP::Game::RuntimeDiagnostics::InputEventFormat;
-    namespace IO = GameWIP::IO;
     namespace Input = GameWIP::Input;
     namespace Logger = GameWIP::Logger;
     using LogArea = GameWIP::Game::Logging::Area;
@@ -53,13 +52,13 @@ namespace GameWIP::Game::Runtime::Platform::Win32
             return "unknown";
         };
 
-        std::vector<Input::Types::BackendInfo> backends;
-        const IO::Types::Status queryStatus = attachment.backends(backends);
-        if(!queryStatus.ok())
+        const auto backendsResult = attachment.backends();
+        if(!backendsResult.ok())
         {
-            Diagnostics::reportWarning(LogArea::Input, "Failed to query Win32 input backends", queryStatus);
+            Diagnostics::reportWarning(LogArea::Input, "Failed to query Win32 input backends", backendsResult.status());
             return;
         }
+        const std::vector<Input::Types::BackendInfo> &backends = backendsResult.value();
 
         std::string report;
         for(const Input::Types::BackendInfo &backend : backends)

@@ -8,7 +8,8 @@ Under `Desktop::Types::Display`:
 
 - `MonitorId` is a process-local monitor identity (`isValid()`).
 - `Mode` is physical resolution, millihertz refresh, color depth, and interlace state.
-- Queries return `Types::Result<T>`; `value` is present only when `status.ok()`.
+- Queries return `GameWIP::Status::Types::Result<T>`; check `ok()` before reading `value()`.
+- Monitor and mode enumeration may retain entries already collected when a later native query fails.
 
 Opt-in via `desktop/display_info.h`:
 

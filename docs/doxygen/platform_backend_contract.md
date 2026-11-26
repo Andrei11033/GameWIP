@@ -87,17 +87,17 @@ A backend must translate native errors before returning to portable core code.
 Native cleanup must remain reliable across success, failure, and early-return
 paths.
 
-When the public API returns an `IO::Types::Status` or a library result type,
-backend failures must preserve the most useful stable project error code
-available.
+When the public API returns a `GameWIP::Status::Types::Status` or a result
+type, backend failures must preserve the most useful stable project error code.
 Platform-only numeric codes stay out of public behavior unless the public type
 explicitly stores diagnostic detail for that purpose.
 
-TestSupport backends return `InfrastructureStatus`, including a stable error
-category and optional native diagnostic code. Child-process backends must keep
-infrastructure failure separate from process outcome and exact exit code. An
-approved deterministic hook may exercise the public `Unsupported` category, but
-it does not substitute for a real platform backend.
+TestSupport backends return the shared status through `Result<T>`, with
+portable codes for decisions and optional native details for diagnostics.
+Child-process backends keep infrastructure failure separate from process
+outcome and exact exit code. An approved deterministic hook may exercise the
+public `Unsupported` category, but it does not substitute for a real platform
+backend.
 
 ## Concurrency and process state
 

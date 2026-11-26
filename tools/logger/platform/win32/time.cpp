@@ -3,11 +3,6 @@
 
 #include "logger/platform/backend.h"
 
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#include <windows.h>
-
 #include <algorithm>
 #include <ctime>
 #include <new>
@@ -16,7 +11,14 @@
 
 namespace GameWIP::Logger::Platform
 {
-    IO::Types::Status formatLocalTime(std::time_t time, std::string_view timeFormat, std::string &outText)
+    namespace
+    {
+        using Status = GameWIP::Status::Types::Status;
+        using StatusCode = GameWIP::Status::Types::Code;
+        using NativeCodeDomain = GameWIP::Status::Types::NativeCodeDomain;
+    } // namespace
+
+    GameWIP::Status::Types::Status formatLocalTime(std::time_t time, std::string_view timeFormat, std::string &outText)
     {
         outText.clear();
 
@@ -26,12 +28,12 @@ namespace GameWIP::Logger::Platform
 
         if(localTimeResult != 0)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::NativeFailure, localTimeResult);
+            return Status::withDiagnostic(StatusCode::NativeFailure, {NativeCodeDomain::Errno, localTimeResult});
         }
 
         if(timeFormat.size() >= 64)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument, ERROR_INVALID_DATA);
+            return Status(StatusCode::InvalidArgument);
         }
 
         char formatBuffer[64]{};
@@ -59,7 +61,7 @@ namespace GameWIP::Logger::Platform
 #endif
         if(written == 0)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::NativeFailure, ERROR_INVALID_DATA);
+            return Status(StatusCode::NativeFailure);
         }
 
         try
@@ -71,12 +73,12 @@ namespace GameWIP::Logger::Platform
         catch(const std::bad_alloc &)
         {
             outText.clear();
-            return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
+            return Status(StatusCode::OutOfMemory);
         }
         catch(...)
         {
             outText.clear();
-            return IO::makeStatus(IO::Types::ErrorCode::Unknown);
+            return Status(StatusCode::Unknown);
         }
     }
 } // namespace GameWIP::Logger::Platform

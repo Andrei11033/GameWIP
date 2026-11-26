@@ -85,20 +85,20 @@ namespace GameWIP::FileSystem::Platform::Win32
     }
 
     /// @brief Converts a non-empty path to normalized absolute UTF-16 extended form.
-    [[nodiscard]] WidePathResult absoluteNativePath(const Types::Path &path)
+    [[nodiscard]] Result<std::wstring> absoluteNativePath(const Types::Path &path)
     {
         const std::wstring nativePath = path.wstring();
 
         if(nativePath.empty() || containsEmbeddedNull(nativePath))
         {
-            return {.status = IO::makeStatus(ErrorCode::InvalidArgument)};
+            return failure<std::wstring>(ErrorCode::InvalidArgument);
         }
 
         DWORD requiredLength = GetFullPathNameW(nativePath.c_str(), 0, nullptr, nullptr);
 
         if(requiredLength == 0)
         {
-            return {.status = makeLastErrorStatus(ErrorCode::StatFailed)};
+            return failure<std::wstring>(makeLastErrorStatus(ErrorCode::StatFailed));
         }
 
         std::wstring buffer(requiredLength, L'\0');
@@ -106,7 +106,7 @@ namespace GameWIP::FileSystem::Platform::Win32
 
         if(copiedLength == 0)
         {
-            return {.status = makeLastErrorStatus(ErrorCode::StatFailed)};
+            return failure<std::wstring>(makeLastErrorStatus(ErrorCode::StatFailed));
         }
 
         if(copiedLength >= requiredLength)
@@ -116,12 +116,12 @@ namespace GameWIP::FileSystem::Platform::Win32
 
             if(copiedLength == 0 || copiedLength >= buffer.size())
             {
-                return {.status = makeLastErrorStatus(ErrorCode::StatFailed)};
+                return failure<std::wstring>(makeLastErrorStatus(ErrorCode::StatFailed));
             }
         }
 
         buffer.resize(copiedLength);
-        return {.status = IO::successStatus(), .path = asExtendedLengthPath(std::move(buffer))};
+        return Result<std::wstring>::success(asExtendedLengthPath(std::move(buffer)));
     }
 
     /// @brief Normalizes one path component into a traversal vector without allowing upward escape.
@@ -200,16 +200,16 @@ namespace GameWIP::FileSystem::Platform::Win32
     }
 
     /// @brief Separates a normalized absolute drive/UNC path into root and safe components.
-    [[nodiscard]] ParsedPathResult parseAbsolutePath(std::wstring_view fullPath)
+    [[nodiscard]] Result<ParsedPath> parseAbsolutePath(std::wstring_view fullPath)
     {
         if(fullPath.empty() || containsEmbeddedNull(fullPath))
         {
-            return {.status = IO::makeStatus(ErrorCode::InvalidArgument)};
+            return failure<ParsedPath>(ErrorCode::InvalidArgument);
         }
 
         if(startsWithInsensitive(fullPath, L"\\\\.\\"))
         {
-            return {.status = IO::makeStatus(ErrorCode::Unsupported, 0, "Win32 device paths are not supported by strict traversal")};
+            return failure<ParsedPath>(Status::withDiagnostic(ErrorCode::Unsupported, "Win32 device paths are not supported by strict traversal"));
         }
 
         std::size_t rootEnd = std::wstring_view::npos;
@@ -245,17 +245,17 @@ namespace GameWIP::FileSystem::Platform::Win32
 
         if(rootEnd == std::wstring_view::npos || rootEnd == 0 || rootEnd > fullPath.size())
         {
-            return {.status = IO::makeStatus(ErrorCode::InvalidArgument)};
+            return failure<ParsedPath>(ErrorCode::InvalidArgument);
         }
 
-        ParsedPathResult result{.status = IO::successStatus(), .root = std::wstring(fullPath.substr(0, rootEnd))};
+        ParsedPath result{.root = std::wstring(fullPath.substr(0, rootEnd))};
 
         if(!splitComponents(fullPath.substr(rootEnd), result.components))
         {
-            return {.status = IO::makeStatus(ErrorCode::InvalidArgument)};
+            return failure<ParsedPath>(ErrorCode::InvalidArgument);
         }
 
-        return result;
+        return Result<ParsedPath>::success(std::move(result));
     }
 
 } // namespace GameWIP::FileSystem::Platform::Win32

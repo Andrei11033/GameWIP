@@ -14,12 +14,12 @@ namespace GameWIP::FileSystem::Platform::Win32
     /// Status and option helpers
     /// ------------------------------------------------------------
 
-    /// @brief Maps common Win32 errors to portable IO status while preserving native detail.
-    [[nodiscard]] IO::Types::Status makeWin32Status(DWORD error, ErrorCode fallback) noexcept
+    /// @brief Maps common Win32 errors to portable status while preserving native detail.
+    [[nodiscard]] Status makeWin32Status(DWORD error, ErrorCode fallback) noexcept
     {
         if(error == ERROR_SUCCESS)
         {
-            return IO::successStatus();
+            return Status{};
         }
 
         ErrorCode code = fallback;
@@ -74,36 +74,58 @@ namespace GameWIP::FileSystem::Platform::Win32
 
             if(Unicode::Utf8::validate(message).outcome == Unicode::Types::ValidationOutcome::Valid)
             {
-                return IO::makeStatus(code, static_cast<std::int64_t>(error), std::move(message));
+                return Status::withDiagnostic(
+                    code,
+                    GameWIP::Status::Types::NativeCode{GameWIP::Status::Types::NativeCodeDomain::Win32Error, error},
+                    message);
             }
-            return IO::makeStatus(code, static_cast<std::int64_t>(error));
+            return Status::withDiagnostic(
+                code,
+                GameWIP::Status::Types::NativeCode{GameWIP::Status::Types::NativeCodeDomain::Win32Error, error});
         }
         catch(...)
         {
-            return IO::makeStatus(code, static_cast<std::int64_t>(error));
+            return Status::withDiagnostic(
+                code,
+                GameWIP::Status::Types::NativeCode{GameWIP::Status::Types::NativeCodeDomain::Win32Error, error});
         }
     }
 
     /// @brief Maps the calling thread's current GetLastError value.
-    [[nodiscard]] IO::Types::Status makeLastErrorStatus(ErrorCode fallback) noexcept
+    [[nodiscard]] Status makeLastErrorStatus(ErrorCode fallback) noexcept
     {
         return makeWin32Status(GetLastError(), fallback);
     }
 
     /// @brief Builds a diagnostic status without allowing message allocation to escape.
-    [[nodiscard]] IO::Types::Status makeDiagnosticStatus(ErrorCode code, std::int64_t nativeCode, std::string_view message) noexcept
+    [[nodiscard]] Status makeDiagnosticStatus(ErrorCode code, std::int64_t nativeCode, std::string_view message) noexcept
     {
         try
         {
             if(Unicode::Utf8::validate(message).outcome != Unicode::Types::ValidationOutcome::Valid)
             {
-                return IO::makeStatus(code, nativeCode);
+                return nativeCode == 0
+                           ? Status(code)
+                           : Status::withDiagnostic(
+                                 code,
+                                 GameWIP::Status::Types::NativeCode{GameWIP::Status::Types::NativeCodeDomain::Other, nativeCode});
             }
-            return IO::makeStatus(code, nativeCode, std::string{message});
+            if(nativeCode == 0)
+            {
+                return Status::withDiagnostic(code, message);
+            }
+            return Status::withDiagnostic(
+                code,
+                GameWIP::Status::Types::NativeCode{GameWIP::Status::Types::NativeCodeDomain::Other, nativeCode},
+                message);
         }
         catch(...)
         {
-            return IO::makeStatus(code, nativeCode);
+            return nativeCode == 0
+                       ? Status(code)
+                       : Status::withDiagnostic(
+                             code,
+                             GameWIP::Status::Types::NativeCode{GameWIP::Status::Types::NativeCodeDomain::Other, nativeCode});
         }
     }
 
@@ -131,20 +153,23 @@ namespace GameWIP::FileSystem::Platform::Win32
     }
 
     /// @brief Converts NTSTATUS through RtlNtStatusToDosError when available.
-    [[nodiscard]] IO::Types::Status makeNtStatus(NTSTATUS status, ErrorCode fallback) noexcept
+    [[nodiscard]] Status makeNtStatus(NTSTATUS status, ErrorCode fallback) noexcept
     {
         const NtApi &api = ntApi();
 
         if(api.ntStatusToDosError == nullptr)
         {
-            return makeDiagnosticStatus(fallback, static_cast<std::int64_t>(status), "NTSTATUS conversion is unavailable");
+            return Status::withDiagnostic(
+                fallback,
+                GameWIP::Status::Types::NativeCode{GameWIP::Status::Types::NativeCodeDomain::NtStatus, status},
+                "NTSTATUS conversion is unavailable");
         }
 
         return makeWin32Status(api.ntStatusToDosError(status), fallback);
     }
 
     /// @brief Returns the stable failure used when traversal encounters a forbidden symlink.
-    [[nodiscard]] IO::Types::Status symlinkPolicyRejectedStatus() noexcept
+    [[nodiscard]] Status symlinkPolicyRejectedStatus() noexcept
     {
         return makeDiagnosticStatus(ErrorCode::PermissionDenied, 0, "path rejected by symlink policy");
     }

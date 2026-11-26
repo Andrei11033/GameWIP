@@ -65,7 +65,7 @@ struct TerminalSessionReentrantFormat
 struct TerminalSessionCloseFormat
 {
     GameWIP::Terminal::Session *session = nullptr;
-    GameWIP::IO::Types::ErrorCode *closeCode = nullptr;
+    GameWIP::Status::Types::Code *closeCode = nullptr;
 };
 
 /// @brief Marker value whose formatter pauses so close-wait behavior can be observed deterministically.
@@ -103,9 +103,9 @@ template <> struct std::formatter<TerminalReentrantFormat>
     /// @brief Writes a nested record before producing the outer formatted value.
     template <typename FormatContext> auto format(const TerminalReentrantFormat &, FormatContext &context) const
     {
-        const GameWIP::IO::Types::Status status = GameWIP::Terminal::writeText("inner");
+        const auto result = GameWIP::Terminal::writeText("inner");
 
-        if(!status.ok())
+        if(!result.ok())
         {
             throw std::runtime_error("terminal reentrant formatter write failed");
         }
@@ -123,9 +123,9 @@ template <> struct std::formatter<TerminalSessionReentrantFormat>
 
     template <typename FormatContext> auto format(const TerminalSessionReentrantFormat &value, FormatContext &context) const
     {
-        const GameWIP::IO::Types::Status status = value.useGlobalOutput ? GameWIP::Terminal::writeText("global") : value.session->writeText("inner");
+        const auto result = value.useGlobalOutput ? GameWIP::Terminal::writeText("global") : value.session->writeText("inner");
 
-        if(!status.ok())
+        if(!result.ok())
         {
             throw std::runtime_error("terminal Session reentrant formatter write failed");
         }
@@ -143,7 +143,7 @@ template <> struct std::formatter<TerminalSessionCloseFormat>
 
     template <typename FormatContext> auto format(const TerminalSessionCloseFormat &value, FormatContext &context) const
     {
-        *value.closeCode = value.session->close().code;
+        *value.closeCode = value.session->close().status().code();
         return std::format_to(context.out(), "outer");
     }
 };
@@ -170,7 +170,8 @@ namespace
     namespace TestSupport = GameWIP::TestSupport;
 
     using GameWIP::Test::TerminalTestOptions;
-    using IO::Types::ErrorCode;
+    using ErrorCode = GameWIP::Status::Types::Code;
+    using IOErrorCode = GameWIP::Status::Types::Code;
 
     inline constexpr std::string_view kReentrantFormatChildArgument = "--terminal-test-child=reentrant-format";
     inline constexpr std::string_view kSessionReentrantFormatChildArgument = "--terminal-test-child=session-reentrant-format";
@@ -303,21 +304,31 @@ namespace
         TestSupport::Context &context,
         std::string_view name,
         std::string_view operation,
-        const IO::Types::Status &status)
+        const GameWIP::Status::Types::Status &status)
     {
         if(status.ok())
         {
             return true;
         }
 
-        std::string reason = std::format("{} failed with {}", operation, IO::errorCodeName(status.code));
+        std::string reason = std::format("{} failed with {}", operation, GameWIP::Status::Types::codeName(status.code()));
 
-        if(!status.message.empty())
+        if(const GameWIP::Status::Types::Diagnostic *diagnostic = status.diagnostic(); diagnostic != nullptr && !diagnostic->message.empty())
         {
-            reason += std::format(": {}", status.message);
+            reason += std::format(": {}", diagnostic->message);
         }
         context.fail(name, reason);
         return false;
+    }
+
+    template <typename T>
+    [[nodiscard]] bool requireManualOperation(
+        TestSupport::Context &context,
+        std::string_view name,
+        std::string_view operation,
+        const GameWIP::Status::Types::Result<T> &result)
+    {
+        return requireManualOperation(context, name, operation, result.status());
     }
 
 #if TERMINAL_INTERNAL_TEST_HOOKS

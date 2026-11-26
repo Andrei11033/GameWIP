@@ -22,13 +22,13 @@ namespace GameWIP::Terminal::Internal::TestHooks::State
         return stream == Terminal::Types::Output::Stream::Stderr ? 1U : 0U;
     }
 
-    std::optional<IO::Types::ErrorCode> consumeFailure(HookFailure &failure) noexcept
+    std::optional<GameWIP::Status::Types::Code> consumeFailure(HookFailure &failure) noexcept
     {
         if(!failure.enabled.exchange(false, std::memory_order_acq_rel))
         {
             return std::nullopt;
         }
-        return static_cast<IO::Types::ErrorCode>(failure.code.load(std::memory_order_acquire));
+        return static_cast<GameWIP::Status::Types::Code>(failure.code.load(std::memory_order_acquire));
     }
 
     void waitAtBlock(HookBlock &block)
@@ -122,7 +122,7 @@ namespace GameWIP::Terminal::Internal::TestHooks::State
 
     namespace
     {
-        void forceFailure(HookFailure &failure, IO::Types::ErrorCode code) noexcept
+        void forceFailure(HookFailure &failure, GameWIP::Status::Types::Code code) noexcept
         {
             failure.code.store(static_cast<int>(code), std::memory_order_release);
             failure.enabled.store(true, std::memory_order_release);
@@ -386,67 +386,67 @@ namespace GameWIP::Terminal::Internal::TestHooks
         }
     }
 
-    void forceNextInputCapabilityFailure(IO::Types::ErrorCode code) noexcept
+    void forceNextInputCapabilityFailure(GameWIP::Status::Types::Code code) noexcept
     {
         forceFailure(terminalTestHookState.nextInputCapabilityFailure, code);
     }
 
-    void forceNextOutputCapabilityFailure(IO::Types::ErrorCode code) noexcept
+    void forceNextOutputCapabilityFailure(GameWIP::Status::Types::Code code) noexcept
     {
         forceFailure(terminalTestHookState.nextOutputCapabilityFailure, code);
     }
 
-    void forceNextOutputPreparationFailure(IO::Types::ErrorCode code) noexcept
+    void forceNextOutputPreparationFailure(GameWIP::Status::Types::Code code) noexcept
     {
         forceFailure(terminalTestHookState.nextOutputPreparationFailure, code);
     }
 
-    void forceNextInputModeFailure(IO::Types::ErrorCode code) noexcept
+    void forceNextInputModeFailure(GameWIP::Status::Types::Code code) noexcept
     {
         forceFailure(terminalTestHookState.nextInputModeFailure, code);
     }
 
-    void forceNextReadFailure(IO::Types::ErrorCode code) noexcept
+    void forceNextReadFailure(GameWIP::Status::Types::Code code) noexcept
     {
         forceFailure(terminalTestHookState.nextReadFailure, code);
     }
 
-    void forceNextEndpointIdentityFailure(IO::Types::ErrorCode code) noexcept
+    void forceNextEndpointIdentityFailure(GameWIP::Status::Types::Code code) noexcept
     {
         forceFailure(terminalTestHookState.nextEndpointIdentityFailure, code);
     }
 
     void forceNextCancellationResetFailure() noexcept
     {
-        forceFailure(terminalTestHookState.nextCancellationResetFailure, IO::Types::ErrorCode::NativeFailure);
+        forceFailure(terminalTestHookState.nextCancellationResetFailure, GameWIP::Status::Types::Code::NativeFailure);
     }
 
     void forceNextCancellationSignalFailure() noexcept
     {
-        forceFailure(terminalTestHookState.nextCancellationSignalFailure, IO::Types::ErrorCode::NativeFailure);
+        forceFailure(terminalTestHookState.nextCancellationSignalFailure, GameWIP::Status::Types::Code::NativeFailure);
     }
 
-    void forceNextTerminalSizeFailure(IO::Types::ErrorCode code) noexcept
+    void forceNextTerminalSizeFailure(GameWIP::Status::Types::Code code) noexcept
     {
         forceFailure(terminalTestHookState.nextTerminalSizeFailure, code);
     }
 
-    void forceNextCursorPositionFailure(IO::Types::ErrorCode code) noexcept
+    void forceNextCursorPositionFailure(GameWIP::Status::Types::Code code) noexcept
     {
         forceFailure(terminalTestHookState.nextCursorPositionFailure, code);
     }
 
-    void forceNextTextWriteFailure(IO::Types::ErrorCode code) noexcept
+    void forceNextTextWriteFailure(GameWIP::Status::Types::Code code) noexcept
     {
         forceFailure(terminalTestHookState.nextTextWriteFailure, code);
     }
 
-    void forceNextByteWriteFailure(IO::Types::ErrorCode code) noexcept
+    void forceNextByteWriteFailure(GameWIP::Status::Types::Code code) noexcept
     {
         forceFailure(terminalTestHookState.nextByteWriteFailure, code);
     }
 
-    void forceNextFlushFailure(IO::Types::ErrorCode code) noexcept
+    void forceNextFlushFailure(GameWIP::Status::Types::Code code) noexcept
     {
         forceFailure(terminalTestHookState.nextFlushFailure, code);
     }

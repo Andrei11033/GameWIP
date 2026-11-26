@@ -27,7 +27,7 @@ namespace GameWIP::TestSupport::Internal
     private:
         [[nodiscard]] bool shouldWriteToConsole(std::string_view category) const noexcept;
         [[nodiscard]] bool flushLocked();
-        void disableReport(std::string_view reason, Types::InfrastructureStatus failure);
+        void disableReport(std::string_view reason, Types::Status failure);
 
         // Sink configuration
         Types::Reporting::Options options_;

@@ -3,10 +3,9 @@
 
 #pragma once
 
-#include "io/status.h"
-#include "desktop/result.h"
 #include "desktop/types.h"
 #include "desktop/desktop_export.h"
+#include "status/result.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -112,18 +111,18 @@ namespace GameWIP::Desktop
     /// @brief Validates and eagerly materializes one application-provided cursor image.
     /// @param image RGBA8 image and physical-pixel hotspot to materialize.
     /// @return A valid shared Cursor on success.
-    [[nodiscard]] DESKTOP_EXPORT Types::Result<Cursor> createCursor(const Types::Cursor::ImageView &image) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT GameWIP::Status::Types::Result<Cursor> createCursor(const Types::Cursor::ImageView &image) noexcept;
 
     /// @brief Validates and eagerly materializes application-provided cursor variants.
     /// @param variants Non-empty set containing one RGBA8 image per unique intended DPI.
     /// @return A valid shared Cursor on success; no partial resource is published on failure.
-    [[nodiscard]] DESKTOP_EXPORT Types::Result<Cursor> createCursor(std::span<const Types::Cursor::ImageView> variants) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT GameWIP::Status::Types::Result<Cursor> createCursor(std::span<const Types::Cursor::ImageView> variants) noexcept;
 
     /// @brief Selects a custom cursor for an open Window on its owner thread.
     /// @param window Target Window whose standard CursorShape remains the cached fallback.
     /// @param cursor Valid custom cursor resource to retain lazily for the Window.
     /// @return Success, or a status describing validation, thread, allocation, or native failure.
-    [[nodiscard]] DESKTOP_EXPORT IO::Types::Status setCursor(Window &window, const Cursor &cursor) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT GameWIP::Status::Types::Result<void> setCursor(Window &window, const Cursor &cursor) noexcept;
 
     /// @brief Reports whether an open owner-thread Window has a custom cursor override.
     [[nodiscard]] DESKTOP_EXPORT bool hasCustomCursor(const Window &window) noexcept;

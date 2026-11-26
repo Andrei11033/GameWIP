@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "status/status.h"
 #include "terminal/input.h"
 
 #ifndef WIN32_LEAN_AND_MEAN
@@ -46,7 +47,7 @@ namespace GameWIP::Terminal::Platform::Win32::Internal::Events
     struct KeyDecodeResult
     {
         // Decode outcome
-        IO::Types::Status status = IO::successStatus();
+        GameWIP::Status::Types::Status status = GameWIP::Status::Types::Status{};
         KeyDecodeDisposition disposition = KeyDecodeDisposition::Ignored;
 
         // Normalized event

@@ -3,10 +3,11 @@
 
 #pragma once
 
-#include "io/status.h"
+#include "status/result.h"
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -42,13 +43,7 @@ namespace GameWIP::Logger::Types
     };
 
     /// @brief Result returned by the Logger log-file path query.
-    /// @details The UTF-8 path is meaningful only when status is successful. A failed query leaves
-    /// the path empty and preserves the conversion or allocation failure through status.
-    struct LogFilePathResult
-    {
-        IO::Types::Status status; ///< Query status.
-        std::string utf8;         ///< Active log-file path in UTF-8 when status is successful.
-    };
+    using LogFilePathResult = Status::Types::Result<std::string>;
 
     /// @brief Effective queue and message limits selected by initialization.
     struct QueueLimits
@@ -130,11 +125,9 @@ namespace GameWIP::Logger::Types
             return (static_cast<std::uint32_t>(value) & static_cast<std::uint32_t>(flag)) != 0;
         }
 
-        /// @brief Rich initialization result separating operation status from final lifecycle state.
-        struct Result
+        /// @brief Initialization details preserved on success or failure.
+        struct Info
         {
-            // Initialization outcome
-            IO::Types::Status status;                  ///< Overall operational status.
             Outcome outcome = Outcome::Disabled;       ///< Final lifecycle outcome.
             Adjustment adjustments = Adjustment::None; ///< Recoverable changes made by init().
 
@@ -143,8 +136,11 @@ namespace GameWIP::Logger::Types
             OutputMode effectiveOutput = OutputMode::None; ///< Output mode actually left active.
 
             // Recovered setup failures
-            IO::Types::Status outputSetupStatus; ///< File/timestamp setup failure preserved when startup can recover.
+            std::optional<Status::Types::Status> outputSetupStatus{}; ///< File/timestamp setup failure when startup recovers.
         };
+
+        /// @brief Shared result contract for initialization.
+        using Result = Status::Types::Result<Info>;
     } // namespace Init
 
     /// @brief Completion state for a Logger-owned flush deadline.
@@ -154,15 +150,14 @@ namespace GameWIP::Logger::Types
         TimedOut   ///< The deadline expired before complete drain and flush.
     };
 
-    /// @brief Result of draining queued logs and flushing active sinks.
-    struct FlushResult
+    /// @brief Flush completion details preserved when a deadline expires.
+    struct FlushInfo
     {
-        // Operation result
-        IO::Types::Status status; ///< Real IO or operation failure, if any.
-
-        // Deadline result
         FlushOutcome outcome = FlushOutcome::Completed; ///< Independent deadline outcome.
     };
+
+    /// @brief Shared result contract for draining and flushing queued logs.
+    using FlushResult = Status::Types::Result<FlushInfo>;
 
     namespace Report
     {
@@ -181,16 +176,16 @@ namespace GameWIP::Logger::Types
             Complete ///< Every eligible target accepted the report.
         };
 
-        /// @brief Result of a synchronous emergency report attempt.
-        struct Result
+        /// @brief Delivery details preserved when a deadline expires.
+        struct Info
         {
-            // Operation and deadline results
-            IO::Types::Status status;             ///< First real operation failure, if any.
             Outcome outcome = Outcome::Completed; ///< Independent deadline outcome.
 
-            // Delivery across eligible targets
             Delivery delivery = Delivery::None; ///< Delivery across eligible targets.
         };
+
+        /// @brief Shared result contract for synchronous emergency reports.
+        using Result = Status::Types::Result<Info>;
     } // namespace Report
 
     namespace Health
@@ -223,8 +218,8 @@ namespace GameWIP::Logger::Types
 
             // Most recent failure
             FailureSource lastFailureSource = FailureSource::None;          ///< Most recent failed channel.
-            IO::Types::ErrorCode lastError = IO::Types::ErrorCode::Success; ///< Most recent portable error.
-            std::int64_t lastNativeCode = 0;                                ///< Associated backend-native error.
+            Status::Types::Code lastError = Status::Types::Code::Success; ///< Most recent portable error.
+            std::optional<Status::Types::NativeCode> lastNativeCode{};    ///< Associated backend-native error.
 
             // Current initialization epoch
             std::uint64_t failureCount = 0; ///< Failures in the current init epoch.

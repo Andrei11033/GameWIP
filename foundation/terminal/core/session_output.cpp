@@ -2,6 +2,7 @@
 /// @brief Session output and capability methods.
 
 #include "terminal/internal/session_state.h"
+#include "terminal/internal/results.h"
 #include "terminal/internal/status.h"
 #include "terminal/session.h"
 #include "terminal/terminal.h"
@@ -23,7 +24,7 @@ namespace GameWIP::Terminal
     {
         if(!state_)
         {
-            return {.status = notOpenStatus(), .capabilities = {}};
+            return Internal::failure<Types::Output::Capabilities>(notOpenStatus());
         }
 
         try
@@ -32,13 +33,13 @@ namespace GameWIP::Terminal
 
             if(!state_->open.load(std::memory_order_acquire))
             {
-                return {.status = notOpenStatus(), .capabilities = {}};
+                return Internal::failure<Types::Output::Capabilities>(notOpenStatus());
             }
             return Terminal::getOutputCapabilities(state_->options.output);
         }
         catch(...)
         {
-            return {.status = Internal::exceptionStatus(), .capabilities = {}};
+            return Internal::failure<Types::Output::Capabilities>(Internal::exceptionStatus());
         }
     }
 
@@ -50,7 +51,7 @@ namespace GameWIP::Terminal
     {
         if(!state_)
         {
-            return {.status = notOpenStatus(), .capabilities = {}};
+            return Internal::failure<Types::Output::Capabilities>(notOpenStatus());
         }
 
         try
@@ -59,14 +60,14 @@ namespace GameWIP::Terminal
 
             if(!state_->open.load(std::memory_order_acquire))
             {
-                return {.status = notOpenStatus(), .capabilities = {}};
+                return Internal::failure<Types::Output::Capabilities>(notOpenStatus());
             }
 
             return Terminal::prepareOutput(state_->options.output);
         }
         catch(...)
         {
-            return {.status = Internal::exceptionStatus(), .capabilities = {}};
+            return Internal::failure<Types::Output::Capabilities>(Internal::exceptionStatus());
         }
     }
 
@@ -74,7 +75,7 @@ namespace GameWIP::Terminal
     {
         if(!state_)
         {
-            return {.status = notOpenStatus(), .size = {}};
+            return Internal::failure<Types::Size>(notOpenStatus());
         }
 
         try
@@ -83,21 +84,21 @@ namespace GameWIP::Terminal
 
             if(!state_->open.load(std::memory_order_acquire))
             {
-                return {.status = notOpenStatus(), .size = {}};
+                return Internal::failure<Types::Size>(notOpenStatus());
             }
             return Terminal::getTerminalSize(state_->options.output);
         }
         catch(...)
         {
-            return {.status = Internal::exceptionStatus(), .size = {}};
+            return Internal::failure<Types::Size>(Internal::exceptionStatus());
         }
     }
 
-    IO::Types::Status Session::writeText(std::string_view utf8Text, const Types::Output::TextOptions &options) noexcept
+    GameWIP::Status::Types::Result<void> Session::writeText(std::string_view utf8Text, const Types::Output::TextOptions &options) noexcept
     {
         if(!state_)
         {
-            return notOpenStatus();
+            return Internal::result(notOpenStatus());
         }
 
         try
@@ -106,21 +107,21 @@ namespace GameWIP::Terminal
 
             if(!state_->open.load(std::memory_order_acquire))
             {
-                return notOpenStatus();
+                return Internal::result(notOpenStatus());
             }
             return Terminal::writeText(state_->options.output, utf8Text, options);
         }
         catch(...)
         {
-            return Internal::exceptionStatus();
+            return Internal::result(Internal::exceptionStatus());
         }
     }
 
-    IO::Types::Status Session::writeLine(std::string_view utf8Text, const Types::Output::LineOptions &options) noexcept
+    GameWIP::Status::Types::Result<void> Session::writeLine(std::string_view utf8Text, const Types::Output::LineOptions &options) noexcept
     {
         if(!state_)
         {
-            return notOpenStatus();
+            return Internal::result(notOpenStatus());
         }
 
         try
@@ -129,21 +130,23 @@ namespace GameWIP::Terminal
 
             if(!state_->open.load(std::memory_order_acquire))
             {
-                return notOpenStatus();
+                return Internal::result(notOpenStatus());
             }
             return Terminal::writeLine(state_->options.output, utf8Text, options);
         }
         catch(...)
         {
-            return Internal::exceptionStatus();
+            return Internal::result(Internal::exceptionStatus());
         }
     }
 
-    IO::Types::WriteResult Session::writeBytes(std::span<const std::byte> bytes, const Types::Output::ByteOptions &options) noexcept
+    GameWIP::Status::Types::Result<IO::Types::WriteProgress> Session::writeBytes(
+        std::span<const std::byte> bytes,
+        const Types::Output::ByteOptions &options) noexcept
     {
         if(!state_)
         {
-            return {.status = notOpenStatus(), .bytesWritten = 0};
+            return Internal::failure<IO::Types::WriteProgress>(notOpenStatus());
         }
 
         try
@@ -152,21 +155,23 @@ namespace GameWIP::Terminal
 
             if(!state_->open.load(std::memory_order_acquire))
             {
-                return {.status = notOpenStatus(), .bytesWritten = 0};
+                return Internal::failure<IO::Types::WriteProgress>(notOpenStatus());
             }
             return Terminal::writeBytes(state_->options.output, bytes, options);
         }
         catch(...)
         {
-            return {.status = Internal::exceptionStatus(), .bytesWritten = 0};
+            return Internal::failure<IO::Types::WriteProgress>(Internal::exceptionStatus());
         }
     }
 
-    IO::Types::Status Session::writeSegments(std::span<const Types::Output::Segment> segments, const Types::Output::SegmentOptions &options) noexcept
+    GameWIP::Status::Types::Result<void> Session::writeSegments(
+        std::span<const Types::Output::Segment> segments,
+        const Types::Output::SegmentOptions &options) noexcept
     {
         if(!state_)
         {
-            return notOpenStatus();
+            return Internal::result(notOpenStatus());
         }
 
         try
@@ -175,21 +180,24 @@ namespace GameWIP::Terminal
 
             if(!state_->open.load(std::memory_order_acquire))
             {
-                return notOpenStatus();
+                return Internal::result(notOpenStatus());
             }
             return Terminal::writeSegments(state_->options.output, segments, options);
         }
         catch(...)
         {
-            return Internal::exceptionStatus();
+            return Internal::result(Internal::exceptionStatus());
         }
     }
 
-    IO::Types::Status Session::vprint(const Types::Output::TextOptions &options, std::string_view format, std::format_args arguments) noexcept
+    GameWIP::Status::Types::Result<void> Session::vprint(
+        const Types::Output::TextOptions &options,
+        std::string_view format,
+        std::format_args arguments) noexcept
     {
         if(!state_)
         {
-            return notOpenStatus();
+            return Internal::result(notOpenStatus());
         }
 
         try
@@ -198,21 +206,24 @@ namespace GameWIP::Terminal
 
             if(!state_->open.load(std::memory_order_acquire))
             {
-                return notOpenStatus();
+                return Internal::result(notOpenStatus());
             }
-            return Internal::vprint(state_->options.output, options, format, arguments);
+            return Internal::result(Internal::vprint(state_->options.output, options, format, arguments));
         }
         catch(...)
         {
-            return Internal::exceptionStatus();
+            return Internal::result(Internal::exceptionStatus());
         }
     }
 
-    IO::Types::Status Session::vprintln(const Types::Output::LineOptions &options, std::string_view format, std::format_args arguments) noexcept
+    GameWIP::Status::Types::Result<void> Session::vprintln(
+        const Types::Output::LineOptions &options,
+        std::string_view format,
+        std::format_args arguments) noexcept
     {
         if(!state_)
         {
-            return notOpenStatus();
+            return Internal::result(notOpenStatus());
         }
 
         try
@@ -221,21 +232,21 @@ namespace GameWIP::Terminal
 
             if(!state_->open.load(std::memory_order_acquire))
             {
-                return notOpenStatus();
+                return Internal::result(notOpenStatus());
             }
-            return Internal::vprintln(state_->options.output, options, format, arguments);
+            return Internal::result(Internal::vprintln(state_->options.output, options, format, arguments));
         }
         catch(...)
         {
-            return Internal::exceptionStatus();
+            return Internal::result(Internal::exceptionStatus());
         }
     }
 
-    IO::Types::Status Session::flush(IO::Types::FlushMode mode) noexcept
+    GameWIP::Status::Types::Result<void> Session::flush(IO::Types::FlushMode mode) noexcept
     {
         if(!state_)
         {
-            return notOpenStatus();
+            return Internal::result(notOpenStatus());
         }
 
         try
@@ -244,13 +255,13 @@ namespace GameWIP::Terminal
 
             if(!state_->open.load(std::memory_order_acquire))
             {
-                return notOpenStatus();
+                return Internal::result(notOpenStatus());
             }
             return Terminal::flush(state_->options.output, mode);
         }
         catch(...)
         {
-            return Internal::exceptionStatus();
+            return Internal::result(Internal::exceptionStatus());
         }
     }
 

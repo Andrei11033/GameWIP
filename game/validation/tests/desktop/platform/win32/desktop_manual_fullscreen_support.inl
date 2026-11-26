@@ -80,7 +80,7 @@ struct ManualFullscreenSections
 
     const auto native = Desktop::Native::Win32::getHandle(window);
 
-    if(!native.status.ok() || native->window == nullptr)
+    if(!native.ok() || native.value().window == nullptr)
     {
         return result;
     }
@@ -88,19 +88,19 @@ struct ManualFullscreenSections
     RECT client{};
     POINT clientTopLeft{};
     POINT clientBottomRight{};
-    const HMONITOR monitor = MonitorFromWindow(native->window, MONITOR_DEFAULTTONEAREST);
+    const HMONITOR monitor = MonitorFromWindow(native.value().window, MONITOR_DEFAULTTONEAREST);
     MONITORINFO monitorInfo{};
     monitorInfo.cbSize = sizeof(monitorInfo);
 
     // Capture native geometry and monitor bounds.
-    if(GetWindowRect(native->window, &result.frame) == FALSE || GetClientRect(native->window, &client) == FALSE ||
-       ClientToScreen(native->window, &clientTopLeft) == FALSE)
+    if(GetWindowRect(native.value().window, &result.frame) == FALSE || GetClientRect(native.value().window, &client) == FALSE ||
+       ClientToScreen(native.value().window, &clientTopLeft) == FALSE)
     {
         return result;
     }
     clientBottomRight = {client.right, client.bottom};
 
-    if(ClientToScreen(native->window, &clientBottomRight) == FALSE || monitor == nullptr || GetMonitorInfoW(monitor, &monitorInfo) == FALSE)
+    if(ClientToScreen(native.value().window, &clientBottomRight) == FALSE || monitor == nullptr || GetMonitorInfoW(monitor, &monitorInfo) == FALSE)
     {
         return result;
     }
@@ -108,16 +108,16 @@ struct ManualFullscreenSections
     result.monitor = monitorInfo.rcMonitor;
 
     // Derive styles and fullscreen indicators from the native snapshot.
-    result.style = static_cast<DWORD>(GetWindowLongPtrW(native->window, GWL_STYLE));
-    result.extendedStyle = static_cast<DWORD>(GetWindowLongPtrW(native->window, GWL_EXSTYLE));
-    result.dpi = GetDpiForWindow(native->window);
+    result.style = static_cast<DWORD>(GetWindowLongPtrW(native.value().window, GWL_STYLE));
+    result.extendedStyle = static_cast<DWORD>(GetWindowLongPtrW(native.value().window, GWL_EXSTYLE));
+    result.dpi = GetDpiForWindow(native.value().window);
     result.popupStyle = (result.style & static_cast<DWORD>(WS_POPUP)) != 0 &&
                         (result.style & (static_cast<DWORD>(WS_CAPTION) | static_cast<DWORD>(WS_THICKFRAME))) == 0;
     result.visibleStyle = (result.style & static_cast<DWORD>(WS_VISIBLE)) != 0;
     result.fullscreenBounds = EqualRect(&result.frame, &result.monitor) != FALSE && EqualRect(&result.client, &result.monitor) != FALSE;
     result.taskbarEligible = (result.extendedStyle & static_cast<DWORD>(WS_EX_APPWINDOW)) != 0 &&
                              (result.extendedStyle & static_cast<DWORD>(WS_EX_TOOLWINDOW)) == 0 && result.visibleStyle &&
-                             IsWindowVisible(native->window) != FALSE && GetWindow(native->window, GW_OWNER) == nullptr;
+                             IsWindowVisible(native.value().window) != FALSE && GetWindow(native.value().window, GW_OWNER) == nullptr;
     result.valid = true;
     return result;
 }
@@ -128,7 +128,7 @@ void recordManualModeTransition(
     const Desktop::Window &window,
     std::string_view phase,
     const Desktop::Types::WindowModeRequest &request,
-    const IO::Types::Status *status = nullptr)
+    const GameWIP::Status::Types::Result<void> *status = nullptr)
 {
     // Capture cached and native state for the transition record.
     const Desktop::Types::LogicalSize logical = window.clientSize();
@@ -179,12 +179,7 @@ void recordManualModeTransition(
             }
         },
         request);
-    const std::string result = status == nullptr ? std::string{"pending"}
-                                                 : std::format(
-                                                       "portableCode={} nativeCode={} message={}",
-                                                       static_cast<int>(status->code),
-                                                       status->nativeCode,
-                                                       status->message.empty() ? "<none>" : status->message);
+    const std::string result = status == nullptr ? std::string{"pending"} : manualStatusDetails(status->status());
 
     // Persist one diagnostic record for crash and regression review.
     context.info(
@@ -245,7 +240,7 @@ void recordManualModeTransition(
 }
 
 /// @brief Applies a mode request while retaining crash-resilient transition evidence.
-[[nodiscard]] IO::Types::Status setManualModeWithDiagnostics(
+[[nodiscard]] GameWIP::Status::Types::Result<void> setManualModeWithDiagnostics(
     TestSupport::Context &context,
     Desktop::Window &window,
     std::string_view label,
@@ -253,7 +248,7 @@ void recordManualModeTransition(
 {
     // Record before and after the native transition.
     recordManualModeTransition(context, window, std::format("{}:before", label), request);
-    IO::Types::Status status = window.setWindowMode(request);
+    GameWIP::Status::Types::Result<void> status = window.setWindowMode(request);
     recordManualModeTransition(context, window, std::format("{}:after", label), request, &status);
     return status;
 }

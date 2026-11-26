@@ -127,7 +127,7 @@ void testJumpListNativePublication(TestSupport::Context &context, const std::fil
     static_cast<void>(context.expectEq(
         "Win32 jump links require launch arguments",
         ErrorCode::InvalidArgument,
-        Win32TestHooks::createJumpLink({"Invalid argument-free task", {}, noArguments}, invalidLink).code));
+        Win32TestHooks::createJumpLink({"Invalid argument-free task", {}, noArguments}, invalidLink).code()));
     static_cast<void>(context.expectTrue("rejected jump link is not exposed", invalidLink == nullptr));
 
     TestSupport::Types::Process::Options child;
@@ -135,8 +135,12 @@ void testJumpListNativePublication(TestSupport::Context &context, const std::fil
     child.arguments = {"--desktop-test-child=jump-list-publication"};
     child.waitTimeout = std::chrono::seconds{30};
     const auto result = TestSupport::runChildProcess(child);
-    static_cast<void>(context.expectTrue("isolated jump-list publisher starts", result.status.ok()));
-    static_cast<void>(context.expectEq("isolated jump-list publisher exits", TestSupport::Types::Process::Outcome::Exited, result.outcome));
-    static_cast<void>(context.expectEq("valid jump-list publication and cleanup succeed", std::uint32_t{0}, result.exitCode));
+    static_cast<void>(context.expectTrue("isolated jump-list publisher starts", result.ok()));
+    if(result.hasValue())
+    {
+        const TestSupport::Types::Process::Execution &execution = result.value();
+        static_cast<void>(context.expectEq("isolated jump-list publisher exits", TestSupport::Types::Process::Outcome::Exited, execution.outcome));
+        static_cast<void>(context.expectEq("valid jump-list publication and cleanup succeed", std::uint32_t{0}, execution.exitCode));
+    }
 }
 #endif

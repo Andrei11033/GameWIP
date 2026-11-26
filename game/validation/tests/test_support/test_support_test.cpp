@@ -211,7 +211,7 @@ namespace GameWIP::Test
 
         if(!workspace.status().ok())
         {
-            std::cerr << "TestSupport could not create its test workspace: " << TestSupport::formatInfrastructureStatus(workspace.status()) << '\n';
+            std::cerr << "TestSupport could not create its test workspace: " << TestSupport::formatStatus(workspace.status()) << '\n';
             return 1;
         }
         const std::filesystem::path &runRoot = workspace.path();

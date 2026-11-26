@@ -13,15 +13,15 @@ namespace GameWIP::Desktop::Platform
     /// ------------------------------------------------------------
 
     /// @brief Maps a Win32 conversion error to the portable encoding failure vocabulary.
-    IO::Types::ErrorCode unicodeConversionError(DWORD nativeCode, IO::Types::ErrorCode malformedEncodingFallback) noexcept
+    GameWIP::Status::Types::Code unicodeConversionError(DWORD nativeCode, GameWIP::Status::Types::Code malformedEncodingFallback) noexcept
     {
         switch(nativeCode)
         {
         case ERROR_INVALID_PARAMETER:
-            return IO::Types::ErrorCode::InvalidArgument;
+            return GameWIP::Status::Types::Code::InvalidArgument;
         case ERROR_INSUFFICIENT_BUFFER:
         case ERROR_ARITHMETIC_OVERFLOW:
-            return IO::Types::ErrorCode::SizeLimitExceeded;
+            return GameWIP::Status::Types::Code::SizeLimitExceeded;
         default:
             return malformedEncodingFallback;
         }

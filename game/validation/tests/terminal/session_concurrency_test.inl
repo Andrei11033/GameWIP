@@ -13,8 +13,8 @@ void testSessionConcurrency(TestSupport::Context &context, const Terminal::Types
     static_cast<void>(context.expectTrue("concurrency fixture opens", concurrencySession.open(streamOptions).ok()));
 
     Hooks::blockNextTextWrite();
-    IO::Types::Status sessionSerializedWrite;
-    IO::Types::Status globalSerializedWrite;
+    GameWIP::Status::Types::Result<void> sessionSerializedWrite = GameWIP::Status::Types::Result<void>::success();
+    GameWIP::Status::Types::Result<void> globalSerializedWrite = GameWIP::Status::Types::Result<void>::success();
     std::jthread sessionWriter(
         [&]
         {
@@ -42,7 +42,7 @@ void testSessionConcurrency(TestSupport::Context &context, const Terminal::Types
     Hooks::clearCapturedOutput(Terminal::Types::Output::Stream::Stdout);
     std::latch formatterEntered{1};
     std::latch releaseFormatter{1};
-    IO::Types::Status blockedFormatStatus;
+    GameWIP::Status::Types::Result<void> blockedFormatStatus = GameWIP::Status::Types::Result<void>::success();
     std::jthread formatterThread(
         [&]
         {
@@ -53,7 +53,7 @@ void testSessionConcurrency(TestSupport::Context &context, const Terminal::Types
 
     std::atomic_bool formattingCloseFinished = false;
     std::latch formattingCloseStarted{1};
-    IO::Types::Status formattingCloseStatus;
+    GameWIP::Status::Types::Result<void> formattingCloseStatus = GameWIP::Status::Types::Result<void>::success();
     std::jthread formattingCloser(
         [&]
         {
@@ -80,7 +80,7 @@ void testSessionConcurrency(TestSupport::Context &context, const Terminal::Types
 
     Hooks::clearCapturedOutput(Terminal::Types::Output::Stream::Stdout);
     Hooks::blockNextRead();
-    Terminal::Types::Input::TextResult blockedRead;
+    Terminal::Types::Input::TextResult blockedRead = Terminal::Types::Input::TextResult::success({});
     std::jthread reader(
         [&]
         {
@@ -97,7 +97,7 @@ void testSessionConcurrency(TestSupport::Context &context, const Terminal::Types
 
     std::atomic_bool closeFinished = false;
     std::latch closeStarted{1};
-    IO::Types::Status concurrentCloseStatus;
+    GameWIP::Status::Types::Result<void> concurrentCloseStatus = GameWIP::Status::Types::Result<void>::success();
     std::jthread closer(
         [&]
         {
@@ -111,8 +111,11 @@ void testSessionConcurrency(TestSupport::Context &context, const Terminal::Types
     Hooks::releaseBlockedRead();
     reader.join();
     closer.join();
-    static_cast<void>(context.expectTrue("blocked read completes after release", blockedRead.status.ok()));
-    static_cast<void>(context.expectEq("blocked read payload", std::string{"blocked-read"}, blockedRead.text));
+    static_cast<void>(context.expectTrue("blocked read completes after release", blockedRead.ok()));
+    if(blockedRead.hasValue())
+    {
+        static_cast<void>(context.expectEq("blocked read payload", std::string{"blocked-read"}, blockedRead.value().text));
+    }
     static_cast<void>(context.expectTrue("close completes after active read", concurrentCloseStatus.ok()));
     static_cast<void>(context.expectFalse("concurrency fixture is closed", concurrencySession.isOpen()));
 }

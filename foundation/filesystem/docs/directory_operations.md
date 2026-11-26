@@ -30,7 +30,7 @@ For example, a directory containing exactly one accepted file succeeds with
 
 `Types::Directory::Entry::path` is the parent path joined with the child name. A relative parent produces relative child paths.
 
-`Types::Directory::ListResult` owns every accepted entry, so peak result storage
+`listDirectory()` returns `Result<std::vector<Types::Directory::Entry>>` and owns every accepted entry, so peak result storage
 is proportional to the number and path length of returned children.
 `DirectoryCursor` applies the same filters, ordering, symlink policy, and
 limit without retaining siblings. After the Nth accepted entry, the next call
@@ -39,7 +39,7 @@ exhaustion. The limit status is sticky.
 
 ```cpp
 GameWIP::FileSystem::DirectoryCursor cursor;
-if(auto status = cursor.open("assets"); !status.ok())
+if(auto opened = cursor.open("assets"); !opened.ok())
 {
     return 1;
 }
@@ -47,17 +47,17 @@ if(auto status = cursor.open("assets"); !status.ok())
 for(;;)
 {
     auto next = cursor.next();
-    if(!next.status.ok())
+    if(!next.ok())
     {
         return 1;
     }
 
-    if(!next.hasEntry)
+    if(!next.value())
     {
         break;
     }
 
-    // Process next.entry without retaining every sibling.
+    // Process *next.value() without retaining every sibling.
 }
 ```
 

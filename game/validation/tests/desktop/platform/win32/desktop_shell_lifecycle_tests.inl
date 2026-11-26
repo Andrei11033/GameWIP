@@ -15,8 +15,8 @@ void testShellValidation(TestSupport::Context &context)
 
     Desktop::Window closedWindow;
     Desktop::TaskbarItem taskbar;
-    static_cast<void>(context.expectEq("taskbar open rejects a closed Window", ErrorCode::NotOpen, taskbar.open(closedWindow, {}).code));
-    static_cast<void>(context.expectEq("closed taskbar progress update is rejected", ErrorCode::NotOpen, taskbar.setProgress({}).code));
+    static_cast<void>(context.expectEq("taskbar open rejects a closed Window", ErrorCode::NotOpen, taskbar.open(closedWindow, {}).status().code()));
+    static_cast<void>(context.expectEq("closed taskbar progress update is rejected", ErrorCode::NotOpen, taskbar.setProgress({}).status().code()));
 
     Desktop::Types::Description windowDescription;
     windowDescription.title = "Shell validation Window";
@@ -35,7 +35,7 @@ void testShellValidation(TestSupport::Context &context)
     static_cast<void>(context.expectEq(
         "taskbar rejects malformed icon storage before native publication",
         ErrorCode::InvalidArgument,
-        taskbar.open(window, invalidTaskbarDescription).code));
+        taskbar.open(window, invalidTaskbarDescription).status().code()));
 
     TaskbarTypes::ThumbnailButton button{{1}, "Open"};
     TaskbarTypes::Description buttonDescription;
@@ -43,15 +43,15 @@ void testShellValidation(TestSupport::Context &context)
     static_cast<void>(context.expectEq(
         "taskbar rejects thumbnail buttons without the queue overload",
         ErrorCode::InvalidArgument,
-        taskbar.open(window, buttonDescription).code));
+        taskbar.open(window, buttonDescription).status().code()));
 
     Desktop::TrayIcon tray;
-    static_cast<void>(context.expectEq("tray rejects an empty icon set", ErrorCode::InvalidArgument, tray.open({}).code));
+    static_cast<void>(context.expectEq("tray rejects an empty icon set", ErrorCode::InvalidArgument, tray.open({}).status().code()));
     TrayTypes::Description malformedTrayDescription;
     malformedTrayDescription.icons = std::span{&icon, 1};
     malformedTrayDescription.tooltip = std::string_view{"bad\0tooltip", 11};
     static_cast<void>(
-        context.expectEq("tray rejects embedded NUL tooltip text", ErrorCode::InvalidArgument, tray.open(malformedTrayDescription).code));
+        context.expectEq("tray rejects embedded NUL tooltip text", ErrorCode::InvalidArgument, tray.open(malformedTrayDescription).status().code()));
 
     // Validate Win32 command identities and recursive tray menus.
     Desktop::ShellEventQueue queue;
@@ -67,7 +67,7 @@ void testShellValidation(TestSupport::Context &context)
     static_cast<void>(context.expectEq(
         "taskbar rejects command identities that cannot round-trip through Win32 messages",
         ErrorCode::InvalidArgument,
-        taskbar.open(window, oversizedTaskbarDescription, queue).code));
+        taskbar.open(window, oversizedTaskbarDescription, queue).status().code()));
     TrayTypes::MenuItem malformedMenuItem;
     malformedMenuItem.kind = TrayTypes::MenuItemKind::Command;
     malformedMenuItem.label = "Missing command identity";
@@ -77,12 +77,13 @@ void testShellValidation(TestSupport::Context &context)
     static_cast<void>(context.expectEq(
         "tray rejects malformed recursive menu entries before native publication",
         ErrorCode::InvalidArgument,
-        tray.open(malformedMenuDescription, queue).code));
+        tray.open(malformedMenuDescription, queue).status().code()));
     static_cast<void>(context.expectTrue("shell validation queue closes", queue.close().ok()));
 
     // Validate notifications, Jump Lists, and registration inputs.
     Desktop::NotificationCenter notifications;
-    static_cast<void>(context.expectEq("closed notification publication is rejected", ErrorCode::NotOpen, notifications.publish({}).status.code));
+    static_cast<void>(
+        context.expectEq("closed notification publication is rejected", ErrorCode::NotOpen, notifications.publish({}).status().code()));
 
     const std::filesystem::path executable = L"C:\\Windows\\System32\\notepad.exe";
     const std::array<ShellTypes::LaunchArgumentView, 1> placeholders{ShellTypes::LaunchPlaceholder::SelectedPath};
@@ -95,14 +96,14 @@ void testShellValidation(TestSupport::Context &context)
     static_cast<void>(context.expectEq(
         "jump-list categories require at least one task",
         ErrorCode::InvalidArgument,
-        Desktop::JumpLists::publish(invalidCategoryDescription).code));
+        Desktop::JumpLists::publish(invalidCategoryDescription).status().code()));
 
     JumpListTypes::Description placeholderDescription;
     placeholderDescription.tasks = jumpTasks;
     static_cast<void>(context.expectEq(
         "jump-list tasks reject target placeholders",
         ErrorCode::InvalidArgument,
-        Desktop::JumpLists::publish(placeholderDescription).code));
+        Desktop::JumpLists::publish(placeholderDescription).status().code()));
 
     const std::array<ShellTypes::TargetView, 1> invalidRecentItems{ShellTypes::TargetView{std::monostate{}}};
     JumpListTypes::Description invalidRecentDescription;
@@ -110,7 +111,7 @@ void testShellValidation(TestSupport::Context &context)
     static_cast<void>(context.expectEq(
         "jump-list recent items reject an empty target",
         ErrorCode::InvalidArgument,
-        Desktop::JumpLists::publish(invalidRecentDescription).code));
+        Desktop::JumpLists::publish(invalidRecentDescription).status().code()));
 
     RegistrationTypes::FileExtensionDescription invalidRegistration;
     invalidRegistration.ownerKey = "GameWIP.Validation.Shell";
@@ -118,11 +119,11 @@ void testShellValidation(TestSupport::Context &context)
     static_cast<void>(context.expectEq(
         "file registration requires an extension",
         ErrorCode::InvalidArgument,
-        Desktop::Registration::registerFileExtension(invalidRegistration).status.code));
+        Desktop::Registration::registerFileExtension(invalidRegistration).status().code()));
     static_cast<void>(context.expectEq(
         "unregister rejects an empty owner key",
         ErrorCode::InvalidArgument,
-        Desktop::Registration::unregisterFileExtension({}, ".gamewip-validation").status.code));
+        Desktop::Registration::unregisterFileExtension({}, ".gamewip-validation").status().code()));
 
     static_cast<void>(context.expectTrue("shell validation Window closes", window.close().ok()));
 }
@@ -149,13 +150,13 @@ void testShellNativeLifetimes(TestSupport::Context &context)
     const Desktop::Types::Shell::Progress progress{Desktop::Types::Shell::ProgressState::Normal, 0.5};
     TaskbarTypes::Description taskbarDescription;
     taskbarDescription.progress = progress;
-    const IO::Types::Status taskbarStatus = taskbar.open(window, taskbarDescription);
+    const GameWIP::Status::Types::Result<void> taskbarStatus = taskbar.open(window, taskbarDescription);
 
     if(!taskbarStatus.ok())
     {
         context.skip(
             "taskbar lifetime and one-binding rule",
-            std::format("native taskbar publication returned {}", IO::errorCodeName(taskbarStatus.code)));
+            std::format("native taskbar publication returned {}", GameWIP::Status::Types::codeName(taskbarStatus.status().code())));
     }
     else
     {
@@ -163,11 +164,11 @@ void testShellNativeLifetimes(TestSupport::Context &context)
         static_cast<void>(context.expectEq("taskbar binding retains Window identity", window.id(), taskbar.windowId()));
         Desktop::TaskbarItem secondTaskbar;
         static_cast<void>(
-            context.expectEq("one taskbar binding is allowed per Window lifetime", ErrorCode::AlreadyExists, secondTaskbar.open(window, {}).code));
+            context.expectEq("one taskbar binding is allowed per Window lifetime", ErrorCode::AlreadyExists, secondTaskbar.open(window, {}).status().code()));
         static_cast<void>(context.expectEq(
             "taskbar rejects a non-normalized progress fraction",
             ErrorCode::InvalidArgument,
-            taskbar.setProgress(Desktop::Types::Shell::Progress{Desktop::Types::Shell::ProgressState::Normal, 2.0}).code));
+            taskbar.setProgress(Desktop::Types::Shell::Progress{Desktop::Types::Shell::ProgressState::Normal, 2.0}).status().code()));
         static_cast<void>(context.expectTrue("taskbar binding closes", taskbar.close().ok()));
     }
 
@@ -180,13 +181,13 @@ void testShellNativeLifetimes(TestSupport::Context &context)
     }
 
     Desktop::TaskbarItem queuedTaskbar;
-    const IO::Types::Status queuedTaskbarStatus = queuedTaskbar.open(window, {}, taskbarQueue);
+    const GameWIP::Status::Types::Result<void> queuedTaskbarStatus = queuedTaskbar.open(window, {}, taskbarQueue);
 
     if(!queuedTaskbarStatus.ok())
     {
         context.skip(
             "empty taskbar queue binding",
-            std::format("native taskbar publication returned {}", IO::errorCodeName(queuedTaskbarStatus.code)));
+            std::format("native taskbar publication returned {}", GameWIP::Status::Types::codeName(queuedTaskbarStatus.status().code())));
     }
     else
     {
@@ -195,7 +196,7 @@ void testShellNativeLifetimes(TestSupport::Context &context)
         static_cast<void>(context.expectTrue(
             "empty taskbar queue binding permits later thumbnail buttons",
             queuedTaskbar.setThumbnailButtons(std::span{&queuedTaskbarButton, 1}).ok()));
-        static_cast<void>(context.expectEq("bound taskbar queue cannot close early", ErrorCode::ResourceBusy, taskbarQueue.close().code));
+        static_cast<void>(context.expectEq("bound taskbar queue cannot close early", ErrorCode::ResourceBusy, taskbarQueue.close().status().code()));
         static_cast<void>(context.expectTrue("queued taskbar binding closes", queuedTaskbar.close().ok()));
     }
     static_cast<void>(context.expectTrue("taskbar event queue closes", taskbarQueue.close().ok()));
@@ -216,18 +217,18 @@ void testShellNativeLifetimes(TestSupport::Context &context)
     trayMenuItem.label = "Validation command";
     trayDescription.menu.items = std::span{&trayMenuItem, 1};
     Desktop::TrayIcon tray;
-    const IO::Types::Status trayStatus = tray.open(trayDescription, trayQueue);
+    const GameWIP::Status::Types::Result<void> trayStatus = tray.open(trayDescription, trayQueue);
 
     if(!trayStatus.ok())
     {
-        context.skip("tray native lifetime", std::format("native tray publication returned {}", IO::errorCodeName(trayStatus.code)));
+        context.skip("tray native lifetime", std::format("native tray publication returned {}", GameWIP::Status::Types::codeName(trayStatus.status().code())));
     }
     else
     {
         static_cast<void>(context.expectTrue("tray binding reports open", tray.isOpen()));
         static_cast<void>(context.expectTrue("tray binding generates a valid identity", tray.id().isValid()));
         static_cast<void>(context.expectTrue("tray binding retains its event queue", tray.hasEventQueue()));
-        static_cast<void>(context.expectEq("bound tray queue cannot close early", ErrorCode::ResourceBusy, trayQueue.close().code));
+        static_cast<void>(context.expectEq("bound tray queue cannot close early", ErrorCode::ResourceBusy, trayQueue.close().status().code()));
         static_cast<void>(context.expectTrue("tray binding closes", tray.close().ok()));
     }
     static_cast<void>(context.expectTrue("tray event queue closes", trayQueue.close().ok()));
@@ -241,11 +242,11 @@ void testShellNativeLifetimes(TestSupport::Context &context)
     queuedEmptyTrayDescription.icons = std::span{&icon, 1};
     queuedEmptyTrayDescription.tooltip = "Queued empty tray menu";
     Desktop::TrayIcon queuedEmptyTray;
-    const IO::Types::Status queuedEmptyTrayStatus = queuedEmptyTray.open(queuedEmptyTrayDescription, trayQueue);
+    const GameWIP::Status::Types::Result<void> queuedEmptyTrayStatus = queuedEmptyTray.open(queuedEmptyTrayDescription, trayQueue);
 
     if(!queuedEmptyTrayStatus.ok())
     {
-        context.skip("empty tray queue binding", std::format("native tray publication returned {}", IO::errorCodeName(queuedEmptyTrayStatus.code)));
+        context.skip("empty tray queue binding", std::format("native tray publication returned {}", GameWIP::Status::Types::codeName(queuedEmptyTrayStatus.status().code())));
     }
     else
     {
@@ -253,7 +254,7 @@ void testShellNativeLifetimes(TestSupport::Context &context)
         static_cast<void>(context.expectTrue(
             "empty tray queue binding permits later menus",
             queuedEmptyTray.setMenu(TrayTypes::MenuDescription{std::span{&trayMenuItem, 1}}).ok()));
-        static_cast<void>(context.expectEq("bound empty tray queue cannot close early", ErrorCode::ResourceBusy, trayQueue.close().code));
+        static_cast<void>(context.expectEq("bound empty tray queue cannot close early", ErrorCode::ResourceBusy, trayQueue.close().status().code()));
         static_cast<void>(context.expectTrue("queued empty tray binding closes", queuedEmptyTray.close().ok()));
     }
     static_cast<void>(context.expectTrue("empty tray event queue closes", trayQueue.close().ok()));
@@ -267,36 +268,36 @@ void testShellNativeLifetimes(TestSupport::Context &context)
         return;
     }
 
-    const IO::Types::Status notificationStatus = notifications.open(notificationQueue);
+    const GameWIP::Status::Types::Result<void> notificationStatus = notifications.open(notificationQueue);
 
     if(!notificationStatus.ok())
     {
-        context.skip("notification native lifetime", std::format("notification center returned {}", IO::errorCodeName(notificationStatus.code)));
+        context.skip("notification native lifetime", std::format("notification center returned {}", GameWIP::Status::Types::codeName(notificationStatus.status().code())));
     }
     else
     {
         static_cast<void>(context.expectTrue("notification center reports open", notifications.isOpen()));
         static_cast<void>(context.expectTrue("notification center retains its event queue", notifications.hasEventQueue()));
-        static_cast<void>(context.expectEq("bound notification queue cannot close early", ErrorCode::ResourceBusy, notificationQueue.close().code));
+        static_cast<void>(context.expectEq("bound notification queue cannot close early", ErrorCode::ResourceBusy, notificationQueue.close().status().code()));
 
         NotificationTypes::Description basicDescription;
         basicDescription.title = "GameWIP shell validation";
         basicDescription.body = "The notification lifetime test is active.";
         const auto published = notifications.publish(basicDescription);
 
-        if(!published.status.ok())
+        if(!published.ok())
         {
-            context.skip("basic notification publication", std::format("notification service returned {}", IO::errorCodeName(published.status.code)));
+            context.skip("basic notification publication", std::format("notification service returned {}", GameWIP::Status::Types::codeName(published.status().code())));
         }
         else
         {
-            static_cast<void>(context.expectTrue("basic notification generates an identity", published->isValid()));
-            static_cast<void>(context.expectTrue("basic notification update succeeds", notifications.update(*published, basicDescription).ok()));
-            static_cast<void>(context.expectTrue("basic notification dismissal succeeds", notifications.dismiss(*published).ok()));
+            static_cast<void>(context.expectTrue("basic notification generates an identity", published.value().isValid()));
+            static_cast<void>(context.expectTrue("basic notification update succeeds", notifications.update(published.value(), basicDescription).ok()));
+            static_cast<void>(context.expectTrue("basic notification dismissal succeeds", notifications.dismiss(published.value()).ok()));
             static_cast<void>(context.expectEq(
                 "dismissed notification identity is no longer accepted",
                 ErrorCode::NotFound,
-                notifications.dismiss(*published).code));
+                notifications.dismiss(published.value()).status().code()));
         }
         static_cast<void>(context.expectTrue("notification center closes", notifications.close().ok()));
     }
@@ -311,9 +312,9 @@ void testShellFailureHooks(TestSupport::Context &context)
     Desktop::Internal::TestHooks::resetFailures();
     Desktop::NotificationCenter notifications;
     Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::ShellNativeOpen);
-    const IO::Types::Status openFailure = notifications.open();
+    const GameWIP::Status::Types::Result<void> openFailure = notifications.open();
 
-    if(!context.expectEq("shell native-open failure is deterministic", ErrorCode::NativeFailure, openFailure.code))
+    if(!context.expectEq("shell native-open failure is deterministic", ErrorCode::NativeFailure, openFailure.status().code()))
     {
         Desktop::Internal::TestHooks::resetFailures();
 
@@ -338,7 +339,7 @@ void testShellFailureHooks(TestSupport::Context &context)
     Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::ShellNativeApply);
     const auto applyFailure = notifications.publish(description);
 
-    if(!context.expectEq("shell native-apply failure is deterministic", ErrorCode::NativeFailure, applyFailure.status.code))
+    if(!context.expectEq("shell native-apply failure is deterministic", ErrorCode::NativeFailure, applyFailure.status().code()))
     {
         Desktop::Internal::TestHooks::resetFailures();
         static_cast<void>(notifications.close());
@@ -347,9 +348,9 @@ void testShellFailureHooks(TestSupport::Context &context)
 
     Desktop::Internal::TestHooks::resetFailures();
     Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::ShellNativeClose);
-    const IO::Types::Status closeFailure = notifications.close();
+    const GameWIP::Status::Types::Result<void> closeFailure = notifications.close();
 
-    if(!context.expectEq("shell native-close failure is retryable", ErrorCode::NativeFailure, closeFailure.code))
+    if(!context.expectEq("shell native-close failure is retryable", ErrorCode::NativeFailure, closeFailure.status().code()))
     {
         Desktop::Internal::TestHooks::resetFailures();
 

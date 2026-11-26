@@ -112,6 +112,8 @@ namespace GameWIP::Status
         {
             NativeCodeDomain domain = NativeCodeDomain::Other; ///< Native code family.
             std::int64_t value = 0;                            ///< Native code value as reported by the backend.
+
+            [[nodiscard]] friend constexpr bool operator==(const NativeCode &, const NativeCode &) noexcept = default;
         };
 
         /// @brief Optional detail attached to an operation status.

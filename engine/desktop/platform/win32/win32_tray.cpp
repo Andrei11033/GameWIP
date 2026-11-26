@@ -1,6 +1,7 @@
 /// @file win32_tray.cpp
 /// @brief Implements Win32 tray integration.
 
+#include "desktop/internal/results.h"
 #include "desktop/internal/desktop_test_hooks.h"
 #include "desktop/platform/shell.h"
 #include "desktop/platform/win32/internal/win32_pixel_helpers.h"
@@ -30,7 +31,7 @@ namespace GameWIP::Desktop::Platform
 
     namespace
     {
-        using IO::Types::ErrorCode;
+        using ErrorCode = GameWIP::Status::Types::Code;
         using Win32::closestIcon;
         using Win32::copyRgbaToBgra;
         using Win32::createIcon;
@@ -479,7 +480,7 @@ namespace GameWIP::Desktop::Platform
             return DefWindowProcW(window, message, wParam, lParam);
         }
 
-        [[nodiscard]] IO::Types::Status ensureTrayWindowClass() noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status ensureTrayWindowClass() noexcept
         {
             WNDCLASSEXW existing{};
             existing.cbSize = sizeof(existing);
@@ -487,7 +488,7 @@ namespace GameWIP::Desktop::Platform
 
             if(GetClassInfoExW(instance, kTrayWindowClassName, &existing) != FALSE)
             {
-                return IO::successStatus();
+                return GameWIP::Status::Types::Status{};
             }
 
             WNDCLASSEXW classInfo{};
@@ -501,7 +502,7 @@ namespace GameWIP::Desktop::Platform
                 return statusFromWin32(ErrorCode::NativeFailure, GetLastError(), "RegisterClassExW tray window");
             }
 
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
 
     } // namespace
@@ -510,14 +511,14 @@ namespace GameWIP::Desktop::Platform
     /// Tray integration
     /// ------------------------------------------------------------
 
-    IO::Types::Status openTray(TrayIconState &state) noexcept
+    GameWIP::Status::Types::Status openTray(TrayIconState &state) noexcept
     {
         if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ShellNativeOpen))
         {
-            return IO::makeStatus(ErrorCode::NativeFailure);
+            return GameWIP::Desktop::Internal::statusFor(ErrorCode::NativeFailure);
         }
 
-        IO::Types::Status status = ensureTrayWindowClass();
+        GameWIP::Status::Types::Status status = ensureTrayWindowClass();
 
         if(!status.ok())
         {
@@ -571,26 +572,26 @@ namespace GameWIP::Desktop::Platform
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(ErrorCode::OutOfMemory);
+            return GameWIP::Desktop::Internal::statusFor(ErrorCode::OutOfMemory);
         }
         catch(...)
         {
-            return IO::makeStatus(ErrorCode::Unknown);
+            return GameWIP::Desktop::Internal::statusFor(ErrorCode::Unknown);
         }
     }
 
-    IO::Types::Status applyTray(TrayIconState &state) noexcept
+    GameWIP::Status::Types::Status applyTray(TrayIconState &state) noexcept
     {
         if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ShellNativeApply))
         {
-            return IO::makeStatus(ErrorCode::NativeFailure);
+            return GameWIP::Desktop::Internal::statusFor(ErrorCode::NativeFailure);
         }
 
         auto *native = static_cast<TrayNative *>(state.platform);
 
         if(native == nullptr || native->window == nullptr || state.icons.empty())
         {
-            return IO::makeStatus(ErrorCode::NotOpen);
+            return GameWIP::Desktop::Internal::statusFor(ErrorCode::NotOpen);
         }
         const OwnedIconImage &selectedIcon = closestIcon(state.icons, GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON));
         HICON newIcon = createIcon(selectedIcon);
@@ -609,7 +610,7 @@ namespace GameWIP::Desktop::Platform
             if(!utf8ToUtf16(state.tooltip, tooltip, nativeCode))
             {
                 DestroyIcon(newIcon);
-                return IO::makeStatus(ErrorCode::EncodingFailed, nativeCode);
+                return GameWIP::Desktop::Internal::statusFor(ErrorCode::EncodingFailed, nativeCode, GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
             }
             NOTIFYICONDATAW data{};
             data.cbSize = sizeof(data);
@@ -641,25 +642,25 @@ namespace GameWIP::Desktop::Platform
                 DestroyIcon(native->icon);
             }
             native->icon = newIcon;
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
         catch(const std::bad_alloc &)
         {
             DestroyIcon(newIcon);
-            return IO::makeStatus(ErrorCode::OutOfMemory);
+            return GameWIP::Desktop::Internal::statusFor(ErrorCode::OutOfMemory);
         }
         catch(...)
         {
             DestroyIcon(newIcon);
-            return IO::makeStatus(ErrorCode::Unknown);
+            return GameWIP::Desktop::Internal::statusFor(ErrorCode::Unknown);
         }
     }
 
-    IO::Types::Status closeTray(TrayIconState &state) noexcept
+    GameWIP::Status::Types::Status closeTray(TrayIconState &state) noexcept
     {
         if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ShellNativeClose))
         {
-            return IO::makeStatus(ErrorCode::NativeFailure);
+            return GameWIP::Desktop::Internal::statusFor(ErrorCode::NativeFailure);
         }
 
         auto *native = static_cast<TrayNative *>(state.platform);
@@ -667,7 +668,7 @@ namespace GameWIP::Desktop::Platform
         if(native == nullptr)
         {
             state.open = false;
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
 
         // Remove the shell entry before destroying its callback window and icon.
@@ -689,7 +690,7 @@ namespace GameWIP::Desktop::Platform
         delete native;
         state.platform = nullptr;
         state.open = false;
-        return IO::successStatus();
+        return GameWIP::Status::Types::Status{};
     }
 
     void closeTrayBestEffort(TrayIconState &state) noexcept

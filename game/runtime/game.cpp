@@ -56,7 +56,7 @@ namespace
     }
 
     /// @brief Opens the runtime window inside its profiling zone.
-    [[nodiscard]] GameWIP::IO::Types::Status openRuntimeWindow(
+    [[nodiscard]] GameWIP::Status::Types::Result<void> openRuntimeWindow(
         GameWIP::Desktop::Window &window,
         std::optional<GameWIP::Desktop::Types::Display::MonitorId> targetMonitor)
     {
@@ -65,7 +65,7 @@ namespace
     }
 
     /// @brief Closes the runtime window inside its profiling zone.
-    [[nodiscard]] GameWIP::IO::Types::Status closeRuntimeWindow(GameWIP::Desktop::Window &window)
+    [[nodiscard]] GameWIP::Status::Types::Result<void> closeRuntimeWindow(GameWIP::Desktop::Window &window)
     {
         GAMEWIP_PROFILE_ZONE("Close borderless fullscreen window", Color::kShutdown);
 
@@ -235,22 +235,22 @@ namespace
         const auto monitors = GameWIP::Game::inspectDisplays();
         if(!monitors.ok())
         {
-            Diagnostics::reportFailure(LogArea::Display, "Failed to enumerate displays", monitors.status);
+            Diagnostics::reportFailure(LogArea::Display, "Failed to enumerate displays", monitors.status());
             return EXIT_FAILURE;
         }
 
         std::optional<GameWIP::Desktop::Types::Display::MonitorId> targetMonitor;
         if(options.displayIndex.has_value())
         {
-            if(*options.displayIndex < monitors->size())
+            if(*options.displayIndex < monitors.value().size())
             {
-                targetMonitor = (*monitors)[*options.displayIndex].id;
+                targetMonitor = monitors.value()[*options.displayIndex].id;
                 Logger::info(
                     LogArea::Display,
                     Logger::record()
                         .field("display_index", *options.displayIndex)
                         .field("monitor_id", targetMonitor->value)
-                        .field("display_name", (*monitors)[*options.displayIndex].name),
+                        .field("display_name", monitors.value()[*options.displayIndex].name),
                     "Using requested display");
             }
             else
@@ -259,7 +259,7 @@ namespace
                     LogArea::Display,
                     Logger::record()
                         .field("requested_display_index", *options.displayIndex)
-                        .field("connected_display_count", monitors->size())
+                        .field("connected_display_count", monitors.value().size())
                         .field("fallback", "operating_system_default"),
                     "Requested display index is unavailable; using the operating-system default");
             }
@@ -270,20 +270,20 @@ namespace
         GameWIP::Input::Types::Configuration inputConfiguration;
         inputConfiguration.captureRawReports = options.inputDebug && Logger::shouldLog(Logger::Types::Level::Trace, LogArea::Input);
         input.applyBackendSelection(options, inputConfiguration);
-        const GameWIP::IO::Types::Status inputOpenStatus = input.system.open(inputConfiguration);
+        const auto inputOpenStatus = input.system.open(inputConfiguration);
         if(!inputOpenStatus.ok())
         {
-            Diagnostics::reportFailure(LogArea::Input, "Failed to open input system", inputOpenStatus);
+            Diagnostics::reportFailure(LogArea::Input, "Failed to open input system", inputOpenStatus.status());
             return EXIT_FAILURE;
         }
         Logger::info(LogArea::Input, "Input started");
 
         // Create the runtime Window.
         GameWIP::Desktop::Window window;
-        const GameWIP::IO::Types::Status openStatus = openRuntimeWindow(window, targetMonitor);
+        const GameWIP::Status::Types::Result<void> openStatus = openRuntimeWindow(window, targetMonitor);
         if(!openStatus.ok())
         {
-            Diagnostics::reportFailure(LogArea::Window, std::format("{} failed to open", kWindowName), openStatus);
+            Diagnostics::reportFailure(LogArea::Window, std::format("{} failed to open", kWindowName), openStatus.status());
             static_cast<void>(input.finish());
             return EXIT_FAILURE;
         }
@@ -294,16 +294,16 @@ namespace
         // Attach Input to the Window when the active platform has a native adapter.
         if(input.usesWindowAttachment())
         {
-            const GameWIP::IO::Types::Status inputAttachStatus = input.attachToWindow(window);
+            const auto inputAttachStatus = input.attachToWindow(window);
             if(!inputAttachStatus.ok())
             {
-                Diagnostics::reportFailure(LogArea::Input, "Failed to attach Input to Desktop Window", inputAttachStatus);
+                Diagnostics::reportFailure(LogArea::Input, "Failed to attach Input to Desktop Window", inputAttachStatus.status());
                 static_cast<void>(input.finish());
 
-                const GameWIP::IO::Types::Status cleanupStatus = closeRuntimeWindow(window);
+                const GameWIP::Status::Types::Result<void> cleanupStatus = closeRuntimeWindow(window);
                 if(!cleanupStatus.ok())
                 {
-                    Diagnostics::reportFailure(LogArea::Window, "Failed to close window after input attach failure", cleanupStatus);
+                    Diagnostics::reportFailure(LogArea::Window, "Failed to close window after input attach failure", cleanupStatus.status());
                 }
                 return EXIT_FAILURE;
             }
@@ -314,9 +314,9 @@ namespace
 
         // Capture initial Input state and report connected devices.
         const GameWIP::Input::Types::CaptureResult initialCapture = input.system.capture(input.frame);
-        if(!initialCapture.status.ok())
+        if(!initialCapture.ok())
         {
-            Diagnostics::reportWarning(LogArea::Input, "Initial Input capture failed", initialCapture.status);
+            Diagnostics::reportWarning(LogArea::Input, "Initial Input capture failed", initialCapture.status());
         }
         Diagnostics::logInputDevices(input.system, options.inputDevices);
 
@@ -340,10 +340,10 @@ namespace
             Runtime::logWindowEventLoopSummary(window, loopSummary, eventLoopSeconds, "pump_failure");
             static_cast<void>(input.finish());
 
-            const GameWIP::IO::Types::Status closeStatus = closeRuntimeWindow(window);
+            const GameWIP::Status::Types::Result<void> closeStatus = closeRuntimeWindow(window);
             if(!closeStatus.ok())
             {
-                Diagnostics::reportFailure(LogArea::Window, "Failed to close window after event-pump failure", closeStatus);
+                Diagnostics::reportFailure(LogArea::Window, "Failed to close window after event-pump failure", closeStatus.status());
             }
             const double elapsedSeconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - runStart).count();
             logRuntimeStopped("event_pump_failure", elapsedSeconds);
@@ -355,10 +355,10 @@ namespace
         const bool inputClosed = input.finish();
 
         // Detach and close Input before destroying the Window that forwards its native messages.
-        const GameWIP::IO::Types::Status closeStatus = closeRuntimeWindow(window);
+        const GameWIP::Status::Types::Result<void> closeStatus = closeRuntimeWindow(window);
         if(!closeStatus.ok())
         {
-            Diagnostics::reportFailure(LogArea::Window, std::format("{} failed to close", kWindowName), closeStatus);
+            Diagnostics::reportFailure(LogArea::Window, std::format("{} failed to close", kWindowName), closeStatus.status());
         }
 
         const double elapsedSeconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - runStart).count();
@@ -384,10 +384,14 @@ namespace GameWIP::Game
 
         const Runtime::Options options = Runtime::readOptions(argc, argv);
         const Logger::Types::Init::Result loggerInit = Runtime::initializeLogger(options);
-        if(!loggerInit.status.ok() || loggerInit.outcome != Logger::Types::Init::Outcome::Started)
+        if(
+            !loggerInit.ok() ||
+            loggerInit.value().outcome != Logger::Types::Init::Outcome::Started)
         {
             Runtime::reportLoggerInitializationFailure(loggerInit);
-            return loggerInit.outcome == Logger::Types::Init::Outcome::Started ? Runtime::finishRuntime(EXIT_FAILURE) : EXIT_FAILURE;
+            return loggerInit.hasValue() && loggerInit.value().outcome == Logger::Types::Init::Outcome::Started
+                       ? Runtime::finishRuntime(EXIT_FAILURE)
+                       : EXIT_FAILURE;
         }
 
         Runtime::logLoggerStartup(options);

@@ -5,7 +5,7 @@
 
 #include "terminal/types.h"
 #include "terminal/terminal_export.h"
-#include "io/status.h"
+#include "status/result.h"
 
 #include <chrono>
 #include <cstddef>
@@ -174,14 +174,7 @@ namespace GameWIP::Terminal
             };
 
             /// @brief Result returned by input capability queries.
-            struct CapabilitiesResult
-            {
-                /// @brief Operation status.
-                IO::Types::Status status;
-
-                /// @brief Reported input capabilities.
-                Types::Input::Capabilities capabilities;
-            };
+            using CapabilitiesResult = GameWIP::Status::Types::Result<Capabilities>;
 
             /// @brief Options used by byte reads.
             struct ByteOptions
@@ -258,28 +251,23 @@ namespace GameWIP::Terminal
 
             /// @brief Result returned by byte reads.
             /// @details bytesRead can preserve partial progress together with a terminating outcome or later failure.
-            struct ByteResult
+            struct ByteInfo
             {
-                // Read status and outcome
-                /// @brief Operation status.
-                IO::Types::Status status;
-
                 /// @brief Read outcome.
                 Types::Input::ReadOutcome outcome = Types::Input::ReadOutcome::Completed;
 
-                // Returned data
+                // Read progress
                 /// @brief Number of bytes copied into the caller buffer.
                 std::size_t bytesRead = 0;
             };
 
+            /// @brief Status and byte progress returned by a byte read.
+            using ByteResult = GameWIP::Status::Types::Result<ByteInfo>;
+
             /// @brief Result returned by text reads.
             /// @details A non-empty text payload represents one completed UTF-8 chunk. Other outcomes describe why no chunk completed.
-            struct TextResult
+            struct TextInfo
             {
-                // Read status and outcome
-                /// @brief Operation status.
-                IO::Types::Status status;
-
                 /// @brief Read outcome.
                 Types::Input::ReadOutcome outcome = Types::Input::ReadOutcome::Completed;
 
@@ -291,14 +279,13 @@ namespace GameWIP::Terminal
                 bool wasTruncated = false;
             };
 
+            /// @brief Status and text chunk returned by a text read.
+            using TextResult = GameWIP::Status::Types::Result<TextInfo>;
+
             /// @brief Result returned by line reads.
             /// @details line can contain an unterminated valid UTF-8 prefix together with EndOfStream, TimedOut, WouldBlock, or Cancelled.
-            struct LineResult
+            struct LineInfo
             {
-                // Read status and outcome
-                /// @brief Operation status.
-                IO::Types::Status status;
-
                 /// @brief Read outcome.
                 Types::Input::ReadOutcome outcome = Types::Input::ReadOutcome::Completed;
 
@@ -312,6 +299,9 @@ namespace GameWIP::Terminal
                 /// @brief True when maxReturnedBytes limited the returned line.
                 bool wasTruncated = false;
             };
+
+            /// @brief Status and line progress returned by a line read.
+            using LineResult = GameWIP::Status::Types::Result<LineInfo>;
         } // namespace Input
 
         namespace Events
@@ -514,11 +504,8 @@ namespace GameWIP::Terminal
         namespace Input
         {
             /// @brief Result returned by structured event reads.
-            struct EventResult
+            struct EventInfo
             {
-                /// @brief Operation status.
-                IO::Types::Status status;
-
                 /// @brief Read outcome.
                 Types::Input::ReadOutcome outcome = Types::Input::ReadOutcome::Completed;
 
@@ -526,6 +513,9 @@ namespace GameWIP::Terminal
                 /// @details Empty for non-completed outcomes and failures.
                 std::optional<Event> event;
             };
+
+            /// @brief Status and event returned by a structured event read.
+            using EventResult = GameWIP::Status::Types::Result<EventInfo>;
         } // namespace Input
     } // namespace Types
 

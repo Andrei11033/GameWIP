@@ -13,9 +13,9 @@ void testRendererOcclusionFeedback(TestSupport::Context &context)
     // Reject provider operations while the window is closed.
     Desktop::Window closed;
     static_cast<void>(
-        context.expectEq("closed Window rejects provider attachment", ErrorCode::NotOpen, Feedback::attachOcclusionProvider(closed).code));
-    static_cast<void>(context.expectEq("closed Window rejects occlusion report", ErrorCode::NotOpen, Feedback::reportOcclusion(closed, true).code));
-    static_cast<void>(context.expectEq("closed Window rejects provider detach", ErrorCode::NotOpen, Feedback::detachOcclusionProvider(closed).code));
+        context.expectEq("closed Window rejects provider attachment", ErrorCode::NotOpen, Feedback::attachOcclusionProvider(closed).status().code()));
+    static_cast<void>(context.expectEq("closed Window rejects occlusion report", ErrorCode::NotOpen, Feedback::reportOcclusion(closed, true).status().code()));
+    static_cast<void>(context.expectEq("closed Window rejects provider detach", ErrorCode::NotOpen, Feedback::detachOcclusionProvider(closed).status().code()));
 
     Desktop::Types::Description description;
     description.title = "Window renderer feedback validation";
@@ -38,10 +38,10 @@ void testRendererOcclusionFeedback(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("global occlusion reporting is supported", Desktop::supports(Capability::OcclusionReporting)));
     static_cast<void>(context.expectTrue("Window reports backend occlusion capability", window.supports(Capability::OcclusionReporting)));
     static_cast<void>(context.expectFalse("Window initially lacks occlusion provider", Feedback::hasOcclusionProvider(window)));
-    static_cast<void>(context.expectEq("report before provider is rejected", ErrorCode::NotOpen, Feedback::reportOcclusion(window, true).code));
+    static_cast<void>(context.expectEq("report before provider is rejected", ErrorCode::NotOpen, Feedback::reportOcclusion(window, true).status().code()));
     static_cast<void>(context.expectTrue("occlusion provider attaches", Feedback::attachOcclusionProvider(window).ok()));
     static_cast<void>(context.expectTrue("attached Window reports its provider", Feedback::hasOcclusionProvider(window)));
-    static_cast<void>(context.expectEq("second provider is rejected", ErrorCode::AlreadyOpen, Feedback::attachOcclusionProvider(window).code));
+    static_cast<void>(context.expectEq("second provider is rejected", ErrorCode::AlreadyOpen, Feedback::attachOcclusionProvider(window).status().code()));
 
     window.clearEvents();
     static_cast<void>(context.expectTrue("occluded report succeeds", Feedback::reportOcclusion(window, true).ok()));
@@ -64,7 +64,7 @@ void testRendererOcclusionFeedback(TestSupport::Context &context)
     std::thread worker(
         [&window, &wrongThreadCode]
         {
-            wrongThreadCode = Desktop::Renderer::reportOcclusion(window, false).code;
+            wrongThreadCode = Desktop::Renderer::reportOcclusion(window, false).status().code();
         });
     worker.join();
     static_cast<void>(context.expectEq("wrong-thread renderer feedback is rejected", ErrorCode::ResourceBusy, wrongThreadCode));
@@ -84,7 +84,7 @@ void testRendererOcclusionFeedback(TestSupport::Context &context)
     {
         static_cast<void>(context.expectFalse("detach event carries false", visibleEvent->occluded));
     }
-    static_cast<void>(context.expectEq("report after detach is rejected", ErrorCode::NotOpen, Feedback::reportOcclusion(window, false).code));
+    static_cast<void>(context.expectEq("report after detach is rejected", ErrorCode::NotOpen, Feedback::reportOcclusion(window, false).status().code()));
     static_cast<void>(context.expectTrue("repeated detach succeeds", Feedback::detachOcclusionProvider(window).ok()));
 
     static_cast<void>(context.expectTrue("provider reattaches", Feedback::attachOcclusionProvider(window).ok()));

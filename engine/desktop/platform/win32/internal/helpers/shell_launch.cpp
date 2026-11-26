@@ -1,6 +1,7 @@
 /// @file shell_launch.cpp
 /// @brief Win32 shell launch-command construction.
 
+#include "desktop/internal/results.h"
 #include "desktop/platform/win32/internal/win32_shell_launch.h"
 
 #include "desktop/platform/win32/internal/win32_unicode.h"
@@ -12,7 +13,7 @@
 
 namespace GameWIP::Desktop::Platform
 {
-    using IO::Types::ErrorCode;
+    using ErrorCode = GameWIP::Status::Types::Code;
 
     namespace
     {
@@ -45,7 +46,7 @@ namespace GameWIP::Desktop::Platform
             commandLine.push_back(L'"');
         }
 
-        [[nodiscard]] IO::Types::Status launchArgumentText(
+        [[nodiscard]] GameWIP::Status::Types::Status launchArgumentText(
             const Types::Shell::LaunchArgumentView &argument,
             std::wstring &text,
             bool allowPlaceholders)
@@ -56,9 +57,9 @@ namespace GameWIP::Desktop::Platform
             {
                 if(!utf8ToUtf16(literal->text, text, nativeCode))
                 {
-                    return IO::makeStatus(ErrorCode::EncodingFailed, nativeCode);
+                    return GameWIP::Desktop::Internal::statusFor(ErrorCode::EncodingFailed, nativeCode, GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
                 }
-                return IO::successStatus();
+                return GameWIP::Status::Types::Status{};
             }
 
             if(const auto *target = std::get_if<Types::Shell::TargetLaunchArgumentView>(&argument))
@@ -66,23 +67,23 @@ namespace GameWIP::Desktop::Platform
                 if(const auto *path = std::get_if<Types::Shell::PathTargetView>(&target->target))
                 {
                     text = path->path.get().wstring();
-                    return IO::successStatus();
+                    return GameWIP::Status::Types::Status{};
                 }
 
                 if(const auto *uri = std::get_if<Types::Shell::UriTargetView>(&target->target))
                 {
                     if(!utf8ToUtf16(uri->uri, text, nativeCode))
                     {
-                        return IO::makeStatus(ErrorCode::EncodingFailed, nativeCode);
+                        return GameWIP::Desktop::Internal::statusFor(ErrorCode::EncodingFailed, nativeCode, GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
                     }
-                    return IO::successStatus();
+                    return GameWIP::Status::Types::Status{};
                 }
-                return IO::makeStatus(ErrorCode::InvalidArgument);
+                return GameWIP::Desktop::Internal::statusFor(ErrorCode::InvalidArgument);
             }
 
             if(!allowPlaceholders)
             {
-                return IO::makeStatus(ErrorCode::InvalidArgument);
+                return GameWIP::Desktop::Internal::statusFor(ErrorCode::InvalidArgument);
             }
 
             switch(std::get<Types::Shell::LaunchPlaceholder>(argument))
@@ -90,19 +91,19 @@ namespace GameWIP::Desktop::Platform
             case Types::Shell::LaunchPlaceholder::SelectedPath:
             case Types::Shell::LaunchPlaceholder::SelectedUri:
                 text = L"%1";
-                return IO::successStatus();
+                return GameWIP::Status::Types::Status{};
             case Types::Shell::LaunchPlaceholder::AllPaths:
             case Types::Shell::LaunchPlaceholder::AllUris:
                 text = L"%*";
-                return IO::successStatus();
+                return GameWIP::Status::Types::Status{};
             default:
-                return IO::makeStatus(ErrorCode::InvalidArgument);
+                return GameWIP::Desktop::Internal::statusFor(ErrorCode::InvalidArgument);
             }
         }
 
     } // namespace
 
-    [[nodiscard]] IO::Types::Status makeLaunchCommand(
+    [[nodiscard]] GameWIP::Status::Types::Status makeLaunchCommand(
         const Types::Shell::LaunchActionView &action,
         bool allowPlaceholders,
         std::wstring &executable,
@@ -115,7 +116,7 @@ namespace GameWIP::Desktop::Platform
 
         if(executable.empty())
         {
-            return IO::makeStatus(ErrorCode::InvalidArgument);
+            return GameWIP::Desktop::Internal::statusFor(ErrorCode::InvalidArgument);
         }
 
         // Convert and quote each argument in the caller's declared order.
@@ -124,7 +125,7 @@ namespace GameWIP::Desktop::Platform
         for(const Types::Shell::LaunchArgumentView &argument : action.arguments)
         {
             std::wstring text;
-            IO::Types::Status status = launchArgumentText(argument, text, allowPlaceholders);
+            GameWIP::Status::Types::Status status = launchArgumentText(argument, text, allowPlaceholders);
 
             if(!status.ok())
             {
@@ -146,7 +147,7 @@ namespace GameWIP::Desktop::Platform
             }
         }
 
-        return IO::successStatus();
+        return GameWIP::Status::Types::Status{};
     }
 
 } // namespace GameWIP::Desktop::Platform

@@ -29,6 +29,7 @@ namespace
 {
     namespace FileSystem = GameWIP::FileSystem;
     namespace IO = GameWIP::IO;
+    namespace Status = GameWIP::Status::Types;
     namespace FileSystemPlatform = GameWIP::Test::FileSystemPlatform;
 
     using FileSystem::Types::Path;
@@ -36,15 +37,15 @@ namespace
 
     // Whole-file result types
     static_assert(
-        std::is_same_v<decltype(FileSystem::writeAllBytes(std::declval<const Path &>(), std::declval<ConstByteSpan>())), IO::Types::WriteResult>);
+        std::is_same_v<decltype(FileSystem::writeAllBytes(std::declval<const Path &>(), std::declval<ConstByteSpan>())), Status::Result<IO::Types::WriteProgress>>);
     static_assert(
-        std::is_same_v<decltype(FileSystem::writeAllText(std::declval<const Path &>(), std::declval<std::string_view>())), IO::Types::WriteResult>);
+        std::is_same_v<decltype(FileSystem::writeAllText(std::declval<const Path &>(), std::declval<std::string_view>())), Status::Result<IO::Types::WriteProgress>>);
     static_assert(
-        std::is_same_v<decltype(FileSystem::appendBytes(std::declval<const Path &>(), std::declval<ConstByteSpan>())), IO::Types::WriteResult>);
+        std::is_same_v<decltype(FileSystem::appendBytes(std::declval<const Path &>(), std::declval<ConstByteSpan>())), Status::Result<IO::Types::WriteProgress>>);
     static_assert(
-        std::is_same_v<decltype(FileSystem::appendText(std::declval<const Path &>(), std::declval<std::string_view>())), IO::Types::WriteResult>);
+        std::is_same_v<decltype(FileSystem::appendText(std::declval<const Path &>(), std::declval<std::string_view>())), Status::Result<IO::Types::WriteProgress>>);
     static_assert(
-        std::is_same_v<decltype(FileSystem::writeAllBytesAtomic(std::declval<const Path &>(), std::declval<ConstByteSpan>())), IO::Types::Status>);
+        std::is_same_v<decltype(FileSystem::writeAllBytesAtomic(std::declval<const Path &>(), std::declval<ConstByteSpan>())), Status::Result<void>>);
 
     // Non-throwing operation contracts
     static_assert(noexcept(FileSystem::writeAllBytes(std::declval<const Path &>(), std::declval<ConstByteSpan>())));
@@ -86,11 +87,12 @@ namespace
 
     // Public result and option types
     static_assert(std::is_same_v<decltype(FileSystem::Types::File::AtomicWriteOptions{}.temporaryNamePrefix), std::string>);
-    static_assert(std::is_same_v<decltype(FileSystem::Types::Directory::ListResult{}.entries), std::vector<FileSystem::Types::Directory::Entry>>);
-    static_assert(std::is_same_v<decltype(FileSystem::Types::Lock::Result{}.outcome), FileSystem::Types::Lock::Outcome>);
+    static_assert(
+        std::is_same_v<decltype(std::declval<Status::Result<std::vector<FileSystem::Types::Directory::Entry>> &>().value()),
+                       std::vector<FileSystem::Types::Directory::Entry> &>);
 
     namespace TestSupport = GameWIP::TestSupport;
-    using IO::Types::ErrorCode;
+    using ErrorCode = GameWIP::Status::Types::Code;
 
     /// ------------------------------------------------------------
     /// Test helpers
@@ -109,11 +111,15 @@ namespace
     }
 
     /// @brief Checks native query success before comparing its payload.
-    bool expectStatus(TestSupport::Context &context, std::string_view name, const IO::Types::Status &status)
+    template <typename T> bool expectStatus(TestSupport::Context &context, std::string_view name, const Status::Result<T> &result)
     {
-        if(!status.ok())
+        const Status::Status &status = result.status();
+
+        if(!result.ok())
         {
-            context.fail(name, std::format("code={} native={} message={}", IO::errorCodeName(status.code), status.nativeCode, status.message));
+            const Status::Diagnostic *diagnostic = status.diagnostic();
+            const std::string message = status.ok() ? "missing result value" : diagnostic == nullptr ? std::string{} : diagnostic->message;
+            context.fail(name, std::format("code={} detail={}", static_cast<int>(status.code()), message));
             return false;
         }
 
@@ -126,18 +132,18 @@ namespace
     {
         const auto result = FileSystem::readAllText(path);
 
-        if(expectStatus(context, std::string(name) + " query", result.status))
+        if(expectStatus(context, std::string(name) + " query", result))
         {
-            static_cast<void>(context.expectEq(name, expected, result.text));
+            static_cast<void>(context.expectEq(name, expected, result.value()));
         }
     }
 
     /// @brief Checks a predicate query before inspecting its boolean value.
-    void expectPredicate(TestSupport::Context &context, std::string_view name, const FileSystem::Types::BoolResult &result, bool expected)
+    void expectPredicate(TestSupport::Context &context, std::string_view name, const Status::Result<bool> &result, bool expected)
     {
-        if(expectStatus(context, std::string(name) + " query", result.status))
+        if(expectStatus(context, std::string(name) + " query", result))
         {
-            static_cast<void>(context.expectEq(name, expected, result.value));
+            static_cast<void>(context.expectEq(name, expected, result.value()));
         }
     }
 
@@ -198,7 +204,7 @@ namespace GameWIP::Test
 
         if(!workspace.status().ok())
         {
-            std::cerr << "FileSystem could not create its test workspace: " << TestSupport::formatInfrastructureStatus(workspace.status()) << '\n';
+            std::cerr << "FileSystem could not create its test workspace: " << TestSupport::formatStatus(workspace.status()) << '\n';
             return 1;
         }
         const std::filesystem::path &runRoot = workspace.path();

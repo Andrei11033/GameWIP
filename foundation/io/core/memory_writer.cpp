@@ -13,6 +13,8 @@
 
 namespace GameWIP::IO
 {
+    namespace ResultTypes = GameWIP::Status::Types;
+
     namespace
     {
         /// @brief Appends a range already owned by a byte vector without allocating a temporary copy.
@@ -20,18 +22,18 @@ namespace GameWIP::IO
         /// @param sourceOffset Byte offset of the source range in destination.
         /// @param sourceSize Number of source bytes to append.
         /// @return Success, SizeLimitExceeded for a representational limit, or OutOfMemory for allocation failure.
-        [[nodiscard]] Types::Status appendAliasedBytes(std::vector<std::byte> &destination, std::size_t sourceOffset, std::size_t sourceSize) noexcept
+        [[nodiscard]] ResultTypes::Result<void> appendAliasedBytes(std::vector<std::byte> &destination, std::size_t sourceOffset, std::size_t sourceSize) noexcept
         {
             const auto oldSize = destination.size();
 
             if(sourceOffset > oldSize || sourceSize > oldSize - sourceOffset)
             {
-                return makeStatus(Types::ErrorCode::InvalidArgument);
+                return ResultTypes::Result<void>::failure(ResultTypes::Status(ResultTypes::Code::InvalidArgument));
             }
 
             if(sourceSize > destination.max_size() - oldSize)
             {
-                return makeStatus(Types::ErrorCode::SizeLimitExceeded);
+                return ResultTypes::Result<void>::failure(ResultTypes::Status(ResultTypes::Code::SizeLimitExceeded));
             }
 
             // sourceOffset remains valid even if resize reallocates and invalidates the original span.
@@ -41,20 +43,20 @@ namespace GameWIP::IO
             }
             catch(const std::bad_alloc &)
             {
-                return makeStatus(Types::ErrorCode::OutOfMemory);
+                return ResultTypes::Result<void>::failure(ResultTypes::Status(ResultTypes::Code::OutOfMemory));
             }
             catch(const std::length_error &)
             {
-                return makeStatus(Types::ErrorCode::SizeLimitExceeded);
+                return ResultTypes::Result<void>::failure(ResultTypes::Status(ResultTypes::Code::SizeLimitExceeded));
             }
             catch(...)
             {
-                return makeStatus(Types::ErrorCode::Unknown);
+                return ResultTypes::Result<void>::failure(ResultTypes::Status(ResultTypes::Code::Unknown));
             }
 
             const std::span storage(destination);
             std::ranges::copy(storage.subspan(sourceOffset, sourceSize), storage.subspan(oldSize, sourceSize).begin());
-            return successStatus();
+            return ResultTypes::Result<void>::success();
         }
     } // namespace
 
@@ -72,22 +74,24 @@ namespace GameWIP::IO
         return false;
     }
 
-    Types::WriteResult MemoryWriter::write(std::span<const std::byte> bytes) noexcept
+    ResultTypes::Result<Types::WriteProgress> MemoryWriter::write(std::span<const std::byte> bytes) noexcept
     {
         if(!open_)
         {
-            return {.status = makeStatus(Types::ErrorCode::NotOpen), .bytesWritten = 0};
+            return ResultTypes::Result<Types::WriteProgress>::failure(
+                ResultTypes::Status(ResultTypes::Code::NotOpen), Types::WriteProgress{.bytesWritten = 0});
         }
 
         if(bytes.empty())
         {
-            return {.status = {}, .bytesWritten = 0};
+            return ResultTypes::Result<Types::WriteProgress>::success({.bytesWritten = 0});
         }
 
         const auto oldSize = bytes_.size();
         if(bytes.size() > bytes_.max_size() - oldSize)
         {
-            return {.status = makeStatus(Types::ErrorCode::SizeLimitExceeded), .bytesWritten = 0};
+            return ResultTypes::Result<Types::WriteProgress>::failure(
+                ResultTypes::Status(ResultTypes::Code::SizeLimitExceeded), Types::WriteProgress{.bytesWritten = 0});
         }
 
         try
@@ -102,87 +106,91 @@ namespace GameWIP::IO
             if(ownBegin != nullptr && !pointerLess(inputBegin, ownBegin) && pointerLess(inputBegin, ownEnd))
             {
                 const auto sourceOffset = static_cast<std::size_t>(inputBegin - ownBegin);
-                Types::Status appendStatus = appendAliasedBytes(bytes_, sourceOffset, bytes.size());
+                auto appendStatus = appendAliasedBytes(bytes_, sourceOffset, bytes.size());
                 if(!appendStatus.ok())
                 {
-                    return {.status = std::move(appendStatus), .bytesWritten = 0};
+                    return ResultTypes::Result<Types::WriteProgress>::failure(
+                        std::move(appendStatus).status(), Types::WriteProgress{.bytesWritten = 0});
                 }
 
-                return {.status = {}, .bytesWritten = bytes.size()};
+                return ResultTypes::Result<Types::WriteProgress>::success({.bytesWritten = bytes.size()});
             }
 
             bytes_.insert(bytes_.end(), bytes.begin(), bytes.end());
 
-            return {.status = {}, .bytesWritten = bytes.size()};
+            return ResultTypes::Result<Types::WriteProgress>::success({.bytesWritten = bytes.size()});
         }
         catch(const std::bad_alloc &)
         {
-            return {.status = makeStatus(Types::ErrorCode::OutOfMemory), .bytesWritten = 0};
+            return ResultTypes::Result<Types::WriteProgress>::failure(
+                ResultTypes::Status(ResultTypes::Code::OutOfMemory), Types::WriteProgress{.bytesWritten = 0});
         }
         catch(const std::length_error &)
         {
-            return {.status = makeStatus(Types::ErrorCode::SizeLimitExceeded), .bytesWritten = 0};
+            return ResultTypes::Result<Types::WriteProgress>::failure(
+                ResultTypes::Status(ResultTypes::Code::SizeLimitExceeded), Types::WriteProgress{.bytesWritten = 0});
         }
         catch(...)
         {
-            return {.status = makeStatus(Types::ErrorCode::Unknown), .bytesWritten = 0};
+            return ResultTypes::Result<Types::WriteProgress>::failure(
+                ResultTypes::Status(ResultTypes::Code::Unknown), Types::WriteProgress{.bytesWritten = 0});
         }
     }
 
-    Types::Status MemoryWriter::flush(Types::FlushMode mode) noexcept
+    ResultTypes::Result<void> MemoryWriter::flush(Types::FlushMode mode) noexcept
     {
         if(!isValidFlushMode(mode))
         {
-            return makeStatus(Types::ErrorCode::InvalidArgument);
+            return ResultTypes::Result<void>::failure(ResultTypes::Status(ResultTypes::Code::InvalidArgument));
         }
 
         if(!open_)
         {
-            return makeStatus(Types::ErrorCode::NotOpen);
+            return ResultTypes::Result<void>::failure(ResultTypes::Status(ResultTypes::Code::NotOpen));
         }
 
-        return successStatus();
+        return ResultTypes::Result<void>::success();
     }
 
-    Types::Status MemoryWriter::close() noexcept
+    ResultTypes::Result<void> MemoryWriter::close() noexcept
     {
         open_ = false;
-        return successStatus();
+        return ResultTypes::Result<void>::success();
     }
 
-    Types::PositionResult MemoryWriter::position() const noexcept
+    ResultTypes::Result<std::uint64_t> MemoryWriter::position() const noexcept
     {
         if(!open_)
         {
-            return {.status = makeStatus(Types::ErrorCode::NotOpen), .position = 0};
+            return ResultTypes::Result<std::uint64_t>::failure(ResultTypes::Status(ResultTypes::Code::NotOpen));
         }
 
-        return {.status = successStatus(), .position = static_cast<std::uint64_t>(bytes_.size())};
+        return ResultTypes::Result<std::uint64_t>::success(static_cast<std::uint64_t>(bytes_.size()));
     }
 
-    Types::Status MemoryWriter::reserve(std::size_t capacity) noexcept
+    ResultTypes::Result<void> MemoryWriter::reserve(std::size_t capacity) noexcept
     {
         if(capacity > bytes_.max_size())
         {
-            return makeStatus(Types::ErrorCode::SizeLimitExceeded);
+            return ResultTypes::Result<void>::failure(ResultTypes::Status(ResultTypes::Code::SizeLimitExceeded));
         }
 
         try
         {
             bytes_.reserve(capacity);
-            return successStatus();
+            return ResultTypes::Result<void>::success();
         }
         catch(const std::bad_alloc &)
         {
-            return makeStatus(Types::ErrorCode::OutOfMemory);
+            return ResultTypes::Result<void>::failure(ResultTypes::Status(ResultTypes::Code::OutOfMemory));
         }
         catch(const std::length_error &)
         {
-            return makeStatus(Types::ErrorCode::SizeLimitExceeded);
+            return ResultTypes::Result<void>::failure(ResultTypes::Status(ResultTypes::Code::SizeLimitExceeded));
         }
         catch(...)
         {
-            return makeStatus(Types::ErrorCode::Unknown);
+            return ResultTypes::Result<void>::failure(ResultTypes::Status(ResultTypes::Code::Unknown));
         }
     }
 
@@ -191,48 +199,44 @@ namespace GameWIP::IO
         return bytes_;
     }
 
-    Types::CopyTextResult MemoryWriter::copyText() const noexcept
+    ResultTypes::Result<std::string> MemoryWriter::copyText() const noexcept
     {
-        Types::CopyTextResult result;
         const auto view = bytes();
 
         if(view.empty())
         {
-            return result;
+            return ResultTypes::Result<std::string>::success({});
         }
 
-        if(view.size() > result.text.max_size())
+        if(view.size() > std::string{}.max_size())
         {
-            result.status = makeStatus(Types::ErrorCode::SizeLimitExceeded);
-            return result;
+            return ResultTypes::Result<std::string>::failure(ResultTypes::Status(ResultTypes::Code::SizeLimitExceeded));
         }
 
         const std::string_view textView(reinterpret_cast<const char *>(view.data()), view.size());
 
         if(Unicode::Utf8::validate(textView).outcome != Unicode::Types::ValidationOutcome::Valid)
         {
-            result.status = makeStatus(Types::ErrorCode::EncodingFailed);
-            return result;
+            return ResultTypes::Result<std::string>::failure(ResultTypes::Status(ResultTypes::Code::EncodingFailed));
         }
 
         try
         {
-            result.text.assign(textView.data(), textView.size());
+            std::string text(textView.data(), textView.size());
+            return ResultTypes::Result<std::string>::success(std::move(text));
         }
         catch(const std::bad_alloc &)
         {
-            result.status = makeStatus(Types::ErrorCode::OutOfMemory);
+            return ResultTypes::Result<std::string>::failure(ResultTypes::Status(ResultTypes::Code::OutOfMemory));
         }
         catch(const std::length_error &)
         {
-            result.status = makeStatus(Types::ErrorCode::SizeLimitExceeded);
+            return ResultTypes::Result<std::string>::failure(ResultTypes::Status(ResultTypes::Code::SizeLimitExceeded));
         }
         catch(...)
         {
-            result.status = makeStatus(Types::ErrorCode::Unknown);
+            return ResultTypes::Result<std::string>::failure(ResultTypes::Status(ResultTypes::Code::Unknown));
         }
-
-        return result;
     }
 
     std::vector<std::byte> MemoryWriter::takeBytes() noexcept

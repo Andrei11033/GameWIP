@@ -165,7 +165,7 @@ namespace GameWIP::Logger::Internal::Core
     [[nodiscard]] std::string plainOutputText(std::string_view text);
     Status writeConsoleLine(const LogStyle &logStyle, std::string_view line, Color severityColor, Color sourceColor);
     [[nodiscard]] bool deadlineExpired(const FlushDeadline *deadline) noexcept;
-    ReportSinkProgress writeReportSynchronously(
+    ReportSinkResult writeReportSynchronously(
         LogLevel level,
         std::string_view source,
         std::string_view message,
@@ -173,7 +173,7 @@ namespace GameWIP::Logger::Internal::Core
         bool alreadyTruncated = false,
         const FlushDeadline *deadline = nullptr,
         Color sourceColor = Color::White);
-    ReportSinkProgress writeReportSynchronously(
+    ReportSinkResult writeReportSynchronously(
         LogLevel level,
         SourceId source,
         std::string_view message,

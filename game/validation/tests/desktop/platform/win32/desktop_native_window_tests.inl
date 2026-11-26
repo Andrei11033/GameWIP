@@ -14,7 +14,7 @@ void testHiddenNativeWindow(TestSupport::Context &context)
     description.activation.visible = false;
 
     Desktop::Window owner;
-    const IO::Types::Status openStatus = owner.open(description, Desktop::Events::owned(32));
+    const GameWIP::Status::Types::Result<void> openStatus = owner.open(description, Desktop::Events::owned(32));
     static_cast<void>(context.expectTrue("hidden native Window opens", openStatus.ok()));
 
     if(!openStatus.ok())
@@ -30,7 +30,7 @@ void testHiddenNativeWindow(TestSupport::Context &context)
 
     // Require a native handle before querying Win32 state.
     const auto handle = Desktop::Native::Win32::getHandle(owner);
-    if(!context.expectTrue("native handle resolves", handle.status.ok() && handle->window != nullptr))
+    if(!context.expectTrue("native handle resolves", handle.ok() && handle.value().window != nullptr))
     {
         static_cast<void>(owner.close());
         return;
@@ -48,22 +48,22 @@ void testHiddenNativeWindow(TestSupport::Context &context)
     static_cast<void>(context.expectEq(
         "unknown runtime DPI policy is invalid",
         ErrorCode::InvalidArgument,
-        owner.setDpiResizePolicy(static_cast<Desktop::Types::DpiResizePolicy>(99)).code));
+        owner.setDpiResizePolicy(static_cast<Desktop::Types::DpiResizePolicy>(99)).status().code()));
     static_cast<void>(
         context.expectTrue("default DPI policy restores", owner.setDpiResizePolicy(Desktop::Types::DpiResizePolicy::PreserveLogicalClientSize).ok()));
 
     const Desktop::Types::LogicalPosition localPoint{12, 18};
     const auto screenPoint = owner.clientToScreen(localPoint);
-    static_cast<void>(context.expectTrue("client-to-screen conversion succeeds", screenPoint.status.ok()));
+    static_cast<void>(context.expectTrue("client-to-screen conversion succeeds", screenPoint.ok()));
 
-    if(screenPoint.status.ok())
+    if(screenPoint.ok())
     {
-        const auto roundTrip = owner.screenToClient(*screenPoint);
-        static_cast<void>(context.expectTrue("screen-to-client conversion succeeds", roundTrip.status.ok()));
+        const auto roundTrip = owner.screenToClient(screenPoint.value());
+        static_cast<void>(context.expectTrue("screen-to-client conversion succeeds", roundTrip.ok()));
 
-        if(roundTrip.status.ok())
+        if(roundTrip.ok())
         {
-            static_cast<void>(context.expectEq("coordinate conversion round trips", localPoint, *roundTrip));
+            static_cast<void>(context.expectEq("coordinate conversion round trips", localPoint, roundTrip.value()));
         }
     }
 
@@ -72,7 +72,7 @@ void testHiddenNativeWindow(TestSupport::Context &context)
         "borderless fullscreen transition succeeds",
         owner.setWindowMode(Desktop::Types::WindowModes::borderlessFullscreen(owner.currentMonitor())).ok()));
     static_cast<void>(context.expectEq("borderless mode is cached", Desktop::Types::WindowMode::BorderlessFullscreen, owner.windowMode()));
-    HMONITOR fullscreenMonitor = MonitorFromWindow(handle->window, MONITOR_DEFAULTTONEAREST);
+    HMONITOR fullscreenMonitor = MonitorFromWindow(handle.value().window, MONITOR_DEFAULTTONEAREST);
     MONITORINFO fullscreenMonitorInfo{};
     fullscreenMonitorInfo.cbSize = sizeof(fullscreenMonitorInfo);
     const bool fullscreenMonitorResolved = fullscreenMonitor != nullptr && GetMonitorInfoW(fullscreenMonitor, &fullscreenMonitorInfo) != FALSE;
@@ -81,11 +81,11 @@ void testHiddenNativeWindow(TestSupport::Context &context)
     if(fullscreenMonitorResolved)
     {
         RECT ignoredWindowedSuggestion{17, 23, 657, 503};
-        const UINT currentDpi = GetDpiForWindow(handle->window);
+        const UINT currentDpi = GetDpiForWindow(handle.value().window);
         static_cast<void>(
-            SendMessageW(handle->window, WM_DPICHANGED, MAKEWPARAM(currentDpi, currentDpi), reinterpret_cast<LPARAM>(&ignoredWindowedSuggestion)));
+            SendMessageW(handle.value().window, WM_DPICHANGED, MAKEWPARAM(currentDpi, currentDpi), reinterpret_cast<LPARAM>(&ignoredWindowedSuggestion)));
         RECT fullscreenRect{};
-        const bool fullscreenRectResolved = GetWindowRect(handle->window, &fullscreenRect) != FALSE;
+        const bool fullscreenRectResolved = GetWindowRect(handle.value().window, &fullscreenRect) != FALSE;
         static_cast<void>(context.expectTrue("borderless bounds remain queryable after DPI notification", fullscreenRectResolved));
 
         if(fullscreenRectResolved)
@@ -98,7 +98,7 @@ void testHiddenNativeWindow(TestSupport::Context &context)
         static_cast<void>(context.expectTrue(
             "borderless repair fixture perturbs native bounds",
             SetWindowPos(
-                handle->window,
+                handle.value().window,
                 nullptr,
                 fullscreenMonitorInfo.rcMonitor.left + 31,
                 fullscreenMonitorInfo.rcMonitor.top + 23,
@@ -108,7 +108,7 @@ void testHiddenNativeWindow(TestSupport::Context &context)
         static_cast<void>(context.expectTrue(
             "repeated borderless request succeeds",
             owner.setWindowMode(Desktop::Types::WindowModes::borderlessFullscreen(owner.currentMonitor())).ok()));
-        const bool repairedRectResolved = GetWindowRect(handle->window, &fullscreenRect) != FALSE;
+        const bool repairedRectResolved = GetWindowRect(handle.value().window, &fullscreenRect) != FALSE;
         static_cast<void>(context.expectTrue("repaired borderless bounds remain queryable", repairedRectResolved));
 
         if(repairedRectResolved)
@@ -129,13 +129,13 @@ void testHiddenNativeWindow(TestSupport::Context &context)
     static_cast<void>(context.expectTrue(
         "click-through pointer policy succeeds",
         owner.setPointerInputLayout({.mode = Desktop::Types::PointerInputMode::ClickThrough}).ok()));
-    const LONG_PTR clickThroughStyle = GetWindowLongPtrW(handle->window, GWL_EXSTYLE);
+    const LONG_PTR clickThroughStyle = GetWindowLongPtrW(handle.value().window, GWL_EXSTYLE);
     static_cast<void>(context.expectTrue(
         "click-through uses documented layered hit-testing styles",
         (static_cast<ULONG_PTR>(clickThroughStyle) & static_cast<ULONG_PTR>(WS_EX_LAYERED)) != 0 &&
             (static_cast<ULONG_PTR>(clickThroughStyle) & static_cast<ULONG_PTR>(WS_EX_TRANSPARENT)) != 0));
     static_cast<void>(context.expectTrue("normal pointer policy restores", owner.setPointerInputLayout({}).ok()));
-    const LONG_PTR normalPointerStyle = GetWindowLongPtrW(handle->window, GWL_EXSTYLE);
+    const LONG_PTR normalPointerStyle = GetWindowLongPtrW(handle.value().window, GWL_EXSTYLE);
     static_cast<void>(context.expectFalse(
         "normal pointer policy removes transparent hit-testing style",
         (static_cast<ULONG_PTR>(normalPointerStyle) & static_cast<ULONG_PTR>(WS_EX_TRANSPARENT)) != 0));
@@ -144,7 +144,7 @@ void testHiddenNativeWindow(TestSupport::Context &context)
     static_cast<void>(context.expectEq(
         "rectangular pointer routing remains Unsupported",
         ErrorCode::Unsupported,
-        owner.setPointerInputLayout({.mode = Desktop::Types::PointerInputMode::AcceptRegions, .regions = pointerRegions}).code));
+        owner.setPointerInputLayout({.mode = Desktop::Types::PointerInputMode::AcceptRegions, .regions = pointerRegions}).status().code()));
     static_cast<void>(
         context.expectEq("unsupported region request preserves pointer mode", Desktop::Types::PointerInputMode::Normal, owner.pointerInputMode()));
 
@@ -154,13 +154,13 @@ void testHiddenNativeWindow(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("file-drop enable succeeds", owner.setFileDropEnabled(true).ok()));
     static_cast<void>(context.expectTrue(
         "file-drop native style is enabled",
-        (static_cast<ULONG_PTR>(GetWindowLongPtrW(handle->window, GWL_EXSTYLE)) & static_cast<ULONG_PTR>(WS_EX_ACCEPTFILES)) != 0));
+        (static_cast<ULONG_PTR>(GetWindowLongPtrW(handle.value().window, GWL_EXSTYLE)) & static_cast<ULONG_PTR>(WS_EX_ACCEPTFILES)) != 0));
     static_cast<void>(context.expectTrue(
         "style mutation while file drops are enabled succeeds",
         owner.setDecorationMode(Desktop::Types::DecorationMode::Borderless).ok()));
     static_cast<void>(context.expectTrue(
         "style mutation preserves file-drop native state",
-        (static_cast<ULONG_PTR>(GetWindowLongPtrW(handle->window, GWL_EXSTYLE)) & static_cast<ULONG_PTR>(WS_EX_ACCEPTFILES)) != 0));
+        (static_cast<ULONG_PTR>(GetWindowLongPtrW(handle.value().window, GWL_EXSTYLE)) & static_cast<ULONG_PTR>(WS_EX_ACCEPTFILES)) != 0));
     static_cast<void>(context.expectTrue(
         "system decoration restores after file-drop style check",
         owner.setDecorationMode(Desktop::Types::DecorationMode::System).ok()));
@@ -171,23 +171,23 @@ void testHiddenNativeWindow(TestSupport::Context &context)
     static_cast<void>(context.expectTrue(
         "style mutation while interaction is disabled succeeds",
         owner.setDecorationMode(Desktop::Types::DecorationMode::Borderless).ok()));
-    static_cast<void>(context.expectFalse("style mutation preserves native disabled state", IsWindowEnabled(handle->window) != FALSE));
+    static_cast<void>(context.expectFalse("style mutation preserves native disabled state", IsWindowEnabled(handle.value().window) != FALSE));
     static_cast<void>(context.expectTrue(
         "system decoration restores while interaction is disabled",
         owner.setDecorationMode(Desktop::Types::DecorationMode::System).ok()));
-    static_cast<void>(context.expectFalse("decoration restoration preserves native disabled state", IsWindowEnabled(handle->window) != FALSE));
+    static_cast<void>(context.expectFalse("decoration restoration preserves native disabled state", IsWindowEnabled(handle.value().window) != FALSE));
     static_cast<void>(context.expectTrue("interaction re-enable succeeds", owner.setUserInteractionEnabled(true).ok()));
 
     // Check resize and control constraints.
     static_cast<void>(
-        context.expectEq("resize cannot be disabled while maximize remains enabled", ErrorCode::InvalidArgument, owner.setResizable(false).code));
+        context.expectEq("resize cannot be disabled while maximize remains enabled", ErrorCode::InvalidArgument, owner.setResizable(false).status().code()));
     Desktop::Types::Controls controls = owner.controls();
     controls.maximizable = false;
     static_cast<void>(context.expectTrue("maximize is explicitly disabled", owner.setControls(controls).ok()));
     static_cast<void>(context.expectTrue("resize can then be disabled", owner.setResizable(false).ok()));
     controls.maximizable = true;
     static_cast<void>(
-        context.expectEq("maximize cannot be enabled while resize is disabled", ErrorCode::InvalidArgument, owner.setControls(controls).code));
+        context.expectEq("maximize cannot be enabled while resize is disabled", ErrorCode::InvalidArgument, owner.setControls(controls).status().code()));
     controls.maximizable = false;
     controls.closable = false;
     controls.minimizable = false;
@@ -200,7 +200,13 @@ void testHiddenNativeWindow(TestSupport::Context &context)
 
     // Check capabilities, backdrop support, and icon handling.
     const auto capabilitiesResult = Desktop::getCapabilities();
-    const Desktop::Types::Capabilities capabilities = capabilitiesResult.value_or({});
+    if(!capabilitiesResult.ok())
+    {
+        context.fail("Window capabilities", manualStatusDetails(capabilitiesResult.status()));
+        static_cast<void>(owner.close());
+        return;
+    }
+    const Desktop::Types::Capabilities &capabilities = capabilitiesResult.value();
     static_cast<void>(context.expectFalse(
         "Win32 does not advertise cross-application pointer regions",
         capabilities.supports(Desktop::Types::Capability::PointerRegions)));
@@ -218,7 +224,7 @@ void testHiddenNativeWindow(TestSupport::Context &context)
         static_cast<void>(context.expectEq(
             "unsupported system backdrop is rejected",
             ErrorCode::Unsupported,
-            owner.setBackdropEffect(Desktop::Types::BackdropEffect::Automatic).code));
+            owner.setBackdropEffect(Desktop::Types::BackdropEffect::Automatic).status().code()));
     }
 
     const std::array<std::byte, 4> redPixel{std::byte{0xFF}, std::byte{0x00}, std::byte{0x00}, std::byte{0xFF}};
@@ -242,9 +248,9 @@ void testHiddenNativeWindow(TestSupport::Context &context)
     {
         static_cast<void>(context.expectEq("owner identity is cached", owner.id(), child.ownerId()));
         const auto childHandle = Desktop::Native::Win32::getHandle(child);
-        if(context.expectTrue("owned Window native handle resolves", childHandle.status.ok() && childHandle->window != nullptr))
+        if(context.expectTrue("owned Window native handle resolves", childHandle.ok() && childHandle.value().window != nullptr))
         {
-            childNativeHandle = childHandle->window;
+            childNativeHandle = childHandle.value().window;
 
             // Update ownership and verify its taskbar style and event.
             static_cast<void>(context.expectFalse(
@@ -287,7 +293,7 @@ void testHiddenNativeWindow(TestSupport::Context &context)
     alphaDescription.title = "Transparent framebuffer capability validation";
     alphaDescription.transparentFramebuffer = true;
     Desktop::Window alphaWindow;
-    const IO::Types::Status alphaStatus = alphaWindow.open(alphaDescription, Desktop::Events::owned(4));
+    const GameWIP::Status::Types::Result<void> alphaStatus = alphaWindow.open(alphaDescription, Desktop::Events::owned(4));
 
     if(capabilities.supports(Desktop::Types::Capability::TransparentFramebuffer))
     {
@@ -300,7 +306,8 @@ void testHiddenNativeWindow(TestSupport::Context &context)
     }
     else
     {
-        static_cast<void>(context.expectEq("unsupported transparent framebuffer is rejected before open", ErrorCode::Unsupported, alphaStatus.code));
+        static_cast<void>(context.expectEq(
+            "unsupported transparent framebuffer is rejected before open", ErrorCode::Unsupported, alphaStatus.status().code()));
         static_cast<void>(context.expectFalse("unsupported alpha request creates no HWND", alphaWindow.isOpen()));
     }
 }
@@ -314,7 +321,7 @@ void testInitialMonitorGeometry(TestSupport::Context &context)
     }
 
     // Exercise centered and explicit placement on each connected monitor.
-    for(const auto &monitor : *monitors)
+    for(const auto &monitor : monitors.value())
     {
         for(const auto placement : {Desktop::Types::PlacementKind::Centered, Desktop::Types::PlacementKind::Explicit})
         {
@@ -330,7 +337,9 @@ void testInitialMonitorGeometry(TestSupport::Context &context)
             }
             else
             {
-                description.windowed.placement.position = {monitor.workArea.position.x + 80, monitor.workArea.position.y + 80};
+                description.windowed.placement.position = Desktop::Types::ScreenPosition{
+                    monitor.workArea.position.x + 80,
+                    monitor.workArea.position.y + 80};
             }
 
             Desktop::Window window;
@@ -360,7 +369,7 @@ void testInitialMonitorGeometry(TestSupport::Context &context)
 
 void testResultAccessPreconditions(TestSupport::Context &context)
 {
-    for(const std::string_view argument : {"--desktop-test-child=result-empty-arrow", "--desktop-test-child=result-failed-dereference"})
+    for(const std::string_view argument : {"--desktop-test-child=result-missing-value"})
     {
         TestSupport::Types::Process::Options child;
         child.executablePath = GameWIP::Validation::currentExecutablePath();
@@ -369,12 +378,13 @@ void testResultAccessPreconditions(TestSupport::Context &context)
         child.captureOutput = true;
 
         const auto result = TestSupport::runChildProcess(child);
-        if(!context.expectTrue("result precondition child starts", result.status.ok()))
+        if(!context.expectTrue("result precondition child starts", result.ok()))
         {
             continue;
         }
 
-        static_cast<void>(context.expectEq("result precondition child exits", TestSupport::Types::Process::Outcome::Exited, result.outcome));
-        static_cast<void>(context.expectEq("invalid result access invokes terminate", std::uint32_t{73}, result.exitCode));
+        const TestSupport::Types::Process::Execution &execution = result.value();
+        static_cast<void>(context.expectEq("result precondition child exits", TestSupport::Types::Process::Outcome::Exited, execution.outcome));
+        static_cast<void>(context.expectEq("invalid result access invokes terminate", std::uint32_t{73}, execution.exitCode));
     }
 }

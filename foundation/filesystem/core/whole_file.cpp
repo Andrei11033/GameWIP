@@ -15,36 +15,37 @@ namespace GameWIP::FileSystem
 
     namespace
     {
-        [[nodiscard]] IO::Types::WriteResult writeFlushAndClose(
+        [[nodiscard]] GameWIP::Status::Types::Result<IO::Types::WriteProgress> writeFlushAndClose(
             FileWriter &writer,
             std::span<const std::byte> bytes,
             IO::Types::FlushMode flushMode) noexcept
         {
-            IO::Types::WriteResult result = IO::writeAllBytes(writer, bytes);
+            auto result = IO::writeAllBytes(writer, bytes);
 
-            if(!result.status.ok())
+            if(!result.ok())
             {
                 // Preserve the payload failure if best-effort cleanup also fails.
                 static_cast<void>(writer.close());
                 return result;
             }
 
-            IO::Types::Status flushStatus = writer.flush(flushMode);
+            auto flushResult = writer.flush(flushMode);
 
-            if(!flushStatus.ok())
+            if(!flushResult.ok())
             {
-                result.status = std::move(flushStatus);
-                return result;
+                return GameWIP::Status::Types::Result<IO::Types::WriteProgress>::failure(
+                    flushResult.status(), std::move(result).value());
             }
 
-            IO::Types::Status closeStatus = writer.close();
+            auto closeResult = writer.close();
 
-            if(!closeStatus.ok())
+            if(!closeResult.ok())
             {
-                result.status = std::move(closeStatus);
+                return GameWIP::Status::Types::Result<IO::Types::WriteProgress>::failure(
+                    closeResult.status(), std::move(result).value());
             }
 
-            return result;
+            return GameWIP::Status::Types::Result<IO::Types::WriteProgress>::success(std::move(result).value());
         }
     } // namespace
 
@@ -52,77 +53,81 @@ namespace GameWIP::FileSystem
     /// Whole-file reads
     /// ------------------------------------------------------------
 
-    IO::Types::ReadAllBytesResult readAllBytes(const Types::Path &path, const Types::File::ReadOptions &options) noexcept
+    GameWIP::Status::Types::Result<std::vector<std::byte>> readAllBytes(const Types::Path &path, const Types::File::ReadOptions &options) noexcept
     {
         try
         {
             if(options.bufferSize == 0)
             {
-                return {.status = IO::makeStatus(ErrorCode::InvalidArgument)};
+                return GameWIP::Status::Types::Result<std::vector<std::byte>>::failure(
+                    GameWIP::Status::Types::Status(ErrorCode::InvalidArgument));
             }
 
             FileReader reader;
-            IO::Types::Status openStatus = reader.open(path, options.open);
+            auto openResult = reader.open(path, options.open);
 
-            if(!openStatus.ok())
+            if(!openResult.ok())
             {
-                return {.status = std::move(openStatus)};
+                return GameWIP::Status::Types::Result<std::vector<std::byte>>::failure(openResult.status());
             }
 
-            IO::Types::ReadAllBytesResult result = IO::readAllBytes(reader, options.maxBytes, options.bufferSize);
-            IO::Types::Status closeStatus = reader.close();
+            auto result = IO::readAllBytes(reader, options.maxBytes, options.bufferSize);
+            auto closeResult = reader.close();
 
-            if(result.status.ok() && !closeStatus.ok())
+            if(result.ok() && !closeResult.ok())
             {
-                result.status = std::move(closeStatus);
+                return GameWIP::Status::Types::Result<std::vector<std::byte>>::failure(
+                    closeResult.status(), std::move(result).value());
             }
 
             return result;
         }
         catch(const std::bad_alloc &)
         {
-            return {.status = IO::makeStatus(ErrorCode::OutOfMemory)};
+            return GameWIP::Status::Types::Result<std::vector<std::byte>>::failure(
+                GameWIP::Status::Types::Status(ErrorCode::OutOfMemory));
         }
         catch(...)
         {
-            return {.status = IO::makeStatus(ErrorCode::Unknown)};
+            return GameWIP::Status::Types::Result<std::vector<std::byte>>::failure(
+                GameWIP::Status::Types::Status(ErrorCode::Unknown));
         }
     }
 
-    IO::Types::ReadAllTextResult readAllText(const Types::Path &path, const Types::File::ReadOptions &options) noexcept
+    GameWIP::Status::Types::Result<std::string> readAllText(const Types::Path &path, const Types::File::ReadOptions &options) noexcept
     {
         try
         {
             if(options.bufferSize == 0)
             {
-                return {.status = IO::makeStatus(ErrorCode::InvalidArgument)};
+                return GameWIP::Status::Types::Result<std::string>::failure(GameWIP::Status::Types::Status(ErrorCode::InvalidArgument));
             }
 
             FileReader reader;
-            IO::Types::Status openStatus = reader.open(path, options.open);
+            auto openResult = reader.open(path, options.open);
 
-            if(!openStatus.ok())
+            if(!openResult.ok())
             {
-                return {.status = std::move(openStatus)};
+                return GameWIP::Status::Types::Result<std::string>::failure(openResult.status());
             }
 
-            IO::Types::ReadAllTextResult result = IO::readAllText(reader, options.maxBytes, options.bufferSize);
-            IO::Types::Status closeStatus = reader.close();
+            auto result = IO::readAllText(reader, options.maxBytes, options.bufferSize);
+            auto closeResult = reader.close();
 
-            if(result.status.ok() && !closeStatus.ok())
+            if(result.ok() && !closeResult.ok())
             {
-                result.status = std::move(closeStatus);
+                return GameWIP::Status::Types::Result<std::string>::failure(closeResult.status(), std::move(result).value());
             }
 
             return result;
         }
         catch(const std::bad_alloc &)
         {
-            return {.status = IO::makeStatus(ErrorCode::OutOfMemory)};
+            return GameWIP::Status::Types::Result<std::string>::failure(GameWIP::Status::Types::Status(ErrorCode::OutOfMemory));
         }
         catch(...)
         {
-            return {.status = IO::makeStatus(ErrorCode::Unknown)};
+            return GameWIP::Status::Types::Result<std::string>::failure(GameWIP::Status::Types::Status(ErrorCode::Unknown));
         }
     }
 
@@ -130,7 +135,8 @@ namespace GameWIP::FileSystem
     /// Whole-file writes
     /// ------------------------------------------------------------
 
-    IO::Types::WriteResult writeAllBytes(const Types::Path &path, std::span<const std::byte> bytes, const Types::File::WriteOptions &options) noexcept
+    GameWIP::Status::Types::Result<IO::Types::WriteProgress>
+    writeAllBytes(const Types::Path &path, std::span<const std::byte> bytes, const Types::File::WriteOptions &options) noexcept
     {
         try
         {
@@ -157,7 +163,7 @@ namespace GameWIP::FileSystem
             }
 
             FileWriter writer;
-            IO::Types::Status openStatus = writer.open(
+            auto openResult = writer.open(
                 path,
                 Types::File::WriterOpenOptions{
                     .mode = writerMode,
@@ -166,9 +172,9 @@ namespace GameWIP::FileSystem
                     .createParentDirectories = options.createParentDirectories,
                     .flushOnClose = IO::Types::FlushMode::None});
 
-            if(!openStatus.ok())
+            if(!openResult.ok())
             {
-                return writeFailure(std::move(openStatus));
+                return writeFailure(openResult.status());
             }
 
             // Write exact contents, then apply flush and close.
@@ -184,7 +190,8 @@ namespace GameWIP::FileSystem
         }
     }
 
-    IO::Types::WriteResult writeAllText(const Types::Path &path, std::string_view utf8Text, const Types::File::WriteOptions &options) noexcept
+    GameWIP::Status::Types::Result<IO::Types::WriteProgress>
+    writeAllText(const Types::Path &path, std::string_view utf8Text, const Types::File::WriteOptions &options) noexcept
     {
         if(!validUtf8(utf8Text))
         {
@@ -198,7 +205,8 @@ namespace GameWIP::FileSystem
     /// Whole-file appends
     /// ------------------------------------------------------------
 
-    IO::Types::WriteResult appendBytes(const Types::Path &path, std::span<const std::byte> bytes, const Types::File::AppendOptions &options) noexcept
+    GameWIP::Status::Types::Result<IO::Types::WriteProgress>
+    appendBytes(const Types::Path &path, std::span<const std::byte> bytes, const Types::File::AppendOptions &options) noexcept
     {
         try
         {
@@ -222,7 +230,7 @@ namespace GameWIP::FileSystem
             }
 
             FileWriter writer;
-            IO::Types::Status openStatus = writer.open(
+            auto openResult = writer.open(
                 path,
                 Types::File::WriterOpenOptions{
                     .mode = writerMode,
@@ -231,9 +239,9 @@ namespace GameWIP::FileSystem
                     .createParentDirectories = options.createParentDirectories,
                     .flushOnClose = IO::Types::FlushMode::None});
 
-            if(!openStatus.ok())
+            if(!openResult.ok())
             {
-                return writeFailure(std::move(openStatus));
+                return writeFailure(openResult.status());
             }
 
             // Append the payload, then apply flush and close.
@@ -249,7 +257,8 @@ namespace GameWIP::FileSystem
         }
     }
 
-    IO::Types::WriteResult appendText(const Types::Path &path, std::string_view utf8Text, const Types::File::AppendOptions &options) noexcept
+    GameWIP::Status::Types::Result<IO::Types::WriteProgress>
+    appendText(const Types::Path &path, std::string_view utf8Text, const Types::File::AppendOptions &options) noexcept
     {
         if(!validUtf8(utf8Text))
         {

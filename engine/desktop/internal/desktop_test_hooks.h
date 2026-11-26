@@ -176,14 +176,14 @@ namespace GameWIP::Desktop::Internal::TestHooks
     /// ------------------------------------------------------------
 
     [[nodiscard]] DESKTOP_TEST_EXPORT Types::Events::PumpResult pumpReentrantly() noexcept;
-    [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status openPortable(Window &window, std::span<Types::Event> storage) noexcept;
-    [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status enqueue(Window &window, Types::Events::Payload data) noexcept;
-    [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status enqueue(ChildSurface &surface, Types::ChildSurface::Events::Payload data) noexcept;
-    [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status requestClose(Window &window, Types::Events::CloseRequestSource source) noexcept;
+    [[nodiscard]] DESKTOP_TEST_EXPORT GameWIP::Status::Types::Status openPortable(Window &window, std::span<Types::Event> storage) noexcept;
+    [[nodiscard]] DESKTOP_TEST_EXPORT GameWIP::Status::Types::Status enqueue(Window &window, Types::Events::Payload data) noexcept;
+    [[nodiscard]] DESKTOP_TEST_EXPORT GameWIP::Status::Types::Status enqueue(ChildSurface &surface, Types::ChildSurface::Events::Payload data) noexcept;
+    [[nodiscard]] DESKTOP_TEST_EXPORT GameWIP::Status::Types::Status requestClose(Window &window, Types::Events::CloseRequestSource source) noexcept;
     /// @brief Applies renderer-facing test state and mirrors it when concurrent reads are enabled.
     DESKTOP_TEST_EXPORT void applyPresentationPublicationSnapshot(Window &window, const PresentationPublicationSnapshot &snapshot) noexcept;
-    [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status destroyNativeWindow(Window &window) noexcept;
-    [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status destroyNativeChildSurface(ChildSurface &surface) noexcept;
+    [[nodiscard]] DESKTOP_TEST_EXPORT GameWIP::Status::Types::Status destroyNativeWindow(Window &window) noexcept;
+    [[nodiscard]] DESKTOP_TEST_EXPORT GameWIP::Status::Types::Status destroyNativeChildSurface(ChildSurface &surface) noexcept;
 
     /// ------------------------------------------------------------
     /// Drag/drop hooks
@@ -193,7 +193,7 @@ namespace GameWIP::Desktop::Internal::TestHooks
         Types::DragDrop::Effect source,
         Types::DragDrop::Effect target,
         Types::DragDrop::Effect preferred) noexcept;
-    [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status enqueueDragDrop(
+    [[nodiscard]] DESKTOP_TEST_EXPORT GameWIP::Status::Types::Status enqueueDragDrop(
         DragDropTarget &target,
         Types::DragDrop::Events::Payload data,
         bool terminal = false) noexcept;
@@ -210,7 +210,7 @@ namespace GameWIP::Desktop::Internal::TestHooks
     [[nodiscard]] DESKTOP_TEST_EXPORT const void *presentationPublicationStorage(const Window &window) noexcept;
     DESKTOP_TEST_EXPORT void setPointerHitMaskGeneration(Window &window, std::uint64_t generation) noexcept;
     [[nodiscard]] DESKTOP_TEST_EXPORT bool pointerHitMaskAccepts(const Window &window, Types::LogicalPosition position) noexcept;
-    [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status simulateFullscreenMonitorRemoval(Window &window) noexcept;
+    [[nodiscard]] DESKTOP_TEST_EXPORT GameWIP::Status::Types::Status simulateFullscreenMonitorRemoval(Window &window) noexcept;
     [[nodiscard]] DESKTOP_TEST_EXPORT std::uint64_t pointerHitMaskGeneration(const Window &window) noexcept;
     [[nodiscard]] DESKTOP_TEST_EXPORT std::size_t pointerHitMaskWordCount(const Window &window) noexcept;
     [[nodiscard]] DESKTOP_TEST_EXPORT Types::Renderer::PointerHitMaskWord pointerHitMaskWord(const Window &window, std::size_t index) noexcept;

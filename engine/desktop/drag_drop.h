@@ -7,7 +7,7 @@
 #include "desktop/desktop_export.h"
 #include "desktop/events.h"
 #include "desktop/window.h"
-#include "io/status.h"
+#include "status/result.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -178,13 +178,15 @@ namespace GameWIP::Desktop::Types::DragDrop
         TriggerButton triggerButton = TriggerButton::Left; ///< Button whose release completes the drag.
     };
 
-    /// @brief Source-side native drag result.
-    struct Result
+    /// @brief Normal outcome and performed effect of a completed source drag.
+    struct SourceInfo
     {
-        IO::Types::Status status;             ///< Preparation or native dispatch status.
         Outcome outcome = Outcome::Cancelled; ///< Dropped only when a target completed the operation.
-        Effect effect = Effect::None;         ///< Target-selected effect, or None when cancelled or failed.
+        Effect effect = Effect::None;         ///< Target-selected effect, or None when cancelled.
     };
+
+    /// @brief Shared status result for a source-side native drag operation.
+    using Result = GameWIP::Status::Types::Result<SourceInfo>;
 
     /// @brief Immutable format metadata shared by all movement events in a native session.
     using FormatSnapshot = std::shared_ptr<const std::vector<DataTransfer::Format>>;
@@ -320,14 +322,14 @@ namespace GameWIP::Desktop
         /// @param window Open Window whose owner thread and client area are inherited.
         /// @param description Initial declarative region snapshot.
         /// @return Success, or a status explaining why no target was registered.
-        [[nodiscard]] IO::Types::Status open(Window &window, const Types::DragDrop::TargetDescription &description) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> open(Window &window, const Types::DragDrop::TargetDescription &description) noexcept;
         /// @brief Opens with an explicit owned-or-borrowed event-queue policy.
         /// @param window Open Window whose owner thread and client area are inherited.
         /// @param description Initial declarative region snapshot.
         /// @details Borrowed storage remains retained during native-loss finalization and deferred owner-thread cleanup.
         /// @param queue Explicit storage ownership and capacity policy.
         /// @return Success, or a status explaining why no target was registered.
-        [[nodiscard]] IO::Types::Status open(
+        [[nodiscard]] GameWIP::Status::Types::Result<void> open(
             Window &window,
             const Types::DragDrop::TargetDescription &description,
             Types::DragDrop::QueueConfiguration queue) noexcept;
@@ -338,7 +340,7 @@ namespace GameWIP::Desktop
         [[nodiscard]] Types::LifetimeState lifetimeState() const noexcept;
         /// @brief Closes on the owner thread, or releases portable pending state after dispatcher termination.
         /// @return Success when closed or already closed; ResourceBusy when native work belongs to another thread; otherwise cleanup failure.
-        [[nodiscard]] IO::Types::Status close() noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> close() noexcept;
         /// @}
 
         /// @name Window and ownership
@@ -357,7 +359,7 @@ namespace GameWIP::Desktop
         /// @brief Atomically replaces the declarative region snapshot.
         /// @param regions Non-empty region descriptions copied before this call returns.
         /// @return Success, or validation/allocation failure with the previous snapshot unchanged.
-        [[nodiscard]] IO::Types::Status setRegions(std::span<const Types::DragDrop::RegionDescription> regions) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> setRegions(std::span<const Types::DragDrop::RegionDescription> regions) noexcept;
         /// @}
 
         /// @name Event queue

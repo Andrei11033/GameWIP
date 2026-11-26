@@ -75,7 +75,6 @@ set(expected_gamewip_headers
     filesystem/path.h
     io/memory.h
     io/io.h
-    io/status.h
     io/stream.h
     io/transfer.h
     status/result.h
@@ -132,7 +131,6 @@ set(expected_gamewip_headers
     desktop/icon_types.h
     desktop/native/win32.h
     desktop/renderer_bridge.h
-    desktop/result.h
     desktop/shell.h
     desktop/shell_jump_lists.h
     desktop/shell_notifications.h

@@ -1,6 +1,7 @@
 /// @file win32_child_surface.cpp
 /// @brief Win32 ChildSurface lifecycle, DPI, geometry, ordering, and native interop.
 
+#include "desktop/internal/results.h"
 #include "desktop/platform/win32/internal/win32_window_backend.h"
 
 #include "desktop/child_surface.h"
@@ -26,8 +27,8 @@ namespace GameWIP::Desktop::Platform
         HINSTANCE childClassInstance = nullptr;
         bool childClassOwned = false;
 
-        [[nodiscard]] IO::Types::Status acquireChildSurfaceClass(HINSTANCE instance) noexcept;
-        [[nodiscard]] IO::Types::Status releaseChildSurfaceClass() noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Status acquireChildSurfaceClass(HINSTANCE instance) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Status releaseChildSurfaceClass() noexcept;
         [[nodiscard]] LRESULT CALLBACK childSurfaceProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam);
 
         /// @brief Temporarily enables mixed-DPI hosting for a child HWND operation.
@@ -102,10 +103,10 @@ namespace GameWIP::Desktop::Platform
         }
 
         /// @brief Reads visibility while preserving the distinction between a zero style and API failure.
-        [[nodiscard]] IO::Types::Status childVisible(HWND window, bool &visible) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status childVisible(HWND window, bool &visible) noexcept
         {
             LONG_PTR style = 0;
-            const IO::Types::Status status = queryWindowLong(window, GWL_STYLE, style, "GetWindowLongPtrW ChildSurface visibility");
+            const GameWIP::Status::Types::Status status = queryWindowLong(window, GWL_STYLE, style, "GetWindowLongPtrW ChildSurface visibility");
 
             if(!status.ok())
             {
@@ -113,18 +114,18 @@ namespace GameWIP::Desktop::Platform
             }
 
             visible = (static_cast<DWORD>(style) & WS_VISIBLE) != 0;
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
 
         /// @brief Acquires the process-local child class registration with reference counting.
-        [[nodiscard]] IO::Types::Status acquireChildSurfaceClass(HINSTANCE instance) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status acquireChildSurfaceClass(HINSTANCE instance) noexcept
         {
             std::scoped_lock lock(childClassMutex);
 
             if(childClassUsers != 0)
             {
                 ++childClassUsers;
-                return IO::successStatus();
+                return GameWIP::Status::Types::Status{};
             }
 
             WNDCLASSEXW nativeClass{};
@@ -140,7 +141,7 @@ namespace GameWIP::Desktop::Platform
 
                 if(code != ERROR_CLASS_ALREADY_EXISTS)
                 {
-                    return statusFromWin32(IO::Types::ErrorCode::OpenFailed, code, "register ChildSurface class");
+                    return statusFromWin32(GameWIP::Status::Types::Code::OpenFailed, code, "register ChildSurface class");
                 }
                 childClassOwned = false;
             }
@@ -150,33 +151,33 @@ namespace GameWIP::Desktop::Platform
             }
             childClassInstance = instance;
             childClassUsers = 1;
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
 
         /// @brief Releases the child class only after its last native user has closed.
-        [[nodiscard]] IO::Types::Status releaseChildSurfaceClass() noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status releaseChildSurfaceClass() noexcept
         {
             std::scoped_lock lock(childClassMutex);
 
             if(childClassUsers == 0)
             {
-                return IO::successStatus();
+                return GameWIP::Status::Types::Status{};
             }
             --childClassUsers;
 
             if(childClassUsers != 0 || !childClassOwned)
             {
-                return IO::successStatus();
+                return GameWIP::Status::Types::Status{};
             }
 
             if(UnregisterClassW(kChildSurfaceClassName, childClassInstance) == FALSE)
             {
                 ++childClassUsers;
-                return statusFromWin32(IO::Types::ErrorCode::CloseFailed, GetLastError(), "unregister ChildSurface class");
+                return statusFromWin32(GameWIP::Status::Types::Code::CloseFailed, GetLastError(), "unregister ChildSurface class");
             }
             childClassInstance = nullptr;
             childClassOwned = false;
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
 
         /// @brief Translates child HWND lifecycle and DPI messages into portable state/events.
@@ -235,13 +236,17 @@ namespace GameWIP::Desktop::Platform
 
                 if(!physicalRect(state->rect, newDpi, x, y, width, height))
                 {
-                    recordPumpFailure(IO::makeStatus(IO::Types::ErrorCode::NativeFailure, ERROR_ARITHMETIC_OVERFLOW, "scale ChildSurface geometry"));
+                    recordPumpFailure(GameWIP::Desktop::Internal::statusFor(
+                        GameWIP::Status::Types::Code::NativeFailure,
+                        ERROR_ARITHMETIC_OVERFLOW,
+                        GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error,
+                        "scale ChildSurface geometry"));
                     return 0;
                 }
 
                 if(SetWindowPos(window, nullptr, x, y, width, height, SWP_NOACTIVATE | SWP_NOZORDER) == FALSE)
                 {
-                    recordPumpFailure(statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "apply ChildSurface DPI geometry"));
+                    recordPumpFailure(statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, GetLastError(), "apply ChildSurface DPI geometry"));
                     return 0;
                 }
 
@@ -313,20 +318,20 @@ namespace GameWIP::Desktop::Platform
     }
 
     /// @brief Creates and publishes a child HWND beneath a live parent Window.
-    IO::Types::Status openChildSurface(ChildSurfaceState &state, WindowState &parent) noexcept
+    GameWIP::Status::Types::Status openChildSurface(ChildSurfaceState &state, WindowState &parent) noexcept
     {
         try
         {
             // Validate the parent and register shared child-class state.
             if(!parent.platform || parent.platform->handle == nullptr)
             {
-                return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
+                return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::NotOpen);
             }
             auto data = std::unique_ptr<ChildSurfaceData, ChildSurfaceDataDeleter>(new ChildSurfaceData{});
             data->owner = &state;
             data->instance = parent.platform->instance;
             data->ownerThreadId = parent.platform->ownerThreadId;
-            IO::Types::Status status = acquireChildSurfaceClass(data->instance);
+            GameWIP::Status::Types::Status status = acquireChildSurfaceClass(data->instance);
 
             if(!status.ok())
             {
@@ -346,12 +351,16 @@ namespace GameWIP::Desktop::Platform
 
             if(!physicalRect(state.rect, dpi, x, y, width, height))
             {
-                return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument, ERROR_ARITHMETIC_OVERFLOW, "ChildSurface rect exceeds Win32 range");
+                return GameWIP::Desktop::Internal::statusFor(
+                    GameWIP::Status::Types::Code::InvalidArgument,
+                    ERROR_ARITHMETIC_OVERFLOW,
+                    GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error,
+                    "ChildSurface rect exceeds Win32 range");
             }
 
             if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::NativeCreation))
             {
-                return IO::makeStatus(IO::Types::ErrorCode::OpenFailed);
+                return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::OpenFailed);
             }
             DWORD creationError = ERROR_SUCCESS;
 
@@ -361,7 +370,7 @@ namespace GameWIP::Desktop::Platform
 
                 if(!hosting.applied())
                 {
-                    return statusFromWin32(IO::Types::ErrorCode::OpenFailed, GetLastError(), "enable mixed DPI hosting for ChildSurface");
+                    return statusFromWin32(GameWIP::Status::Types::Code::OpenFailed, GetLastError(), "enable mixed DPI hosting for ChildSurface");
                 }
 
                 state.platform->handle = CreateWindowExW(
@@ -387,7 +396,7 @@ namespace GameWIP::Desktop::Platform
             if(state.platform->handle == nullptr)
             {
                 return statusFromWin32(
-                    IO::Types::ErrorCode::OpenFailed,
+                    GameWIP::Status::Types::Code::OpenFailed,
                     creationError == ERROR_SUCCESS ? ERROR_FUNCTION_FAILED : creationError,
                     "create ChildSurface host");
             }
@@ -402,11 +411,11 @@ namespace GameWIP::Desktop::Platform
 
             if((IsWindowEnabled(state.platform->handle) != FALSE) != state.interactionEnabled)
             {
-                return statusFromWin32(IO::Types::ErrorCode::OpenFailed, ERROR_FUNCTION_FAILED, "set initial ChildSurface interaction");
+                return statusFromWin32(GameWIP::Status::Types::Code::OpenFailed, ERROR_FUNCTION_FAILED, "set initial ChildSurface interaction");
             }
             ShowWindow(state.platform->handle, state.visible ? SW_SHOWNOACTIVATE : SW_HIDE);
             bool visible = false;
-            IO::Types::Status visibilityStatus = childVisible(state.platform->handle, visible);
+            GameWIP::Status::Types::Status visibilityStatus = childVisible(state.platform->handle, visible);
 
             if(!visibilityStatus.ok())
             {
@@ -415,15 +424,15 @@ namespace GameWIP::Desktop::Platform
             state.visible = visible;
             state.interactionEnabled = IsWindowEnabled(state.platform->handle) != FALSE;
             refreshChildScreenRect(state);
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::OutOfMemory);
         }
         catch(...)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::Unknown);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::Unknown);
         }
     }
 
@@ -432,17 +441,17 @@ namespace GameWIP::Desktop::Platform
     {
         if(!state.platform)
         {
-            return {IO::successStatus(), true};
+            return Internal::result(GameWIP::Status::Types::Status{}, true);
         }
 
         if(state.platform->ownerThreadId != GetCurrentThreadId())
         {
-            return {IO::makeStatus(IO::Types::ErrorCode::ResourceBusy), false};
+            return Internal::result(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::ResourceBusy), false);
         }
 
         if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::Close))
         {
-            return {IO::makeStatus(IO::Types::ErrorCode::CloseFailed), false};
+            return Internal::result(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::CloseFailed), false);
         }
 
         // Destroy the HWND before unregistering state or releasing its class reference.
@@ -453,7 +462,7 @@ namespace GameWIP::Desktop::Platform
             if(DestroyWindow(state.platform->handle) == FALSE)
             {
                 state.platform->destroying = false;
-                return {statusFromWin32(IO::Types::ErrorCode::CloseFailed, GetLastError(), "destroy ChildSurface host"), false};
+                return Internal::result(statusFromWin32(GameWIP::Status::Types::Code::CloseFailed, GetLastError(), "destroy ChildSurface host"), false);
             }
         }
 
@@ -464,7 +473,7 @@ namespace GameWIP::Desktop::Platform
         }
 
         // Release the shared class registration after its final native user closes.
-        IO::Types::Status status = IO::successStatus();
+        GameWIP::Status::Types::Status status = GameWIP::Status::Types::Status{};
 
         if(state.platform->classReferenceHeld)
         {
@@ -473,7 +482,7 @@ namespace GameWIP::Desktop::Platform
         }
         state.platform.reset();
         state.nativeDestroyedPendingFinalize = false;
-        return {std::move(status), true};
+        return Internal::result(std::move(status), true);
     }
 
     /// @brief Performs non-reporting child cleanup used by destructors and failed opens.
@@ -536,11 +545,11 @@ namespace GameWIP::Desktop::Platform
     }
 
     /// @brief Applies checked logical child geometry without activating or reordering the HWND.
-    IO::Types::Status setChildSurfaceRect(ChildSurfaceState &state, Types::LogicalRect rect) noexcept
+    GameWIP::Status::Types::Status setChildSurfaceRect(ChildSurfaceState &state, Types::LogicalRect rect) noexcept
     {
         if(!state.platform || state.platform->handle == nullptr)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::NotOpen);
         }
 
         int x = 0;
@@ -551,19 +560,19 @@ namespace GameWIP::Desktop::Platform
 
         if(!physicalRect(rect, dpi, x, y, width, height))
         {
-            return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::InvalidArgument);
         }
 
         if(SetWindowPos(state.platform->handle, nullptr, x, y, width, height, SWP_NOACTIVATE | SWP_NOZORDER) == FALSE)
         {
-            return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "set ChildSurface rect");
+            return statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, GetLastError(), "set ChildSurface rect");
         }
         refreshChildScreenRect(state);
-        return IO::successStatus();
+        return GameWIP::Status::Types::Status{};
     }
 
     /// @brief Converts child-local logical coordinates to virtual-screen pixels.
-    Types::Result<Types::ScreenPosition> childSurfaceClientToScreen(const ChildSurfaceState &state, Types::LogicalPosition position) noexcept
+    GameWIP::Status::Types::Result<Types::ScreenPosition> childSurfaceClientToScreen(const ChildSurfaceState &state, Types::LogicalPosition position) noexcept
     {
         LONG x = 0;
         LONG y = 0;
@@ -571,39 +580,43 @@ namespace GameWIP::Desktop::Platform
 
         if(!logicalToPhysicalChecked(position.x, dpi, x) || !logicalToPhysicalChecked(position.y, dpi, y))
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::InvalidArgument)};
+            return GameWIP::Status::Types::Result<Types::ScreenPosition>::failure(
+                GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::InvalidArgument));
         }
 
         POINT point{x, y};
 
         if(ClientToScreen(state.platform->handle, &point) == FALSE)
         {
-            return {.status = statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "ChildSurface client to screen")};
+            return GameWIP::Status::Types::Result<Types::ScreenPosition>::failure(
+                statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, GetLastError(), "ChildSurface client to screen"));
         }
 
-        return {.status = IO::successStatus(), .value = Types::ScreenPosition{point.x, point.y}};
+        return GameWIP::Status::Types::Result<Types::ScreenPosition>::success(Types::ScreenPosition{point.x, point.y});
     }
 
     /// @brief Converts virtual-screen pixels to child-local logical coordinates.
-    Types::Result<Types::LogicalPosition> childSurfaceScreenToClient(const ChildSurfaceState &state, Types::ScreenPosition position) noexcept
+    GameWIP::Status::Types::Result<Types::LogicalPosition> childSurfaceScreenToClient(const ChildSurfaceState &state, Types::ScreenPosition position) noexcept
     {
         POINT point{position.x, position.y};
 
         if(ScreenToClient(state.platform->handle, &point) == FALSE)
         {
-            return {.status = statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "ChildSurface screen to client")};
+            return GameWIP::Status::Types::Result<Types::LogicalPosition>::failure(
+                statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, GetLastError(), "ChildSurface screen to client"));
         }
         const UINT dpi = dpiForWindow(state.platform->handle);
-        return {.status = IO::successStatus(), .value = Types::LogicalPosition{physicalToLogical(point.x, dpi), physicalToLogical(point.y, dpi)}};
+        return GameWIP::Status::Types::Result<Types::LogicalPosition>::success(
+            Types::LogicalPosition{physicalToLogical(point.x, dpi), physicalToLogical(point.y, dpi)});
     }
 
     /// @brief Changes native child visibility and verifies the resulting style bit.
-    IO::Types::Status showChildSurface(ChildSurfaceState &state, bool visible) noexcept
+    GameWIP::Status::Types::Status showChildSurface(ChildSurfaceState &state, bool visible) noexcept
     {
         const bool previousVisible = state.visible;
         ShowWindow(state.platform->handle, visible ? SW_SHOWNOACTIVATE : SW_HIDE);
         bool actualVisible = false;
-        IO::Types::Status visibilityStatus = childVisible(state.platform->handle, actualVisible);
+        GameWIP::Status::Types::Status visibilityStatus = childVisible(state.platform->handle, actualVisible);
 
         if(!visibilityStatus.ok())
         {
@@ -615,38 +628,42 @@ namespace GameWIP::Desktop::Platform
         if(actualVisible != visible)
         {
             ShowWindow(state.platform->handle, previousVisible ? SW_SHOWNOACTIVATE : SW_HIDE);
-            return IO::makeStatus(IO::Types::ErrorCode::NativeFailure, ERROR_FUNCTION_FAILED, visible ? "show ChildSurface" : "hide ChildSurface");
+            return GameWIP::Desktop::Internal::statusFor(
+                GameWIP::Status::Types::Code::NativeFailure,
+                ERROR_FUNCTION_FAILED,
+                GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error,
+                visible ? "show ChildSurface" : "hide ChildSurface");
         }
 
-        return IO::successStatus();
+        return GameWIP::Status::Types::Status{};
     }
 
     /// @brief Changes native child input enablement and verifies the resulting state.
-    IO::Types::Status setChildSurfaceInteractionEnabled(ChildSurfaceState &state, bool enabled) noexcept
+    GameWIP::Status::Types::Status setChildSurfaceInteractionEnabled(ChildSurfaceState &state, bool enabled) noexcept
     {
         static_cast<void>(EnableWindow(state.platform->handle, enabled ? TRUE : FALSE));
 
         if((IsWindowEnabled(state.platform->handle) != FALSE) != enabled)
         {
-            return statusFromWin32(IO::Types::ErrorCode::NativeFailure, ERROR_FUNCTION_FAILED, "set ChildSurface interaction");
+            return statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, ERROR_FUNCTION_FAILED, "set ChildSurface interaction");
         }
 
-        return IO::successStatus();
+        return GameWIP::Status::Types::Status{};
     }
 
     /// @brief Places the child at the front or back of its native sibling order.
-    IO::Types::Status orderChildSurfaceEdge(ChildSurfaceState &state, bool front) noexcept
+    GameWIP::Status::Types::Status orderChildSurfaceEdge(ChildSurfaceState &state, bool front) noexcept
     {
         if(SetWindowPos(state.platform->handle, front ? HWND_TOP : HWND_BOTTOM, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE) == FALSE)
         {
-            return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "order ChildSurface");
+            return statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, GetLastError(), "order ChildSurface");
         }
 
-        return IO::successStatus();
+        return GameWIP::Status::Types::Status{};
     }
 
     /// @brief Places the child immediately above or below a validated native sibling.
-    IO::Types::Status orderChildSurface(ChildSurfaceState &state, const ChildSurfaceState *sibling, bool above) noexcept
+    GameWIP::Status::Types::Status orderChildSurface(ChildSurfaceState &state, const ChildSurfaceState *sibling, bool above) noexcept
     {
         HWND insertAfter = sibling->platform->handle;
 
@@ -662,30 +679,33 @@ namespace GameWIP::Desktop::Platform
 
         if(SetWindowPos(state.platform->handle, insertAfter, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE) == FALSE)
         {
-            return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "order ChildSurface relative to sibling");
+            return statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, GetLastError(), "order ChildSurface relative to sibling");
         }
 
-        return IO::successStatus();
+        return GameWIP::Status::Types::Status{};
     }
 } // namespace GameWIP::Desktop::Platform
 
 namespace GameWIP::Desktop::Native::Win32
 {
-    Types::Result<HandleView> getHandle(const GameWIP::Desktop::ChildSurface &surface) noexcept
+    GameWIP::Status::Types::Result<HandleView> getHandle(const GameWIP::Desktop::ChildSurface &surface) noexcept
     {
         const Internal::ChildSurfaceState *state = Internal::ChildSurfaceAccess::state(surface);
 
         if(state == nullptr || !Platform::hasLiveNativeChildSurface(*state))
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::NotOpen)};
+            return GameWIP::Status::Types::Result<HandleView>::failure(
+                GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::NotOpen));
         }
 
         if(!Platform::isChildSurfaceOwnedByCurrentThread(*state))
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::ResourceBusy)};
+            return GameWIP::Status::Types::Result<HandleView>::failure(
+                GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::ResourceBusy));
         }
         const Platform::NativeHandleView handles = Platform::childSurfaceNativeHandle(*state);
-        return {.status = IO::successStatus(), .value = HandleView{static_cast<HINSTANCE>(handles.instance), static_cast<HWND>(handles.window)}};
+        return GameWIP::Status::Types::Result<HandleView>::success(
+            HandleView{static_cast<HINSTANCE>(handles.instance), static_cast<HWND>(handles.window)});
     }
 } // namespace GameWIP::Desktop::Native::Win32
 
@@ -701,27 +721,27 @@ namespace GameWIP::Desktop::Internal::TestHooks
         return {logicalRect, Platform::logicalToPhysicalSize(logicalRect.size, newDpi)};
     }
 
-    IO::Types::Status destroyNativeChildSurface(ChildSurface &surface) noexcept
+    GameWIP::Status::Types::Status destroyNativeChildSurface(ChildSurface &surface) noexcept
     {
         Internal::ChildSurfaceState *state = Internal::ChildSurfaceAccess::state(surface);
 
         if(state == nullptr || !Platform::hasLiveNativeChildSurface(*state))
         {
-            return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::NotOpen);
         }
 
         if(!Platform::isChildSurfaceOwnedByCurrentThread(*state))
         {
-            return IO::makeStatus(IO::Types::ErrorCode::ResourceBusy);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::ResourceBusy);
         }
         const Platform::NativeHandleView handle = Platform::childSurfaceNativeHandle(*state);
 
         if(DestroyWindow(static_cast<HWND>(handle.window)) == FALSE)
         {
-            return Platform::statusFromWin32(IO::Types::ErrorCode::CloseFailed, GetLastError(), "test-hook destroy ChildSurface");
+            return Platform::statusFromWin32(GameWIP::Status::Types::Code::CloseFailed, GetLastError(), "test-hook destroy ChildSurface");
         }
 
-        return IO::successStatus();
+        return GameWIP::Status::Types::Status{};
     }
 } // namespace GameWIP::Desktop::Internal::TestHooks
 #endif

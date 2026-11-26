@@ -1,6 +1,7 @@
 /// @file com.cpp
 /// @brief COM status mapping and apartment ownership for Desktop's Win32 backend.
 
+#include "desktop/internal/results.h"
 #include "desktop/platform/win32/internal/win32_com.h"
 
 namespace GameWIP::Desktop::Platform
@@ -9,9 +10,9 @@ namespace GameWIP::Desktop::Platform
     /// COM status mapping
     /// ------------------------------------------------------------
 
-    IO::Types::Status statusFromHResult(HRESULT result) noexcept
+    GameWIP::Status::Types::Status statusFromHResult(HRESULT result) noexcept
     {
-        using IO::Types::ErrorCode;
+        using ErrorCode = GameWIP::Status::Types::Code;
 
         ErrorCode code = ErrorCode::NativeFailure;
 
@@ -36,7 +37,10 @@ namespace GameWIP::Desktop::Platform
             code = ErrorCode::Unsupported;
         }
 
-        return IO::makeStatus(code, static_cast<std::int64_t>(result));
+        return GameWIP::Desktop::Internal::statusFor(
+            code,
+            static_cast<std::int64_t>(result),
+            GameWIP::Desktop::Internal::NativeCodeDomain::HResult);
     }
 
     /// ------------------------------------------------------------
@@ -53,13 +57,16 @@ namespace GameWIP::Desktop::Platform
         {
             if(type == APTTYPE_STA || type == APTTYPE_MAINSTA)
             {
-                status_ = IO::successStatus();
+                status_ = GameWIP::Status::Types::Status{};
                 return;
             }
 
             if(type != APTTYPE_MTA || qualifier != APTTYPEQUALIFIER_IMPLICIT_MTA)
             {
-                status_ = IO::makeStatus(IO::Types::ErrorCode::ResourceBusy, static_cast<std::int64_t>(RPC_E_CHANGED_MODE));
+                status_ = GameWIP::Desktop::Internal::statusFor(
+                    GameWIP::Status::Types::Code::ResourceBusy,
+                    static_cast<std::int64_t>(RPC_E_CHANGED_MODE),
+                    GameWIP::Desktop::Internal::NativeCodeDomain::HResult);
                 return;
             }
 
@@ -76,7 +83,7 @@ namespace GameWIP::Desktop::Platform
         if(SUCCEEDED(result))
         {
             ownsInitialization_ = true;
-            status_ = IO::successStatus();
+            status_ = GameWIP::Status::Types::Status{};
         }
         else
         {
@@ -92,7 +99,7 @@ namespace GameWIP::Desktop::Platform
         }
     }
 
-    const IO::Types::Status &ApartmentLease::status() const noexcept
+    const GameWIP::Status::Types::Status &ApartmentLease::status() const noexcept
     {
         return status_;
     }

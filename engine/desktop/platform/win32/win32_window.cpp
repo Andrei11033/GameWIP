@@ -1,7 +1,9 @@
 /// @file win32_window.cpp
 /// @brief Win32 native class, style, status, and geometry operations.
 
+#include "desktop/internal/results.h"
 #include "desktop/platform/win32/internal/win32_window_backend.h"
+#include "desktop/platform/win32/internal/win32_display_config.h"
 #include "desktop/platform/win32/internal/test_hooks.h"
 
 #include <algorithm>
@@ -31,14 +33,14 @@ namespace GameWIP::Desktop::Platform
     /// ------------------------------------------------------------
 
     /// @brief Acquires the process-wide native Window class reference.
-    IO::Types::Status acquireWindowClass(HINSTANCE instance) noexcept
+    GameWIP::Status::Types::Status acquireWindowClass(HINSTANCE instance) noexcept
     {
         std::scoped_lock lock(classMutex);
 
         if(classUsers != 0)
         {
             ++classUsers;
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
 
         WNDCLASSEXW windowClass{};
@@ -55,7 +57,7 @@ namespace GameWIP::Desktop::Platform
 
             if(nativeCode != ERROR_CLASS_ALREADY_EXISTS)
             {
-                return statusFromWin32(IO::Types::ErrorCode::OpenFailed, nativeCode, "RegisterClassExW");
+                return statusFromWin32(GameWIP::Status::Types::Code::OpenFailed, nativeCode, "RegisterClassExW");
             }
             classOwned = false;
         }
@@ -65,33 +67,33 @@ namespace GameWIP::Desktop::Platform
         }
         classInstance = instance;
         classUsers = 1;
-        return IO::successStatus();
+        return GameWIP::Status::Types::Status{};
     }
 
     /// @brief Releases one process-wide native Window class reference.
-    IO::Types::Status releaseWindowClass() noexcept
+    GameWIP::Status::Types::Status releaseWindowClass() noexcept
     {
         std::scoped_lock lock(classMutex);
 
         if(classUsers == 0)
         {
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
         --classUsers;
 
         if(classUsers != 0 || !classOwned)
         {
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
 
         if(UnregisterClassW(kWindowClassName, classInstance) == FALSE)
         {
             ++classUsers;
-            return statusFromWin32(IO::Types::ErrorCode::CloseFailed, GetLastError(), "UnregisterClassW");
+            return statusFromWin32(GameWIP::Status::Types::Code::CloseFailed, GetLastError(), "UnregisterClassW");
         }
         classInstance = nullptr;
         classOwned = false;
-        return IO::successStatus();
+        return GameWIP::Status::Types::Status{};
     }
 
     /// ------------------------------------------------------------
@@ -185,9 +187,9 @@ namespace GameWIP::Desktop::Platform
     /// ------------------------------------------------------------
 
     /// @brief Maps a Win32 error and operation name into a portable status.
-    IO::Types::Status statusFromWin32(IO::Types::ErrorCode fallback, DWORD nativeCode, std::string_view operation) noexcept
+    GameWIP::Status::Types::Status statusFromWin32(GameWIP::Status::Types::Code fallback, DWORD nativeCode, std::string_view operation) noexcept
     {
-        using IO::Types::ErrorCode;
+        using ErrorCode = GameWIP::Status::Types::Code;
         ErrorCode code = fallback;
 
         switch(nativeCode)
@@ -234,34 +236,40 @@ namespace GameWIP::Desktop::Platform
                 message.append(buffer.data(), length);
             }
 
-            return IO::makeStatus(code, nativeCode, std::move(message));
+            using GameWIP::Status::Types::NativeCode;
+            using GameWIP::Status::Types::NativeCodeDomain;
+
+            return GameWIP::Status::Types::Status::withDiagnostic(code, NativeCode{NativeCodeDomain::Win32Error, nativeCode}, message);
         }
         catch(...)
         {
-            return IO::makeStatus(code, nativeCode);
+            using GameWIP::Status::Types::NativeCode;
+            using GameWIP::Status::Types::NativeCodeDomain;
+
+            return GameWIP::Status::Types::Status::withDiagnostic(code, NativeCode{NativeCodeDomain::Win32Error, nativeCode});
         }
     }
 
     /// @brief Maps a display-mode change result into a portable status.
-    IO::Types::Status statusFromDisplayChange(LONG nativeCode, std::string_view operation) noexcept
+    GameWIP::Status::Types::Status statusFromDisplayChange(LONG nativeCode, std::string_view operation) noexcept
     {
-        IO::Types::ErrorCode code = IO::Types::ErrorCode::NativeFailure;
+        GameWIP::Status::Types::Code code = GameWIP::Status::Types::Code::NativeFailure;
 
         if(nativeCode == DISP_CHANGE_BADMODE || nativeCode == DISP_CHANGE_BADPARAM)
         {
-            code = IO::Types::ErrorCode::InvalidArgument;
+            code = GameWIP::Status::Types::Code::InvalidArgument;
         }
         else if(nativeCode == DISP_CHANGE_NOTUPDATED)
         {
-            code = IO::Types::ErrorCode::PermissionDenied;
+            code = GameWIP::Status::Types::Code::PermissionDenied;
         }
         try
         {
-            return IO::makeStatus(code, nativeCode, std::format("{} failed with display status {}", operation, nativeCode));
+            return GameWIP::Desktop::Internal::statusFor(code, nativeCode, std::format("{} failed with display status {}", operation, nativeCode));
         }
         catch(...)
         {
-            return IO::makeStatus(code, nativeCode);
+            return GameWIP::Desktop::Internal::statusFor(code, nativeCode);
         }
     }
 
@@ -395,11 +403,11 @@ namespace GameWIP::Desktop::Platform
     /// ------------------------------------------------------------
 
     /// @brief Re-reads native client geometry and republishes cached Window values.
-    IO::Types::Status refreshCachedGeometry(WindowState &state) noexcept
+    GameWIP::Status::Types::Status refreshCachedGeometry(WindowState &state) noexcept
     {
         if(!state.platform || state.platform->handle == nullptr)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::NotOpen);
         }
 
         RECT client{};
@@ -409,7 +417,7 @@ namespace GameWIP::Desktop::Platform
         if(GetClientRect(state.platform->handle, &client) == FALSE || ClientToScreen(state.platform->handle, &clientOrigin) == FALSE ||
            GetWindowRect(state.platform->handle, &frame) == FALSE)
         {
-            return statusFromWin32(IO::Types::ErrorCode::StatFailed, GetLastError(), "query window geometry");
+            return statusFromWin32(GameWIP::Status::Types::Code::StatFailed, GetLastError(), "query window geometry");
         }
         const UINT dpi = dpiForWindow(state.platform->handle);
         const auto physicalWidth = static_cast<std::uint32_t>(std::max<LONG>(0, client.right - client.left));
@@ -445,7 +453,7 @@ namespace GameWIP::Desktop::Platform
         }
         refreshChildSurfaceScreenRectsForParent(state.id);
         publishAccessibilityGeometry(state);
-        return IO::successStatus();
+        return GameWIP::Status::Types::Status{};
     }
 
     /// @brief Recomputes the monitor containing the Window and publishes changes.
@@ -456,18 +464,18 @@ namespace GameWIP::Desktop::Platform
             return;
         }
         HMONITOR native = MonitorFromWindow(state.platform->handle, MONITOR_DEFAULTTONEAREST);
-        Types::Result<Types::Display::Info> info = monitorFromNative(native);
+        GameWIP::Status::Types::Result<Types::Display::Info> info = monitorFromNative(native);
 
         if(!info.ok())
         {
-            recordPumpFailure(std::move(info.status));
+            recordPumpFailure(info.status());
             return;
         }
 
-        if(info->id != state.monitor)
+        if(info.value().id != state.monitor)
         {
             const Types::Display::MonitorId previous = state.monitor;
-            state.monitor = info->id;
+            state.monitor = info.value().id;
 
             if(state.presentationPublication != nullptr)
             {
@@ -478,16 +486,16 @@ namespace GameWIP::Desktop::Platform
     }
 
     /// @brief Applies cursor visibility, confinement, and relative-motion policy.
-    IO::Types::Status applyCursorState(WindowState &state) noexcept
+    GameWIP::Status::Types::Status applyCursorState(WindowState &state) noexcept
     {
         if(!state.platform || state.platform->handle == nullptr)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::NotOpen);
         }
 
         if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::Cursor))
         {
-            return IO::makeStatus(IO::Types::ErrorCode::NativeFailure);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::NativeFailure);
         }
 
         WindowData &data = *state.platform;
@@ -499,10 +507,10 @@ namespace GameWIP::Desktop::Platform
         {
             if(data.cursorClipApplied && ClipCursor(nullptr) == FALSE)
             {
-                return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "ClipCursor release");
+                return statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, GetLastError(), "ClipCursor release");
             }
             data.cursorClipApplied = false;
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
 
         RECT client{};
@@ -511,20 +519,20 @@ namespace GameWIP::Desktop::Platform
 
         if(GetClientRect(data.handle, &client) == FALSE)
         {
-            return statusFromWin32(IO::Types::ErrorCode::StatFailed, GetLastError(), "GetClientRect for cursor");
+            return statusFromWin32(GameWIP::Status::Types::Code::StatFailed, GetLastError(), "GetClientRect for cursor");
         }
         topLeft = {client.left, client.top};
         bottomRight = {client.right, client.bottom};
 
         if(ClientToScreen(data.handle, &topLeft) == FALSE || ClientToScreen(data.handle, &bottomRight) == FALSE)
         {
-            return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "ClientToScreen for cursor");
+            return statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, GetLastError(), "ClientToScreen for cursor");
         }
         RECT clip{topLeft.x, topLeft.y, bottomRight.x, bottomRight.y};
 
         if(ClipCursor(&clip) == FALSE)
         {
-            return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "ClipCursor");
+            return statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, GetLastError(), "ClipCursor");
         }
 
         data.cursorClipApplied = true;
@@ -536,18 +544,18 @@ namespace GameWIP::Desktop::Platform
 
             if(SetCursorPos(x, y) == FALSE)
             {
-                return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "SetCursorPos relative center");
+                return statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, GetLastError(), "SetCursorPos relative center");
             }
         }
 
-        return IO::successStatus();
+        return GameWIP::Status::Types::Status{};
     }
 
-    IO::Types::Status applyStyle(WindowState &state) noexcept
+    GameWIP::Status::Types::Status applyStyle(WindowState &state) noexcept
     {
         if(!state.platform || state.platform->handle == nullptr)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::NotOpen);
         }
 
         // ShowWindow, EnableWindow, minimize, and maximize own these runtime bits. Rebuilding
@@ -555,7 +563,7 @@ namespace GameWIP::Desktop::Platform
         // silently re-enable/restore it by replacing the complete style word.
         constexpr DWORD runtimeStyleBits = WS_VISIBLE | WS_DISABLED | WS_MINIMIZE | WS_MAXIMIZE;
         LONG_PTR currentStyleValue = 0;
-        IO::Types::Status queryStatus = queryWindowLong(state.platform->handle, GWL_STYLE, currentStyleValue, "GetWindowLongPtrW style");
+        GameWIP::Status::Types::Status queryStatus = queryWindowLong(state.platform->handle, GWL_STYLE, currentStyleValue, "GetWindowLongPtrW style");
 
         if(!queryStatus.ok())
         {
@@ -582,12 +590,12 @@ namespace GameWIP::Desktop::Platform
 
         if(!setLong(state.platform->handle, GWL_STYLE, desiredStyle, nativeCode))
         {
-            return statusFromWin32(IO::Types::ErrorCode::NativeFailure, nativeCode, "SetWindowLongPtrW style");
+            return statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, nativeCode, "SetWindowLongPtrW style");
         }
 
         if(!setLong(state.platform->handle, GWL_EXSTYLE, desiredExtendedStyle, nativeCode))
         {
-            return statusFromWin32(IO::Types::ErrorCode::NativeFailure, nativeCode, "SetWindowLongPtrW extended style");
+            return statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, nativeCode, "SetWindowLongPtrW extended style");
         }
 
         if(SetWindowPos(
@@ -599,7 +607,7 @@ namespace GameWIP::Desktop::Platform
                0,
                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_FRAMECHANGED) == FALSE)
         {
-            return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "SetWindowPos frame change");
+            return statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, GetLastError(), "SetWindowPos frame change");
         }
         return refreshCachedGeometry(state);
     }

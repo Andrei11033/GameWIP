@@ -4,10 +4,12 @@
 #pragma once
 
 #include "test_support/process.h"
+#include "status/status.h"
 
 #include <cstdint>
 #include <exception>
 #include <filesystem>
+#include <optional>
 #include <string>
 
 namespace GameWIP::TestSupport::Internal::Win32
@@ -18,9 +20,12 @@ namespace GameWIP::TestSupport::Internal::Win32
 
     struct NativeInfrastructureFailure final : std::exception
     {
-        NativeInfrastructureFailure(Types::InfrastructureError failure, std::uint64_t code) noexcept
+        NativeInfrastructureFailure(GameWIP::Status::Types::Code failure, std::uint64_t code) noexcept
             : error(failure)
-            , nativeCode(code)
+            , nativeCode(code == 0 ? std::nullopt
+                                   : std::optional<GameWIP::Status::Types::NativeCode>(
+                                         GameWIP::Status::Types::NativeCode{GameWIP::Status::Types::NativeCodeDomain::Win32Error,
+                                                                          static_cast<std::int64_t>(code)}))
         {
         }
 
@@ -30,8 +35,8 @@ namespace GameWIP::TestSupport::Internal::Win32
         }
 
         // Failure details
-        Types::InfrastructureError error;
-        std::uint64_t nativeCode;
+        GameWIP::Status::Types::Code error;
+        std::optional<GameWIP::Status::Types::NativeCode> nativeCode;
     };
 
     [[nodiscard]] std::wstring pathToWide(const std::filesystem::path &path);

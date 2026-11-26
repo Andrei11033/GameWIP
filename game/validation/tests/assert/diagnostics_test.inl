@@ -14,7 +14,7 @@ void testDiagnosticConfiguration(TestContext &context)
     }
 
     CHECK_MSG(false, "assert diagnostic message");
-    Logger::flush(2s);
+    static_cast<void>(Logger::flush(2s));
     const std::string contents = readFile(context, assertLogFilePath(context));
 
 #if ASSERT_DIAGNOSTICS
@@ -109,17 +109,17 @@ void testUtf8DiagnosticTruncation(TestContext &context)
     }
 
     CHECK_MSG(false, message);
-    Logger::flush(2s);
+    static_cast<void>(Logger::flush(2s));
 
     const TestSupport::Types::TextResult logText = TestSupport::readTextFile(assertLogFilePath(context));
-    const std::string statusText = TestSupport::formatInfrastructureStatus(logText.status);
-    context.expectTrue("truncated diagnostic remains valid UTF-8", logText.status.ok(), statusText);
+    const std::string statusText = TestSupport::formatStatus(logText.status());
+    context.expectTrue("truncated diagnostic remains valid UTF-8", logText.ok(), statusText);
 
-    if(!logText.status.ok())
+    if(!logText.ok())
     {
         return;
     }
-    context.expectContains("truncated diagnostic has visible suffix", logText.text, "... [truncated]");
+    context.expectContains("truncated diagnostic has visible suffix", logText.value(), "... [truncated]");
 #else
     context.skip("UTF-8 diagnostic truncation", "checks or diagnostics are disabled");
 #endif

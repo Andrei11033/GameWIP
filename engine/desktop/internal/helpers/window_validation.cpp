@@ -1,6 +1,7 @@
 /// @file window_validation.cpp
 /// @brief Shared private Window validation and ownership checks.
 
+#include "desktop/internal/results.h"
 #include "desktop/internal/helpers/window_validation.h"
 #include "desktop/internal/window_state.h"
 #include "desktop/platform/window.h"
@@ -25,9 +26,9 @@ namespace GameWIP::Desktop::Internal::Helpers
     /// Window request validation
     /// ------------------------------------------------------------
 
-    IO::Types::Status error(IO::Types::ErrorCode code) noexcept
+    GameWIP::Status::Types::Status error(GameWIP::Status::Types::Code code) noexcept
     {
-        return IO::makeStatus(code);
+        return GameWIP::Desktop::Internal::statusFor(code);
     }
 
     bool validSize(Types::LogicalSize size) noexcept
@@ -142,19 +143,19 @@ namespace GameWIP::Desktop::Internal::Helpers
     /// Window access validation
     /// ------------------------------------------------------------
 
-    IO::Types::Status requireState(WindowState *state) noexcept
+    GameWIP::Status::Types::Status requireState(WindowState *state) noexcept
     {
         if(state == nullptr || !state->platform || !Platform::hasLiveNativeWindow(*state))
         {
-            return error(IO::Types::ErrorCode::NotOpen);
+            return error(GameWIP::Status::Types::Code::NotOpen);
         }
 
         if(!Platform::ownedByCurrentThread(*state))
         {
-            return error(IO::Types::ErrorCode::ResourceBusy);
+            return error(GameWIP::Status::Types::Code::ResourceBusy);
         }
 
-        return IO::successStatus();
+        return GameWIP::Status::Types::Status{};
     }
 
 } // namespace GameWIP::Desktop::Internal::Helpers

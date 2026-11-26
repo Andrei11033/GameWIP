@@ -8,7 +8,7 @@
 #endif
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
-#include "io/status.h"
+#include "status/status.h"
 #include "terminal/internal/test_export.h"
 #include "terminal/input.h"
 
@@ -88,7 +88,7 @@ namespace GameWIP::Terminal::Internal::TestHooks::Win32
     /// @brief Result returned by deterministic Win32 key decoding.
     struct Win32KeyDecodeResult
     {
-        GameWIP::IO::Types::Status status;
+        GameWIP::Status::Types::Status status;
         Win32KeyDecodeDisposition disposition = Win32KeyDecodeDisposition::Ignored;
         std::optional<GameWIP::Terminal::Types::Event> event;
     };
@@ -96,7 +96,7 @@ namespace GameWIP::Terminal::Internal::TestHooks::Win32
     /// @brief Result from the production console wait path used by cancellation tests.
     struct Win32ConsoleWaitResult
     {
-        GameWIP::IO::Types::Status status;
+        GameWIP::Status::Types::Status status;
         GameWIP::Terminal::Types::Input::ReadOutcome outcome = GameWIP::Terminal::Types::Input::ReadOutcome::Completed;
     };
 

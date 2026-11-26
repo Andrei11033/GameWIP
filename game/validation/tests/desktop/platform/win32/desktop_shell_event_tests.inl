@@ -83,7 +83,7 @@ void testShellQueueAndCapabilities(TestSupport::Context &context)
     // Compare the capability snapshot with individual queries.
     const auto capabilities = Desktop::Shell::getCapabilities();
 
-    if(!context.expectTrue("shell capability query succeeds", capabilities.status.ok()))
+    if(!context.expectTrue("shell capability query succeeds", capabilities.ok()))
     {
         return;
     }
@@ -93,17 +93,17 @@ void testShellQueueAndCapabilities(TestSupport::Context &context)
         const auto capability = static_cast<ShellTypes::Capability>(index);
         static_cast<void>(context.expectEq(
             "Shell::supports agrees with capability snapshot",
-            capabilities->supports(capability),
+            capabilities.value().supports(capability),
             Desktop::Shell::supports(capability)));
     }
-    static_cast<void>(context.expectFalse("capability sentinel is never advertised", capabilities->supports(ShellTypes::Capability::Count)));
+    static_cast<void>(context.expectFalse("capability sentinel is never advertised", capabilities.value().supports(ShellTypes::Capability::Count)));
 
     // Verify internal queue validation, ownership, and overflow behavior.
     Desktop::ShellEventQueue queue;
     static_cast<void>(context.expectEq(
         "zero-capacity shell queue is rejected",
         ErrorCode::InvalidArgument,
-        queue.open(ShellTypes::QueueConfiguration::owned(0)).code));
+        queue.open(ShellTypes::QueueConfiguration::owned(0)).status().code()));
 
     if(!context.expectTrue("internal shell queue opens", queue.open(ShellTypes::QueueConfiguration::owned(2)).ok()))
     {
@@ -116,7 +116,7 @@ void testShellQueueAndCapabilities(TestSupport::Context &context)
     static_cast<void>(context.expectEq(
         "reopening an open shell queue is rejected",
         ErrorCode::AlreadyOpen,
-        queue.open(ShellTypes::QueueConfiguration::owned(2)).code));
+        queue.open(ShellTypes::QueueConfiguration::owned(2)).status().code()));
 
 #if DESKTOP_INTERNAL_TEST_HOOKS
     Desktop::Internal::TestHooks::enqueueShellEvent(
@@ -147,7 +147,7 @@ void testShellQueueAndCapabilities(TestSupport::Context &context)
         {
             ShellTypes::Event event;
             foreignPop.store(queue.popEvent(event));
-            foreignCloseCode.store(queue.close().code);
+            foreignCloseCode.store(queue.close().status().code());
         });
     foreignThread.join();
     static_cast<void>(context.expectFalse("foreign shell thread cannot consume events", foreignPop.load()));
@@ -189,7 +189,7 @@ void testShellPumpingWithoutWindow(TestSupport::Context &context)
                     "shell-only owner accepts a native message",
                     PostThreadMessageW(GetCurrentThreadId(), markerMessage, 0, 0) != FALSE));
                 const auto result = wait ? Desktop::Events::wait(std::chrono::milliseconds{10}) : Desktop::Events::poll();
-                static_cast<void>(context.expectTrue("shell-only event pumping succeeds", result.status.ok()));
+                static_cast<void>(context.expectTrue("shell-only event pumping succeeds", result.ok()));
                 MSG pending{};
                 static_cast<void>(context.expectFalse(
                     "shell-only pump consumes pending native messages",
@@ -236,12 +236,14 @@ void testShellPumpingWithoutWindow(TestSupport::Context &context)
             }
             else
             {
-                context.skip("shell-only tray pumping", std::format("native tray publication returned {}", IO::errorCodeName(opened.code)));
+                context.skip(
+                    "shell-only tray pumping",
+                    std::format("native tray publication returned {}", GameWIP::Status::Types::codeName(opened.status().code())));
             }
             static_cast<void>(context.expectTrue(
                 "closed shell owner accepts a native marker",
                 PostThreadMessageW(GetCurrentThreadId(), markerMessage, 0, 0) != FALSE));
-            static_cast<void>(context.expectTrue("pump without native resources succeeds", Desktop::Events::poll().status.ok()));
+            static_cast<void>(context.expectTrue("pump without native resources succeeds", Desktop::Events::poll().ok()));
             MSG pending{};
             static_cast<void>(context.expectTrue(
                 "closing the last shell resource restores the no-op pump",

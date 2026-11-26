@@ -85,10 +85,11 @@ static_cast<void>(input.close());
 ```
 
 In the window procedure, pass `message`, `wParam`, and `lParam` to
-`Attachment::handleMessage`. Use the caller's normal default-message handling
-when the attachment does not handle a message. Always pass `WM_INPUT` to
-`DefWindowProcW` after processing so Windows can clean up the raw-input handle.
-Capture once per iteration of the application's event or frame loop.
+`Attachment::handleMessage`. Check `ok()` before reading `value()`; use the
+caller's normal default-message handling when the value is `false`. Always pass
+`WM_INPUT` to `DefWindowProcW` after processing so Windows can clean up the
+raw-input handle. Capture once per iteration of the application's event or
+frame loop.
 
 ## Resolve and read controls
 
@@ -96,11 +97,12 @@ Resolve controls from connected device descriptors and retain their element
 IDs for the current open session:
 
 ```cpp
-std::span<const GameWIP::Input::Types::DeviceInfo> devices;
-if(!input.devices(devices).ok())
+const auto devicesResult = input.devices();
+if(!devicesResult.ok())
 {
     return 4;
 }
+const std::span<const GameWIP::Input::Types::DeviceInfo> devices = devicesResult.value();
 
 auto key = GameWIP::Input::Query::findStandard(devices, GameWIP::Input::Standard::Key::W);
 ```
@@ -113,7 +115,7 @@ while(appIsRunning)
 {
     // Pump the application's window messages and forward them to the attachment.
     const auto capture = input.capture(frame);
-    if(!capture.status.ok())
+    if(!capture.ok())
     {
         break;
     }
@@ -127,11 +129,12 @@ while(appIsRunning)
     }
     if(refreshBindings)
     {
-        if(!input.devices(devices).ok())
+        const auto updatedDevices = input.devices();
+        if(!updatedDevices.ok())
         {
             break;
         }
-        key = GameWIP::Input::Query::findStandard(devices, GameWIP::Input::Standard::Key::W);
+        key = GameWIP::Input::Query::findStandard(updatedDevices.value(), GameWIP::Input::Standard::Key::W);
     }
 
     if(key && frame.isDown(*key))

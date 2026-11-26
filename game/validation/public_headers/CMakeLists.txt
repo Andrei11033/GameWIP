@@ -23,7 +23,6 @@ gamewip_add_public_header_check(StatusResult status_result_header.cpp GameWIP::S
 
 gamewip_add_public_header_check(Unicode unicode_header.cpp GameWIP::Unicode)
 gamewip_add_public_header_check(IO io_header.cpp GameWIP::IO)
-gamewip_add_public_header_check(IOStatus io_status_header.cpp GameWIP::IO)
 gamewip_add_public_header_check(IOStream io_stream_header.cpp GameWIP::IO)
 gamewip_add_public_header_check(IOMemory io_memory_header.cpp GameWIP::IO)
 gamewip_add_public_header_check(IOTransfer io_transfer_header.cpp GameWIP::IO)
@@ -83,7 +82,6 @@ gamewip_add_public_header_check(DesktopDisplay desktop_display_header.cpp GameWI
 gamewip_add_public_header_check(DesktopDisplayInfo desktop_display_info_header.cpp GameWIP::Desktop)
 gamewip_add_public_header_check(DesktopWindow desktop_window_header.cpp GameWIP::Desktop)
 gamewip_add_public_header_check(DesktopRenderer desktop_renderer_header.cpp GameWIP::Desktop)
-gamewip_add_public_header_check(DesktopResult desktop_result_header.cpp GameWIP::Desktop)
 gamewip_add_public_header_check(DesktopShell desktop_shell_header.cpp GameWIP::Desktop)
 gamewip_add_public_header_check(DesktopShellTypes desktop_shell_types_header.cpp GameWIP::Desktop)
 gamewip_add_public_header_check(DesktopShellTaskbar desktop_shell_taskbar_header.cpp GameWIP::Desktop)

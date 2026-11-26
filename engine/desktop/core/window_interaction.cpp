@@ -21,58 +21,58 @@ namespace GameWIP::Desktop
         using Internal::Helpers::validEnum;
         using Internal::Helpers::validModeRequest;
         using Internal::Helpers::validRect;
-        using IO::Types::ErrorCode;
+        using ErrorCode = GameWIP::Status::Types::Code;
     } // namespace
 
     /// ------------------------------------------------------------
     /// Presentation and interaction
     /// ------------------------------------------------------------
 
-    IO::Types::Status Window::show() noexcept
+    GameWIP::Status::Types::Result<void> Window::show() noexcept
     {
-        IO::Types::Status status = requireState(state_.get());
+        GameWIP::Status::Types::Status status = requireState(state_.get());
         return status.ok() ? Platform::show(*state_) : status;
     }
 
-    IO::Types::Status Window::hide() noexcept
+    GameWIP::Status::Types::Result<void> Window::hide() noexcept
     {
-        IO::Types::Status status = requireState(state_.get());
+        GameWIP::Status::Types::Status status = requireState(state_.get());
         return status.ok() ? Platform::hide(*state_) : status;
     }
 
-    IO::Types::Status Window::requestFocus() noexcept
+    GameWIP::Status::Types::Result<void> Window::requestFocus() noexcept
     {
-        IO::Types::Status status = requireState(state_.get());
+        GameWIP::Status::Types::Status status = requireState(state_.get());
         return status.ok() ? Platform::requestFocus(*state_) : status;
     }
 
-    IO::Types::Status Window::requestAttention() noexcept
+    GameWIP::Status::Types::Result<void> Window::requestAttention() noexcept
     {
-        IO::Types::Status status = requireState(state_.get());
+        GameWIP::Status::Types::Status status = requireState(state_.get());
         return status.ok() ? Platform::requestAttention(*state_) : status;
     }
 
-    IO::Types::Status Window::minimize() noexcept
+    GameWIP::Status::Types::Result<void> Window::minimize() noexcept
     {
-        IO::Types::Status status = requireState(state_.get());
+        GameWIP::Status::Types::Status status = requireState(state_.get());
         return status.ok() ? Platform::minimize(*state_) : status;
     }
 
-    IO::Types::Status Window::maximize() noexcept
+    GameWIP::Status::Types::Result<void> Window::maximize() noexcept
     {
-        IO::Types::Status status = requireState(state_.get());
+        GameWIP::Status::Types::Status status = requireState(state_.get());
         return status.ok() ? Platform::maximize(*state_) : status;
     }
 
-    IO::Types::Status Window::restore() noexcept
+    GameWIP::Status::Types::Result<void> Window::restore() noexcept
     {
-        IO::Types::Status status = requireState(state_.get());
+        GameWIP::Status::Types::Status status = requireState(state_.get());
         return status.ok() ? Platform::restore(*state_) : status;
     }
 
-    IO::Types::Status Window::setWindowMode(const Types::WindowModeRequest &request) noexcept
+    GameWIP::Status::Types::Result<void> Window::setWindowMode(const Types::WindowModeRequest &request) noexcept
     {
-        IO::Types::Status status = requireState(state_.get());
+        GameWIP::Status::Types::Status status = requireState(state_.get());
 
         if(!status.ok())
         {
@@ -86,9 +86,9 @@ namespace GameWIP::Desktop
         return Platform::setWindowMode(*state_, request);
     }
 
-    IO::Types::Status Window::setResizable(bool resizable) noexcept
+    GameWIP::Status::Types::Result<void> Window::setResizable(bool resizable) noexcept
     {
-        IO::Types::Status status = requireState(state_.get());
+        GameWIP::Status::Types::Status status = requireState(state_.get());
 
         if(!status.ok())
         {
@@ -102,9 +102,9 @@ namespace GameWIP::Desktop
         return Platform::setResizable(*state_, resizable);
     }
 
-    IO::Types::Status Window::setDecorationMode(Types::DecorationMode mode) noexcept
+    GameWIP::Status::Types::Result<void> Window::setDecorationMode(Types::DecorationMode mode) noexcept
     {
-        IO::Types::Status status = requireState(state_.get());
+        GameWIP::Status::Types::Status status = requireState(state_.get());
 
         if(!status.ok())
         {
@@ -118,9 +118,9 @@ namespace GameWIP::Desktop
         return Platform::setDecorationMode(*state_, mode);
     }
 
-    IO::Types::Status Window::setControls(const Types::Controls &controls) noexcept
+    GameWIP::Status::Types::Result<void> Window::setControls(const Types::Controls &controls) noexcept
     {
-        IO::Types::Status status = requireState(state_.get());
+        GameWIP::Status::Types::Status status = requireState(state_.get());
 
         if(!status.ok())
         {
@@ -134,27 +134,27 @@ namespace GameWIP::Desktop
         return Platform::setControls(*state_, controls);
     }
 
-    IO::Types::Status Window::setFocusable(bool focusable) noexcept
+    GameWIP::Status::Types::Result<void> Window::setFocusable(bool focusable) noexcept
     {
-        IO::Types::Status status = requireState(state_.get());
+        GameWIP::Status::Types::Status status = requireState(state_.get());
         return status.ok() ? Platform::setFocusable(*state_, focusable) : status;
     }
 
-    IO::Types::Status Window::setUserInteractionEnabled(bool enabled) noexcept
+    GameWIP::Status::Types::Result<void> Window::setUserInteractionEnabled(bool enabled) noexcept
     {
-        IO::Types::Status status = requireState(state_.get());
+        GameWIP::Status::Types::Status status = requireState(state_.get());
         return status.ok() ? Platform::setUserInteractionEnabled(*state_, enabled) : status;
     }
 
-    IO::Types::Status Window::setAlwaysOnTop(bool alwaysOnTop) noexcept
+    GameWIP::Status::Types::Result<void> Window::setAlwaysOnTop(bool alwaysOnTop) noexcept
     {
-        IO::Types::Status status = requireState(state_.get());
+        GameWIP::Status::Types::Status status = requireState(state_.get());
         return status.ok() ? Platform::setAlwaysOnTop(*state_, alwaysOnTop) : status;
     }
 
-    IO::Types::Status Window::setOpacity(float opacity) noexcept
+    GameWIP::Status::Types::Result<void> Window::setOpacity(float opacity) noexcept
     {
-        IO::Types::Status status = requireState(state_.get());
+        GameWIP::Status::Types::Status status = requireState(state_.get());
 
         if(!status.ok())
         {
@@ -168,9 +168,9 @@ namespace GameWIP::Desktop
         return Platform::setOpacity(*state_, opacity);
     }
 
-    IO::Types::Status Window::setBackdropEffect(Types::BackdropEffect effect) noexcept
+    GameWIP::Status::Types::Result<void> Window::setBackdropEffect(Types::BackdropEffect effect) noexcept
     {
-        IO::Types::Status status = requireState(state_.get());
+        GameWIP::Status::Types::Status status = requireState(state_.get());
 
         if(!status.ok())
         {
@@ -184,15 +184,15 @@ namespace GameWIP::Desktop
         return Platform::setBackdropEffect(*state_, effect);
     }
 
-    IO::Types::Status Window::setFileDropEnabled(bool enabled) noexcept
+    GameWIP::Status::Types::Result<void> Window::setFileDropEnabled(bool enabled) noexcept
     {
-        IO::Types::Status status = requireState(state_.get());
+        GameWIP::Status::Types::Status status = requireState(state_.get());
         return status.ok() ? Platform::setFileDropEnabled(*state_, enabled) : status;
     }
 
-    IO::Types::Status Window::setCustomChromeLayout(const Types::CustomChromeLayout &layout) noexcept
+    GameWIP::Status::Types::Result<void> Window::setCustomChromeLayout(const Types::CustomChromeLayout &layout) noexcept
     {
-        IO::Types::Status status = requireState(state_.get());
+        GameWIP::Status::Types::Status status = requireState(state_.get());
 
         if(!status.ok())
         {
@@ -206,9 +206,9 @@ namespace GameWIP::Desktop
                                         static_cast<std::size_t>(layout.closeButtonRegion.has_value());
         const auto capabilities = getCapabilities();
 
-        if(!capabilities.ok() || regionCount > capabilities->maximumCustomChromeRegions)
+        if(!capabilities.ok() || regionCount > capabilities.value().maximumCustomChromeRegions)
         {
-            return capabilities.ok() ? error(ErrorCode::InvalidArgument) : capabilities.status;
+            return capabilities.ok() ? error(ErrorCode::InvalidArgument) : capabilities.status();
         }
 
         // Validate every region before copying or mutating cached state.
@@ -272,14 +272,14 @@ namespace GameWIP::Desktop
         }
     }
 
-    IO::Types::Status Window::clearCustomChromeLayout() noexcept
+    GameWIP::Status::Types::Result<void> Window::clearCustomChromeLayout() noexcept
     {
         return setCustomChromeLayout({});
     }
 
-    IO::Types::Status Window::setPointerInputLayout(const Types::PointerInputLayout &layout) noexcept
+    GameWIP::Status::Types::Result<void> Window::setPointerInputLayout(const Types::PointerInputLayout &layout) noexcept
     {
-        IO::Types::Status status = requireState(state_.get());
+        GameWIP::Status::Types::Status status = requireState(state_.get());
 
         if(!status.ok())
         {
@@ -303,25 +303,25 @@ namespace GameWIP::Desktop
 
         if(!capabilities.ok())
         {
-            return capabilities.status;
+            return capabilities.status();
         }
 
-        if(layout.mode == Types::PointerInputMode::ClickThrough && !capabilities->supports(Types::Capability::PointerClickThrough))
+        if(layout.mode == Types::PointerInputMode::ClickThrough && !capabilities.value().supports(Types::Capability::PointerClickThrough))
         {
             return error(ErrorCode::Unsupported);
         }
 
-        if(regionMode && !capabilities->supports(Types::Capability::PointerRegions))
+        if(regionMode && !capabilities.value().supports(Types::Capability::PointerRegions))
         {
             return error(ErrorCode::Unsupported);
         }
 
-        if(layout.mode == Types::PointerInputMode::HitMask && !capabilities->supports(Types::Capability::PointerHitMask))
+        if(layout.mode == Types::PointerInputMode::HitMask && !capabilities.value().supports(Types::Capability::PointerHitMask))
         {
             return error(ErrorCode::Unsupported);
         }
 
-        if(layout.regions.size() > capabilities->maximumPointerInputRegions)
+        if(layout.regions.size() > capabilities.value().maximumPointerInputRegions)
         {
             return error(ErrorCode::InvalidArgument);
         }
@@ -354,7 +354,7 @@ namespace GameWIP::Desktop
             {
                 state_->pointerInputRegions = std::move(previous);
                 state_->pointerInputMode = previousMode;
-                IO::Types::Status rollback = Platform::setPointerInputLayout(*state_);
+                GameWIP::Status::Types::Status rollback = Platform::setPointerInputLayout(*state_);
                 return rollback.ok() ? std::move(status) : std::move(rollback);
             }
             return status;
@@ -373,9 +373,9 @@ namespace GameWIP::Desktop
     /// Cursor controls
     /// ------------------------------------------------------------
 
-    IO::Types::Status Window::setCursorMode(Types::CursorMode mode) noexcept
+    GameWIP::Status::Types::Result<void> Window::setCursorMode(Types::CursorMode mode) noexcept
     {
-        IO::Types::Status status = requireState(state_.get());
+        GameWIP::Status::Types::Status status = requireState(state_.get());
 
         if(!status.ok())
         {
@@ -389,9 +389,9 @@ namespace GameWIP::Desktop
         return Platform::setCursorMode(*state_, mode);
     }
 
-    IO::Types::Status Window::setCursorShape(Types::CursorShape shape) noexcept
+    GameWIP::Status::Types::Result<void> Window::setCursorShape(Types::CursorShape shape) noexcept
     {
-        IO::Types::Status status = requireState(state_.get());
+        GameWIP::Status::Types::Status status = requireState(state_.get());
 
         if(!status.ok())
         {
@@ -405,15 +405,16 @@ namespace GameWIP::Desktop
         return Platform::setCursorShape(*state_, shape);
     }
 
-    IO::Types::Status Window::setCursorPosition(Types::LogicalPosition position) noexcept
+    GameWIP::Status::Types::Result<void> Window::setCursorPosition(Types::LogicalPosition position) noexcept
     {
-        IO::Types::Status status = requireState(state_.get());
+        GameWIP::Status::Types::Status status = requireState(state_.get());
         return status.ok() ? Platform::setCursorPosition(*state_, position) : status;
     }
 
-    Types::Result<Types::LogicalPosition> Window::cursorPosition() const noexcept
+    GameWIP::Status::Types::Result<Types::LogicalPosition> Window::cursorPosition() const noexcept
     {
-        IO::Types::Status status = requireState(state_.get());
-        return status.ok() ? Platform::cursorPosition(*state_) : Types::Result<Types::LogicalPosition>{status, std::nullopt};
+        GameWIP::Status::Types::Status status = requireState(state_.get());
+        return status.ok() ? Platform::cursorPosition(*state_)
+                           : GameWIP::Status::Types::Result<Types::LogicalPosition>::failure(status);
     }
 } // namespace GameWIP::Desktop

@@ -1,6 +1,7 @@
 /// @file win32_data_transfer.cpp
 /// @brief Shared Win32 conversion between portable DataTransfer values and HGLOBAL wire formats.
 
+#include "desktop/internal/results.h"
 #include "desktop/platform/win32/internal/win32_data_transfer.h"
 #include "desktop/platform/win32/internal/win32_window_backend.h"
 #include "desktop/platform/win32/internal/win32_unicode.h"
@@ -24,13 +25,16 @@ namespace GameWIP::Desktop::Platform::DataTransfer
 
     namespace
     {
-        using IO::Types::ErrorCode;
+        using ErrorCode = GameWIP::Status::Types::Code;
         namespace Transfer = Types::DataTransfer;
 
         /// @brief Creates a data-transfer status with an optional native error value.
-        [[nodiscard]] IO::Types::Status failure(ErrorCode code, DWORD native = 0) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status failure(ErrorCode code, DWORD native = 0) noexcept
         {
-            return IO::makeStatus(code, native);
+            return GameWIP::Desktop::Internal::statusFor(
+                code,
+                native,
+                GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
         }
 
         /// @brief Multiplies sizes while rejecting native allocation overflow.
@@ -192,7 +196,7 @@ namespace GameWIP::Desktop::Platform::DataTransfer
         };
 
         /// @brief Requests one HGLOBAL representation from a foreign data object.
-        [[nodiscard]] IO::Types::Status getGlobal(IDataObject &object, CLIPFORMAT format, Medium &medium) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status getGlobal(IDataObject &object, CLIPFORMAT format, Medium &medium) noexcept
         {
             FORMATETC request{format, nullptr, DVASPECT_CONTENT, -1, TYMED_HGLOBAL};
             const HRESULT result = object.GetData(&request, medium.out());
@@ -203,7 +207,7 @@ namespace GameWIP::Desktop::Platform::DataTransfer
             }
 
             medium.acquired();
-            return medium.global() ? IO::successStatus() : failure(ErrorCode::ReadFailed);
+            return medium.global() ? GameWIP::Status::Types::Status{} : failure(ErrorCode::ReadFailed);
         }
     } // namespace
 
@@ -212,11 +216,11 @@ namespace GameWIP::Desktop::Platform::DataTransfer
     /// ------------------------------------------------------------
 
     /// @brief Resolves a portable format to its Win32 clipboard identifier.
-    CLIPFORMAT nativeFormat(const Transfer::Format &format, IO::Types::Status &result) noexcept
+    CLIPFORMAT nativeFormat(const Transfer::Format &format, GameWIP::Status::Types::Status &result) noexcept
     {
         try
         {
-            result = IO::successStatus();
+            result = GameWIP::Status::Types::Status{};
 
             switch(format.kind)
             {
@@ -280,8 +284,8 @@ namespace GameWIP::Desktop::Platform::DataTransfer
             return true;
         }
 
-        IO::Types::Status leftStatus;
-        IO::Types::Status rightStatus;
+        GameWIP::Status::Types::Status leftStatus;
+        GameWIP::Status::Types::Status rightStatus;
         const CLIPFORMAT left = nativeFormat(a, leftStatus);
         const CLIPFORMAT right = nativeFormat(b, rightStatus);
         return leftStatus.ok() && rightStatus.ok() && left == right;
@@ -292,12 +296,12 @@ namespace GameWIP::Desktop::Platform::DataTransfer
     /// ------------------------------------------------------------
 
     /// @brief Encodes text, paths, images, or custom bytes into native clipboard storage.
-    IO::Types::Status prepare(const Transfer::ItemView &item, PreparedItem &out) noexcept
+    GameWIP::Status::Types::Status prepare(const Transfer::ItemView &item, PreparedItem &out) noexcept
     {
         try
         {
             return std::visit(
-                [&](const auto &value) -> IO::Types::Status
+                [&](const auto &value) -> GameWIP::Status::Types::Status
                 {
                     using T = std::remove_cvref_t<decltype(value)>;
                     if constexpr(std::is_same_v<T, Transfer::TextView>)
@@ -323,7 +327,7 @@ namespace GameWIP::Desktop::Platform::DataTransfer
                         out.format = CF_UNICODETEXT;
                         out.bytes.assign(bytes, std::byte{});
                         std::ranges::copy(std::as_bytes(std::span{wide}), out.bytes.begin());
-                        return IO::successStatus();
+                        return GameWIP::Status::Types::Status{};
                     }
                     else if constexpr(std::is_same_v<T, Transfer::FileListView>)
                     {
@@ -377,7 +381,7 @@ namespace GameWIP::Desktop::Platform::DataTransfer
                             offset += bytes.size() + sizeof(wchar_t);
                         }
 
-                        return IO::successStatus();
+                        return GameWIP::Status::Types::Status{};
                     }
                     else if constexpr(std::is_same_v<T, Transfer::ImageView>)
                     {
@@ -433,12 +437,12 @@ namespace GameWIP::Desktop::Platform::DataTransfer
                             }
                         }
 
-                        return IO::successStatus();
+                        return GameWIP::Status::Types::Status{};
                     }
                     else
                     {
                         Transfer::Format f{Transfer::FormatKind::Custom, std::string(value.formatName)};
-                        IO::Types::Status result;
+                        GameWIP::Status::Types::Status result;
                         out.format = nativeFormat(f, result);
 
                         if(!result.ok())
@@ -451,7 +455,7 @@ namespace GameWIP::Desktop::Platform::DataTransfer
                             return failure(ErrorCode::Unsupported);
                         }
                         out.bytes.assign(value.bytes.begin(), value.bytes.end());
-                        return IO::successStatus();
+                        return GameWIP::Status::Types::Status{};
                     }
                 },
                 item);
@@ -467,7 +471,7 @@ namespace GameWIP::Desktop::Platform::DataTransfer
     }
 
     /// @brief Allocates movable global memory and copies one prepared payload into it.
-    IO::Types::Status copyToGlobal(const PreparedItem &item, HGLOBAL &output) noexcept
+    GameWIP::Status::Types::Status copyToGlobal(const PreparedItem &item, HGLOBAL &output) noexcept
     {
         output = GlobalAlloc(GMEM_MOVEABLE, item.bytes.size());
 
@@ -485,7 +489,7 @@ namespace GameWIP::Desktop::Platform::DataTransfer
             return failure(ErrorCode::LockFailed, code);
         }
         std::ranges::copy(item.bytes, span<std::byte>(lock.get(), item.bytes.size()).begin());
-        return IO::successStatus();
+        return GameWIP::Status::Types::Status{};
     }
 
     /// ------------------------------------------------------------
@@ -493,7 +497,7 @@ namespace GameWIP::Desktop::Platform::DataTransfer
     /// ------------------------------------------------------------
 
     /// @brief Enumerates supported HGLOBAL formats exposed by a foreign object.
-    IO::Types::Status formats(IDataObject &object, std::vector<FormatIdentity> &out) noexcept
+    GameWIP::Status::Types::Status formats(IDataObject &object, std::vector<FormatIdentity> &out) noexcept
     {
         try
         {
@@ -505,7 +509,7 @@ namespace GameWIP::Desktop::Platform::DataTransfer
                 return failure(ErrorCode::ReadFailed, static_cast<DWORD>(hr));
             }
             std::size_t seen = 0;
-            IO::Types::Status result = IO::successStatus();
+            GameWIP::Status::Types::Status result = GameWIP::Status::Types::Status{};
 
             for(;;)
             {
@@ -604,7 +608,7 @@ namespace GameWIP::Desktop::Platform::DataTransfer
     namespace
     {
         /// @brief Decodes a terminated UTF-16 clipboard string into portable UTF-8 text.
-        [[nodiscard]] IO::Types::Status materializeText(const void *raw, std::size_t size, Transfer::Item &out)
+        [[nodiscard]] GameWIP::Status::Types::Status materializeText(const void *raw, std::size_t size, Transfer::Item &out)
         {
             if(size < sizeof(wchar_t) || size % sizeof(wchar_t))
             {
@@ -628,11 +632,11 @@ namespace GameWIP::Desktop::Platform::DataTransfer
             }
 
             out = std::move(text);
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
 
         /// @brief Decodes an HDROP path list into portable filesystem paths.
-        [[nodiscard]] IO::Types::Status materializeFiles(HGLOBAL global, Transfer::Item &out)
+        [[nodiscard]] GameWIP::Status::Types::Status materializeFiles(HGLOBAL global, Transfer::Item &out)
         {
             const UINT count = DragQueryFileW(static_cast<HDROP>(global), 0xFFFFFFFF, nullptr, 0);
 
@@ -673,22 +677,22 @@ namespace GameWIP::Desktop::Platform::DataTransfer
             }
 
             out = std::move(list);
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
 
         /// @brief Copies opaque custom clipboard bytes into the portable value.
-        [[nodiscard]] IO::Types::Status materializeCustom(const void *raw, std::size_t size, const Transfer::Format &format, Transfer::Item &out)
+        [[nodiscard]] GameWIP::Status::Types::Status materializeCustom(const void *raw, std::size_t size, const Transfer::Format &format, Transfer::Item &out)
         {
             Transfer::CustomData data;
             data.formatName = format.customName;
             const auto bytes = span<const std::byte>(raw, size);
             data.bytes.assign(bytes.begin(), bytes.end());
             out = std::move(data);
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
 
         /// @brief Decodes a supported DIB layout into tightly packed RGBA8 pixels.
-        [[nodiscard]] IO::Types::Status materializeImage(const void *raw, std::size_t size, Transfer::Item &out)
+        [[nodiscard]] GameWIP::Status::Types::Status materializeImage(const void *raw, std::size_t size, Transfer::Item &out)
         {
             // Validate the header and supported pixel encodings before reading channel data.
             if(size < sizeof(BITMAPINFOHEADER))
@@ -797,12 +801,12 @@ namespace GameWIP::Desktop::Platform::DataTransfer
             }
 
             out = std::move(image);
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
     } // namespace
 
     /// @brief Decodes one locked HGLOBAL into a portable data-transfer item.
-    IO::Types::Status materializeGlobal(HGLOBAL global, const Transfer::Format &format, Transfer::Item &out) noexcept
+    GameWIP::Status::Types::Status materializeGlobal(HGLOBAL global, const Transfer::Format &format, Transfer::Item &out) noexcept
     {
         try
         {
@@ -815,7 +819,7 @@ namespace GameWIP::Desktop::Platform::DataTransfer
             if(format.kind == Transfer::FormatKind::Custom && size == 0)
             {
                 out = Transfer::CustomData{format.customName, {}};
-                return IO::successStatus();
+                return GameWIP::Status::Types::Status{};
             }
             GlobalMemoryLock lock(global);
             const void *raw = lock.get();
@@ -851,9 +855,9 @@ namespace GameWIP::Desktop::Platform::DataTransfer
     }
 
     /// @brief Requests and decodes one portable item from a foreign data object.
-    IO::Types::Status materialize(IDataObject &object, const Transfer::Format &format, Transfer::Item &out) noexcept
+    GameWIP::Status::Types::Status materialize(IDataObject &object, const Transfer::Format &format, Transfer::Item &out) noexcept
     {
-        IO::Types::Status result;
+        GameWIP::Status::Types::Status result;
         CLIPFORMAT native = nativeFormat(format, result);
 
         if(!result.ok())

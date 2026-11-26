@@ -10,21 +10,21 @@ namespace GameWIP::FileSystem::Internal
         return state != nullptr && state->nativeHandle != nullptr;
     }
 
-    IO::Types::Status closeFileState(std::unique_ptr<FileState> &state) noexcept
+    GameWIP::Status::Types::Result<void> closeFileState(std::unique_ptr<FileState> &state) noexcept
     {
         if(!stateIsOpen(state))
         {
             state.reset();
-            return IO::successStatus();
+            return GameWIP::Status::Types::Result<void>::success();
         }
 
-        IO::Types::Status status = Platform::closeFile(*state);
+        auto result = Platform::closeFile(*state);
 
-        if(status.ok())
+        if(result.ok())
         {
             state.reset();
         }
 
-        return status;
+        return result;
     }
 } // namespace GameWIP::FileSystem::Internal

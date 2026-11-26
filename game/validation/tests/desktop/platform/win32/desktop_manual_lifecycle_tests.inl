@@ -25,11 +25,11 @@ void testManualVisibleLifecycle(TestSupport::Context &context, const GameWIP::Te
     description.activation.requestFocus = true;
 
     Desktop::Window window;
-    const IO::Types::Status openStatus = window.open(description);
+    const GameWIP::Status::Types::Result<void> openStatus = window.open(description);
 
     if(!openStatus.ok())
     {
-        context.fail("manual Window opens", openStatus.message);
+        context.fail("manual Window opens", manualStatusDetails(openStatus.status()));
         return;
     }
 
@@ -157,7 +157,7 @@ void testManualMultipleWindows(TestSupport::Context &context, const GameWIP::Tes
     pumpManualPreparation(std::chrono::seconds{5});
     static_cast<void>(context.expectTrue("manual owner shows without activation", owner.show().ok()));
     recordManualCheck(context, owner, "show without activation", "Did show() leave the other application active instead of stealing focus?");
-    const IO::Types::Status focusStatus = owner.requestFocus();
+    const GameWIP::Status::Types::Result<void> focusStatus = owner.requestFocus();
     recordManualCheck(
         context,
         owner,

@@ -64,8 +64,8 @@ void testCursorValuesAndValidation(TestSupport::Context &context)
     const auto expectInvalid = [&context](std::string_view name, const Desktop::Types::Cursor::ImageView &image)
     {
         const auto result = Desktop::createCursor(std::span{&image, std::size_t{1}});
-        static_cast<void>(context.expectEq(name, ErrorCode::InvalidArgument, result.status.code));
-        static_cast<void>(context.expectFalse("invalid input does not publish a Cursor", result.value.has_value() && result->isValid()));
+        static_cast<void>(context.expectEq(name, GameWIP::Status::Types::Code::InvalidArgument, result.status().code()));
+        static_cast<void>(context.expectFalse("invalid input does not publish a Cursor", result.hasValue() && result.value().isValid()));
     };
 
     static_cast<void>(context.expectTrue(
@@ -73,7 +73,8 @@ void testCursorValuesAndValidation(TestSupport::Context &context)
         Desktop::Types::Cursor::PixelPosition{1, 2} == Desktop::Types::Cursor::PixelPosition{1, 2}));
 
     const auto noVariants = Desktop::createCursor(std::span<const Desktop::Types::Cursor::ImageView>{});
-    static_cast<void>(context.expectEq("zero cursor variants are invalid", ErrorCode::InvalidArgument, noVariants.status.code));
+    static_cast<void>(
+        context.expectEq("zero cursor variants are invalid", GameWIP::Status::Types::Code::InvalidArgument, noVariants.status().code()));
 
     const CursorTest::Pixels packedPixels = CursorTest::pixels();
     Desktop::Types::Cursor::ImageView candidate = CursorTest::image(packedPixels);
@@ -108,17 +109,17 @@ void testCursorValuesAndValidation(TestSupport::Context &context)
 
     std::array duplicateDpi{CursorTest::image(packedPixels, 144), CursorTest::image(packedPixels, 144)};
     const auto duplicate = Desktop::createCursor(duplicateDpi);
-    static_cast<void>(context.expectEq("duplicate cursor DPI is invalid", ErrorCode::InvalidArgument, duplicate.status.code));
-    static_cast<void>(context.expectFalse("duplicate DPI does not publish a Cursor", duplicate.value.has_value() && duplicate->isValid()));
+    static_cast<void>(context.expectEq("duplicate cursor DPI is invalid", GameWIP::Status::Types::Code::InvalidArgument, duplicate.status().code()));
+    static_cast<void>(context.expectFalse("duplicate DPI does not publish a Cursor", duplicate.hasValue() && duplicate.value().isValid()));
 
     // Verify successful creation and value semantics.
     auto packed = CursorTest::create(packedPixels);
-    if(!context.expectTrue("single-image cursor overload creates successfully", packed.status.ok()))
+    if(!context.expectTrue("single-image cursor overload creates successfully", packed.ok()))
     {
         return;
     }
 
-    static_cast<void>(context.expectTrue("successful creation publishes a valid Cursor", packed->isValid()));
+    static_cast<void>(context.expectTrue("successful creation publishes a valid Cursor", packed.value().isValid()));
 
     std::array<std::byte, 24> paddedPixels{};
     const std::span packedRows{packedPixels};
@@ -127,12 +128,12 @@ void testCursorValuesAndValidation(TestSupport::Context &context)
     std::ranges::copy(packedRows.subspan(8), paddedRows.subspan(12, 8).begin());
     const Desktop::Types::Cursor::ImageView paddedImage = CursorTest::image(paddedPixels, 96, 12);
     const auto padded = Desktop::createCursor(std::span{&paddedImage, std::size_t{1}});
-    if(!context.expectTrue("padded cursor rows create successfully", padded.status.ok()))
+    if(!context.expectTrue("padded cursor rows create successfully", padded.ok()))
     {
         return;
     }
 
-    Desktop::Cursor copy = *packed;
+    Desktop::Cursor copy = packed.value();
     static_cast<void>(context.expectTrue("copied Cursor remains valid", copy.isValid()));
     Desktop::Cursor assigned;
     assigned = copy;

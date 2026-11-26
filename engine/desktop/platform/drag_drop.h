@@ -24,7 +24,7 @@ namespace GameWIP::Desktop::Platform
     /// ------------------------------------------------------------
 
     /// @brief Registers the native drop target for a Window.
-    [[nodiscard]] IO::Types::Status openDragDropTarget(DragDropState &, WindowState &) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Status openDragDropTarget(DragDropState &, WindowState &) noexcept;
     /// @brief Closes a native drop target.
     [[nodiscard]] CloseResult closeDragDropTarget(DragDropState &) noexcept;
     /// @brief Attempts owner-thread target cleanup without publishing errors.
@@ -49,7 +49,7 @@ namespace GameWIP::Desktop::Platform
     /// ------------------------------------------------------------
 
     /// @brief Validates portable drop regions and prepares native formats.
-    [[nodiscard]] IO::Types::Status prepareDragDropRegions(std::vector<DragDropRegion> &) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Status prepareDragDropRegions(std::vector<DragDropRegion> &) noexcept;
     /// @brief Publishes one drag/drop event and records terminal delivery.
     void routeDragDropEvent(DragDropState &, Types::DragDrop::Events::Payload, bool terminal = false) noexcept;
 

@@ -28,7 +28,7 @@ void testProgressDialogOwnership(TestSupport::Context &context)
         return;
     }
     static_cast<void>(context.expectTrue("blocksOwner false leaves owner enabled", nativeInteractionEnabled(owner)));
-    static_cast<void>(context.expectTrue("owned ProgressDialog participates in event pump", Desktop::Events::poll().status.ok()));
+    static_cast<void>(context.expectTrue("owned ProgressDialog participates in event pump", Desktop::Events::poll().ok()));
     static_cast<void>(nonblocking.close());
 
     // Keep a shared owner blocked until its last modal ProgressDialog closes.
@@ -90,7 +90,7 @@ void testProgressDialogOwnership(TestSupport::Context &context)
         "owned native ProgressDialog loss removes blocker contribution",
         Win32TestHooks::inspectProgressDialog(lostOwnedProgress).blockingOwner));
     static_cast<void>(context.expectFalse("owner restoration remains deferred until dispatch", nativeInteractionEnabled(owner)));
-    static_cast<void>(context.expectTrue("owner restoration dispatch succeeds", Desktop::Events::poll().status.ok()));
+    static_cast<void>(context.expectTrue("owner restoration dispatch succeeds", Desktop::Events::poll().ok()));
     static_cast<void>(context.expectTrue("live owner is restored after ProgressDialog native loss", nativeInteractionEnabled(owner)));
     static_cast<void>(context.expectTrue("ProgressDialog closes after owned native loss", lostOwnedProgress.close().ok()));
 
@@ -103,7 +103,7 @@ void testProgressDialogOwnership(TestSupport::Context &context)
         "unexpected ProgressDialog loss survives failed owner-restore wake",
         Win32TestHooks::destroyNativeProgressDialog(first).ok()));
     const auto failedWakePump = Desktop::Events::poll();
-    static_cast<void>(context.expectFalse("failed owner-restore wake is reported by the next pump", failedWakePump.status.ok()));
+    static_cast<void>(context.expectFalse("failed owner-restore wake is reported by the next pump", failedWakePump.ok()));
     static_cast<void>(context.expectFalse("overlapping blocker retains effective disabled state after failed wake", nativeInteractionEnabled(owner)));
     static_cast<void>(context.expectTrue("blocked owner accepts a deferred enabled request", owner.setUserInteractionEnabled(true).ok()));
     static_cast<void>(context.expectTrue("last overlapping blocker closes after failed wake", second.close().ok()));
@@ -127,7 +127,7 @@ void testProgressDialogOwnership(TestSupport::Context &context)
     static_cast<void>(context.expectFalse("unexpected owner loss removes ProgressDialog presentation", first.isOpen()));
     static_cast<void>(
         context.expectEq("unexpected owner loss removes active registry entry", std::size_t{0}, Win32TestHooks::activeProgressDialogCount()));
-    static_cast<void>(context.expectTrue("unexpected owner-loss restoration dispatch succeeds", Desktop::Events::poll().status.ok()));
+    static_cast<void>(context.expectTrue("unexpected owner-loss restoration dispatch succeeds", Desktop::Events::poll().ok()));
     static_cast<void>(context.expectFalse("unexpected owner loss does not restore a dying native owner", nativeInteractionEnabled(unexpectedOwner)));
     static_cast<void>(context.expectTrue("ProgressDialog closes after unexpected owner loss", first.close().ok()));
     static_cast<void>(unexpectedOwner.close());
@@ -153,7 +153,7 @@ void testProgressDialogExceptionalLifetime(TestSupport::Context &context)
 
     static_cast<void>(context.expectTrue("ProgressDialog opens for class-release failure", progress.open(description).ok()));
     Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::ProgressClassRelease);
-    static_cast<void>(context.expectEq("class-release failure is reported", ErrorCode::CloseFailed, progress.close().code));
+    static_cast<void>(context.expectEq("class-release failure is reported", ErrorCode::CloseFailed, progress.close().status().code()));
     static_cast<void>(context.expectFalse("class-release failure has no active presentation", progress.isOpen()));
     static_cast<void>(context.expectEq(
         "class-release failure retains accurate reference count",
@@ -182,12 +182,12 @@ void testProgressDialogExceptionalLifetime(TestSupport::Context &context)
             foreignOwned = progress.ownedByCurrentThread();
             foreignCancel = progress.hasCancelRequest();
             progress.clearCancelRequest();
-            foreignTitle = progress.setTitle("foreign").code;
-            foreignHeading = progress.setHeading("foreign").code;
-            foreignMessage = progress.setMessage("foreign").code;
-            foreignMode = progress.setMode(ProgressTypes::Mode::Indeterminate).code;
-            foreignProgress = progress.setProgress(0.5).code;
-            foreignClose = progress.close().code;
+            foreignTitle = progress.setTitle("foreign").status().code();
+            foreignHeading = progress.setHeading("foreign").status().code();
+            foreignMessage = progress.setMessage("foreign").status().code();
+            foreignMode = progress.setMode(ProgressTypes::Mode::Indeterminate).status().code();
+            foreignProgress = progress.setProgress(0.5).status().code();
+            foreignClose = progress.close().status().code();
         });
     foreign.join();
     static_cast<void>(context.expectFalse("foreign thread does not report ProgressDialog open", foreignOpen));
@@ -213,7 +213,7 @@ void testProgressDialogExceptionalLifetime(TestSupport::Context &context)
     static_cast<void>(context.expectEq("wrong-thread destructor transfers cleanup", std::size_t{1}, Win32TestHooks::deferredProgressDialogCount()));
     static_cast<void>(
         context.expectEq("transferred cleanup remains active until owner pump", std::size_t{1}, Win32TestHooks::activeProgressDialogCount()));
-    static_cast<void>(context.expectTrue("owner pump finalizes transferred ProgressDialog", Desktop::Events::poll().status.ok()));
+    static_cast<void>(context.expectTrue("owner pump finalizes transferred ProgressDialog", Desktop::Events::poll().ok()));
     static_cast<void>(context.expectEq("owner pump clears transferred cleanup", std::size_t{0}, Win32TestHooks::deferredProgressDialogCount()));
     static_cast<void>(
         context.expectEq("owner pump unregisters transferred ProgressDialog", std::size_t{0}, Win32TestHooks::activeProgressDialogCount()));

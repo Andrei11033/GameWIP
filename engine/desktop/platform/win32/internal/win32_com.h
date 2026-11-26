@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "io/status.h"
+#include "status/result.h"
 
 #include <objbase.h>
 
@@ -14,7 +14,7 @@ namespace GameWIP::Desktop::Platform
     /// ------------------------------------------------------------
 
     /// @brief Maps common COM outcomes to the portable status vocabulary.
-    [[nodiscard]] IO::Types::Status statusFromHResult(HRESULT result) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Status statusFromHResult(HRESULT result) noexcept;
 
     /// @brief Owns one COM interface pointer and releases it at scope exit.
     template <typename Interface> class ComPtr final
@@ -73,10 +73,10 @@ namespace GameWIP::Desktop::Platform
         ApartmentLease() noexcept;
         ~ApartmentLease() noexcept;
 
-        [[nodiscard]] const IO::Types::Status &status() const noexcept;
+        [[nodiscard]] const GameWIP::Status::Types::Status &status() const noexcept;
 
     private:
-        IO::Types::Status status_;
+        GameWIP::Status::Types::Status status_;
         bool ownsInitialization_ = false;
     };
 } // namespace GameWIP::Desktop::Platform

@@ -38,11 +38,13 @@ void testSummaryAndTimer(TestSupport::Context &context)
     static_cast<void>(context.expectFalse("SuiteResult failure mirrors summary", suiteResult.ok()));
 
     static_cast<void>(
-        context.expectEq("Infrastructure success has a stable diagnostic", std::string("None"), TestSupport::formatInfrastructureStatus({})));
+        context.expectEq("Infrastructure success has a stable diagnostic", std::string("Success"), TestSupport::formatStatus({})));
     static_cast<void>(context.expectEq(
         "Infrastructure failure diagnostic preserves category and native code",
-        std::string("FileOperationFailed (nativeCode=42)"),
-        TestSupport::formatInfrastructureStatus({.error = TestSupport::Types::InfrastructureError::FileOperationFailed, .nativeCode = 42})));
+        std::string("FileOperationFailed (nativeCode=Other:42)"),
+        TestSupport::formatStatus(GameWIP::Status::Types::Status::withDiagnostic(
+            GameWIP::Status::Types::Code::FileOperationFailed,
+            GameWIP::Status::Types::NativeCode{GameWIP::Status::Types::NativeCodeDomain::Other, 42}))));
 
     TestSupport::Timer timer;
     static_cast<void>(context.expectTrue("Timer elapsed non-negative", timer.elapsedMilliseconds() >= 0.0));
@@ -92,13 +94,16 @@ void testContextReporting(TestSupport::Context &context, const std::filesystem::
     static_cast<void>(context.expectTrue("Standalone context finalization has no failure", nestedFinalStatus.failureStatus.ok()));
 
     const TestSupport::Types::TextResult reportResult = TestSupport::readTextFile(reportPath);
-    static_cast<void>(context.expectTrue("Context report read succeeds", reportResult.status.ok()));
-    const std::string &report = reportResult.text;
-    static_cast<void>(context.expectContains("Context report includes info", report, "[INFO] [NestedContext] info line"));
-    static_cast<void>(context.expectContains("Context report includes pass", report, "[PASS] [NestedContext] direct pass"));
-    static_cast<void>(context.expectContains("Context report includes skip", report, "[SKIP] [NestedContext] direct skip: not needed"));
-    static_cast<void>(context.expectContains("Context report includes manual", report, "[MANUAL] [NestedContext] manual line"));
-    static_cast<void>(context.expectContains("Context report includes metric", report, "[METRIC] [NestedContext] metric line"));
+    static_cast<void>(context.expectTrue("Context report read succeeds", reportResult.ok()));
+    if(reportResult.ok())
+    {
+        const std::string &report = reportResult.value();
+        static_cast<void>(context.expectContains("Context report includes info", report, "[INFO] [NestedContext] info line"));
+        static_cast<void>(context.expectContains("Context report includes pass", report, "[PASS] [NestedContext] direct pass"));
+        static_cast<void>(context.expectContains("Context report includes skip", report, "[SKIP] [NestedContext] direct skip: not needed"));
+        static_cast<void>(context.expectContains("Context report includes manual", report, "[MANUAL] [NestedContext] manual line"));
+        static_cast<void>(context.expectContains("Context report includes metric", report, "[METRIC] [NestedContext] metric line"));
+    }
 
     // Keep failures countable and their value formatting inspectable.
     TestSupport::Context failing("FailingContext", quietReport(root / "failing_context_report.txt"));

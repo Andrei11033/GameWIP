@@ -35,7 +35,7 @@ namespace GameWIP::Terminal::Internal::TestHooks::State
     struct HookFailure
     {
         std::atomic_bool enabled = false;
-        std::atomic<int> code = static_cast<int>(IO::Types::ErrorCode::Unknown);
+        std::atomic<int> code = static_cast<int>(GameWIP::Status::Types::Code::Unknown);
     };
 
     /// @brief One deterministic backend-operation gate used by concurrency validation.
@@ -138,7 +138,7 @@ namespace GameWIP::Terminal::Internal::TestHooks::State
     /// @brief Maps stdout or stderr to its hook-state array slot.
     [[nodiscard]] std::size_t outputIndex(Terminal::Types::Output::Stream stream) noexcept;
     /// @brief Atomically consumes a one-shot forced failure and returns its portable code.
-    [[nodiscard]] TERMINAL_TEST_EXPORT std::optional<IO::Types::ErrorCode> consumeFailure(HookFailure &failure) noexcept;
+    [[nodiscard]] TERMINAL_TEST_EXPORT std::optional<GameWIP::Status::Types::Code> consumeFailure(HookFailure &failure) noexcept;
     /// @brief Blocks at an armed operation gate until the test releases it.
     void waitAtBlock(HookBlock &block);
     /// @brief Restores the complete process-wide hook state to deterministic defaults.
@@ -283,18 +283,18 @@ namespace GameWIP::Terminal::Internal::TestHooks
     TERMINAL_TEST_EXPORT void releaseBlockedTextWrite() noexcept;
 
     /// @brief Forces the next input-capability query to fail with code.
-    TERMINAL_TEST_EXPORT void forceNextInputCapabilityFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::StatFailed) noexcept;
+    TERMINAL_TEST_EXPORT void forceNextInputCapabilityFailure(GameWIP::Status::Types::Code code = GameWIP::Status::Types::Code::StatFailed) noexcept;
     /// @brief Forces the next output-capability query to fail with code.
-    TERMINAL_TEST_EXPORT void forceNextOutputCapabilityFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::StatFailed) noexcept;
+    TERMINAL_TEST_EXPORT void forceNextOutputCapabilityFailure(GameWIP::Status::Types::Code code = GameWIP::Status::Types::Code::StatFailed) noexcept;
     /// @brief Forces the next output-preparation attempt to fail with code.
-    TERMINAL_TEST_EXPORT void forceNextOutputPreparationFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::NativeFailure) noexcept;
+    TERMINAL_TEST_EXPORT void forceNextOutputPreparationFailure(GameWIP::Status::Types::Code code = GameWIP::Status::Types::Code::NativeFailure) noexcept;
     /// @brief Forces the next internal input-mode capture/set/restore operation to fail with code.
-    TERMINAL_TEST_EXPORT void forceNextInputModeFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::NativeFailure) noexcept;
+    TERMINAL_TEST_EXPORT void forceNextInputModeFailure(GameWIP::Status::Types::Code code = GameWIP::Status::Types::Code::NativeFailure) noexcept;
     /// @brief Forces the next input read to fail with code.
-    TERMINAL_TEST_EXPORT void forceNextReadFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::ReadFailed) noexcept;
+    TERMINAL_TEST_EXPORT void forceNextReadFailure(GameWIP::Status::Types::Code code = GameWIP::Status::Types::Code::ReadFailed) noexcept;
     /// @brief Forces the next native input endpoint identity lookup to fail.
     /// @details The hook is one-shot and reports the configured portable code; reset() clears it.
-    TERMINAL_TEST_EXPORT void forceNextEndpointIdentityFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::NativeFailure) noexcept;
+    TERMINAL_TEST_EXPORT void forceNextEndpointIdentityFailure(GameWIP::Status::Types::Code code = GameWIP::Status::Types::Code::NativeFailure) noexcept;
     /// @brief Forces the next native cancellation-event reset to fail.
     /// @details The hook is one-shot and reports a native operation failure; reset() clears it.
     TERMINAL_TEST_EXPORT void forceNextCancellationResetFailure() noexcept;
@@ -302,14 +302,14 @@ namespace GameWIP::Terminal::Internal::TestHooks
     /// @details The hook is one-shot; the callback remains best-effort and returns no status.
     TERMINAL_TEST_EXPORT void forceNextCancellationSignalFailure() noexcept;
     /// @brief Forces the next terminal-size query to fail with code.
-    TERMINAL_TEST_EXPORT void forceNextTerminalSizeFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::StatFailed) noexcept;
+    TERMINAL_TEST_EXPORT void forceNextTerminalSizeFailure(GameWIP::Status::Types::Code code = GameWIP::Status::Types::Code::StatFailed) noexcept;
     /// @brief Forces the next cursor-position query to fail with code.
-    TERMINAL_TEST_EXPORT void forceNextCursorPositionFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::StatFailed) noexcept;
+    TERMINAL_TEST_EXPORT void forceNextCursorPositionFailure(GameWIP::Status::Types::Code code = GameWIP::Status::Types::Code::StatFailed) noexcept;
     /// @brief Forces the next text write to fail with code.
-    TERMINAL_TEST_EXPORT void forceNextTextWriteFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::WriteFailed) noexcept;
+    TERMINAL_TEST_EXPORT void forceNextTextWriteFailure(GameWIP::Status::Types::Code code = GameWIP::Status::Types::Code::WriteFailed) noexcept;
     /// @brief Forces the next byte write to fail with code.
-    TERMINAL_TEST_EXPORT void forceNextByteWriteFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::WriteFailed) noexcept;
+    TERMINAL_TEST_EXPORT void forceNextByteWriteFailure(GameWIP::Status::Types::Code code = GameWIP::Status::Types::Code::WriteFailed) noexcept;
     /// @brief Forces the next flush operation to fail with code.
-    TERMINAL_TEST_EXPORT void forceNextFlushFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::FlushFailed) noexcept;
+    TERMINAL_TEST_EXPORT void forceNextFlushFailure(GameWIP::Status::Types::Code code = GameWIP::Status::Types::Code::FlushFailed) noexcept;
 } // namespace GameWIP::Terminal::Internal::TestHooks
 #endif

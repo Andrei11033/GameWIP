@@ -1,6 +1,7 @@
 /// @file shell.cpp
 /// @brief Shared state and pixel conversion for Desktop's Win32 shell features.
 
+#include "desktop/internal/results.h"
 #include "desktop/platform/shell.h"
 #include "desktop/platform/win32/internal/win32_pixel_helpers.h"
 #include "desktop/platform/win32/internal/win32_shell_helpers.h"
@@ -46,7 +47,7 @@ namespace GameWIP::Desktop::Platform
     /// Shell capabilities
     /// ------------------------------------------------------------
 
-    Types::Result<Types::Shell::Capabilities> getShellCapabilities() noexcept
+    GameWIP::Status::Types::Result<Types::Shell::Capabilities> getShellCapabilities() noexcept
     {
         static const Types::Shell::Capabilities capabilities = []
         {
@@ -70,7 +71,7 @@ namespace GameWIP::Desktop::Platform
             value.flags |= std::uint64_t{1} << static_cast<unsigned int>(Types::Shell::Capability::RegistrationExtendedMetadata);
             return value;
         }();
-        return {.status = IO::successStatus(), .value = capabilities};
+        return GameWIP::Status::Types::Result<Types::Shell::Capabilities>::success(capabilities);
     }
 
     /// ------------------------------------------------------------
@@ -165,23 +166,26 @@ namespace GameWIP::Desktop::Platform
                 });
         }
 
-        IO::Types::Status convertTip(std::string_view text, std::array<wchar_t, 260> &output)
+        GameWIP::Status::Types::Status convertTip(std::string_view text, std::array<wchar_t, 260> &output)
         {
             std::wstring converted;
             DWORD nativeCode = ERROR_SUCCESS;
 
             if(!utf8ToUtf16(text, converted, nativeCode))
             {
-                return IO::makeStatus(IO::Types::ErrorCode::EncodingFailed, nativeCode);
+                return GameWIP::Desktop::Internal::statusFor(
+                    GameWIP::Status::Types::Code::EncodingFailed,
+                    nativeCode,
+                    GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
             }
 
             if(converted.size() >= output.size())
             {
-                return IO::makeStatus(IO::Types::ErrorCode::SizeLimitExceeded);
+                return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::SizeLimitExceeded);
             }
             std::copy(converted.begin(), converted.end(), output.begin());
             output[converted.size()] = L'\0';
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
     } // namespace Win32
 } // namespace GameWIP::Desktop::Platform

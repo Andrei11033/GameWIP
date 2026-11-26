@@ -1,6 +1,7 @@
 /// @file win32_drag_drop.cpp
 /// @brief Win32 OLE drop-target lifecycle and callbacks.
 
+#include "desktop/internal/results.h"
 #include "desktop/platform/drag_drop.h"
 #include "desktop/internal/desktop_test_hooks.h"
 #include "desktop/internal/window_state.h"
@@ -42,11 +43,11 @@ namespace GameWIP::Desktop::Platform
         namespace Transfer = Types::DataTransfer;
 
         /// @brief Consumes the materialization failure hook used by drag/drop tests.
-        [[nodiscard]] IO::Types::Status materializationStatus() noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status materializationStatus() noexcept
         {
             return Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::DragDropMaterialization)
-                       ? IO::makeStatus(IO::Types::ErrorCode::ReadFailed)
-                       : IO::successStatus();
+                       ? GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::ReadFailed)
+                       : GameWIP::Status::Types::Status{};
         }
 
         /// @brief Tests whether one native format is accepted by a drop region.
@@ -424,7 +425,7 @@ namespace GameWIP::Desktop::Platform
     } // namespace
 
     /// @brief Resolves portable region formats to unique native clipboard identities.
-    IO::Types::Status prepareDragDropRegions(std::vector<DragDropRegion> &regions) noexcept
+    GameWIP::Status::Types::Status prepareDragDropRegions(std::vector<DragDropRegion> &regions) noexcept
     {
         try
         {
@@ -436,7 +437,7 @@ namespace GameWIP::Desktop::Platform
 
                 for(const auto &format : region.formats)
                 {
-                    IO::Types::Status status;
+                    GameWIP::Status::Types::Status status;
                     const CLIPFORMAT native = DataTransfer::nativeFormat(format, status);
 
                     if(!status.ok())
@@ -446,27 +447,27 @@ namespace GameWIP::Desktop::Platform
 
                     if(!identities.insert(native).second)
                     {
-                        return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
+                        return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::InvalidArgument);
                     }
                     normalized.push_back(native);
                 }
                 region.nativeFormats = std::move(normalized);
             }
 
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::OutOfMemory);
         }
         catch(...)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::Unknown);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::Unknown);
         }
     }
 
     /// @brief Initializes OLE and registers a Window's native drop target.
-    IO::Types::Status openDragDropTarget(DragDropState &state, WindowState &window) noexcept
+    GameWIP::Status::Types::Status openDragDropTarget(DragDropState &state, WindowState &window) noexcept
     {
         try
         {
@@ -475,7 +476,7 @@ namespace GameWIP::Desktop::Platform
 
             if(targetForWindow(window) != nullptr)
             {
-                return IO::makeStatus(IO::Types::ErrorCode::ResourceBusy);
+                return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::ResourceBusy);
             }
 
             if(!current.dragDropTargets)
@@ -491,14 +492,17 @@ namespace GameWIP::Desktop::Platform
             if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::DragDropOleInitialization))
             {
                 unregisterTarget(state);
-                return IO::makeStatus(IO::Types::ErrorCode::OpenFailed);
+                return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::OpenFailed);
             }
             const HRESULT init = OleInitialize(nullptr);
 
             if(init != S_OK && init != S_FALSE)
             {
                 unregisterTarget(state);
-                return IO::makeStatus(init == RPC_E_CHANGED_MODE ? IO::Types::ErrorCode::ResourceBusy : IO::Types::ErrorCode::OpenFailed, init);
+                return GameWIP::Desktop::Internal::statusFor(
+                    init == RPC_E_CHANGED_MODE ? GameWIP::Status::Types::Code::ResourceBusy : GameWIP::Status::Types::Code::OpenFailed,
+                    init,
+                    GameWIP::Desktop::Internal::NativeCodeDomain::HResult);
             }
             data->oleHeld = true;
 
@@ -514,23 +518,26 @@ namespace GameWIP::Desktop::Platform
                 OleUninitialize();
                 data->oleHeld = false;
                 unregisterTarget(state);
-                return IO::makeStatus(hr == DRAGDROP_E_ALREADYREGISTERED ? IO::Types::ErrorCode::ResourceBusy : IO::Types::ErrorCode::OpenFailed, hr);
+                return GameWIP::Desktop::Internal::statusFor(
+                    hr == DRAGDROP_E_ALREADYREGISTERED ? GameWIP::Status::Types::Code::ResourceBusy : GameWIP::Status::Types::Code::OpenFailed,
+                    hr,
+                    GameWIP::Desktop::Internal::NativeCodeDomain::HResult);
             }
             data->registered = true;
 
             // Publish target ownership only after OLE accepts registration.
             state.platform = std::move(data);
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
         catch(const std::bad_alloc &)
         {
             unregisterTarget(state);
-            return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::OutOfMemory);
         }
         catch(...)
         {
             unregisterTarget(state);
-            return IO::makeStatus(IO::Types::ErrorCode::Unknown);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::Unknown);
         }
     }
 
@@ -539,12 +546,12 @@ namespace GameWIP::Desktop::Platform
     {
         if(!state.platform)
         {
-            return {IO::successStatus(), true};
+            return Internal::result(GameWIP::Status::Types::Status{}, true);
         }
 
         if(state.platform->ownerThreadId != GetCurrentThreadId())
         {
-            return {IO::makeStatus(IO::Types::ErrorCode::ResourceBusy), false};
+            return Internal::result(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::ResourceBusy), false);
         }
 
         // Keep the target attached if OLE cannot revoke it safely.
@@ -560,7 +567,12 @@ namespace GameWIP::Desktop::Platform
 
         if(FAILED(hr) && hr != DRAGDROP_E_NOTREGISTERED)
         {
-            return {IO::makeStatus(IO::Types::ErrorCode::CloseFailed, hr), false};
+            return Internal::result(
+                GameWIP::Desktop::Internal::statusFor(
+                    GameWIP::Status::Types::Code::CloseFailed,
+                    hr,
+                    GameWIP::Desktop::Internal::NativeCodeDomain::HResult),
+                false);
         }
 
         state.platform->registered = false;
@@ -580,7 +592,7 @@ namespace GameWIP::Desktop::Platform
         }
         unregisterTarget(state);
         state.platform.reset();
-        return {IO::successStatus(), true};
+        return Internal::result(GameWIP::Status::Types::Status{}, true);
     }
 
     /// @brief Attempts drop-target close without reporting teardown failures.
@@ -590,7 +602,12 @@ namespace GameWIP::Desktop::Platform
         {
             return true;
         }
-        return state.platform->ownerThreadId == GetCurrentThreadId() && closeDragDropTarget(state).resourceClosed;
+        if(state.platform->ownerThreadId != GetCurrentThreadId())
+        {
+            return false;
+        }
+        const CloseResult result = closeDragDropTarget(state);
+        return result.hasValue() && result.value();
     }
 
     /// @brief Detaches portable state when the owner dispatcher is exiting.
@@ -600,7 +617,9 @@ namespace GameWIP::Desktop::Platform
 
         for(std::size_t attempt = 0; attempt < retryCount; ++attempt)
         {
-            if(closeDragDropTarget(state).resourceClosed)
+            const CloseResult result = closeDragDropTarget(state);
+
+            if(result.hasValue() && result.value())
             {
                 state.window = nullptr;
                 state.nativeDestroyedPendingFinalize = true;
@@ -661,13 +680,13 @@ namespace GameWIP::Desktop::Platform
         const bool queued = enqueueDragDropEvent(state, std::move(data), terminal);
         Dispatcher &current = dispatcher();
 
-        if(current.activeResult != nullptr)
+        if(current.activePumpInfo != nullptr)
         {
-            current.activeResult->eventsDropped += state.droppedEvents - droppedBefore;
+            current.activePumpInfo->eventsDropped += state.droppedEvents - droppedBefore;
 
             if(queued)
             {
-                ++current.activeResult->eventsQueued;
+                ++current.activePumpInfo->eventsQueued;
             }
         }
     }
@@ -683,13 +702,13 @@ namespace GameWIP::Desktop::Platform
         }
         const CloseResult closed = closeDragDropTarget(*target);
 
-        if(closed.resourceClosed || nativeDestroyed)
+        if((closed.hasValue() && closed.value()) || nativeDestroyed)
         {
             target->window = nullptr;
             target->nativeDestroyedPendingFinalize = true;
         }
 
-        return closed.resourceClosed;
+        return closed.hasValue() && closed.value();
     }
 
 } // namespace GameWIP::Desktop::Platform
@@ -698,20 +717,23 @@ namespace GameWIP::Desktop::Internal::Win32
 {
     using namespace GameWIP::Desktop::Platform;
 
-    IO::Types::Status testDragDropMaterialization() noexcept
+    GameWIP::Status::Types::Status testDragDropMaterialization() noexcept
     {
         return materializationStatus();
     }
 
     Types::Events::PumpResult testRouteDragDropDuringPump(DragDropState &state, DD::Events::Payload data, bool terminal) noexcept
     {
-        Types::Events::PumpResult result;
+        Types::Events::PumpInfo info;
         Dispatcher &current = dispatcher();
-        Types::Events::PumpResult *previous = current.activeResult;
-        current.activeResult = &result;
+        Types::Events::PumpInfo *previousInfo = current.activePumpInfo;
+        GameWIP::Status::Types::Status *previousStatus = current.activePumpStatus;
+        current.activePumpInfo = &info;
+        current.activePumpStatus = nullptr;
         routeDragDropEvent(state, std::move(data), terminal);
-        current.activeResult = previous;
-        return result;
+        current.activePumpInfo = previousInfo;
+        current.activePumpStatus = previousStatus;
+        return Types::Events::PumpResult::success(std::move(info));
     }
 
     DD::RegionId testMatchDragDropRegion(
@@ -727,7 +749,7 @@ namespace GameWIP::Desktop::Internal::Win32
             for(const auto &view : offered)
             {
                 Transfer::Format format{view.kind(), std::string(view.customName())};
-                IO::Types::Status status;
+                GameWIP::Status::Types::Status status;
                 const CLIPFORMAT identity = DataTransfer::nativeFormat(format, status);
 
                 if(!status.ok())

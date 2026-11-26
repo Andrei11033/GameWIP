@@ -145,16 +145,6 @@ namespace GameWIP::FileSystem
                 /// @brief Exclusive lock intended to exclude other compatible locks.
                 Exclusive
             };
-
-            /// @brief Outcome of a non-blocking lock attempt.
-            enum class Outcome
-            {
-                /// @brief The requested lock was acquired.
-                Acquired,
-                /// @brief Another lock prevented immediate acquisition.
-                WouldBlock
-            };
-
         } // namespace Lock
 
         namespace File

@@ -28,7 +28,7 @@ namespace
     namespace A = Desktop::Types::Accessibility;
     namespace Bridge = Desktop::Accessibility;
     using GameWIP::TestSupport::Context;
-    using Error = GameWIP::IO::Types::ErrorCode;
+    using Error = GameWIP::Status::Types::Code;
     constexpr HRESULT kUnavailable = static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE);
 
     static_assert(!std::is_copy_constructible_v<Bridge::SnapshotBuilder>);
@@ -146,7 +146,7 @@ namespace GameWIP::Test
 
         const auto handles = Desktop::Native::Win32::getHandle(window);
 
-        if(!handles.status.ok())
+        if(!handles.ok())
         {
             return 4;
         }
@@ -183,7 +183,7 @@ namespace GameWIP::Test
 
                     Com<IUIAutomationElement> root, child;
 
-                    if(FAILED(automation->ElementFromHandle(handles->window, root.put())) || !root)
+                    if(FAILED(automation->ElementFromHandle(handles.value().window, root.put())) || !root)
                     {
                         return 7;
                     }

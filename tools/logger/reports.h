@@ -434,7 +434,7 @@ namespace GameWIP::Logger
     /// @{
 
     /// @brief Writes one validated UTF-8 diagnostic directly to the debugger channel.
-    LOGGER_EXPORT IO::Types::Status writeDebugOutput(Types::Level level, std::string_view source, std::string_view message) noexcept;
+    LOGGER_EXPORT Status::Types::Result<void> writeDebugOutput(Types::Level level, std::string_view source, std::string_view message) noexcept;
 
     /// @}
 } // namespace GameWIP::Logger

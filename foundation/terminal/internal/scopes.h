@@ -11,12 +11,12 @@ namespace GameWIP::Terminal::Internal
     /// Scoped output state
     /// ------------------------------------------------------------
 
-    [[nodiscard]] IO::Types::Status restoreCursorHiddenScope(
+    [[nodiscard]] GameWIP::Status::Types::Status restoreCursorHiddenScope(
         Types::Output::Stream stream,
         const Types::Output::ControlOptions &options,
         bool &restored) noexcept;
 
-    [[nodiscard]] IO::Types::Status leaveAlternateScreenScope(
+    [[nodiscard]] GameWIP::Status::Types::Status leaveAlternateScreenScope(
         Types::Output::Stream stream,
         const Types::Output::ControlOptions &options,
         bool &restored) noexcept;

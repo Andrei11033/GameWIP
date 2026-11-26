@@ -127,7 +127,7 @@ What R00 established:
 - [x] MSYS2 CLANG64 AddressSanitizer and UndefinedBehaviorSanitizer workflows exist.
 - [x] Root project version and generated runtime build identity exist.
 - [x] Public-header, installed-consumer, and package-boundary checks exist for reusable libraries.
-- [x] `foundation/io` exists with status/result and stream contracts.
+- [x] `foundation/io` exists with shared status/result and stream contracts.
 - [x] `foundation/filesystem` exists with path, file, directory, metadata, and atomic-write helpers.
 - [x] `foundation/terminal` exists with console IO and Win32 backend coverage.
 - [x] `tools/logger` provides asynchronous structured logging, registered

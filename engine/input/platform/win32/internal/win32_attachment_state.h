@@ -225,7 +225,7 @@ namespace GameWIP::Input::Internal::Win32
 
 namespace GameWIP::Input::Platform::Win32
 {
-    using IO::Types::ErrorCode;
+    using GameWIP::Status::Types::Code;
     using SystemState = ::GameWIP::Input::Internal::SystemState;
     using AttachmentState = ::GameWIP::Input::Internal::Win32::AttachmentState;
     using DeviceBinding = AttachmentState::DeviceBinding;
@@ -278,18 +278,18 @@ namespace GameWIP::Input::Platform::Win32
     /// GameInput provider
     /// ------------------------------------------------------------
 
-    [[nodiscard]] IO::Types::Status initializeGameInput(AttachmentState &attachment, SystemState &state) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Status initializeGameInput(AttachmentState &attachment, SystemState &state) noexcept;
     void shutdownGameInput(AttachmentState &attachment) noexcept;
-    [[nodiscard]] IO::Types::Status pollGameInput(AttachmentState &attachment, SystemState &state) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Status pollGameInput(AttachmentState &attachment, SystemState &state) noexcept;
 
     /// ------------------------------------------------------------
     /// DirectInput provider
     /// ------------------------------------------------------------
 
-    [[nodiscard]] IO::Types::Status initializeDirectInput(AttachmentState &attachment) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Status initializeDirectInput(AttachmentState &attachment) noexcept;
     void shutdownDirectInput(AttachmentState &attachment) noexcept;
-    [[nodiscard]] IO::Types::Status enumerateDirectInputDevices(AttachmentState &attachment, SystemState &state) noexcept;
-    [[nodiscard]] IO::Types::Status pollDirectInput(AttachmentState &attachment, SystemState &state) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Status enumerateDirectInputDevices(AttachmentState &attachment, SystemState &state) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Status pollDirectInput(AttachmentState &attachment, SystemState &state) noexcept;
 
     /// ------------------------------------------------------------
     /// Keyboard mapping and Window-message fallback
@@ -326,8 +326,8 @@ namespace GameWIP::Input::Platform::Win32
     /// Raw Input and HID discovery
     /// ------------------------------------------------------------
 
-    [[nodiscard]] IO::Types::Status registerRawInputCollection(AttachmentState &attachment, USHORT usagePage, USHORT usage, DWORD flags);
-    [[nodiscard]] IO::Types::Status registerHidCollections(AttachmentState &attachment);
+    [[nodiscard]] GameWIP::Status::Types::Status registerRawInputCollection(AttachmentState &attachment, USHORT usagePage, USHORT usage, DWORD flags);
+    [[nodiscard]] GameWIP::Status::Types::Status registerHidCollections(AttachmentState &attachment);
     [[nodiscard]] bool registerHidDeviceNotification(AttachmentState &attachment) noexcept;
     void unregisterHidDeviceNotification(AttachmentState &attachment) noexcept;
     void unregisterRawInput(AttachmentState &attachment) noexcept;

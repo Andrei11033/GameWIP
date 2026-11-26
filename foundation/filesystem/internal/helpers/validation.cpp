@@ -70,7 +70,8 @@ namespace GameWIP::FileSystem::Internal
     /// Parent-path validation
     /// ------------------------------------------------------------
 
-    IO::Types::Status validateParentDirectory(const Types::Path &path, bool createMissing, Types::SymlinkPolicy symlinkPolicy) noexcept
+    GameWIP::Status::Types::Result<void>
+    validateParentDirectory(const Types::Path &path, bool createMissing, Types::SymlinkPolicy symlinkPolicy) noexcept
     {
         try
         {
@@ -78,7 +79,7 @@ namespace GameWIP::FileSystem::Internal
 
             if(parent.empty())
             {
-                return IO::successStatus();
+                return GameWIP::Status::Types::Result<void>::success();
             }
 
             if(createMissing)
@@ -86,27 +87,27 @@ namespace GameWIP::FileSystem::Internal
                 return createDirectories(parent, Types::Directory::CreateOptions{.succeedIfAlreadyExists = true, .symlinkPolicy = symlinkPolicy});
             }
 
-            Platform::EntryQueryResult result = queryEntry(parent, symlinkPolicy);
+            auto result = queryEntry(parent, symlinkPolicy);
 
-            if(!result.status.ok())
+            if(!result.ok())
             {
-                return std::move(result.status);
+                return GameWIP::Status::Types::Result<void>::failure(result.status());
             }
 
-            if(result.info.kind != Types::EntryKind::Directory)
+            if(result.value().kind != Types::EntryKind::Directory)
             {
-                return IO::makeStatus(ErrorCode::NotDirectory);
+                return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::NotDirectory));
             }
 
-            return IO::successStatus();
+            return GameWIP::Status::Types::Result<void>::success();
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(ErrorCode::OutOfMemory);
+            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::OutOfMemory));
         }
         catch(...)
         {
-            return IO::makeStatus(ErrorCode::Unknown);
+            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::Unknown));
         }
     }
 } // namespace GameWIP::FileSystem::Internal

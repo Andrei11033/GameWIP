@@ -2,6 +2,7 @@
 /// @brief Routes Win32 window messages to the Input attachment.
 
 #include "input/platform/win32/internal/win32_attachment_state.h"
+#include "input/internal/results.h"
 #include "input/win32.h"
 #include "input/platform/win32/internal/device_helpers.h"
 
@@ -17,21 +18,39 @@
 
 namespace GameWIP::Input::Platform::Win32
 {
+    GameWIP::Status::Types::Result<bool> Attachment::handleMessage(
+        std::uint32_t message,
+        std::uint64_t wParam,
+        std::int64_t lParam) noexcept
+    {
+        bool handled = false;
+        const GameWIP::Status::Types::Status operationStatus = handleMessageStatus(message, wParam, lParam, handled);
+        if(!operationStatus.ok())
+        {
+            return GameWIP::Input::Internal::failedResult<bool>(operationStatus);
+        }
+        return GameWIP::Status::Types::Result<bool>::success(handled);
+    }
+
     /// ------------------------------------------------------------
     /// Window message routing
     /// ------------------------------------------------------------
 
-    IO::Types::Status Attachment::handleMessage(std::uint32_t message, std::uint64_t wParam, std::int64_t lParam, bool &outHandled) noexcept
+    GameWIP::Status::Types::Status Attachment::handleMessageStatus(
+        std::uint32_t message,
+        std::uint64_t wParam,
+        std::int64_t lParam,
+        bool &outHandled) noexcept
     {
         outHandled = false;
 
         // Validate the attachment before routing the message.
         if(impl_ == nullptr)
         {
-            return status(ErrorCode::OutOfMemory);
+            return status(Code::OutOfMemory);
         }
 
-        const IO::Types::Status ownerStatus = checkAttached(*impl_);
+        const GameWIP::Status::Types::Status ownerStatus = checkAttached(*impl_);
         if(!ownerStatus.ok())
         {
             return ownerStatus;
@@ -51,7 +70,7 @@ namespace GameWIP::Input::Platform::Win32
                 {
                     ++state.health.totalInvalidReports;
                     state.pendingDiscontinuity = true;
-                    return status(ErrorCode::NativeFailure);
+                    return status(Code::NativeFailure);
                 }
                 impl_->rawInputBuffer.resize(byteCount);
                 UINT received = byteCount;
@@ -67,7 +86,7 @@ namespace GameWIP::Input::Platform::Win32
                 {
                     ++state.health.totalInvalidReports;
                     state.pendingDiscontinuity = true;
-                    return status(ErrorCode::NativeFailure);
+                    return status(Code::NativeFailure);
                 }
                 const std::span<const std::byte> rawBytes = std::span<const std::byte>(impl_->rawInputBuffer).first(received);
                 std::array<RAWINPUT, 1> rawStorage{};
@@ -83,7 +102,7 @@ namespace GameWIP::Input::Platform::Win32
                     {
                         ++state.health.totalInvalidReports;
                         state.pendingDiscontinuity = true;
-                        return status(ErrorCode::NativeFailure);
+                        return status(Code::NativeFailure);
                     }
 
                     // Resolve the keyboard device.
@@ -109,7 +128,7 @@ namespace GameWIP::Input::Platform::Win32
                     {
                         ++state.health.totalInvalidReports;
                         state.pendingDiscontinuity = true;
-                        return status(ErrorCode::Success);
+                        return status(Code::Success);
                     }
 
                     // Find the reported key control.
@@ -131,7 +150,7 @@ namespace GameWIP::Input::Platform::Win32
                             {
                                 ++state.health.totalInvalidReports;
                                 state.pendingDiscontinuity = true;
-                                return status(ErrorCode::Success);
+                                return status(Code::Success);
                             }
                             Types::DeviceInfo &descriptor = state.devices[deviceIndex];
 
@@ -178,7 +197,7 @@ namespace GameWIP::Input::Platform::Win32
                     {
                         ++state.health.totalInvalidReports;
                         state.pendingDiscontinuity = true;
-                        return status(ErrorCode::Success);
+                        return status(Code::Success);
                     }
 
                     // Publish the key state and keyboard fallback transition.
@@ -191,7 +210,7 @@ namespace GameWIP::Input::Platform::Win32
                         down,
                         static_cast<std::uint32_t>(GetMessageTime()));
                     outHandled = true;
-                    return IO::successStatus();
+                    return GameWIP::Status::Types::Status{};
                 }
 
                 // Publish mouse movement, wheel, and button changes.
@@ -201,7 +220,7 @@ namespace GameWIP::Input::Platform::Win32
                     {
                         ++state.health.totalInvalidReports;
                         state.pendingDiscontinuity = true;
-                        return status(ErrorCode::NativeFailure);
+                        return status(Code::NativeFailure);
                     }
 
                     // Resolve the mouse device.
@@ -219,7 +238,7 @@ namespace GameWIP::Input::Platform::Win32
 
                     if(mouse == nullptr)
                     {
-                        return status(ErrorCode::Success);
+                        return status(Code::Success);
                     }
                     const RAWMOUSE &data = raw.data.mouse;
                     const bool relative = (data.usFlags & MOUSE_MOVE_ABSOLUTE) == 0;
@@ -276,7 +295,7 @@ namespace GameWIP::Input::Platform::Win32
                     // Preserve the native report.
                     appendRawReport(state, state.configuration, mouse->id, Types::BackendKind::Win32RawInput, rawBytes);
                     outHandled = true;
-                    return IO::successStatus();
+                    return GameWIP::Status::Types::Status{};
                 }
 
                 // Route the HID report.
@@ -288,7 +307,7 @@ namespace GameWIP::Input::Platform::Win32
                         ++state.health.totalInvalidReports;
                         state.pendingDiscontinuity = true;
                         outHandled = true;
-                        return status(ErrorCode::NativeFailure);
+                        return status(Code::NativeFailure);
                     }
 
                     // Resolve or register the HID device.
@@ -304,7 +323,7 @@ namespace GameWIP::Input::Platform::Win32
                         ++state.health.totalInvalidReports;
                         state.pendingDiscontinuity = true;
                         outHandled = true;
-                        return IO::successStatus();
+                        return GameWIP::Status::Types::Status{};
                     }
 
                     // Validate each report's bounds and descriptor size.
@@ -313,7 +332,7 @@ namespace GameWIP::Input::Platform::Win32
                         ++state.health.totalInvalidReports;
                         state.pendingDiscontinuity = true;
                         outHandled = true;
-                        return IO::successStatus();
+                        return GameWIP::Status::Types::Status{};
                     }
                     const std::size_t reportSize = raw.data.hid.dwSizeHid;
                     const std::size_t reportCount = raw.data.hid.dwCount;
@@ -323,7 +342,7 @@ namespace GameWIP::Input::Platform::Win32
                         ++state.health.totalInvalidReports;
                         state.pendingDiscontinuity = true;
                         outHandled = true;
-                        return status(ErrorCode::NativeFailure);
+                        return status(Code::NativeFailure);
                     }
 
                     // Decode every report in the packet.
@@ -333,9 +352,9 @@ namespace GameWIP::Input::Platform::Win32
                     }
 
                     outHandled = true;
-                    return IO::successStatus();
+                    return GameWIP::Status::Types::Status{};
                 }
-                return IO::successStatus();
+                return GameWIP::Status::Types::Status{};
             }
 
             // Refresh device discovery after system-level changes.
@@ -345,7 +364,7 @@ namespace GameWIP::Input::Platform::Win32
                 {
                     if(impl_->hidEnabled)
                     {
-                        const IO::Types::Status registrationStatus = registerHidCollections(*impl_);
+                        const GameWIP::Status::Types::Status registrationStatus = registerHidCollections(*impl_);
                         if(!registrationStatus.ok())
                         {
                             ++state.health.totalBackendFailures;
@@ -363,7 +382,7 @@ namespace GameWIP::Input::Platform::Win32
 
                     if(impl_->directInputEnabled)
                     {
-                        const IO::Types::Status enumerationStatus = enumerateDirectInputDevices(*impl_, state);
+                        const GameWIP::Status::Types::Status enumerationStatus = enumerateDirectInputDevices(*impl_, state);
                         if(!enumerationStatus.ok())
                         {
                             ++state.health.totalBackendFailures;
@@ -372,7 +391,7 @@ namespace GameWIP::Input::Platform::Win32
                     }
                 }
                 outHandled = true;
-                return IO::successStatus();
+                return GameWIP::Status::Types::Status{};
             }
 
             // Handle Raw Input arrival and removal notifications.
@@ -388,7 +407,7 @@ namespace GameWIP::Input::Platform::Win32
 
                     if(impl_->directInputEnabled)
                     {
-                        const IO::Types::Status enumerationStatus = enumerateDirectInputDevices(*impl_, state);
+                        const GameWIP::Status::Types::Status enumerationStatus = enumerateDirectInputDevices(*impl_, state);
                         if(!enumerationStatus.ok())
                         {
                             ++state.health.totalBackendFailures;
@@ -409,7 +428,7 @@ namespace GameWIP::Input::Platform::Win32
                     }
                 }
                 outHandled = true;
-                return IO::successStatus();
+                return GameWIP::Status::Types::Status{};
             }
 
             // Release held controls after focus loss.
@@ -417,7 +436,7 @@ namespace GameWIP::Input::Platform::Win32
             {
                 invalidateFocus(state, *impl_);
                 outHandled = true;
-                return IO::successStatus();
+                return GameWIP::Status::Types::Status{};
             }
 
             // Publish the Window pointer position.
@@ -435,7 +454,7 @@ namespace GameWIP::Input::Platform::Win32
                     }
                 }
                 outHandled = true;
-                return IO::successStatus();
+                return GameWIP::Status::Types::Status{};
             }
 
             // Queue Window keyboard transitions as a fallback source.
@@ -460,7 +479,7 @@ namespace GameWIP::Input::Platform::Win32
                     extended,
                     message == WM_KEYDOWN || message == WM_SYSKEYDOWN,
                     static_cast<std::uint32_t>(GetMessageTime()));
-                return IO::successStatus();
+                return GameWIP::Status::Types::Status{};
             }
 
             // Forward text and IME composition.
@@ -468,7 +487,7 @@ namespace GameWIP::Input::Platform::Win32
             {
                 appendTextUtf8(state, *impl_, {}, Types::EventKind::CompositionStarted);
                 outHandled = true;
-                return IO::successStatus();
+                return GameWIP::Status::Types::Status{};
             }
 
             if(message == WM_IME_COMPOSITION)
@@ -492,21 +511,21 @@ namespace GameWIP::Input::Platform::Win32
                     ImmReleaseContext(window, context);
                 }
                 outHandled = true;
-                return IO::successStatus();
+                return GameWIP::Status::Types::Status{};
             }
 
             if(message == WM_IME_ENDCOMPOSITION)
             {
                 appendTextUtf8(state, *impl_, {}, Types::EventKind::CompositionFinished);
                 outHandled = true;
-                return IO::successStatus();
+                return GameWIP::Status::Types::Status{};
             }
 
             if(message == WM_CHAR)
             {
                 handleUtf16(state, *impl_, static_cast<char16_t>(wParam));
                 outHandled = true;
-                return IO::successStatus();
+                return GameWIP::Status::Types::Status{};
             }
 
             if(message == WM_UNICHAR)
@@ -522,13 +541,13 @@ namespace GameWIP::Input::Platform::Win32
                     appendText(state, *impl_, static_cast<char32_t>(wParam));
                 }
                 outHandled = true;
-                return IO::successStatus();
+                return GameWIP::Status::Types::Status{};
             }
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
         catch(const std::bad_alloc &)
         {
-            return status(ErrorCode::OutOfMemory);
+            return status(Code::OutOfMemory);
         }
     }
 } // namespace GameWIP::Input::Platform::Win32

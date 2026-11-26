@@ -198,19 +198,18 @@ GameWIP::Logger::Types::LogFilePathResult GameWIP::Logger::getLogFilePath() noex
 
         if(loggerState().logFilePath.empty())
         {
-            return {.status = IO::makeStatus(ErrorCode::NotOpen)};
+            return Types::LogFilePathResult::failure(makeStatus(ErrorCode::NotOpen));
         }
 
-        auto result = FileSystem::pathToUtf8(loggerState().logFilePath);
-        return {.status = std::move(result.status), .utf8 = std::move(result.utf8)};
+        return FileSystem::pathToUtf8(loggerState().logFilePath);
     }
     catch(const std::bad_alloc &)
     {
-        return {.status = IO::makeStatus(ErrorCode::OutOfMemory)};
+        return Types::LogFilePathResult::failure(makeStatus(ErrorCode::OutOfMemory));
     }
     catch(...)
     {
-        return {.status = IO::makeStatus(ErrorCode::Unknown)};
+        return Types::LogFilePathResult::failure(makeStatus(ErrorCode::Unknown));
     }
 }
 

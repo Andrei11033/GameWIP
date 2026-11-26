@@ -1,6 +1,7 @@
 /// @file win32_drag_drop_source.cpp
 /// @brief Win32 OLE source objects and synchronous drag operation.
 
+#include "desktop/internal/results.h"
 #include "desktop/platform/drag_drop.h"
 #include "desktop/internal/desktop_test_hooks.h"
 #include "desktop/platform/win32/internal/test_hooks.h"
@@ -34,22 +35,19 @@ namespace GameWIP::Desktop::Platform
         [[nodiscard]] DD::Result droppedSourceResult(DWORD performed, DD::Effect allowed) noexcept
         {
             constexpr DWORD knownEffects = DROPEFFECT_COPY | DROPEFFECT_MOVE | DROPEFFECT_LINK;
-            DD::Result result;
             const DWORD native = performed & knownEffects;
             const DD::Effect effect = portableEffects(performed);
 
             if((performed & ~knownEffects) != 0 || (native & (native - 1U)) != 0 || (effect & allowed) != effect)
             {
-                result.status = IO::makeStatus(IO::Types::ErrorCode::NativeFailure, E_UNEXPECTED);
-            }
-            else
-            {
-                result.status = IO::successStatus();
-                result.outcome = native == 0 ? DD::Outcome::Cancelled : DD::Outcome::Dropped;
-                result.effect = effect;
+                return DD::Result::failure(GameWIP::Desktop::Internal::statusFor(
+                    GameWIP::Status::Types::Code::NativeFailure,
+                    E_UNEXPECTED,
+                    GameWIP::Desktop::Internal::NativeCodeDomain::HResult));
             }
 
-            return result;
+            const DD::SourceInfo info{native == 0 ? DD::Outcome::Cancelled : DD::Outcome::Dropped, effect};
+            return DD::Result::success(info);
         }
 
         /// @brief Tests whether an effect mask contains only supported nonzero effects.
@@ -60,12 +58,12 @@ namespace GameWIP::Desktop::Platform
         }
 
         /// @brief Materializes and validates every source item before entering OLE.
-        [[nodiscard]] IO::Types::Status prepareSource(const DD::Description &description, std::vector<DataTransfer::PreparedItem> &prepared) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status prepareSource(const DD::Description &description, std::vector<DataTransfer::PreparedItem> &prepared) noexcept
         {
             if(description.items.empty() || !validEffects(description.effects.allowed) ||
                static_cast<unsigned>(description.triggerButton) > static_cast<unsigned>(DD::TriggerButton::Middle))
             {
-                return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
+                return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::InvalidArgument);
             }
 
             try
@@ -77,11 +75,11 @@ namespace GameWIP::Desktop::Platform
                 {
                     if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::DragDropPreparation))
                     {
-                        return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
+                        return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::OutOfMemory);
                     }
 
                     DataTransfer::PreparedItem value;
-                    IO::Types::Status status = DataTransfer::prepare(item, value);
+                    GameWIP::Status::Types::Status status = DataTransfer::prepare(item, value);
 
                     if(!status.ok())
                     {
@@ -90,21 +88,21 @@ namespace GameWIP::Desktop::Platform
 
                     if(!formats.insert(value.format).second)
                     {
-                        return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
+                        return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::InvalidArgument);
                     }
 
                     prepared.push_back(std::move(value));
                 }
 
-                return IO::successStatus();
+                return GameWIP::Status::Types::Status{};
             }
             catch(const std::bad_alloc &)
             {
-                return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
+                return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::OutOfMemory);
             }
             catch(...)
             {
-                return IO::makeStatus(IO::Types::ErrorCode::Unknown);
+                return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::Unknown);
             }
         }
 
@@ -116,11 +114,11 @@ namespace GameWIP::Desktop::Platform
         class OleLease final
         {
         public:
-            [[nodiscard]] IO::Types::Status acquire() noexcept
+            [[nodiscard]] GameWIP::Status::Types::Status acquire() noexcept
             {
                 if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::DragDropOleInitialization))
                 {
-                    return IO::makeStatus(IO::Types::ErrorCode::OpenFailed);
+                    return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::OpenFailed);
                 }
 
                 const HRESULT hr = OleInitialize(nullptr);
@@ -128,10 +126,13 @@ namespace GameWIP::Desktop::Platform
                 if(hr == S_OK || hr == S_FALSE)
                 {
                     held_ = true;
-                    return IO::successStatus();
+                    return GameWIP::Status::Types::Status{};
                 }
 
-                return IO::makeStatus(hr == RPC_E_CHANGED_MODE ? IO::Types::ErrorCode::ResourceBusy : IO::Types::ErrorCode::OpenFailed, hr);
+                return GameWIP::Desktop::Internal::statusFor(
+                    hr == RPC_E_CHANGED_MODE ? GameWIP::Status::Types::Code::ResourceBusy : GameWIP::Status::Types::Code::OpenFailed,
+                    hr,
+                    GameWIP::Desktop::Internal::NativeCodeDomain::HResult);
             }
 
             ~OleLease() noexcept
@@ -383,7 +384,7 @@ namespace GameWIP::Desktop::Platform
 
                 if(!status.ok())
                 {
-                    return status.code == IO::Types::ErrorCode::OutOfMemory ? E_OUTOFMEMORY : E_FAIL;
+                    return status.code() == GameWIP::Status::Types::Code::OutOfMemory ? E_OUTOFMEMORY : E_FAIL;
                 }
 
                 medium->tymed = TYMED_HGLOBAL;
@@ -587,20 +588,16 @@ namespace GameWIP::Desktop::Platform
     /// @brief Runs one synchronous OLE source drag and translates its outcome.
     DD::Result beginNativeDrag(WindowState &window, const DD::Description &description) noexcept
     {
-        DD::Result result;
-
         // Reject invalid or nested source requests before preparing payload data.
         if(sourceDragActive)
         {
-            result.status = IO::makeStatus(IO::Types::ErrorCode::ResourceBusy);
-            return result;
+            return DD::Result::failure(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::ResourceBusy));
         }
 
         if(description.items.empty() || !validEffects(description.effects.allowed) ||
            static_cast<unsigned>(description.triggerButton) > static_cast<unsigned>(DD::TriggerButton::Middle))
         {
-            result.status = IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
-            return result;
+            return DD::Result::failure(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::InvalidArgument));
         }
         const int key = description.triggerButton == DD::TriggerButton::Left    ? VK_LBUTTON
                         : description.triggerButton == DD::TriggerButton::Right ? VK_RBUTTON
@@ -608,27 +605,26 @@ namespace GameWIP::Desktop::Platform
 
         if((static_cast<std::uint16_t>(GetAsyncKeyState(key)) & 0x8000U) == 0)
         {
-            result.status = IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
-            return result;
+            return DD::Result::failure(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::InvalidArgument));
         }
 
         std::vector<DataTransfer::PreparedItem> prepared;
-        result.status = prepareSource(description, prepared);
+        GameWIP::Status::Types::Status status = prepareSource(description, prepared);
 
-        if(!result.status.ok())
+        if(!status.ok())
         {
-            return result;
+            return DD::Result::failure(std::move(status));
         }
 
         try
         {
             // Keep the OLE apartment and data objects alive for the synchronous drag.
             OleLease ole;
-            result.status = ole.acquire();
+            status = ole.acquire();
 
-            if(!result.status.ok())
+            if(!status.ok())
             {
-                return result;
+                return DD::Result::failure(std::move(status));
             }
 
             auto *object = new DataObject(std::move(prepared));
@@ -653,39 +649,32 @@ namespace GameWIP::Desktop::Platform
             // Translate OLE's outcome only after confirming the source Window survived.
             if(!window.platform || !IsWindow(window.platform->handle))
             {
-                result.status = IO::makeStatus(IO::Types::ErrorCode::NativeFailure);
-                return result;
+                return DD::Result::failure(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::NativeFailure));
             }
 
             if(hr == DRAGDROP_S_CANCEL)
             {
-                result.status = IO::successStatus();
-                result.outcome = DD::Outcome::Cancelled;
-                result.effect = DD::Effect::None;
+                return DD::Result::success(DD::SourceInfo{DD::Outcome::Cancelled, DD::Effect::None});
             }
-            else if(hr == DRAGDROP_S_DROP)
+            if(hr == DRAGDROP_S_DROP)
             {
-                result = droppedSourceResult(performed, description.effects.allowed);
+                return droppedSourceResult(performed, description.effects.allowed);
             }
-            else
-            {
-                result.status = IO::makeStatus(IO::Types::ErrorCode::NativeFailure, hr);
-            }
-
-            return result;
+            return DD::Result::failure(GameWIP::Desktop::Internal::statusFor(
+                GameWIP::Status::Types::Code::NativeFailure,
+                hr,
+                GameWIP::Desktop::Internal::NativeCodeDomain::HResult));
         }
         catch(const std::bad_alloc &)
         {
             sourceDragActive = false;
-            result.status = IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
+            return DD::Result::failure(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::OutOfMemory));
         }
         catch(...)
         {
             sourceDragActive = false;
-            result.status = IO::makeStatus(IO::Types::ErrorCode::Unknown);
+            return DD::Result::failure(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::Unknown));
         }
-
-        return result;
     }
 } // namespace GameWIP::Desktop::Platform
 
@@ -698,14 +687,14 @@ namespace GameWIP::Desktop::Internal::Win32
     /// ------------------------------------------------------------
 
     /// @brief Validates and materializes source data without starting OLE.
-    IO::Types::Status prepareDragDropSource(const DD::Description &description) noexcept
+    GameWIP::Status::Types::Status prepareDragDropSource(const DD::Description &description) noexcept
     {
         std::vector<DataTransfer::PreparedItem> prepared;
         return prepareSource(description, prepared);
     }
 
     /// @brief Acquires one test OLE initialization lease.
-    IO::Types::Status testDragDropOleInitialization() noexcept
+    GameWIP::Status::Types::Status testDragDropOleInitialization() noexcept
     {
         OleLease lease;
         return lease.acquire();

@@ -18,7 +18,12 @@ void testManualFilesAndShell(
 
     // Open only the capabilities selected for this manual run.
     const auto capabilitiesResult = Desktop::getCapabilities();
-    const Desktop::Types::Capabilities capabilities = capabilitiesResult.value_or({});
+    if(!capabilitiesResult.ok())
+    {
+        context.fail("Window file and shell capabilities", manualStatusDetails(capabilitiesResult.status()));
+        return;
+    }
+    const Desktop::Types::Capabilities &capabilities = capabilitiesResult.value();
     Desktop::Types::Description description;
     description.fileDropEnabled = includeWindow && capabilities.supports(Desktop::Types::Capability::FileDrop);
     Desktop::Window window;

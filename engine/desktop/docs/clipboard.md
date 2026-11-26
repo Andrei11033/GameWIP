@@ -39,9 +39,8 @@ Win32 cannot cancel that call; no worker thread is created to hide it.
 
 ## Queries and reads
 
-Queries and reads return `Types::Result<T>`; `value` is present only on success, so a successful
-`hasFormat()` returns `Result<bool>` with `*value == false` for an
-absent valid format. Standard categories require an empty `customName`; Custom
+Queries and reads return `GameWIP::Status::Types::Result<T>`; `hasFormat()` returns a successful
+false value for an absent valid format. Standard categories require an empty `customName`; Custom
 requires a non-empty strict UTF-8 name without U+0000. A custom query
 enumerates existing registered formats and registers no new identity.
 
@@ -49,9 +48,8 @@ enumerates existing registered formats and registers no new identity.
 Portable text and image categories are deduplicated across native or synthesized
 representations. Registered third-party names such as `HTML Format` or
 `Rich Text Format` remain Custom values; unsupported unnamed standard native
-formats are skipped. If enumeration fails, `value` is disengaged even when the
-backend had already materialized an internal prefix; failed payloads are never
-exposed as if they were complete results.
+formats are skipped. If enumeration fails after collecting formats, the failed
+result retains that partial list; check `ok()` before treating it as complete.
 
 The typed reads report `NotFound` for absence. Text conversion is strict and
 does not normalize, repair, or change BOMs. File order is native order and no
@@ -69,7 +67,8 @@ clipboard contents untouched.
 
 After a successful clear, items publish in caller order because Windows uses
 format order as preference. Publication stops at the first failure.
-`WriteResult` describes the externally committed caller-order prefix:
+`Result<WriteProgress>` keeps status separate from external progress. A failed
+result retains `WriteProgress`, which describes the committed caller-order prefix:
 
 | State | Meaning |
 | --- | --- |
@@ -78,9 +77,8 @@ format order as preference. Publication stops at the first failure.
 | `PartiallyPublished` | A non-empty proper prefix published. |
 | `Published` | Every requested format published. |
 
-`clear()` separately reports `cleared=true` as soon as native clearing succeeds.
-A later close failure does not hide that side effect. Likewise, cleanup failure
-does not erase a primary failure or an already-published count/state.
+`clear()` returns `Result<ClearProgress>` and retains `cleared=true` if a later
+close fails. Cleanup failure does not erase a primary failure or published count/state.
 
 ## Format-specific validation
 
@@ -121,17 +119,18 @@ using namespace GameWIP::Desktop;
 
 void copySelection(std::string_view selectedUtf8)
 {
-    const Types::Clipboard::WriteResult result = Clipboard::writeText(selectedUtf8);
-    if(!result.status.ok())
+    const auto result = Clipboard::writeText(selectedUtf8);
+    if(!result.ok())
     {
-        // Preserve result.commitState and result.formatsPublished in diagnostics.
+        const auto &progress = result.value();
+        // Include progress.commitState and progress.formatsPublished in diagnostics.
     }
 }
 
 std::string pasteText()
 {
     const auto result = Clipboard::readText();
-    return result.ok() ? *result : std::string{};
+    return result.ok() ? result.value() : std::string{};
 }
 ```
 

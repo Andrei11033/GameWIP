@@ -203,7 +203,7 @@ namespace GameWIP::Logger::Internal::Core
         loggerState().mode = effectiveOutput;
         loggerState().lastFailureSource = Types::Health::FailureSource::None;
         loggerState().lastHealthError = ErrorCode::Success;
-        loggerState().lastHealthNativeCode = 0;
+        loggerState().lastHealthNativeCode.reset();
         loggerState().healthFailureCount = 0;
     }
 
@@ -222,8 +222,9 @@ namespace GameWIP::Logger::Internal::Core
         // Retain the failure before applying any channel fallback.
         std::lock_guard<std::mutex> lock(loggerState().logMutex);
         loggerState().lastFailureSource = source;
-        loggerState().lastHealthError = status.code;
-        loggerState().lastHealthNativeCode = status.nativeCode;
+        loggerState().lastHealthError = status.code();
+        const GameWIP::Status::Types::Diagnostic *diagnostic = status.diagnostic();
+        loggerState().lastHealthNativeCode = diagnostic == nullptr ? std::nullopt : diagnostic->nativeCode;
         ++loggerState().healthFailureCount;
 
         // Disable only the failed channel and update the surviving normal output.

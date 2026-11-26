@@ -11,16 +11,31 @@ void testValidation(Context &context)
 
     const auto expectIssue = [&](A::ValidationIssue issue)
     {
-        equal(context, "deterministic validation issue", issue, Bridge::validate(tree.view()).issue);
+        const auto result = Bridge::validate(tree.view());
+        check(context, "semantic validation failure retains details", !result.ok() && result.hasValue());
+        if(result.hasValue())
+        {
+            equal(context, "deterministic validation issue", issue, result.value().issue);
+        }
     };
 
     // Validate basic tree identity and relationships.
     check(context, "complete tree validates", Bridge::validate(tree.view()).ok());
-    equal(context, "zero generation rejects", A::ValidationIssue::ZeroGeneration, Bridge::validate(tree.view(0)).issue);
+    const auto zeroGeneration = Bridge::validate(tree.view(0));
+    check(context, "zero generation retains validation details", zeroGeneration.hasValue());
+    if(zeroGeneration.hasValue())
+    {
+        equal(context, "zero generation rejects", A::ValidationIssue::ZeroGeneration, zeroGeneration.value().issue);
+    }
 
     A::Limits limits;
     limits.maximumActionQueue = 0;
-    equal(context, "zero capacity rejects", A::ValidationIssue::InvalidLimits, Bridge::validate(tree.view(), limits).issue);
+    const auto zeroCapacity = Bridge::validate(tree.view(), limits);
+    check(context, "zero capacity retains validation details", zeroCapacity.hasValue());
+    if(zeroCapacity.hasValue())
+    {
+        equal(context, "zero capacity rejects", A::ValidationIssue::InvalidLimits, zeroCapacity.value().issue);
+    }
 
     tree.nodes[1].id = 1;
     expectIssue(A::ValidationIssue::DuplicateNodeId);
@@ -103,7 +118,12 @@ void testValidation(Context &context)
 
     limits = {};
     limits.maximumTextBytesPerNode = 1;
-    equal(context, "text budgets are cumulative", A::ValidationIssue::LimitExceeded, Bridge::validate(tree.view(), limits).issue);
+    const auto textBudget = Bridge::validate(tree.view(), limits);
+    check(context, "text budget retains validation details", textBudget.hasValue());
+    if(textBudget.hasValue())
+    {
+        equal(context, "text budgets are cumulative", A::ValidationIssue::LimitExceeded, textBudget.value().issue);
+    }
 }
 
 void testBuilder(Context &context)
@@ -111,7 +131,7 @@ void testBuilder(Context &context)
     // Start from a valid root and add borrowed metadata.
     Bridge::SnapshotBuilder builder;
     equal(context, "empty authoring state", std::size_t{0}, builder.nodeCount());
-    equal(context, "zero root fails", Error::InvalidArgument, builder.setRoot(0).code);
+    equal(context, "zero root fails", Error::InvalidArgument, builder.setRoot(0).status().code());
     check(context, "builder generation", builder.setGeneration(1).ok());
     check(context, "builder root", builder.setRoot(1).ok());
 
@@ -143,7 +163,7 @@ void testBuilder(Context &context)
     child.id = 2;
     child.parent = 1;
     check(context, "child adds", builder.addNode(child).ok());
-    equal(context, "duplicate builder node fails", Error::InvalidArgument, builder.addNode(child).code);
+    equal(context, "duplicate builder node fails", Error::InvalidArgument, builder.addNode(child).status().code());
     check(context, "owned tree validates", Bridge::validate(builder.view()).ok());
 
     Bridge::SnapshotBuilder moved(std::move(builder));
@@ -159,7 +179,7 @@ void testLifetime(Context &context)
     auto bridge = window.accessibility();
     Tree tree;
     check(context, "closed bridge starts disabled", !bridge.enabled());
-    equal(context, "closed enable", Error::NotOpen, bridge.enable().code);
+    equal(context, "closed enable", Error::NotOpen, bridge.enable().status().code());
 
     if(!open(context, window))
     {
@@ -167,14 +187,14 @@ void testLifetime(Context &context)
     }
 
     check(context, "explicit enable", bridge.enable().ok());
-    equal(context, "duplicate enable", Error::AlreadyOpen, bridge.enable().code);
+    equal(context, "duplicate enable", Error::AlreadyOpen, bridge.enable().status().code());
     check(context, "publish complete snapshot", bridge.publish(tree.view()).ok());
     const auto retained = bridge.readSnapshot();
     check(context, "retained reader", retained.isValid());
     tree.nodes[1].name = "New";
     check(context, "newer generation replaces", bridge.publish(tree.view(2)).ok());
     equal(context, "retained reader immutable", std::string_view("Run"), retained.find(2)->name);
-    equal(context, "stale publish rejected", Error::InvalidArgument, bridge.publish(tree.view(1)).code);
+    equal(context, "stale publish rejected", Error::InvalidArgument, bridge.publish(tree.view(1)).status().code());
 
     Bridge::SnapshotBuilder copied;
     check(context, "explicit owning copy", bridge.copySnapshot(copied).ok());
@@ -186,7 +206,7 @@ void testLifetime(Context &context)
         [&]
         {
             published = bridge.publish(tree.view(3)).ok();
-            wrongThreadRejected = bridge.disable().code == Error::ResourceBusy;
+            wrongThreadRejected = bridge.disable().status().code() == Error::ResourceBusy;
         });
     worker.join();
     check(context, "worker publishes", published.load());
@@ -194,7 +214,7 @@ void testLifetime(Context &context)
 
 #if DESKTOP_INTERNAL_TEST_HOOKS
     Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::Allocation);
-    equal(context, "publication allocation failure", Error::OutOfMemory, bridge.publish(tree.view(4)).code);
+    equal(context, "publication allocation failure", Error::OutOfMemory, bridge.publish(tree.view(4)).status().code());
     equal(context, "failed publication preserves tree", A::Generation{3}, bridge.snapshotInfo().generation);
 #endif
 
@@ -210,9 +230,9 @@ void testLifetime(Context &context)
 
     check(context, "reopen is explicitly disabled", !bridge.enabled());
     check(context, "reenable", bridge.enable().ok());
-    equal(context, "reopen cannot reuse old generation", Error::InvalidArgument, bridge.publish(tree.view(3)).code);
+    equal(context, "reopen cannot reuse old generation", Error::InvalidArgument, bridge.publish(tree.view(3)).status().code());
     check(context, "fresh generation after reopen", bridge.publish(tree.view(4)).ok());
     check(context, "disable idempotent", bridge.disable().ok() && bridge.disable().ok());
-    equal(context, "disabled publish", Error::NotOpen, bridge.publish(tree.view(5)).code);
+    equal(context, "disabled publish", Error::NotOpen, bridge.publish(tree.view(5)).status().code());
     check(context, "close reopened Window", window.close().ok());
 }

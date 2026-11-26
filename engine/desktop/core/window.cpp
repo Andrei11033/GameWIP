@@ -4,6 +4,7 @@
 #include "desktop/window.h"
 #include "desktop/internal/accessibility_state.h"
 #include "desktop/internal/desktop_test_hooks.h"
+#include "desktop/internal/results.h"
 #include "desktop/internal/helpers/window_validation.h"
 #include "desktop/internal/presentation_publication_state.h"
 #include "desktop/platform/window.h"
@@ -32,10 +33,10 @@ namespace GameWIP::Desktop
         using Internal::Helpers::validModeRequest;
         using Internal::Helpers::validRatio;
         using Internal::Helpers::validSize;
-        using IO::Types::ErrorCode;
+        using ErrorCode = GameWIP::Status::Types::Code;
 
         /// @brief Validates a complete open description before native state allocation.
-        [[nodiscard]] IO::Types::Status validateDescription(const Types::Description &description) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status validateDescription(const Types::Description &description) noexcept
         {
             // U+0000 is valid Unicode, but native Window title APIs are NUL-terminated and cannot
             // represent an embedded NUL. UTF-8 validity itself is checked by the strict conversion
@@ -56,7 +57,7 @@ namespace GameWIP::Desktop
             {
                 return error(ErrorCode::InvalidArgument);
             }
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
 
         /// @brief Returns whether the current thread owns either live or deferred Window state.
@@ -122,7 +123,7 @@ namespace GameWIP::Desktop
     /// Capabilities and lifecycle
     /// ------------------------------------------------------------
 
-    Types::Result<Types::Capabilities> getCapabilities() noexcept
+    GameWIP::Status::Types::Result<Types::Capabilities> getCapabilities() noexcept
     {
         return Platform::getCapabilities();
     }
@@ -130,7 +131,7 @@ namespace GameWIP::Desktop
     bool supports(Types::Capability capability) noexcept
     {
         const auto result = getCapabilities();
-        return result.ok() && result->supports(capability);
+        return result.ok() && result.value().supports(capability);
     }
 
     Window::Window() noexcept = default;
@@ -168,12 +169,12 @@ namespace GameWIP::Desktop
         }
     }
 
-    IO::Types::Status Window::open(const Types::Description &description) noexcept
+    GameWIP::Status::Types::Result<void> Window::open(const Types::Description &description) noexcept
     {
         return open(description, Events::owned());
     }
 
-    IO::Types::Status Window::open(const Types::Description &description, Types::Events::QueueConfiguration queue) noexcept
+    GameWIP::Status::Types::Result<void> Window::open(const Types::Description &description, Types::Events::QueueConfiguration queue) noexcept
     {
         // Reject invalid lifecycle and queue configurations.
         if(state_)
@@ -194,7 +195,7 @@ namespace GameWIP::Desktop
         }
 
         // Validate before allocating candidate state.
-        const IO::Types::Status validation = validateDescription(description);
+        const GameWIP::Status::Types::Status validation = validateDescription(description);
         if(!validation.ok())
         {
             return validation;
@@ -235,7 +236,7 @@ namespace GameWIP::Desktop
             }
 
             // Open the native window before publishing candidate state.
-            IO::Types::Status status = Platform::open(*candidate, description);
+            GameWIP::Status::Types::Status status = Platform::open(*candidate, description);
             if(!status.ok())
             {
                 Platform::closeBestEffort(*candidate);
@@ -258,7 +259,7 @@ namespace GameWIP::Desktop
             }
 
             state_ = std::move(candidate);
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
         catch(const std::bad_alloc &)
         {
@@ -300,7 +301,7 @@ namespace GameWIP::Desktop
         return isOpen() ? Types::LifetimeState::Open : Types::LifetimeState::Closed;
     }
 
-    IO::Types::Status Window::close() noexcept
+    GameWIP::Status::Types::Result<void> Window::close() noexcept
     {
         // Release cached resources when no native close is pending.
         if(!isOpen() && (!state_ || !state_->nativeDestroyedPendingFinalize))
@@ -321,7 +322,7 @@ namespace GameWIP::Desktop
                 presentationPublication_->reset();
             }
             state_.reset();
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
 
         // Native teardown must run on the Window owner thread.
@@ -334,7 +335,7 @@ namespace GameWIP::Desktop
         Internal::invalidatePointerHitMask(*state_);
         Platform::CloseResult result = Platform::close(*state_);
 
-        if(result.resourceClosed)
+        if(result.hasValue() && result.value())
         {
             // Release cached resources only after native closure succeeds.
             Internal::closeAccessibility(*state_);
@@ -352,7 +353,7 @@ namespace GameWIP::Desktop
             state_.reset();
         }
 
-        return result.status;
+        return Internal::result(result.status());
     }
 
     /// ------------------------------------------------------------
@@ -383,9 +384,9 @@ namespace GameWIP::Desktop
         return ::GameWIP::Desktop::supports(capability);
     }
 
-    IO::Types::Status Window::setOwner(std::optional<Types::WindowId> owner) noexcept
+    GameWIP::Status::Types::Result<void> Window::setOwner(std::optional<Types::WindowId> owner) noexcept
     {
-        IO::Types::Status status = requireState(state_.get());
+        GameWIP::Status::Types::Status status = requireState(state_.get());
 
         if(!status.ok())
         {
@@ -404,9 +405,9 @@ namespace GameWIP::Desktop
         return state_ && state_->closeRequested;
     }
 
-    IO::Types::Status Window::requestClose() noexcept
+    GameWIP::Status::Types::Result<void> Window::requestClose() noexcept
     {
-        IO::Types::Status status = requireState(state_.get());
+        GameWIP::Status::Types::Status status = requireState(state_.get());
 
         if(!status.ok())
         {
@@ -414,12 +415,12 @@ namespace GameWIP::Desktop
         }
 
         static_cast<void>(Internal::requestClose(*state_, Types::Events::CloseRequestSource::Programmatic));
-        return IO::successStatus();
+        return GameWIP::Status::Types::Status{};
     }
 
-    IO::Types::Status Window::clearCloseRequest() noexcept
+    GameWIP::Status::Types::Result<void> Window::clearCloseRequest() noexcept
     {
-        IO::Types::Status status = requireState(state_.get());
+        GameWIP::Status::Types::Status status = requireState(state_.get());
 
         if(!status.ok())
         {
@@ -427,7 +428,7 @@ namespace GameWIP::Desktop
         }
 
         state_->closeRequested = false;
-        return IO::successStatus();
+        return GameWIP::Status::Types::Status{};
     }
 
     bool Window::popEvent(Types::Event &outEvent) noexcept
@@ -499,7 +500,7 @@ namespace GameWIP::Desktop
         }
     }
 
-    IO::Types::Status Window::wakeEventWait() const noexcept
+    GameWIP::Status::Types::Result<void> Window::wakeEventWait() const noexcept
     {
         if(!isOpen())
         {

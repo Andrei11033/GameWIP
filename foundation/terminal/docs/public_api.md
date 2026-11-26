@@ -107,8 +107,8 @@ See @ref terminal_styling.
 The generated `Capabilities` field reference gives the exact `supports...`
 member associated with each item.
 
-Capability query results pair a status with the reported capability structure. `Types::Size` contains `columns` and `rows`; `Types::Cursor::Position`
-contains zero-based `column` and `row`. Their result types pair the value with an IO status.
+Capability queries, `getTerminalSize()`, and `getCursorPosition()` return the value through `GameWIP::Status::Types::Result`. `Types::Size` contains
+`columns` and `rows`; `Types::Cursor::Position` contains zero-based `column` and `row`.
 
 Capabilities are snapshots. Replacing or redirecting a standard handle can invalidate an earlier result.
 

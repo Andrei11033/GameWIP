@@ -30,8 +30,6 @@ namespace
     namespace TestSupport = GameWIP::TestSupport;
 
     using GameWIP::Test::IOTestOptions;
-    using IO::Types::ErrorCode;
-
 #include "validation/tests/io/io_fixtures.inl"
 
     /// ------------------------------------------------------------
@@ -60,7 +58,7 @@ namespace
     static_assert(noexcept(IO::isValidFlushMode(IO::Types::FlushMode::None)));
 
     // Non-throwing operation contracts
-    static_assert(noexcept(IO::makeStatus(ErrorCode::Unknown)));
+    static_assert(noexcept(GameWIP::Status::Types::Status(GameWIP::Status::Types::Code::Unknown)));
     static_assert(noexcept(std::declval<IO::Reader &>().isOpen()));
     static_assert(noexcept(std::declval<IO::Reader &>().canSeek()));
     static_assert(noexcept(std::declval<IO::Reader &>().read(std::declval<std::span<std::byte>>())));
@@ -82,16 +80,20 @@ namespace
     static_assert(noexcept(std::declval<IO::MemoryWriter &>().reserve(0)));
     static_assert(noexcept(std::declval<const IO::MemoryWriter &>().copyText()));
 
-    // Borrowed source and result types
-    static_assert(std::is_same_v<decltype(std::declval<const IO::MemoryWriter &>().copyText()), IO::Types::CopyTextResult>);
+    // Borrowed source and shared result types
+    static_assert(std::is_same_v<
+                  decltype(std::declval<const IO::MemoryWriter &>().copyText()),
+                  GameWIP::Status::Types::Result<std::string>>);
     static_assert(std::is_constructible_v<IO::MemoryReader, std::string &>);
     static_assert(!std::is_constructible_v<IO::MemoryReader, std::string &&>);
     static_assert(std::is_constructible_v<IO::MemoryReader, std::vector<std::byte> &>);
     static_assert(!std::is_constructible_v<IO::MemoryReader, std::vector<std::byte> &&>);
     static_assert(std::is_same_v<
                   decltype(IO::writeAllBytes(std::declval<IO::Writer &>(), std::declval<std::span<const std::byte>>())),
-                  IO::Types::WriteResult>);
-    static_assert(std::is_same_v<decltype(IO::writeAllText(std::declval<IO::Writer &>(), std::declval<std::string_view>())), IO::Types::WriteResult>);
+                  GameWIP::Status::Types::Result<IO::Types::WriteProgress>>);
+    static_assert(std::is_same_v<
+                  decltype(IO::writeAllText(std::declval<IO::Writer &>(), std::declval<std::string_view>())),
+                  GameWIP::Status::Types::Result<IO::Types::WriteProgress>>);
 
     // Focused suite declarations keep cross-suite calls independent of fragment include order.
 
@@ -99,8 +101,7 @@ namespace
     /// Test suites
     /// ------------------------------------------------------------
 
-    void testErrorCodeNames(TestSupport::Context &context);
-    void testStatusAndDefaultContracts(TestSupport::Context &context);
+    void testDefaultContracts(TestSupport::Context &context);
     void testMemoryReader(TestSupport::Context &context);
     void testMemoryReaderSeek(TestSupport::Context &context);
     void testMemoryWriter(TestSupport::Context &context);
@@ -131,8 +132,7 @@ namespace GameWIP::Test
                 "IO test options: report={}",
                 options.writeReport ? GameWIP::Test::Internal::RunnerHelpers::pathText(options.reportPath) : std::string_view{"disabled"}));
 
-        runner.runSuite("IO error code names", testErrorCodeNames);
-        runner.runSuite("IO status defaults", testStatusAndDefaultContracts);
+        runner.runSuite("IO default contracts", testDefaultContracts);
         runner.runSuite("IO MemoryReader", testMemoryReader);
         runner.runSuite("IO MemoryReader seek", testMemoryReaderSeek);
         runner.runSuite("IO MemoryWriter", testMemoryWriter);

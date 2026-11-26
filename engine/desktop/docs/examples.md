@@ -61,7 +61,7 @@ static_cast<void>(input.close());
 while(window.isOpen() && !window.hasCloseRequest())
 {
     const auto pump = GameWIP::Desktop::Events::wait(std::chrono::milliseconds{16});
-    if(!pump.status.ok())
+    if(!pump.ok())
         break;
 
     GameWIP::Desktop::Types::Event event;
@@ -89,7 +89,7 @@ unexpected native destruction; retained events can still be consumed before fina
 const auto monitors = GameWIP::Desktop::Display::getMonitors();
 if(monitors.ok())
 {
-    for(const auto &monitor : *monitors)
+    for(const auto &monitor : monitors.value())
     {
         const auto current = GameWIP::Desktop::Display::getCurrentMode(monitor.id);
         const auto color = GameWIP::Desktop::Display::getColorInfo(monitor.id);
@@ -119,7 +119,7 @@ if(window.supports(GameWIP::Desktop::Types::Capability::CustomCursor))
     auto cursorImage = GameWIP::Desktop::Types::Cursor::ImageView::packed({32, 32}, {4, 3}, cursorRgba8);
     auto cursor = GameWIP::Desktop::createCursor(cursorImage);
     if(cursor.ok())
-        static_cast<void>(GameWIP::Desktop::setCursor(window, *cursor));
+        static_cast<void>(GameWIP::Desktop::setCursor(window, cursor.value()));
 }
 ```
 
@@ -154,20 +154,20 @@ Shut external technology down before `host.close()` if its SDK needs explicit te
 #include "desktop/clipboard.h"
 
 const auto copied = GameWIP::Desktop::Clipboard::writeText("selected UTF-8 text");
-if(!copied.status.ok())
+if(!copied.ok())
 {
-    // copied.commitState says whether the external Clipboard changed.
+    // copied.value().commitState says whether the external Clipboard changed.
 }
 
 const auto pasted = GameWIP::Desktop::Clipboard::readText(std::chrono::milliseconds{50});
 if(pasted.ok())
 {
-    // Insert *pasted into the application-owned selection.
+    // Insert pasted.value() into the application-owned selection.
 }
 ```
 
 For multi-format publication, build ordered `Types::DataTransfer::ItemView` values and call
-`Clipboard::write()`; on failure inspect `commitState` and `formatsPublished`. See @ref desktop_clipboard.
+`Clipboard::write()`; on failure inspect `value().commitState` and `value().formatsPublished`. See @ref desktop_clipboard.
 
 ## Accept native text and file drops
 
@@ -222,9 +222,9 @@ request.title = "Open image";
 request.filters = filters;
 
 const auto selected = Dialogs::openFile(request);
-if(selected.status.ok() && selected.outcome == Types::Dialogs::Outcome::Accepted)
+if(selected.ok() && selected.value().outcome == Types::Dialogs::Outcome::Accepted)
 {
-    // Consume selected.path.
+    // Consume selected.value().path.
 }
 ```
 
@@ -300,7 +300,7 @@ Window remains alive. Supply a strictly newer nonzero generation each time.
 #include "desktop/accessibility.h"
 #include <array>
 
-GameWIP::IO::Types::Status publishAccessibleCommand(GameWIP::Desktop::Window &window, GameWIP::Desktop::Types::Accessibility::Generation generation)
+GameWIP::Status::Types::Result<void> publishAccessibleCommand(GameWIP::Desktop::Window &window, GameWIP::Desktop::Types::Accessibility::Generation generation)
 {
     namespace D = GameWIP::Desktop;
     namespace A = D::Types::Accessibility;

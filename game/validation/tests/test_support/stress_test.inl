@@ -120,16 +120,16 @@ void testStressHelpers(TestSupport::Context &context, const std::filesystem::pat
         childOptions.waitTimeout = 30s;
         const auto child = TestSupport::runChildProcess(childOptions);
 
-        if(!child.status.ok() || child.outcome != TestSupport::Types::Process::Outcome::Exited || child.exitCode != 0)
+        if(!child.ok() || child.value().outcome != TestSupport::Types::Process::Outcome::Exited || child.value().exitCode != 0)
         {
             context.fail(
                 "StartGate blocking, release and future waiters",
                 std::format(
                     "{} outcome={} exit={}\n{}",
-                    TestSupport::formatInfrastructureStatus(child.status),
-                    static_cast<int>(child.outcome),
-                    child.exitCode,
-                    child.outputBytes));
+                    TestSupport::formatStatus(child.status()),
+                    static_cast<int>(child.value().outcome),
+                    child.value().exitCode,
+                    child.value().outputBytes));
         }
         else
         {

@@ -22,7 +22,7 @@ void testManualStateRestoration(
         Terminal::Types::SessionOptions options;
         options.deliveryMode = Terminal::Types::Input::DeliveryMode::Stream;
 
-        const IO::Types::Status openStatus = session.open(options);
+        const auto openStatus = session.open(options);
 
         if(requireManualOperation(context, "manual session restoration", "open managed input session", openStatus))
         {
@@ -36,9 +36,9 @@ void testManualStateRestoration(
                 return;
             }
             const Terminal::Types::Input::LineResult hiddenInput = session.readLine();
-            bool readSucceeded = requireManualOperation(context, "manual session restoration", "read managed session input", hiddenInput.status);
+            bool readSucceeded = requireManualOperation(context, "manual session restoration", "read managed session input", hiddenInput.status());
 
-            if(readSucceeded && (hiddenInput.outcome != Terminal::Types::Input::ReadOutcome::Completed || hiddenInput.line != "hidden"))
+            if(readSucceeded && (hiddenInput.value().outcome != Terminal::Types::Input::ReadOutcome::Completed || hiddenInput.value().line != "hidden"))
             {
                 context.fail("manual session restoration", "managed hidden input did not produce the requested line");
                 readSucceeded = false;
@@ -104,13 +104,13 @@ void testManualUiChecks(TestSupport::Context &context, const TerminalTestOptions
     const Terminal::Types::Output::CapabilitiesResult output = Terminal::prepareOutput();
     const Terminal::Types::Input::CapabilitiesResult input = Terminal::getInputCapabilities();
 
-    if(!requireManualOperation(context, "manual terminal capability setup", "prepare stdout", output.status) ||
-       !requireManualOperation(context, "manual terminal capability setup", "query stdin", input.status))
+    if(!requireManualOperation(context, "manual terminal capability setup", "prepare stdout", output.status()) ||
+       !requireManualOperation(context, "manual terminal capability setup", "query stdin", input.status()))
     {
         return;
     }
 
-    if(output.capabilities.kind != Terminal::Types::StreamKind::Terminal || input.capabilities.kind != Terminal::Types::StreamKind::Terminal)
+    if(output.value().kind != Terminal::Types::StreamKind::Terminal || input.value().kind != Terminal::Types::StreamKind::Terminal)
     {
         context.skip("Terminal manual tests", "requires real terminal stdin and stdout");
         return;
@@ -118,14 +118,14 @@ void testManualUiChecks(TestSupport::Context &context, const TerminalTestOptions
 
     context.manual("Terminal UI checks: verify each observation and answer yes, no, or skip when prompted.");
     testManualUnicodeOutput(context);
-    testManualBasicColorOutput(context, output.capabilities.style);
-    testManualRgbColorOutput(context, output.capabilities.style);
-    testManualTextStyles(context, output.capabilities.style);
-    testManualStyleRestoration(context, output.capabilities.style);
-    testManualCursorBehavior(context, output.capabilities);
-    testManualAlternateScreen(context, output.capabilities);
+    testManualBasicColorOutput(context, output.value().style);
+    testManualRgbColorOutput(context, output.value().style);
+    testManualTextStyles(context, output.value().style);
+    testManualStyleRestoration(context, output.value().style);
+    testManualCursorBehavior(context, output.value());
+    testManualAlternateScreen(context, output.value());
     testManualInput(context);
     testManualWrappedLineEditing(context);
-    testManualEventInput(context, input.capabilities);
-    testManualStateRestoration(context, input.capabilities, output.capabilities);
+    testManualEventInput(context, input.value());
+    testManualStateRestoration(context, input.value(), output.value());
 }

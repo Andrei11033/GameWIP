@@ -18,11 +18,12 @@ void testManualHdrAndAdvancedColor(TestSupport::Context &context, const GameWIP:
 
     if(!monitors.ok())
     {
-        context.fail("HDR monitor enumeration", monitors.status.message);
+        const GameWIP::Status::Types::Diagnostic *diagnostic = monitors.status().diagnostic();
+        context.fail("HDR monitor enumeration", diagnostic != nullptr ? diagnostic->message : "monitor enumeration failed");
         return;
     }
 
-    if(!context.expectTrue("HDR monitor enumeration returns at least one display", !monitors->empty()))
+    if(!context.expectTrue("HDR monitor enumeration returns at least one display", !monitors.value().empty()))
     {
         return;
     }
@@ -34,7 +35,7 @@ void testManualHdrAndAdvancedColor(TestSupport::Context &context, const GameWIP:
         return;
     }
 
-    for(const Desktop::Types::Display::Info &monitor : *monitors)
+    for(const Desktop::Types::Display::Info &monitor : monitors.value())
     {
         const auto direct = Desktop::Display::getColorInfo(monitor.id);
         static_cast<void>(context.expectTrue("monitor display-color query succeeds", direct.ok()));
@@ -43,7 +44,7 @@ void testManualHdrAndAdvancedColor(TestSupport::Context &context, const GameWIP:
         {
             continue;
         }
-        const auto &info = *direct;
+        const auto &info = direct.value();
         static_cast<void>(context.expectEq("display-color query retains monitor identity", monitor.id, info.monitor));
         static_cast<void>(context.expectTrue("HDR enabled implies HDR supported", !info.hdrEnabled || info.hdrSupported));
         static_cast<void>(context.expectTrue("SDR-only display is not marked HDR enabled", info.hdrSupported || !info.hdrEnabled));
@@ -77,7 +78,7 @@ void testManualHdrAndAdvancedColor(TestSupport::Context &context, const GameWIP:
 
     if(windowInfo.ok())
     {
-        static_cast<void>(context.expectEq("Window display-color monitor matches current monitor", window.currentMonitor(), windowInfo->monitor));
+        static_cast<void>(context.expectEq("Window display-color monitor matches current monitor", window.currentMonitor(), windowInfo.value().monitor));
     }
 
     const TestSupport::Types::Reporting::ManualAnswer toggle = recordManualCheck(
@@ -88,7 +89,7 @@ void testManualHdrAndAdvancedColor(TestSupport::Context &context, const GameWIP:
 
     if(toggle == TestSupport::Types::Reporting::ManualAnswer::Yes)
     {
-        static_cast<void>(context.expectTrue("HDR toggle remains queryable", Desktop::Display::getColorInfo(window).status.ok()));
+        static_cast<void>(context.expectTrue("HDR toggle remains queryable", Desktop::Display::getColorInfo(window).status().ok()));
         static_cast<void>(context.expectTrue(
             "HDR toggle delivers display configuration event",
             consumeEventOfType<Desktop::Types::Events::DisplayConfigurationChanged>(window)));

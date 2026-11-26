@@ -8,41 +8,45 @@
 #include "desktop/platform/window.h"
 
 #include <new>
+#include <optional>
+#include <utility>
 
 namespace GameWIP::Desktop::Dialogs
 {
     namespace
     {
-        using IO::Types::ErrorCode;
+        using GameWIP::Status::Types::Code;
+        using GameWIP::Status::Types::Result;
+        using GameWIP::Status::Types::Status;
 
-        /// @brief Builds a portable status from a single error code.
-        [[nodiscard]] IO::Types::Status error(ErrorCode code) noexcept
+        /// @brief Builds a shared status from one portable error code.
+        [[nodiscard]] Status error(Code code) noexcept
         {
-            return IO::makeStatus(code);
+            return Status(code);
         }
 
         // Owner and text validation
 
         /// @brief Rejects embedded NUL characters before text reaches a native dialog API.
-        [[nodiscard]] IO::Types::Status validateText(std::string_view text) noexcept
+        [[nodiscard]] Status validateText(std::string_view text) noexcept
         {
-            return text.contains('\0') ? error(ErrorCode::InvalidArgument) : IO::successStatus();
+            return text.contains('\0') ? error(Code::InvalidArgument) : Status{};
         }
 
         /// @brief Validates optional Window ownership and enforces owner-thread dialog calls.
-        [[nodiscard]] IO::Types::Status validateOwner(Window *owner) noexcept
+        [[nodiscard]] Status validateOwner(Window *owner) noexcept
         {
             if(owner == nullptr)
             {
-                return IO::successStatus();
+                return {};
             }
             Internal::WindowState *state = Internal::WindowAccess::state(*owner);
 
             if(state == nullptr || !Platform::hasLiveNativeWindow(*state))
             {
-                return error(ErrorCode::NotOpen);
+                return error(Code::NotOpen);
             }
-            return Platform::ownedByCurrentThread(*state) ? IO::successStatus() : error(ErrorCode::ResourceBusy);
+            return Platform::ownedByCurrentThread(*state) ? Status{} : error(Code::ResourceBusy);
         }
 
         // File-filter validation
@@ -61,18 +65,18 @@ namespace GameWIP::Desktop::Dialogs
         }
 
         /// @brief Validates filter text and the selected filter index before native conversion.
-        [[nodiscard]] IO::Types::Status validateFilters(
+        [[nodiscard]] Status validateFilters(
             std::span<const Types::Dialogs::File::Filter> filters,
             std::optional<std::size_t> preferredFilterIndex) noexcept
         {
             if(preferredFilterIndex && *preferredFilterIndex >= filters.size())
             {
-                return error(ErrorCode::InvalidArgument);
+                return error(Code::InvalidArgument);
             }
 
             for(const Types::Dialogs::File::Filter &filter : filters)
             {
-                IO::Types::Status status = validateText(filter.name);
+                Status status = validateText(filter.name);
 
                 if(!status.ok())
                 {
@@ -90,12 +94,12 @@ namespace GameWIP::Desktop::Dialogs
 
                     if(!validFilterExtensionSyntax(extension))
                     {
-                        return error(ErrorCode::InvalidArgument);
+                        return error(Code::InvalidArgument);
                     }
                 }
             }
 
-            return IO::successStatus();
+            return {};
         }
 
         // Message and prompt validation
@@ -167,17 +171,17 @@ namespace GameWIP::Desktop::Dialogs
         }
 
         /// @brief Validates prompt text, identifiers, defaults, and optional checkbox state.
-        [[nodiscard]] IO::Types::Status validatePrompt(const Types::Dialogs::Prompt::Description &description) noexcept
+        [[nodiscard]] Status validatePrompt(const Types::Dialogs::Prompt::Description &description) noexcept
         {
             if(!validSeverity(description.severity) || description.buttons.empty())
             {
-                return error(ErrorCode::InvalidArgument);
+                return error(Code::InvalidArgument);
             }
 
             for(std::string_view text :
                 {description.title, description.heading, description.message, description.details, description.supplementalText})
             {
-                IO::Types::Status status = validateText(text);
+                Status status = validateText(text);
 
                 if(!status.ok())
                 {
@@ -191,20 +195,20 @@ namespace GameWIP::Desktop::Dialogs
 
                 if(!button.id.isValid() || button.label.empty())
                 {
-                    return error(ErrorCode::InvalidArgument);
+                    return error(Code::InvalidArgument);
                 }
 
                 for(std::size_t previous = 0; previous < index; ++previous)
                 {
                     if(description.buttons[previous].id == button.id)
                     {
-                        return error(ErrorCode::InvalidArgument);
+                        return error(Code::InvalidArgument);
                     }
                 }
 
                 for(std::string_view text : {button.label, button.description})
                 {
-                    IO::Types::Status status = validateText(text);
+                    Status status = validateText(text);
 
                     if(!status.ok())
                     {
@@ -219,18 +223,18 @@ namespace GameWIP::Desktop::Dialogs
 
                 if(!option.id.isValid() || option.label.empty())
                 {
-                    return error(ErrorCode::InvalidArgument);
+                    return error(Code::InvalidArgument);
                 }
 
                 for(std::size_t previous = 0; previous < index; ++previous)
                 {
                     if(description.options[previous].id == option.id)
                     {
-                        return error(ErrorCode::InvalidArgument);
+                        return error(Code::InvalidArgument);
                     }
                 }
 
-                IO::Types::Status status = validateText(option.label);
+                Status status = validateText(option.label);
 
                 if(!status.ok())
                 {
@@ -242,17 +246,17 @@ namespace GameWIP::Desktop::Dialogs
                (description.cancelButton && !containsButton(description.buttons, *description.cancelButton)) ||
                (description.defaultOption && !containsOption(description.options, *description.defaultOption)))
             {
-                return error(ErrorCode::InvalidArgument);
+                return error(Code::InvalidArgument);
             }
 
             if(description.checkBox)
             {
                 if(description.checkBox->label.empty())
                 {
-                    return error(ErrorCode::InvalidArgument);
+                    return error(Code::InvalidArgument);
                 }
 
-                IO::Types::Status status = validateText(description.checkBox->label);
+                Status status = validateText(description.checkBox->label);
 
                 if(!status.ok())
                 {
@@ -260,242 +264,242 @@ namespace GameWIP::Desktop::Dialogs
                 }
             }
 
-            return IO::successStatus();
+            return {};
         }
+
     } // namespace
 
     /// ------------------------------------------------------------
     /// File dialogs
     /// ------------------------------------------------------------
 
-    Types::Dialogs::File::Result openFile(const Types::Dialogs::File::OpenDescription &description) noexcept
+    Result<Types::Dialogs::File::Selection> openFile(const Types::Dialogs::File::OpenDescription &description) noexcept
     {
-        Types::Dialogs::File::Result result;
         try
         {
-            result.status = validateOwner(description.owner);
-
-            if(result.status.ok())
+            Status status = validateOwner(description.owner);
+            if(status.ok())
             {
-                result.status = validateText(description.title);
+                status = validateText(description.title);
+            }
+            if(status.ok())
+            {
+                status = validateFilters(description.filters, description.preferredFilterIndex);
+            }
+            if(!status.ok())
+            {
+                return Result<Types::Dialogs::File::Selection>::failure(std::move(status));
             }
 
-            if(result.status.ok())
-            {
-                result.status = validateFilters(description.filters, description.preferredFilterIndex);
-            }
-
-            return result.status.ok() ? Platform::openFile(description) : result;
+            return Platform::openFile(description);
         }
         catch(const std::bad_alloc &)
         {
-            result.status = error(ErrorCode::OutOfMemory);
+            return Result<Types::Dialogs::File::Selection>::failure(Status(Code::OutOfMemory));
         }
         catch(...)
         {
-            result.status = error(ErrorCode::Unknown);
+            return Result<Types::Dialogs::File::Selection>::failure(Status(Code::Unknown));
         }
-
-        return result;
     }
 
-    Types::Dialogs::File::ListResult openFiles(const Types::Dialogs::File::OpenDescription &description) noexcept
+    Result<Types::Dialogs::File::SelectionList> openFiles(const Types::Dialogs::File::OpenDescription &description) noexcept
     {
-        Types::Dialogs::File::ListResult result;
         try
         {
-            result.status = validateOwner(description.owner);
-
-            if(result.status.ok())
+            Status status = validateOwner(description.owner);
+            if(status.ok())
             {
-                result.status = validateText(description.title);
+                status = validateText(description.title);
+            }
+            if(status.ok())
+            {
+                status = validateFilters(description.filters, description.preferredFilterIndex);
+            }
+            if(!status.ok())
+            {
+                return Result<Types::Dialogs::File::SelectionList>::failure(std::move(status));
             }
 
-            if(result.status.ok())
-            {
-                result.status = validateFilters(description.filters, description.preferredFilterIndex);
-            }
-
-            return result.status.ok() ? Platform::openFiles(description) : result;
+            return Platform::openFiles(description);
         }
         catch(const std::bad_alloc &)
         {
-            result.status = error(ErrorCode::OutOfMemory);
+            return Result<Types::Dialogs::File::SelectionList>::failure(Status(Code::OutOfMemory));
         }
         catch(...)
         {
-            result.status = error(ErrorCode::Unknown);
+            return Result<Types::Dialogs::File::SelectionList>::failure(Status(Code::Unknown));
         }
-
-        return result;
     }
 
-    Types::Dialogs::File::Result saveFile(const Types::Dialogs::File::SaveDescription &description) noexcept
+    Result<Types::Dialogs::File::Selection> saveFile(const Types::Dialogs::File::SaveDescription &description) noexcept
     {
-        Types::Dialogs::File::Result result;
         try
         {
-            result.status = validateOwner(description.owner);
-
-            if(result.status.ok())
+            Status status = validateOwner(description.owner);
+            if(status.ok())
             {
-                result.status = validateText(description.title);
+                status = validateText(description.title);
             }
-
-            if(result.status.ok())
+            if(status.ok())
             {
-                result.status = validateText(description.suggestedFileName);
+                status = validateText(description.suggestedFileName);
             }
-
-            if(result.status.ok())
+            if(status.ok())
             {
-                result.status = validateFilters(description.filters, description.preferredFilterIndex);
+                status = validateFilters(description.filters, description.preferredFilterIndex);
             }
 
             // Validate the suggested extension after the shared filters.
-            if(result.status.ok() && !description.suggestedExtension.empty())
+            if(status.ok() && !description.suggestedExtension.empty())
             {
-                result.status = validateText(description.suggestedExtension);
-
-                if(result.status.ok() && !validExtensionSyntax(description.suggestedExtension))
+                status = validateText(description.suggestedExtension);
+                if(status.ok() && !validExtensionSyntax(description.suggestedExtension))
                 {
-                    result.status = error(ErrorCode::InvalidArgument);
+                    status = error(Code::InvalidArgument);
                 }
             }
-
-            return result.status.ok() ? Platform::saveFile(description) : result;
-        }
-        catch(const std::bad_alloc &)
-        {
-            result.status = error(ErrorCode::OutOfMemory);
-        }
-        catch(...)
-        {
-            result.status = error(ErrorCode::Unknown);
-        }
-
-        return result;
-    }
-
-    Types::Dialogs::File::Result selectFolder(const Types::Dialogs::File::FolderDescription &description) noexcept
-    {
-        Types::Dialogs::File::Result result;
-        try
-        {
-            result.status = validateOwner(description.owner);
-
-            if(result.status.ok())
+            if(!status.ok())
             {
-                result.status = validateText(description.title);
+                return Result<Types::Dialogs::File::Selection>::failure(std::move(status));
             }
 
-            return result.status.ok() ? Platform::selectFolder(description) : result;
+            return Platform::saveFile(description);
         }
         catch(const std::bad_alloc &)
         {
-            result.status = error(ErrorCode::OutOfMemory);
+            return Result<Types::Dialogs::File::Selection>::failure(Status(Code::OutOfMemory));
         }
         catch(...)
         {
-            result.status = error(ErrorCode::Unknown);
+            return Result<Types::Dialogs::File::Selection>::failure(Status(Code::Unknown));
         }
-
-        return result;
     }
 
-    Types::Dialogs::File::ListResult selectFolders(const Types::Dialogs::File::FolderDescription &description) noexcept
+    Result<Types::Dialogs::File::Selection> selectFolder(const Types::Dialogs::File::FolderDescription &description) noexcept
     {
-        Types::Dialogs::File::ListResult result;
         try
         {
-            result.status = validateOwner(description.owner);
-
-            if(result.status.ok())
+            Status status = validateOwner(description.owner);
+            if(status.ok())
             {
-                result.status = validateText(description.title);
+                status = validateText(description.title);
+            }
+            if(!status.ok())
+            {
+                return Result<Types::Dialogs::File::Selection>::failure(std::move(status));
             }
 
-            return result.status.ok() ? Platform::selectFolders(description) : result;
+            return Platform::selectFolder(description);
         }
         catch(const std::bad_alloc &)
         {
-            result.status = error(ErrorCode::OutOfMemory);
+            return Result<Types::Dialogs::File::Selection>::failure(Status(Code::OutOfMemory));
         }
         catch(...)
         {
-            result.status = error(ErrorCode::Unknown);
+            return Result<Types::Dialogs::File::Selection>::failure(Status(Code::Unknown));
         }
+    }
 
-        return result;
+    Result<Types::Dialogs::File::SelectionList> selectFolders(const Types::Dialogs::File::FolderDescription &description) noexcept
+    {
+        try
+        {
+            Status status = validateOwner(description.owner);
+            if(status.ok())
+            {
+                status = validateText(description.title);
+            }
+            if(!status.ok())
+            {
+                return Result<Types::Dialogs::File::SelectionList>::failure(std::move(status));
+            }
+
+            return Platform::selectFolders(description);
+        }
+        catch(const std::bad_alloc &)
+        {
+            return Result<Types::Dialogs::File::SelectionList>::failure(Status(Code::OutOfMemory));
+        }
+        catch(...)
+        {
+            return Result<Types::Dialogs::File::SelectionList>::failure(Status(Code::Unknown));
+        }
     }
 
     /// ------------------------------------------------------------
     /// Message and prompt dialogs
     /// ------------------------------------------------------------
 
-    Types::Dialogs::Message::Result showMessage(const Types::Dialogs::Message::Description &description) noexcept
+    Result<Types::Dialogs::Message::Selection> showMessage(const Types::Dialogs::Message::Description &description) noexcept
     {
-        Types::Dialogs::Message::Result result;
         try
         {
             // Validate owner access and the selected button combination.
-            result.status = validateOwner(description.owner);
+            Status status = validateOwner(description.owner);
 
-            if(result.status.ok() && (!validSeverity(description.severity) || !validMessageButtons(description.buttons) ||
-                                      (description.defaultButton != Types::Dialogs::Message::Button::None &&
-                                       !messageContainsButton(description.buttons, description.defaultButton))))
+            if(status.ok() && (!validSeverity(description.severity) || !validMessageButtons(description.buttons) ||
+                               (description.defaultButton != Types::Dialogs::Message::Button::None &&
+                                !messageContainsButton(description.buttons, description.defaultButton))))
             {
-                result.status = error(ErrorCode::InvalidArgument);
+                status = error(Code::InvalidArgument);
             }
 
             // Validate visible text before entering the native dialog.
-            if(result.status.ok())
+            if(status.ok())
             {
-                result.status = validateText(description.title);
+                status = validateText(description.title);
             }
 
-            if(result.status.ok())
+            if(status.ok())
             {
-                result.status = validateText(description.message);
+                status = validateText(description.message);
             }
 
-            return result.status.ok() ? Platform::showMessage(description) : result;
+            if(!status.ok())
+            {
+                return Result<Types::Dialogs::Message::Selection>::failure(std::move(status));
+            }
+
+            return Platform::showMessage(description);
         }
         catch(const std::bad_alloc &)
         {
-            result.status = error(ErrorCode::OutOfMemory);
+            return Result<Types::Dialogs::Message::Selection>::failure(Status(Code::OutOfMemory));
         }
         catch(...)
         {
-            result.status = error(ErrorCode::Unknown);
+            return Result<Types::Dialogs::Message::Selection>::failure(Status(Code::Unknown));
         }
-
-        return result;
     }
 
-    Types::Dialogs::Prompt::Result showPrompt(const Types::Dialogs::Prompt::Description &description) noexcept
+    Result<Types::Dialogs::Prompt::Selection> showPrompt(const Types::Dialogs::Prompt::Description &description) noexcept
     {
-        Types::Dialogs::Prompt::Result result;
         try
         {
-            result.status = validateOwner(description.owner);
+            Status status = validateOwner(description.owner);
 
-            if(result.status.ok())
+            if(status.ok())
             {
-                result.status = validatePrompt(description);
+                status = validatePrompt(description);
             }
 
-            return result.status.ok() ? Platform::showPrompt(description) : result;
+            if(!status.ok())
+            {
+                return Result<Types::Dialogs::Prompt::Selection>::failure(std::move(status));
+            }
+
+            return Platform::showPrompt(description);
         }
         catch(const std::bad_alloc &)
         {
-            result.status = error(ErrorCode::OutOfMemory);
+            return Result<Types::Dialogs::Prompt::Selection>::failure(Status(Code::OutOfMemory));
         }
         catch(...)
         {
-            result.status = error(ErrorCode::Unknown);
+            return Result<Types::Dialogs::Prompt::Selection>::failure(Status(Code::Unknown));
         }
-
-        return result;
     }
 } // namespace GameWIP::Desktop::Dialogs

@@ -21,11 +21,6 @@ namespace GameWIP::FileSystem
         struct FileLockState;
     } // namespace Internal
 
-    namespace Types::Lock
-    {
-        struct Result;
-    } // namespace Types::Lock
-
     class File;
     class FileReader;
     class FileWriter;
@@ -62,7 +57,7 @@ namespace GameWIP::FileSystem
         [[nodiscard]] Types::Lock::Mode mode() const noexcept;
         /// @brief Releases the lock. A failed unlock remains active and may be retried.
         /// @return Success, UnlockFailed, or a more specific backend status.
-        [[nodiscard]] IO::Types::Status unlock() noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> unlock() noexcept;
 
     private:
         friend class File;
@@ -101,7 +96,7 @@ namespace GameWIP::FileSystem
         /// @param path File path to open.
         /// @param options Sharing and symlink-resolution behavior.
         /// @return Success, AlreadyOpen when already open, or an open failure status.
-        [[nodiscard]] IO::Types::Status open(const Types::Path &path, const Types::File::ReaderOpenOptions &options = {}) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> open(const Types::Path &path, const Types::File::ReaderOpenOptions &options = {}) noexcept;
         /// @brief Reports whether a file is open.
         /// @return True after a successful open() and before close().
         [[nodiscard]] bool isOpen() const noexcept override;
@@ -112,25 +107,25 @@ namespace GameWIP::FileSystem
         /// @param destination Caller-owned call-scoped memory; the reader does not retain it.
         /// @return Read status, copied byte count, and end-of-stream state. A successful final read may contain bytes and set endOfStream.
         /// @note An empty destination performs no transfer and queries the current end-of-stream state.
-        [[nodiscard]] IO::Types::ReadResult read(std::span<std::byte> destination) noexcept override;
+        [[nodiscard]] GameWIP::Status::Types::Result<IO::Types::ReadProgress> read(std::span<std::byte> destination) noexcept override;
         /// @brief Closes the file. Repeated close calls succeed.
         /// @return ResourceBusy while a lock acquired from this reader remains active, or a close failure status.
         /// @note Failure leaves the reader open so close() can be retried.
-        [[nodiscard]] IO::Types::Status close() noexcept override;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> close() noexcept override;
         /// @brief Returns the current byte position.
         /// @return Current position, or NotOpen while closed.
-        [[nodiscard]] IO::Types::PositionResult position() const noexcept override;
+        [[nodiscard]] GameWIP::Status::Types::Result<std::uint64_t> position() const noexcept override;
         /// @brief Returns the current file size.
         /// @return File size, or NotOpen while closed.
-        [[nodiscard]] IO::Types::SizeResult size() const noexcept override;
+        [[nodiscard]] GameWIP::Status::Types::Result<std::uint64_t> size() const noexcept override;
         /// @brief Moves the current file position.
         /// @param offset Signed offset relative to origin.
         /// @param origin Origin used to interpret offset.
         /// @return Success, NotOpen, InvalidArgument, or a seek failure status.
-        [[nodiscard]] IO::Types::Status seek(std::int64_t offset, IO::Types::SeekOrigin origin) noexcept override;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> seek(std::int64_t offset, IO::Types::SeekOrigin origin) noexcept override;
         /// @brief Attempts to acquire a non-blocking shared whole-file lock.
-        /// @return Lock status, acquisition outcome, and active lock owner when acquired.
-        [[nodiscard]] Types::Lock::Result tryLockShared() noexcept;
+        /// @return Acquired lock, or a failure status such as WouldBlock.
+        [[nodiscard]] GameWIP::Status::Types::Result<FileLock> tryLockShared() noexcept;
 
     private:
         std::unique_ptr<Internal::FileState> state_;
@@ -158,7 +153,7 @@ namespace GameWIP::FileSystem
         /// @param options Creation, sharing, symlink, parent, and close-flush behavior.
         /// @return Success, AlreadyOpen when already open, or an open failure status.
         /// @note Append modes are non-seekable and each write targets the then-current end of file.
-        [[nodiscard]] IO::Types::Status open(const Types::Path &path, const Types::File::WriterOpenOptions &options = {}) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> open(const Types::Path &path, const Types::File::WriterOpenOptions &options = {}) noexcept;
         /// @brief Reports whether a file is open.
         /// @return True after a successful open() and before close().
         [[nodiscard]] bool isOpen() const noexcept override;
@@ -169,29 +164,29 @@ namespace GameWIP::FileSystem
         /// @param bytes Caller-owned call-scoped bytes; the writer does not retain them.
         /// @return Write status and accepted byte count. Success can report fewer bytes than requested.
         /// @note Empty input succeeds without transferring bytes.
-        [[nodiscard]] IO::Types::WriteResult write(std::span<const std::byte> bytes) noexcept override;
+        [[nodiscard]] GameWIP::Status::Types::Result<IO::Types::WriteProgress> write(std::span<const std::byte> bytes) noexcept override;
         /// @brief Flushes written data according to the requested strength.
         /// @param mode Requested flush strength. None validates state but requests no physical flush.
         /// @return Success, NotOpen, InvalidArgument, or a flush failure status.
-        [[nodiscard]] IO::Types::Status flush(IO::Types::FlushMode mode = IO::Types::FlushMode::Data) noexcept override;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> flush(IO::Types::FlushMode mode = IO::Types::FlushMode::Data) noexcept override;
         /// @brief Applies configured flush-on-close and closes the file. Repeated close calls succeed.
         /// @return ResourceBusy while a lock acquired from this writer remains active, or a flush/close failure status.
         /// @note Failure leaves the writer open so close() can be retried.
-        [[nodiscard]] IO::Types::Status close() noexcept override;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> close() noexcept override;
         /// @brief Returns the current byte position when meaningful.
         /// @return Current position, NotOpen, or NotSeekable for append mode.
-        [[nodiscard]] IO::Types::PositionResult position() const noexcept override;
+        [[nodiscard]] GameWIP::Status::Types::Result<std::uint64_t> position() const noexcept override;
         /// @brief Returns the current file size.
         /// @return File size, or NotOpen while closed.
-        [[nodiscard]] IO::Types::SizeResult size() const noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<std::uint64_t> size() const noexcept;
         /// @brief Moves the current file position outside append mode.
         /// @param offset Signed offset relative to origin.
         /// @param origin Origin used to interpret offset.
         /// @return Success, NotOpen, NotSeekable, InvalidArgument, or a seek failure status.
-        [[nodiscard]] IO::Types::Status seek(std::int64_t offset, IO::Types::SeekOrigin origin) noexcept override;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> seek(std::int64_t offset, IO::Types::SeekOrigin origin) noexcept override;
         /// @brief Attempts to acquire a non-blocking exclusive whole-file lock.
-        /// @return Lock status, acquisition outcome, and active lock owner when acquired.
-        [[nodiscard]] Types::Lock::Result tryLockExclusive() noexcept;
+        /// @return Acquired lock, or a failure status such as WouldBlock.
+        [[nodiscard]] GameWIP::Status::Types::Result<FileLock> tryLockExclusive() noexcept;
 
     private:
         std::unique_ptr<Internal::FileState> state_;
@@ -221,7 +216,7 @@ namespace GameWIP::FileSystem
         /// @note Types::File::InitialPosition::End sets one initial position; it does not provide append semantics.
         /// @note Modes that create or truncate require Write or ReadWrite access.
         /// @note A non-None flushOnClose requires Write or ReadWrite access.
-        [[nodiscard]] IO::Types::Status open(const Types::Path &path, const Types::File::OpenOptions &options = {}) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> open(const Types::Path &path, const Types::File::OpenOptions &options = {}) noexcept;
         /// @brief Reports whether a file is open.
         /// @return True after a successful open() and before close().
         [[nodiscard]] bool isOpen() const noexcept override;
@@ -236,67 +231,53 @@ namespace GameWIP::FileSystem
         /// @param destination Caller-owned call-scoped memory; the reader does not retain it.
         /// @return Read status, copied byte count, and end-of-stream state. A successful final read may contain bytes and set endOfStream.
         /// @note An empty destination performs no transfer and queries the current end-of-stream state.
-        [[nodiscard]] IO::Types::ReadResult read(std::span<std::byte> destination) noexcept override;
+        [[nodiscard]] GameWIP::Status::Types::Result<IO::Types::ReadProgress> read(std::span<std::byte> destination) noexcept override;
         /// @brief Writes bytes at the current position or current end in append mode.
         /// @param bytes Caller-owned call-scoped bytes; the file does not retain them.
         /// @return Write status and accepted byte count.
-        [[nodiscard]] IO::Types::WriteResult write(std::span<const std::byte> bytes) noexcept override;
+        [[nodiscard]] GameWIP::Status::Types::Result<IO::Types::WriteProgress> write(std::span<const std::byte> bytes) noexcept override;
         /// @brief Flushes written data according to the requested strength.
         /// @param mode Requested flush strength. None validates state but requests no physical flush.
         /// @return Success, NotOpen, InvalidArgument, or a flush failure status.
-        [[nodiscard]] IO::Types::Status flush(IO::Types::FlushMode mode = IO::Types::FlushMode::Data) noexcept override;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> flush(IO::Types::FlushMode mode = IO::Types::FlushMode::Data) noexcept override;
         /// @brief Applies configured flush-on-close and closes the file. Repeated close calls succeed.
         /// @return ResourceBusy while a lock acquired from this file remains active, or a flush/close failure status.
         /// @note Failure leaves the file open so close() can be retried.
-        [[nodiscard]] IO::Types::Status close() noexcept override;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> close() noexcept override;
         /// @brief Returns the current byte position.
         /// @return Current position, or NotOpen while closed.
-        [[nodiscard]] IO::Types::PositionResult position() const noexcept override;
+        [[nodiscard]] GameWIP::Status::Types::Result<std::uint64_t> position() const noexcept override;
         /// @brief Returns the current file size.
         /// @return File size, or NotOpen while closed.
-        [[nodiscard]] IO::Types::SizeResult size() const noexcept override;
+        [[nodiscard]] GameWIP::Status::Types::Result<std::uint64_t> size() const noexcept override;
         /// @brief Moves the current file position.
         /// @param offset Signed offset relative to origin.
         /// @param origin Origin used to interpret offset.
         /// @return Success, NotOpen, InvalidArgument, or a seek failure status.
-        [[nodiscard]] IO::Types::Status seek(std::int64_t offset, IO::Types::SeekOrigin origin) noexcept override;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> seek(std::int64_t offset, IO::Types::SeekOrigin origin) noexcept override;
         /// @brief Resizes the open file.
         /// @param sizeBytes Requested file size in bytes.
         /// @return Success, NotOpen, PermissionDenied for read-only access, SizeLimitExceeded, or a resize failure status.
         /// @note On success, the previous position is restored when it still fits; otherwise a shrink leaves the position at the new end.
         /// If restoring that position fails after the native length update, resize() reports the failure even though
         /// the requested length already applies.
-        [[nodiscard]] IO::Types::Status resize(std::uint64_t sizeBytes) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> resize(std::uint64_t sizeBytes) noexcept;
         /// @brief Attempts to acquire a non-blocking shared whole-file lock.
-        /// @return Lock status, acquisition outcome, and active lock owner when acquired.
-        [[nodiscard]] Types::Lock::Result tryLockShared() noexcept;
+        /// @return Acquired lock, or a failure status such as WouldBlock.
+        [[nodiscard]] GameWIP::Status::Types::Result<FileLock> tryLockShared() noexcept;
         /// @brief Attempts to acquire a non-blocking exclusive whole-file lock.
-        /// @return Lock status, acquisition outcome, and active lock owner when acquired.
-        [[nodiscard]] Types::Lock::Result tryLockExclusive() noexcept;
+        /// @return Acquired lock, or a failure status such as WouldBlock.
+        [[nodiscard]] GameWIP::Status::Types::Result<FileLock> tryLockExclusive() noexcept;
 
     private:
-        friend IO::Types::Status resizeFile(const Types::Path &path, std::uint64_t sizeBytes, const Types::File::ResizeOptions &options) noexcept;
+        friend GameWIP::Status::Types::Result<void> resizeFile(const Types::Path &path, std::uint64_t sizeBytes, const Types::File::ResizeOptions &options) noexcept;
 
         /// @brief Resizes a private path-helper handle without preserving its unobservable position.
-        [[nodiscard]] IO::Types::Status resizeWithoutPositionRestore(std::uint64_t sizeBytes) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> resizeWithoutPositionRestore(std::uint64_t sizeBytes) noexcept;
 
         std::unique_ptr<Internal::FileState> state_;
     };
 
-    namespace Types::Lock
-    {
-        /// @brief Result returned by a non-blocking whole-file lock attempt.
-        /// @details WouldBlock is a successful expected outcome with an inactive lock.
-        struct Result
-        {
-            /// @brief Operation status. WouldBlock is reported through outcome, not as an error.
-            IO::Types::Status status;
-            /// @brief Whether the lock was acquired or could not be acquired immediately.
-            Outcome outcome = Outcome::WouldBlock;
-            /// @brief Active lock owner when outcome is Acquired; inactive otherwise.
-            FileLock lock;
-        };
-    } // namespace Types::Lock
 
     /// @}
 
@@ -306,17 +287,17 @@ namespace GameWIP::FileSystem
     /// @brief Reads an entire file as bytes.
     /// @return Collected bytes and final status; partial data may accompany a failure.
     /// @see @ref filesystem_whole_file_io
-    [[nodiscard]] IO::Types::ReadAllBytesResult readAllBytes(const Types::Path &path, const Types::File::ReadOptions &options = {}) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<std::vector<std::byte>> readAllBytes(const Types::Path &path, const Types::File::ReadOptions &options = {}) noexcept;
 
     /// @brief Reads an entire file as strict UTF-8 text.
     /// @return Validated text and final status; a failed read may keep the valid prefix.
     /// @see @ref io_utf8_policy
-    [[nodiscard]] IO::Types::ReadAllTextResult readAllText(const Types::Path &path, const Types::File::ReadOptions &options = {}) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<std::string> readAllText(const Types::Path &path, const Types::File::ReadOptions &options = {}) noexcept;
 
     /// @brief Writes exact contents non-atomically.
     /// @details Empty input still performs create/truncate, flush, and close.
     /// @return Final status and payload bytes accepted, preserved across a later flush or close failure.
-    [[nodiscard]] IO::Types::WriteResult writeAllBytes(
+    [[nodiscard]] GameWIP::Status::Types::Result<IO::Types::WriteProgress> writeAllBytes(
         const Types::Path &path,
         std::span<const std::byte> bytes,
         const Types::File::WriteOptions &options = {}) noexcept;
@@ -324,7 +305,7 @@ namespace GameWIP::FileSystem
     /// @brief Writes exact vector contents; forwards to the span overload.
     /// @tparam Allocator Byte-vector allocator type.
     template <typename Allocator>
-    [[nodiscard]] IO::Types::WriteResult writeAllBytes(
+    [[nodiscard]] GameWIP::Status::Types::Result<IO::Types::WriteProgress> writeAllBytes(
         const Types::Path &path,
         const std::vector<std::byte, Allocator> &bytes,
         const Types::File::WriteOptions &options = {}) noexcept
@@ -335,14 +316,14 @@ namespace GameWIP::FileSystem
     /// @brief Writes exact UTF-8 text without BOM or line-ending transformation.
     /// @return EncodingFailed with zero progress and no side effect for invalid text; otherwise as writeAllBytes().
     /// @see @ref io_utf8_policy
-    [[nodiscard]] IO::Types::WriteResult writeAllText(
+    [[nodiscard]] GameWIP::Status::Types::Result<IO::Types::WriteProgress> writeAllText(
         const Types::Path &path,
         std::string_view utf8Text,
         const Types::File::WriteOptions &options = {}) noexcept;
 
     /// @brief Appends bytes through an append-mode handle.
     /// @return Final status and payload bytes accepted, preserved across a later flush or close failure.
-    [[nodiscard]] IO::Types::WriteResult appendBytes(
+    [[nodiscard]] GameWIP::Status::Types::Result<IO::Types::WriteProgress> appendBytes(
         const Types::Path &path,
         std::span<const std::byte> bytes,
         const Types::File::AppendOptions &options = {}) noexcept;
@@ -350,7 +331,7 @@ namespace GameWIP::FileSystem
     /// @brief Appends vector contents; forwards to the span overload.
     /// @tparam Allocator Byte-vector allocator type.
     template <typename Allocator>
-    [[nodiscard]] IO::Types::WriteResult appendBytes(
+    [[nodiscard]] GameWIP::Status::Types::Result<IO::Types::WriteProgress> appendBytes(
         const Types::Path &path,
         const std::vector<std::byte, Allocator> &bytes,
         const Types::File::AppendOptions &options = {}) noexcept
@@ -361,7 +342,7 @@ namespace GameWIP::FileSystem
     /// @brief Appends UTF-8 text without adding a line ending.
     /// @return EncodingFailed with zero progress and no side effect for invalid text; otherwise as appendBytes().
     /// @see @ref io_utf8_policy
-    [[nodiscard]] IO::Types::WriteResult appendText(
+    [[nodiscard]] GameWIP::Status::Types::Result<IO::Types::WriteProgress> appendText(
         const Types::Path &path,
         std::string_view utf8Text,
         const Types::File::AppendOptions &options = {}) noexcept;
@@ -369,7 +350,7 @@ namespace GameWIP::FileSystem
     /// @brief Atomically replaces file contents through a same-directory temporary file.
     /// @return Success or the validation, temporary-file, write, flush, or replacement failure.
     /// @see @ref filesystem_atomic_write
-    [[nodiscard]] IO::Types::Status writeAllBytesAtomic(
+    [[nodiscard]] GameWIP::Status::Types::Result<void> writeAllBytesAtomic(
         const Types::Path &path,
         std::span<const std::byte> bytes,
         const Types::File::AtomicWriteOptions &options = {}) noexcept;
@@ -377,7 +358,7 @@ namespace GameWIP::FileSystem
     /// @brief Atomically replaces contents from vector storage; forwards to the span overload.
     /// @tparam Allocator Byte-vector allocator type.
     template <typename Allocator>
-    [[nodiscard]] IO::Types::Status writeAllBytesAtomic(
+    [[nodiscard]] GameWIP::Status::Types::Result<void> writeAllBytesAtomic(
         const Types::Path &path,
         const std::vector<std::byte, Allocator> &bytes,
         const Types::File::AtomicWriteOptions &options = {}) noexcept
@@ -388,7 +369,7 @@ namespace GameWIP::FileSystem
     /// @brief Atomically replaces contents with UTF-8 text.
     /// @return EncodingFailed before any side effect for invalid text; otherwise the atomic-write status.
     /// @see @ref io_utf8_policy
-    [[nodiscard]] IO::Types::Status writeAllTextAtomic(
+    [[nodiscard]] GameWIP::Status::Types::Result<void> writeAllTextAtomic(
         const Types::Path &path,
         std::string_view utf8Text,
         const Types::File::AtomicWriteOptions &options = {}) noexcept;
@@ -400,7 +381,7 @@ namespace GameWIP::FileSystem
     /// @return Success or a validation, lookup, permission, resize, or close failure status.
     /// @note The helper does not report restoration failure for its private temporary handle. A failed resize or close can still leave the requested
     /// length applied.
-    [[nodiscard]] IO::Types::Status resizeFile(
+    [[nodiscard]] GameWIP::Status::Types::Result<void> resizeFile(
         const Types::Path &path,
         std::uint64_t sizeBytes,
         const Types::File::ResizeOptions &options = {}) noexcept;
@@ -411,7 +392,7 @@ namespace GameWIP::FileSystem
     /// @return Success or a validation, lookup, permission, resize, or close failure status.
     /// @note The helper does not report restoration failure for its private temporary handle. A failed resize or close can still leave the requested
     /// length applied.
-    [[nodiscard]] IO::Types::Status truncateFile(const Types::Path &path, const Types::File::ResizeOptions &options = {}) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<void> truncateFile(const Types::Path &path, const Types::File::ResizeOptions &options = {}) noexcept;
 
     /// @}
 
@@ -424,11 +405,11 @@ namespace GameWIP::FileSystem
     /// @param options Replacement, symlink, parent, metadata, and flush behavior.
     /// @return Success or a validation, lookup, permission, copy, metadata, or flush failure status.
     /// @note Copying is non-atomic: a failure after destination creation can leave destination content changed.
-    [[nodiscard]] IO::Types::Status copyFile(const Types::Path &from, const Types::Path &to, const Types::File::CopyOptions &options = {}) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<void> copyFile(const Types::Path &from, const Types::Path &to, const Types::File::CopyOptions &options = {}) noexcept;
 
     /// @brief Removes one regular file or symlink-to-file entry.
     /// @param path Path to remove.
     /// @param options Missing-target and symlink behavior.
     /// @return Success or a validation, lookup, type, permission, or removal failure status.
-    [[nodiscard]] IO::Types::Status removeFile(const Types::Path &path, const Types::RemoveOptions &options = {}) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<void> removeFile(const Types::Path &path, const Types::RemoveOptions &options = {}) noexcept;
 } // namespace GameWIP::FileSystem

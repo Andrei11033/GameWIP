@@ -1,6 +1,7 @@
 /// @file accessibility.cpp
 /// @brief Accessibility snapshot publication and facade operations.
 
+#include "desktop/internal/results.h"
 #include "desktop/internal/accessibility_state.h"
 #include "desktop/platform/window.h"
 #include "desktop/internal/desktop_test_hooks.h"
@@ -40,37 +41,44 @@ namespace GameWIP::Desktop::Accessibility
     {
     }
 
-    IO::Types::Status Facade::enable(const A::Options &options) noexcept
+    GameWIP::Status::Types::Result<void> Facade::enable(const A::Options &options) noexcept
     {
         // Validate the Window, thread, capability, and limits before allocating.
         if(!window_->isOpen())
         {
-            return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
+            return GameWIP::Desktop::Internal::result(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::NotOpen));
         }
 
         if(!window_->ownedByCurrentThread())
         {
-            return IO::makeStatus(IO::Types::ErrorCode::ResourceBusy);
+            return GameWIP::Desktop::Internal::result(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::ResourceBusy));
         }
 
         if(!window_->supports(Types::Capability::Accessibility))
         {
-            return IO::makeStatus(IO::Types::ErrorCode::Unsupported);
+            return GameWIP::Desktop::Internal::result(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::Unsupported));
         }
 
         if(enabled())
         {
-            return IO::makeStatus(IO::Types::ErrorCode::AlreadyOpen);
+            return GameWIP::Desktop::Internal::result(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::AlreadyOpen));
         }
 
-        if(validate({}, options.limits).issue == A::ValidationIssue::InvalidLimits)
+        const auto limitsValidation = validate({}, options.limits);
+
+        if(!limitsValidation.hasValue())
         {
-            return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
+            return GameWIP::Desktop::Internal::result(limitsValidation.status());
+        }
+
+        if(limitsValidation.value().issue == A::ValidationIssue::InvalidLimits)
+        {
+            return GameWIP::Desktop::Internal::result(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::InvalidArgument));
         }
 
         if(Internal::consumeFailure(Internal::TestHooks::FailurePoint::Allocation))
         {
-            return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
+            return GameWIP::Desktop::Internal::result(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::OutOfMemory));
         }
 
         try
@@ -94,37 +102,37 @@ namespace GameWIP::Desktop::Accessibility
 
             if(!status.ok())
             {
-                return status;
+                return GameWIP::Desktop::Internal::result(status);
             }
 
             // Publish the runtime only after the native provider is ready.
             state->runtime.store(runtime);
             windowState->accessibility = state.get();
             Internal::publishAccessibilityGeometry(*windowState);
-            return {};
+            return GameWIP::Status::Types::Result<void>::success();
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
+            return GameWIP::Desktop::Internal::result(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::OutOfMemory));
         }
         catch(...)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::SizeLimitExceeded);
+            return GameWIP::Desktop::Internal::result(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::SizeLimitExceeded));
         }
     }
 
-    IO::Types::Status Facade::disable() noexcept
+    GameWIP::Status::Types::Result<void> Facade::disable() noexcept
     {
         const auto runtime = runtimeFor(window_);
 
         if(!runtime || !runtime->live.load())
         {
-            return {};
+            return GameWIP::Status::Types::Result<void>::success();
         }
 
         if(runtime->ownerThread != std::this_thread::get_id())
         {
-            return IO::makeStatus(IO::Types::ErrorCode::ResourceBusy);
+            return GameWIP::Desktop::Internal::result(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::ResourceBusy));
         }
 
         if(auto *state = Internal::WindowAccess::state(*window_))
@@ -132,7 +140,7 @@ namespace GameWIP::Desktop::Accessibility
             Internal::closeAccessibility(*state);
         }
 
-        return {};
+        return GameWIP::Status::Types::Result<void>::success();
     }
 
     bool Facade::enabled() const noexcept
@@ -151,13 +159,13 @@ namespace GameWIP::Desktop::Accessibility
     /// Snapshot publication and inspection
     /// ------------------------------------------------------------
 
-    IO::Types::Status Facade::publish(const A::SnapshotView &snapshot) noexcept
+    GameWIP::Status::Types::Result<void> Facade::publish(const A::SnapshotView &snapshot) noexcept
     {
         const auto runtime = runtimeFor(window_);
 
         if(!runtime || !runtime->live.load())
         {
-            return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
+            return GameWIP::Desktop::Internal::result(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::NotOpen));
         }
 
         // Validate before allocating retained storage.
@@ -165,12 +173,12 @@ namespace GameWIP::Desktop::Accessibility
 
         if(!validation.ok())
         {
-            return validation.status;
+            return GameWIP::Desktop::Internal::result(validation.status());
         }
 
         if(Internal::consumeFailure(Internal::TestHooks::FailurePoint::Allocation))
         {
-            return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
+            return GameWIP::Desktop::Internal::result(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::OutOfMemory));
         }
 
         try
@@ -205,49 +213,49 @@ namespace GameWIP::Desktop::Accessibility
             // Recheck activation and generation while serializing publication.
             if(!runtime->live.load())
             {
-                return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
+                return GameWIP::Desktop::Internal::result(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::NotOpen));
             }
 
             if(snapshot.generation <= state->lastGeneration)
             {
-                return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
+                return GameWIP::Desktop::Internal::result(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::InvalidArgument));
             }
             const auto before = runtime->snapshot.load();
 
             if(before && before->storage.root != snapshot.root)
             {
-                return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
+                return GameWIP::Desktop::Internal::result(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::InvalidArgument));
             }
 
             const auto status = Platform::prepareAccessibilitySnapshot(runtime, *candidate);
 
             if(!status.ok())
             {
-                return status;
+                return GameWIP::Desktop::Internal::result(status);
             }
 
             // Publish the prepared tree, then queue its committed-generation diff.
             if(!runtime->live.load())
             {
-                return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
+                return GameWIP::Desktop::Internal::result(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::NotOpen));
             }
             runtime->snapshot.store(candidate);
             state->lastGeneration = snapshot.generation;
             Internal::Helpers::queueAccessibilityDiff(*runtime, before, candidate);
             Platform::wakeAccessibility(*runtime);
-            return {};
+            return GameWIP::Status::Types::Result<void>::success();
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
+            return GameWIP::Desktop::Internal::result(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::OutOfMemory));
         }
         catch(...)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::SizeLimitExceeded);
+            return GameWIP::Desktop::Internal::result(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::SizeLimitExceeded));
         }
     }
 
-    IO::Types::Status Facade::publish(const SnapshotBuilder &snapshot) noexcept
+    GameWIP::Status::Types::Result<void> Facade::publish(const SnapshotBuilder &snapshot) noexcept
     {
         return publish(snapshot.view());
     }
@@ -263,13 +271,13 @@ namespace GameWIP::Desktop::Accessibility
         return SnapshotReader(runtime && runtime->live.load() ? runtime->snapshot.load() : nullptr);
     }
 
-    IO::Types::Status Facade::copySnapshot(SnapshotBuilder &destination) const noexcept
+    GameWIP::Status::Types::Result<void> Facade::copySnapshot(SnapshotBuilder &destination) const noexcept
     {
         const auto reader = readSnapshot();
 
         if(!reader.isValid())
         {
-            return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
+            return GameWIP::Desktop::Internal::result(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::NotOpen));
         }
 
         // Build a complete replacement before changing the destination.
@@ -299,7 +307,7 @@ namespace GameWIP::Desktop::Accessibility
         }
 
         destination = std::move(copy);
-        return {};
+        return GameWIP::Status::Types::Result<void>::success();
     }
 
     /// ------------------------------------------------------------
@@ -358,31 +366,31 @@ namespace GameWIP::Desktop::Accessibility
         return result;
     }
 
-    IO::Types::Status Facade::announce(const A::AnnouncementView &announcement) noexcept
+    GameWIP::Status::Types::Result<void> Facade::announce(const A::AnnouncementView &announcement) noexcept
     {
         const auto runtime = runtimeFor(window_);
 
         if(!runtime || !runtime->live.load())
         {
-            return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
+            return GameWIP::Desktop::Internal::result(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::NotOpen));
         }
 
         if(!runtime->features.supports(A::Feature::Announcements))
         {
-            return IO::makeStatus(IO::Types::ErrorCode::Unsupported);
+            return GameWIP::Desktop::Internal::result(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::Unsupported));
         }
 
         // Validate announcement bounds and text before resolving its target.
         if(announcement.priority > A::AnnouncementPriority::High ||
            announcement.text.size() + announcement.language.size() > runtime->limits.maximumAnnouncementBytes)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
+            return GameWIP::Desktop::Internal::result(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::InvalidArgument));
         }
 
         if(Unicode::Utf8::validate(announcement.text).outcome != Unicode::Types::ValidationOutcome::Valid ||
            Unicode::Utf8::validate(announcement.language).outcome != Unicode::Types::ValidationOutcome::Valid)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::EncodingFailed);
+            return GameWIP::Desktop::Internal::result(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::EncodingFailed));
         }
 
         // Resolve the requested node against the current generation.
@@ -396,12 +404,12 @@ namespace GameWIP::Desktop::Accessibility
 
         if(node == nullptr)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
+            return GameWIP::Desktop::Internal::result(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::InvalidArgument));
         }
 
         if(!announcement.language.empty() && announcement.language != node->language && !runtime->features.supports(A::Feature::AnnouncementLanguage))
         {
-            return IO::makeStatus(IO::Types::ErrorCode::Unsupported);
+            return GameWIP::Desktop::Internal::result(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::Unsupported));
         }
 
         try
@@ -417,20 +425,20 @@ namespace GameWIP::Desktop::Accessibility
 
             if(!runtime->live.load())
             {
-                return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
+                return GameWIP::Desktop::Internal::result(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::NotOpen));
             }
 
             if(runtime->notificationCount == runtime->notifications.size())
             {
-                return IO::makeStatus(IO::Types::ErrorCode::SizeLimitExceeded);
+                return GameWIP::Desktop::Internal::result(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::SizeLimitExceeded));
             }
             runtime->notifications[(runtime->notificationHead + runtime->notificationCount++) % runtime->notifications.size()] = std::move(pending);
             Platform::wakeAccessibility(*runtime);
-            return {};
+            return GameWIP::Status::Types::Result<void>::success();
         }
         catch(...)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
+            return GameWIP::Desktop::Internal::result(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::OutOfMemory));
         }
     }
 } // namespace GameWIP::Desktop::Accessibility

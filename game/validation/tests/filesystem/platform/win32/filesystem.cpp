@@ -16,6 +16,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <format>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -37,13 +38,14 @@ namespace
     {
         const auto result = FileSystem::exists(path);
 
-        if(!result.status.ok())
+        if(!result.ok())
         {
-            context.fail(name, std::format("existence query failed: native={}", result.status.nativeCode));
+            const auto *diagnostic = result.status().diagnostic();
+            context.fail(name, std::format("existence query failed: code={} detail={}", static_cast<int>(result.status().code()), diagnostic == nullptr ? "" : diagnostic->message));
             return;
         }
 
-        static_cast<void>(context.expectEq(name, expected, result.value));
+        static_cast<void>(context.expectEq(name, expected, result.value()));
     }
 
     void testMoveSynchronization(TestSupport::Context &context, const std::filesystem::path &root)
@@ -56,15 +58,15 @@ namespace
         const std::filesystem::path destination = validatedParent / "destination.txt";
 
         static_cast<void>(context.expectTrue("create move synchronization directory", FileSystem::createDirectories(directory).ok()));
-        static_cast<void>(context.expectTrue("write move race source", FileSystem::writeAllText(raceSource, "anchored").status.ok()));
+        static_cast<void>(context.expectTrue("write move race source", FileSystem::writeAllText(raceSource, "anchored").ok()));
         static_cast<void>(context.expectTrue("create validated move parent", FileSystem::createDirectory(validatedParent).ok()));
 
         FileSystem::Internal::TestHooks::Win32::armMoveDestinationValidatedPause();
-        GameWIP::IO::Types::Status moveRaceStatus;
+        std::optional<GameWIP::Status::Types::Result<void>> moveRaceResult;
         std::thread moveThread(
             [&]
             {
-                moveRaceStatus = FileSystem::movePath(raceSource, destination);
+                moveRaceResult.emplace(FileSystem::movePath(raceSource, destination));
             });
         const bool movePaused = FileSystem::Internal::TestHooks::Win32::waitForMovePause(std::chrono::seconds{5});
         static_cast<void>(context.expectTrue("strict move reaches destination validation pause", movePaused));
@@ -80,7 +82,7 @@ namespace
         FileSystem::Internal::TestHooks::Win32::releaseMovePause();
         moveThread.join();
 
-        static_cast<void>(context.expectTrue("anchored strict move succeeds", moveRaceStatus.ok()));
+        static_cast<void>(context.expectTrue("anchored strict move succeeds", moveRaceResult.has_value() && moveRaceResult->ok()));
         expectExists(context, "anchored move lands in retained parent", parkedParent / "destination.txt", true);
         expectExists(context, "anchored move avoids replacement parent", destination, false);
         FileSystem::Internal::TestHooks::Win32::reset();
@@ -88,14 +90,14 @@ namespace
         // Mutate the source and destination after the native move commits.
         const std::filesystem::path commitSource = directory / "commit-source.txt";
         const std::filesystem::path commitDestination = directory / "commit-destination.txt";
-        static_cast<void>(context.expectTrue("write post-commit source", FileSystem::writeAllText(commitSource, "original").status.ok()));
+        static_cast<void>(context.expectTrue("write post-commit source", FileSystem::writeAllText(commitSource, "original").ok()));
 
         FileSystem::Internal::TestHooks::Win32::armMoveCommittedPause();
-        GameWIP::IO::Types::Status committedStatus;
+        std::optional<GameWIP::Status::Types::Result<void>> committedResult;
         std::thread commitThread(
             [&]
             {
-                committedStatus = FileSystem::movePath(commitSource, commitDestination);
+                committedResult.emplace(FileSystem::movePath(commitSource, commitDestination));
             });
         const bool commitPaused = FileSystem::Internal::TestHooks::Win32::waitForMovePause(std::chrono::seconds{5});
         static_cast<void>(context.expectTrue("move reaches committed pause", commitPaused));
@@ -103,17 +105,20 @@ namespace
         if(commitPaused)
         {
             static_cast<void>(
-                context.expectTrue("source can be recreated after commit", FileSystem::writeAllText(commitSource, "replacement").status.ok()));
+                context.expectTrue("source can be recreated after commit", FileSystem::writeAllText(commitSource, "replacement").ok()));
             static_cast<void>(context.expectTrue("destination can be removed after commit", FileSystem::removeFile(commitDestination).ok()));
         }
 
         FileSystem::Internal::TestHooks::Win32::releaseMovePause();
         commitThread.join();
 
-        static_cast<void>(context.expectTrue("native commit remains successful after namespace mutation", committedStatus.ok()));
+        static_cast<void>(context.expectTrue("native commit remains successful after namespace mutation", committedResult.has_value() && committedResult->ok()));
         const auto recreatedSource = FileSystem::readAllText(commitSource);
-        static_cast<void>(context.expectTrue("recreated source query succeeds", recreatedSource.status.ok()));
-        static_cast<void>(context.expectEq("recreated source remains caller-visible", std::string{"replacement"}, recreatedSource.text));
+        static_cast<void>(context.expectTrue("recreated source query succeeds", recreatedSource.ok()));
+        if(recreatedSource.ok())
+        {
+            static_cast<void>(context.expectEq("recreated source remains caller-visible", std::string{"replacement"}, recreatedSource.value()));
+        }
         expectExists(context, "concurrently removed destination remains absent", commitDestination, false);
         FileSystem::Internal::TestHooks::Win32::reset();
     }
@@ -129,7 +134,7 @@ namespace
         const std::filesystem::path failedUnlockFile = directory / "failed-unlock.txt";
 
         static_cast<void>(context.expectTrue("create failed-unlock directory", FileSystem::createDirectories(directory).ok()));
-        static_cast<void>(context.expectTrue("failed-unlock file write succeeds", FileSystem::writeAllText(failedUnlockFile, "lock").status.ok()));
+        static_cast<void>(context.expectTrue("failed-unlock file write succeeds", FileSystem::writeAllText(failedUnlockFile, "lock").ok()));
 
         FileSystem::File failedUnlockOwner;
         FileSystem::File failedUnlockCompetitor;
@@ -138,17 +143,21 @@ namespace
 
         {
             auto failedUnlockLock = failedUnlockOwner.tryLockExclusive();
-            static_cast<void>(
-                context.expectEq("failed-unlock owner acquires lock", FileSystem::Types::Lock::Outcome::Acquired, failedUnlockLock.outcome));
+            static_cast<void>(context.expectTrue("failed-unlock owner acquires lock", failedUnlockLock.ok()));
+            if(!failedUnlockLock.ok())
+            {
+                return;
+            }
+            FileSystem::FileLock acquiredLock = std::move(failedUnlockLock).value();
 
             const auto blockedBeforeCleanup = failedUnlockCompetitor.tryLockExclusive();
             static_cast<void>(context.expectEq(
                 "failed-unlock competitor initially blocks",
-                FileSystem::Types::Lock::Outcome::WouldBlock,
-                blockedBeforeCleanup.outcome));
+                GameWIP::Status::Types::Code::WouldBlock,
+                blockedBeforeCleanup.status().code()));
 
             FileSystem::Internal::TestHooks::Win32::setFileUnlockFailure(true);
-            const FileSystem::FileLock lockDestroyedDuringFailure = std::move(failedUnlockLock.lock);
+            const FileSystem::FileLock lockDestroyedDuringFailure = std::move(acquiredLock);
             static_cast<void>(context.expectTrue("failed-unlock injected lock remains active", lockDestroyedDuringFailure.active()));
         }
 
@@ -157,12 +166,13 @@ namespace
         static_cast<void>(context.expectTrue("failed-unlock owner count clears after lock destruction", failedUnlockOwner.close().ok()));
 
         auto acquiredAfterFailedUnlockCleanup = failedUnlockCompetitor.tryLockExclusive();
-        static_cast<void>(context.expectEq(
-            "closing owner releases native lock after failed lock cleanup",
-            FileSystem::Types::Lock::Outcome::Acquired,
-            acquiredAfterFailedUnlockCleanup.outcome));
-        static_cast<void>(
-            context.expectTrue("failed-unlock competitor releases recovered lock", acquiredAfterFailedUnlockCleanup.lock.unlock().ok()));
+        static_cast<void>(context.expectTrue("closing owner releases native lock after failed lock cleanup", acquiredAfterFailedUnlockCleanup.ok()));
+        if(acquiredAfterFailedUnlockCleanup.ok())
+        {
+            static_cast<void>(context.expectTrue(
+                "failed-unlock competitor releases recovered lock",
+                std::move(acquiredAfterFailedUnlockCleanup).value().unlock().ok()));
+        }
         static_cast<void>(context.expectTrue("failed-unlock competitor closes", failedUnlockCompetitor.close().ok()));
     }
 #endif

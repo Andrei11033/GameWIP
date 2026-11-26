@@ -31,11 +31,11 @@ void testSessionOutputStateRestoration(
     Hooks::clearCapturedOutput(Terminal::Types::Output::Stream::Stdout);
     Terminal::Session setupFlushFailure;
     static_cast<void>(context.expectTrue("setup flush failure fixture opens", setupFlushFailure.open(streamOptions).ok()));
-    Hooks::forceNextFlushFailure(ErrorCode::FlushFailed);
+    Hooks::forceNextFlushFailure(IOErrorCode::FlushFailed);
     static_cast<void>(context.expectEq(
         "Session cursor setup flush failure propagates",
         ErrorCode::FlushFailed,
-        setupFlushFailure.setCursorVisible(false, {.flushMode = IO::Types::FlushMode::Data}).code));
+        setupFlushFailure.setCursorVisible(false, {.flushMode = IO::Types::FlushMode::Data}).status().code()));
     static_cast<void>(context.expectTrue("Session retains cleanup after setup flush failure", setupFlushFailure.close().ok()));
     static_cast<void>(context.expectEq(
         "Session setup flush failure does not lose cleanup ownership",
@@ -49,16 +49,16 @@ void testSessionOutputStateRestoration(
     static_cast<void>(context.expectTrue("output restoration failure fixture opens", outputRestoreFailure.open(streamOptions).ok()));
     static_cast<void>(context.expectTrue("output restoration fixture hides cursor", outputRestoreFailure.setCursorVisible(false).ok()));
     static_cast<void>(context.expectTrue("output restoration fixture enters alternate screen", outputRestoreFailure.enterAlternateScreen().ok()));
-    Hooks::forceNextTextWriteFailure(ErrorCode::WriteFailed);
+    Hooks::forceNextTextWriteFailure(IOErrorCode::WriteFailed);
     static_cast<void>(
-        context.expectEq("output restoration failure propagates from close", ErrorCode::WriteFailed, outputRestoreFailure.close().code));
+        context.expectEq("output restoration failure propagates from close", ErrorCode::WriteFailed, outputRestoreFailure.close().status().code()));
     static_cast<void>(context.expectTrue("output restoration failure leaves session open", outputRestoreFailure.isOpen()));
     static_cast<void>(context.expectEq(
         "failed top restoration does not run older obligations",
         std::string{"\x1b[?25l\x1b[?1049h"},
         Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout)));
     static_cast<void>(
-        context.expectEq("output restoration failure retains input ownership", ErrorCode::ResourceBusy, competing.open(streamOptions).code));
+        context.expectEq("output restoration failure retains input ownership", ErrorCode::ResourceBusy, competing.open(streamOptions).status().code()));
     static_cast<void>(context.expectTrue("output restoration close retry succeeds", outputRestoreFailure.close().ok()));
     static_cast<void>(context.expectEq(
         "output restoration retry preserves reverse order",
@@ -72,8 +72,8 @@ void testSessionOutputStateRestoration(
     static_cast<void>(context.expectTrue("restoration flush failure fixture opens", flushRestoreFailure.open(streamOptions).ok()));
     const Terminal::Types::Output::ControlOptions flushedControl{.flushMode = IO::Types::FlushMode::Data};
     static_cast<void>(context.expectTrue("restoration flush fixture hides cursor", flushRestoreFailure.setCursorVisible(false, flushedControl).ok()));
-    Hooks::forceNextFlushFailure(ErrorCode::FlushFailed);
-    static_cast<void>(context.expectEq("close restoration flush failure propagates", ErrorCode::FlushFailed, flushRestoreFailure.close().code));
+    Hooks::forceNextFlushFailure(IOErrorCode::FlushFailed);
+    static_cast<void>(context.expectEq("close restoration flush failure propagates", ErrorCode::FlushFailed, flushRestoreFailure.close().status().code()));
     static_cast<void>(context.expectTrue("restoration flush failure leaves session open", flushRestoreFailure.isOpen()));
     static_cast<void>(context.expectEq(
         "restoration transition was emitted before flush failure",
@@ -101,11 +101,19 @@ void testSessionOutputBinding(TestSupport::Context &context, const Terminal::Typ
         "session output is bound to requested stream",
         std::string{"bound-stderr"},
         Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stderr)));
-    static_cast<void>(context.expectEq("stderr-bound size query", std::uint32_t{72}, stderrSession.getTerminalSize().size.columns));
-    static_cast<void>(context.expectEq(
-        "stderr-bound cursor query",
-        std::uint32_t{11},
-        stderrSession.getCursorPosition({.timeout = Terminal::kNoWait, .flushMode = IO::Types::FlushMode::None}).position.column));
+    const auto stderrSize = stderrSession.getTerminalSize();
+    static_cast<void>(context.expectTrue("stderr-bound size query succeeds", stderrSize.ok()));
+    if(stderrSize.hasValue())
+    {
+        static_cast<void>(context.expectEq("stderr-bound size query", std::uint32_t{72}, stderrSize.value().columns));
+    }
+
+    const auto stderrPosition = stderrSession.getCursorPosition({.timeout = Terminal::kNoWait, .flushMode = IO::Types::FlushMode::None});
+    static_cast<void>(context.expectTrue("stderr-bound cursor query succeeds", stderrPosition.ok()));
+    if(stderrPosition.hasValue())
+    {
+        static_cast<void>(context.expectEq("stderr-bound cursor query", std::uint32_t{11}, stderrPosition.value().column));
+    }
     static_cast<void>(context.expectTrue("stderr-bound session closes", stderrSession.close().ok()));
 }
 

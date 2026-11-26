@@ -27,7 +27,7 @@ void testTextAndStyleOutput(TestSupport::Context &context)
     static_cast<void>(context.expectEq(
         "invalid line ending is rejected before output",
         ErrorCode::InvalidArgument,
-        Terminal::writeLine("must-not-write", invalidLineEndingOptions).code));
+        Terminal::writeLine("must-not-write", invalidLineEndingOptions).status().code()));
     static_cast<void>(
         context.expectTrue("invalid line ending writes nothing", Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout).empty()));
 
@@ -36,13 +36,13 @@ void testTextAndStyleOutput(TestSupport::Context &context)
     static_cast<void>(context.expectEq(
         "invalid text flush mode is rejected before output",
         ErrorCode::InvalidArgument,
-        Terminal::writeText("must-not-write", invalidFlushOptions).code));
+        Terminal::writeText("must-not-write", invalidFlushOptions).status().code()));
     static_cast<void>(
         context.expectTrue("invalid text flush mode writes nothing", Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout).empty()));
     static_cast<void>(context.expectEq(
         "invalid direct flush mode is rejected",
         ErrorCode::InvalidArgument,
-        Terminal::flush(static_cast<IO::Types::FlushMode>(-1)).code));
+        Terminal::flush(static_cast<IO::Types::FlushMode>(-1)).status().code()));
 
     Terminal::OutputBuffer lineEndingBuffer;
     static_cast<void>(
@@ -50,7 +50,7 @@ void testTextAndStyleOutput(TestSupport::Context &context)
     static_cast<void>(context.expectEq(
         "output buffer rejects invalid line ending without throwing",
         ErrorCode::InvalidArgument,
-        lineEndingBuffer.setLineEnding(static_cast<Terminal::Types::Output::LineEnding>(-1)).code));
+        lineEndingBuffer.setLineEnding(static_cast<Terminal::Types::Output::LineEnding>(-1)).status().code()));
     static_cast<void>(context.expectEq(
         "invalid line ending preserves previous setting",
         Terminal::Types::Output::LineEnding::Native,
@@ -99,7 +99,7 @@ void testTextAndStyleOutput(TestSupport::Context &context)
     static_cast<void>(context.expectEq(
         "required RGB style fails when exact RGB is unavailable",
         ErrorCode::Unsupported,
-        Terminal::writeText("must-not-write", rgbOptions).code));
+        Terminal::writeText("must-not-write", rgbOptions).status().code()));
     static_cast<void>(context.expectTrue(
         "required unsupported RGB style writes nothing",
         Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout).empty()));
@@ -124,16 +124,16 @@ void testTextAndStyleOutput(TestSupport::Context &context)
 
     Hooks::clearCapturedOutput(Terminal::Types::Output::Stream::Stdout);
     Hooks::setOutputCapabilitiesOverride(Terminal::Types::Output::Stream::Stdout, unpreparedTerminalOutputCapabilities());
-    Hooks::forceNextOutputPreparationFailure(ErrorCode::NativeFailure);
+    Hooks::forceNextOutputPreparationFailure(IOErrorCode::NativeFailure);
     static_cast<void>(context.expectTrue("auto style fallback succeeds", Terminal::writeText("plain", styledOptions).ok()));
     static_cast<void>(
         context.expectEq("auto style fallback is plain", std::string{"plain"}, Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout)));
 
     Hooks::clearCapturedOutput(Terminal::Types::Output::Stream::Stdout);
     styledOptions.styleMode = Terminal::Types::Style::Mode::Required;
-    Hooks::forceNextOutputPreparationFailure(ErrorCode::NativeFailure);
+    Hooks::forceNextOutputPreparationFailure(IOErrorCode::NativeFailure);
     static_cast<void>(
-        context.expectEq("forced preparation failure propagates", ErrorCode::NativeFailure, Terminal::writeText("fail", styledOptions).code));
+        context.expectEq("forced preparation failure propagates", ErrorCode::NativeFailure, Terminal::writeText("fail", styledOptions).status().code()));
     static_cast<void>(
         context.expectTrue("forced unsupported style writes nothing", Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout).empty()));
 
@@ -143,8 +143,8 @@ void testTextAndStyleOutput(TestSupport::Context &context)
     static_cast<void>(
         context.expectEq("resetStyle emits reset", std::string{"\x1b[0m"}, Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout)));
 
-    Hooks::forceNextTextWriteFailure(ErrorCode::PermissionDenied);
-    static_cast<void>(context.expectEq("forced text write failure", ErrorCode::PermissionDenied, Terminal::writeText("blocked").code));
+    Hooks::forceNextTextWriteFailure(IOErrorCode::PermissionDenied);
+    static_cast<void>(context.expectEq("forced text write failure", ErrorCode::PermissionDenied, Terminal::writeText("blocked").status().code()));
 
     Hooks::clearCapturedOutput(Terminal::Types::Output::Stream::Stdout);
     static_cast<void>(context.expectTrue("formatted print succeeds", Terminal::print("value {}", 42).ok()));
@@ -153,7 +153,7 @@ void testTextAndStyleOutput(TestSupport::Context &context)
 
     Hooks::clearCapturedOutput(Terminal::Types::Output::Stream::Stdout);
     static_cast<void>(
-        context.expectEq("formatted print failure returns status", ErrorCode::InvalidArgument, Terminal::print("{}", TerminalThrowingFormat{}).code));
+        context.expectEq("formatted print failure returns status", ErrorCode::InvalidArgument, Terminal::print("{}", TerminalThrowingFormat{}).status().code()));
     static_cast<void>(
         context.expectTrue("formatted print failure writes nothing", Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout).empty()));
 
@@ -168,7 +168,7 @@ void testTextAndStyleOutput(TestSupport::Context &context)
     static_cast<void>(context.expectEq(
         "formatted println failure returns status",
         ErrorCode::InvalidArgument,
-        Terminal::println(printLineOptions, "{}", TerminalThrowingFormat{}).code));
+        Terminal::println(printLineOptions, "{}", TerminalThrowingFormat{}).status().code()));
     static_cast<void>(
         context.expectTrue("formatted println failure writes nothing", Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout).empty()));
 
@@ -187,18 +187,18 @@ void testTextAndStyleOutput(TestSupport::Context &context)
     static_cast<void>(context.expectEq(
         "output buffer formatting failure returns status",
         ErrorCode::InvalidArgument,
-        outputBuffer.print("{}", TerminalThrowingFormat{}).code));
+        outputBuffer.print("{}", TerminalThrowingFormat{}).status().code()));
     static_cast<void>(context.expectEq("output buffer formatting failure rolls back partial record", beforeFormattingFailure, outputBuffer.text()));
     static_cast<void>(context.expectEq(
         "output buffer println failure returns status",
         ErrorCode::InvalidArgument,
-        outputBuffer.println("{}", TerminalThrowingFormat{}).code));
+        outputBuffer.println("{}", TerminalThrowingFormat{}).status().code()));
     static_cast<void>(
         context.expectEq("output buffer println failure rolls back formatted text and line ending", beforeFormattingFailure, outputBuffer.text()));
     static_cast<void>(context.expectEq(
         "output buffer oversized reserve is checked",
         ErrorCode::SizeLimitExceeded,
-        outputBuffer.reserve(std::numeric_limits<std::size_t>::max()).code));
+        outputBuffer.reserve(std::numeric_limits<std::size_t>::max()).status().code()));
     static_cast<void>(context.expectEq("output buffer reserve failure preserves contents", beforeFormattingFailure, outputBuffer.text()));
 
     // Flush buffered output and retry failed writes.
@@ -210,8 +210,8 @@ void testTextAndStyleOutput(TestSupport::Context &context)
         Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout)));
 
     static_cast<void>(context.expectTrue("output buffer retry append succeeds", outputBuffer.appendText("retry").ok()));
-    Hooks::forceNextTextWriteFailure(ErrorCode::WriteFailed);
-    static_cast<void>(context.expectEq("output buffer failure propagates", ErrorCode::WriteFailed, outputBuffer.flushTo().code));
+    Hooks::forceNextTextWriteFailure(IOErrorCode::WriteFailed);
+    static_cast<void>(context.expectEq("output buffer failure propagates", ErrorCode::WriteFailed, outputBuffer.flushTo().status().code()));
     static_cast<void>(context.expectEq("output buffer failure preserves text", std::string_view{"retry"}, outputBuffer.text()));
     static_cast<void>(
         context.expectTrue("output buffer explicit stream retry succeeds", outputBuffer.flushTo(Terminal::Types::Output::Stream::Stdout).ok()));

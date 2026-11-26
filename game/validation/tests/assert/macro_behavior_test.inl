@@ -106,7 +106,7 @@ void testCheckOnceLogging(TestContext &context)
     {
         CHECK_ONCE(false);
     }
-    Logger::flush(2s);
+    static_cast<void>(Logger::flush(2s));
     const Logger::Types::Stats stats = Logger::getStats();
     const std::string contents = readFile(context, assertLogFilePath(context));
 

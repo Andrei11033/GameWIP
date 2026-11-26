@@ -37,13 +37,13 @@ if(!write.ok())
 }
 
 const TS::Types::TextResult read = TS::readTextFile(path);
-if(read.status.ok())
+if(read.ok())
 {
-    context.expectContains("fixture", read.text, "λ");
+    context.expectContains("fixture", read.value(), "λ");
 }
 ```
 
-Malformed UTF-8 returns `Types::InfrastructureError::EncodingFailed`. `writeTextFile()` performs that validation before creating parents or truncating
+Malformed UTF-8 returns `GameWIP::Status::Types::Code::EncodingFailed`. `writeTextFile()` performs that validation before creating parents or truncating
 the destination.
 
 ## Child process
@@ -60,17 +60,18 @@ options.environmentOverrides = {
 };
 
 const TS::Types::Process::Result result = TS::runChildProcess(options);
-if(!result.status.ok())
+if(!result.ok())
 {
-    context.fail("child infrastructure", TS::formatInfrastructureStatus(result.status));
+    context.fail("child infrastructure", TS::formatStatus(result.status()));
 }
-else if(result.outcome == TS::Types::Process::Outcome::Exited)
+else if(result.value().outcome == TS::Types::Process::Outcome::Exited)
 {
-    context.expectEq("child exit", std::uint32_t{0}, result.exitCode);
+    context.expectEq("child exit", std::uint32_t{0}, result.value().exitCode);
 }
 ```
 
-`result.outputBytes` is arbitrary combined stdout/stderr bytes. A caller may decode it only when the child protocol itself guarantees an encoding.
+`result.value().outputBytes` is arbitrary combined stdout/stderr bytes. A caller may decode it only when the child protocol itself guarantees an
+encoding.
 
 ## Standalone context and append mode
 
@@ -106,7 +107,7 @@ if(!TS::writeTextFile(path, "alpha beta alpha").ok())
 }
 
 const TS::Types::BoolResult exists = TS::fileExists(path);
-static_cast<void>(context.expectTrue("sample exists", exists.status.ok() && exists.value));
+static_cast<void>(context.expectTrue("sample exists", exists.ok() && exists.value()));
 static_cast<void>(context.expectFileOccurrenceCount("alpha count", path, "alpha", 2));
 
 {

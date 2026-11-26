@@ -4,18 +4,20 @@
 void testDisplayColorInformation(TestSupport::Context &context)
 {
     namespace Feedback = Desktop::Display;
+    using StatusCode = GameWIP::Status::Types::Code;
 
     // Reject invalid and disconnected display queries.
     const Desktop::Window closed;
-    static_cast<void>(context.expectEq("closed Window rejects display-color query", ErrorCode::NotOpen, Feedback::getColorInfo(closed).status.code));
+    static_cast<void>(
+        context.expectEq("closed Window rejects display-color query", StatusCode::NotOpen, Feedback::getColorInfo(closed).status().code()));
     static_cast<void>(context.expectEq(
         "invalid monitor rejects display-color query",
-        ErrorCode::InvalidArgument,
-        Feedback::getColorInfo(Desktop::Types::Display::MonitorId::invalid()).status.code));
+        StatusCode::InvalidArgument,
+        Feedback::getColorInfo(Desktop::Types::Display::MonitorId::invalid()).status().code()));
     static_cast<void>(context.expectEq(
         "disconnected monitor rejects display-color query",
-        ErrorCode::NotFound,
-        Feedback::getColorInfo(Desktop::Types::Display::MonitorId{std::numeric_limits<std::uint64_t>::max()}).status.code));
+        StatusCode::NotFound,
+        Feedback::getColorInfo(Desktop::Types::Display::MonitorId{std::numeric_limits<std::uint64_t>::max()}).status().code()));
 
     const auto primary = Desktop::Display::getPrimaryMonitor();
     static_cast<void>(context.expectTrue("display-color primary monitor resolves", primary.ok()));
@@ -26,21 +28,21 @@ void testDisplayColorInformation(TestSupport::Context &context)
     }
 
     // Validate available monitor metadata.
-    const auto primaryColor = Feedback::getColorInfo(primary->id);
+    const auto primaryColor = Feedback::getColorInfo(primary.value().id);
     static_cast<void>(context.expectTrue("native display-color query succeeds", primaryColor.ok()));
 
     if(primaryColor.ok())
     {
-        static_cast<void>(context.expectEq("display-color result retains monitor identity", primary->id, primaryColor->monitor));
+        static_cast<void>(context.expectEq("display-color result retains monitor identity", primary.value().id, primaryColor.value().monitor));
         static_cast<void>(context.expectTrue(
             "display-color channel precision is plausible",
-            !primaryColor->bitsPerColorChannel || *primaryColor->bitsPerColorChannel <= 64));
+            !primaryColor.value().bitsPerColorChannel || *primaryColor.value().bitsPerColorChannel <= 64));
         static_cast<void>(context.expectTrue(
             "display-color luminance is nonnegative",
-            (!primaryColor->minimumLuminanceNits || *primaryColor->minimumLuminanceNits >= 0.0F) &&
-                (!primaryColor->maximumLuminanceNits || *primaryColor->maximumLuminanceNits >= 0.0F) &&
-                (!primaryColor->maximumFullFrameLuminanceNits || *primaryColor->maximumFullFrameLuminanceNits >= 0.0F) &&
-                (!primaryColor->sdrWhiteLevelNits || *primaryColor->sdrWhiteLevelNits >= 0.0F)));
+            (!primaryColor.value().minimumLuminanceNits || *primaryColor.value().minimumLuminanceNits >= 0.0F) &&
+                (!primaryColor.value().maximumLuminanceNits || *primaryColor.value().maximumLuminanceNits >= 0.0F) &&
+                (!primaryColor.value().maximumFullFrameLuminanceNits || *primaryColor.value().maximumFullFrameLuminanceNits >= 0.0F) &&
+                (!primaryColor.value().sdrWhiteLevelNits || *primaryColor.value().sdrWhiteLevelNits >= 0.0F)));
     }
 
     // Check Window ownership and thread affinity.
@@ -61,25 +63,25 @@ void testDisplayColorInformation(TestSupport::Context &context)
 
     if(windowColor.ok())
     {
-        static_cast<void>(context.expectEq("Window color query uses its cached monitor", window.currentMonitor(), windowColor->monitor));
+        static_cast<void>(context.expectEq("Window color query uses its cached monitor", window.currentMonitor(), windowColor.value().monitor));
     }
 
-    ErrorCode wrongThreadCode = ErrorCode::Success;
+    StatusCode wrongThreadCode = StatusCode::Success;
     std::thread worker(
         [&window, &wrongThreadCode]
         {
-            wrongThreadCode = Feedback::getColorInfo(window).status.code;
+            wrongThreadCode = Feedback::getColorInfo(window).status().code();
         });
     worker.join();
-    static_cast<void>(context.expectEq("wrong-thread Window color query is rejected", ErrorCode::ResourceBusy, wrongThreadCode));
+    static_cast<void>(context.expectEq("wrong-thread Window color query is rejected", StatusCode::ResourceBusy, wrongThreadCode));
 
 #if DESKTOP_INTERNAL_TEST_HOOKS
     // Normalize native metadata and translate query failures.
     Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::DisplayColorQuery);
     static_cast<void>(context.expectEq(
         "display-color native failure is translated",
-        ErrorCode::StatFailed,
-        Feedback::getColorInfo(window.currentMonitor()).status.code));
+        StatusCode::StatFailed,
+        Feedback::getColorInfo(window.currentMonitor()).status().code()));
 
     Desktop::Internal::TestHooks::makeNextDisplayColorMetadataUnavailable();
     const auto runtimeUnavailable = Feedback::getColorInfo(window.currentMonitor());
@@ -88,8 +90,9 @@ void testDisplayColorInformation(TestSupport::Context &context)
         static_cast<void>(context.expectEq(
             "runtime metadata absence remains unknown",
             Desktop::Types::Display::ColorSpace::Unknown,
-            runtimeUnavailable->activeColorSpace));
-        static_cast<void>(context.expectFalse("runtime metadata absence has no precision", runtimeUnavailable->bitsPerColorChannel.has_value()));
+            runtimeUnavailable.value().activeColorSpace));
+        static_cast<void>(
+            context.expectFalse("runtime metadata absence has no precision", runtimeUnavailable.value().bitsPerColorChannel.has_value()));
     }
 
     const Desktop::Types::Display::MonitorId fixtureMonitor{42};
@@ -150,7 +153,7 @@ void testDisplayColorInformation(TestSupport::Context &context)
     // Verify display changes use the shared event contract.
     window.clearEvents();
     Desktop::Internal::TestHooks::simulateDisplayColorConfigurationChange();
-    static_cast<void>(context.expectTrue("display-color transition pump succeeds", Desktop::Events::poll().status.ok()));
+    static_cast<void>(context.expectTrue("display-color transition pump succeeds", Desktop::Events::poll().ok()));
     static_cast<void>(context.expectTrue(
         "display-color transition reuses display-configuration event",
         consumeEventOfType<Desktop::Types::Events::DisplayConfigurationChanged>(window)));
@@ -165,6 +168,8 @@ void testDisplayColorInformation(TestSupport::Context &context)
 
 void testMonitors(TestSupport::Context &context)
 {
+    using StatusCode = GameWIP::Status::Types::Code;
+
     // Resolve the primary display and inspect its available modes.
     const auto monitors = Desktop::Display::getMonitors();
     static_cast<void>(context.expectTrue("monitor enumeration succeeds", monitors.ok()));
@@ -174,7 +179,7 @@ void testMonitors(TestSupport::Context &context)
         return;
     }
 
-    static_cast<void>(context.expectFalse("monitor enumeration is nonempty", monitors->empty()));
+    static_cast<void>(context.expectFalse("monitor enumeration is nonempty", monitors.value().empty()));
     const auto primary = Desktop::Display::getPrimaryMonitor();
     static_cast<void>(context.expectTrue("primary monitor query succeeds", primary.ok()));
 
@@ -183,10 +188,10 @@ void testMonitors(TestSupport::Context &context)
         return;
     }
 
-    static_cast<void>(context.expectTrue("primary monitor id is valid", primary->id.isValid()));
-    static_cast<void>(context.expectTrue("primary monitor is marked primary", primary->primary));
-    static_cast<void>(context.expectTrue("monitor identity resolves", Desktop::Display::getMonitor(primary->id).ok()));
-    const auto modes = Desktop::Display::getModes(primary->id);
+    static_cast<void>(context.expectTrue("primary monitor id is valid", primary.value().id.isValid()));
+    static_cast<void>(context.expectTrue("primary monitor is marked primary", primary.value().primary));
+    static_cast<void>(context.expectTrue("monitor identity resolves", Desktop::Display::getMonitor(primary.value().id).ok()));
+    const auto modes = Desktop::Display::getModes(primary.value().id);
     static_cast<void>(context.expectTrue("display-mode enumeration succeeds", modes.ok()));
 
     if(!modes.ok())
@@ -194,18 +199,19 @@ void testMonitors(TestSupport::Context &context)
         return;
     }
 
-    static_cast<void>(context.expectFalse("display-mode enumeration is nonempty", modes->empty()));
-    static_cast<void>(context.expectTrue("current display mode succeeds", Desktop::Display::getCurrentMode(primary->id).ok()));
-    const auto preferred = Desktop::Display::getPreferredMode(primary->id);
+    static_cast<void>(context.expectFalse("display-mode enumeration is nonempty", modes.value().empty()));
+    static_cast<void>(context.expectTrue("current display mode succeeds", Desktop::Display::getCurrentMode(primary.value().id).ok()));
+    const auto preferred = Desktop::Display::getPreferredMode(primary.value().id);
     static_cast<void>(context.expectTrue("DisplayConfig preferred mode succeeds", preferred.ok()));
 
     if(preferred.ok())
     {
-        static_cast<void>(
-            context.expectTrue("preferred mode has a physical resolution", preferred->resolution.width != 0 && preferred->resolution.height != 0));
+        static_cast<void>(context.expectTrue(
+            "preferred mode has a physical resolution",
+            preferred.value().resolution.width != 0 && preferred.value().resolution.height != 0));
     }
     static_cast<void>(context.expectEq(
         "invalid monitor lookup is rejected",
-        ErrorCode::InvalidArgument,
-        Desktop::Display::getMonitor(Desktop::Types::Display::MonitorId::invalid()).status.code));
+        StatusCode::InvalidArgument,
+        Desktop::Display::getMonitor(Desktop::Types::Display::MonitorId::invalid()).status().code()));
 }

@@ -44,10 +44,13 @@ void testRunnerAndSection(TestSupport::Context &context, const std::filesystem::
         context.expectEq("Runner finalization is idempotent", TestSupport::Types::Reporting::SinkState::Finalized, runner.finalize().state));
 
     const TestSupport::Types::TextResult reportResult = TestSupport::readTextFile(root / "runner_report.txt");
-    static_cast<void>(context.expectTrue("Runner report read succeeds", reportResult.status.ok()));
-    static_cast<void>(context.expectContains("Runner report includes result", reportResult.text, "[RESULT] FirstSuite passed=1 failed=0 skipped=1"));
-    static_cast<void>(context.expectContains("Section reports begin", reportResult.text, "begin section: small section"));
-    static_cast<void>(context.expectContains("Section reports metric", reportResult.text, "section small section elapsedMs="));
+    static_cast<void>(context.expectTrue("Runner report read succeeds", reportResult.ok()));
+    if(reportResult.ok())
+    {
+        static_cast<void>(context.expectContains("Runner report includes result", reportResult.value(), "[RESULT] FirstSuite passed=1 failed=0 skipped=1"));
+        static_cast<void>(context.expectContains("Section reports begin", reportResult.value(), "begin section: small section"));
+        static_cast<void>(context.expectContains("Section reports metric", reportResult.value(), "section small section elapsedMs="));
+    }
 
     // Convert one suite exception into a failure and keep later suites runnable.
     TestSupport::Runner throwingRunner(quietReport(root / "throwing_runner_report.txt"));

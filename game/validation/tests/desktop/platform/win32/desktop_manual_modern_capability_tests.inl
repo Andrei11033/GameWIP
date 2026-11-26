@@ -15,7 +15,12 @@ void testManualModernWindowsCapabilities(TestSupport::Context &context, const Ga
 
     // Read runtime-gated capabilities and open the host Window.
     const auto capabilitiesResult = Desktop::getCapabilities();
-    const Desktop::Types::Capabilities capabilities = capabilitiesResult.value_or({});
+    if(!capabilitiesResult.ok())
+    {
+        context.fail("Window modern capabilities", manualStatusDetails(capabilitiesResult.status()));
+        return;
+    }
+    const Desktop::Types::Capabilities &capabilities = capabilitiesResult.value();
     Desktop::Window window;
 
     if(!openManualWindow(context, window, "GameWIP modern capability validation"))
@@ -34,7 +39,7 @@ void testManualModernWindowsCapabilities(TestSupport::Context &context, const Ga
     {
         for(std::size_t index = 0; index < effects.size(); ++index)
         {
-            const IO::Types::Status status = window.setBackdropEffect(effects[index]);
+            const GameWIP::Status::Types::Result<void> status = window.setBackdropEffect(effects[index]);
             static_cast<void>(context.expectTrue("supported backdrop effect applies", status.ok()));
 
             if(status.ok())
@@ -53,7 +58,10 @@ void testManualModernWindowsCapabilities(TestSupport::Context &context, const Ga
         for(const Desktop::Types::BackdropEffect effect : effects)
         {
             static_cast<void>(
-                context.expectEq("unsupported backdrop effect is rejected", ErrorCode::Unsupported, window.setBackdropEffect(effect).code));
+                context.expectEq(
+                    "unsupported backdrop effect is rejected",
+                    ErrorCode::Unsupported,
+                    window.setBackdropEffect(effect).status().code()));
         }
         context.skip("system backdrop presentation", "runtime does not advertise SystemBackdrop");
     }
@@ -64,7 +72,7 @@ void testManualModernWindowsCapabilities(TestSupport::Context &context, const Ga
     Desktop::Types::Description alphaDescription;
     alphaDescription.transparentFramebuffer = true;
     Desktop::Window alpha;
-    const IO::Types::Status alphaStatus = alpha.open(alphaDescription);
+    const GameWIP::Status::Types::Result<void> alphaStatus = alpha.open(alphaDescription);
 
     if(capabilities.supports(Desktop::Types::Capability::TransparentFramebuffer))
     {
@@ -82,6 +90,7 @@ void testManualModernWindowsCapabilities(TestSupport::Context &context, const Ga
     }
     else
     {
-        static_cast<void>(context.expectEq("unsupported modern alpha Window is rejected", ErrorCode::Unsupported, alphaStatus.code));
+        static_cast<void>(
+            context.expectEq("unsupported modern alpha Window is rejected", ErrorCode::Unsupported, alphaStatus.status().code()));
     }
 }

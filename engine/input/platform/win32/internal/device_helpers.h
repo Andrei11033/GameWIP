@@ -17,8 +17,10 @@ namespace GameWIP::Input::Platform::Win32
     /// Status, clock, and window helpers
     /// ------------------------------------------------------------
 
-    [[nodiscard]] IO::Types::Status status(ErrorCode code) noexcept;
-    [[nodiscard]] IO::Types::Status nativeStatus(std::uint32_t code) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Status status(Code code) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Status nativeStatus(
+        std::uint32_t code,
+        GameWIP::Status::Types::NativeCodeDomain domain = GameWIP::Status::Types::NativeCodeDomain::Win32Error) noexcept;
     [[nodiscard]] Types::Timestamp now() noexcept;
     [[nodiscard]] std::uint64_t surfaceValue(const void *windowHandle) noexcept;
 
@@ -39,7 +41,7 @@ namespace GameWIP::Input::Platform::Win32
     /// Attachment validation
     /// ------------------------------------------------------------
 
-    [[nodiscard]] IO::Types::Status checkAttached(const AttachmentState &attachment) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Status checkAttached(const AttachmentState &attachment) noexcept;
 
     /// ------------------------------------------------------------
     /// Device state and registration

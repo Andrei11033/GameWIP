@@ -15,6 +15,8 @@
 
 namespace GameWIP::Desktop::Platform
 {
+    namespace StatusTypes = GameWIP::Status::Types;
+
     using Win32::ActiveDisplayPath;
     using Win32::findActiveDisplayPath;
 
@@ -263,16 +265,16 @@ namespace GameWIP::Desktop::Platform
     /// ------------------------------------------------------------
 
     /// @brief Returns HDR, gamut, luminance, and SDR reference-white metadata.
-    Types::Result<Types::Display::ColorInfo> getColorInfo(Types::Display::MonitorId monitor) noexcept
+    StatusTypes::Result<Types::Display::ColorInfo> getColorInfo(Types::Display::MonitorId monitor) noexcept
     {
         if(!monitor.isValid())
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::InvalidArgument)};
+            return StatusTypes::Result<Types::Display::ColorInfo>::failure(StatusTypes::Status(StatusTypes::Code::InvalidArgument));
         }
 
         if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::DisplayColorQuery))
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::StatFailed)};
+            return StatusTypes::Result<Types::Display::ColorInfo>::failure(StatusTypes::Status(StatusTypes::Code::StatFailed));
         }
 
         try
@@ -281,20 +283,20 @@ namespace GameWIP::Desktop::Platform
 
             if(device.empty())
             {
-                return {.status = IO::makeStatus(IO::Types::ErrorCode::NotFound)};
+                return StatusTypes::Result<Types::Display::ColorInfo>::failure(StatusTypes::Status(StatusTypes::Code::NotFound));
             }
             const HMONITOR native = nativeMonitor(monitor);
 
             if(native == nullptr)
             {
-                return {.status = IO::makeStatus(IO::Types::ErrorCode::NotFound)};
+                return StatusTypes::Result<Types::Display::ColorInfo>::failure(StatusTypes::Status(StatusTypes::Code::NotFound));
             }
             ActiveDisplayPath active;
-            IO::Types::Status status = findActiveDisplayPath(device, active);
+            GameWIP::Status::Types::Status status = findActiveDisplayPath(device, active);
 
             if(!status.ok())
             {
-                return {.status = std::move(status)};
+                return StatusTypes::Result<Types::Display::ColorInfo>::failure(status);
             }
             const bool releaseAfterQuery = !hasOpenWindowsOnCurrentThread();
             displayColorFactory.queried = true;
@@ -309,7 +311,7 @@ namespace GameWIP::Desktop::Platform
                     releaseDisplayColorResources();
                 }
 
-                return {.status = IO::successStatus(), .value = makeDisplayColorInfo(monitor, snapshot)};
+                return StatusTypes::Result<Types::Display::ColorInfo>::success(makeDisplayColorInfo(monitor, snapshot));
             }
 #endif
             addDisplayConfigColorMetadata(active, snapshot);
@@ -320,15 +322,15 @@ namespace GameWIP::Desktop::Platform
                 releaseDisplayColorResources();
             }
 
-            return {.status = IO::successStatus(), .value = makeDisplayColorInfo(monitor, snapshot)};
+            return StatusTypes::Result<Types::Display::ColorInfo>::success(makeDisplayColorInfo(monitor, snapshot));
         }
         catch(const std::bad_alloc &)
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::OutOfMemory)};
+            return StatusTypes::Result<Types::Display::ColorInfo>::failure(StatusTypes::Status(StatusTypes::Code::OutOfMemory));
         }
         catch(...)
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::Unknown)};
+            return StatusTypes::Result<Types::Display::ColorInfo>::failure(StatusTypes::Status(StatusTypes::Code::Unknown));
         }
     }
 

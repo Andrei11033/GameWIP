@@ -24,13 +24,14 @@ terminal behavior from `Other`.
 - resize and paste events;
 - repeat/release events, standalone modifiers, media keys, key location, and modifier-state richness.
 
-It does not expose native raw-mode, echo, mode-query/set, or availability-preflight capabilities. `Types::Input::CapabilitiesResult` pairs the
-snapshot with an IO status. Poll by performing a `0ms` read rather than checking availability and racing a later read.
+It does not expose native raw-mode, echo, mode-query/set, or availability-preflight capabilities. `Types::Input::CapabilitiesResult` returns the
+snapshot through `GameWIP::Status::Types::Result`. Poll by performing a `0ms` read rather than checking availability and racing a later read.
 
 ## Output capabilities
 
 `Types::Output::Capabilities` reports stream kind, UTF-8 text, byte output, flush support, portable styles, terminal size, cursor operations,
-clear/scroll, alternate screen, title, and bell support. `Types::Output::CapabilitiesResult` pairs the snapshot with an IO status.
+clear/scroll, alternate screen, title, and bell support. `Types::Output::CapabilitiesResult` returns the snapshot through
+`GameWIP::Status::Types::Result`.
 
 `supportsFlush` means Terminal accepts a flush request for the endpoint. It does not promise storage durability for every endpoint. On Win32, only
 standard handles redirected to regular disk files receive an operating-system flush; console and pipe requests are successful no-ops.

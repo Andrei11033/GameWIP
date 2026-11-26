@@ -11,6 +11,7 @@ void testChildSurfaces(TestSupport::Context &context)
 {
     // Verify the closed contract and reject parentless operations.
     using ChildEvent = Desktop::Types::ChildSurface::Event;
+    using StatusCode = GameWIP::Status::Types::Code;
 
     static_cast<void>(
         context.expectTrue("Win32 advertises complete ChildSurface support", Desktop::supports(Desktop::Types::Capability::ChildSurface)));
@@ -20,11 +21,11 @@ void testChildSurfaces(TestSupport::Context &context)
     static_cast<void>(context.expectEq("default ChildSurface lifetime is Closed", Desktop::Types::LifetimeState::Closed, closed.lifetimeState()));
     static_cast<void>(context.expectEq("closed ChildSurface has no parent identity", Desktop::Types::WindowId{}, closed.parentId()));
     static_cast<void>(context.expectEq("closed ChildSurface rect is empty", Desktop::Types::LogicalRect{}, closed.rect()));
-    static_cast<void>(context.expectEq("closed ChildSurface mutation reports NotOpen", ErrorCode::NotOpen, closed.show().code));
+    static_cast<void>(context.expectEq("closed ChildSurface mutation reports NotOpen", StatusCode::NotOpen, closed.show().status().code()));
     static_cast<void>(context.expectTrue("repeated closed ChildSurface close succeeds", closed.close().ok()));
 
     Desktop::Window closedParent;
-    static_cast<void>(context.expectEq("closed parent is rejected", ErrorCode::NotOpen, closed.open(closedParent).code));
+    static_cast<void>(context.expectEq("closed parent is rejected", StatusCode::NotOpen, closed.open(closedParent).status().code()));
 
     Desktop::Types::Description parentDescription;
     parentDescription.title = "ChildSurface validation parent";
@@ -42,12 +43,12 @@ void testChildSurfaces(TestSupport::Context &context)
     const std::span<ChildEvent> emptyStorage;
     static_cast<void>(context.expectEq(
         "empty caller-owned ChildSurface queue is invalid",
-        ErrorCode::InvalidArgument,
-        closed.open(parent, {}, Desktop::Types::ChildSurface::QueueConfiguration::borrowed(emptyStorage)).code));
+        StatusCode::InvalidArgument,
+        closed.open(parent, {}, Desktop::Types::ChildSurface::QueueConfiguration::borrowed(emptyStorage)).status().code()));
     static_cast<void>(context.expectEq(
         "zero ChildSurface queue capacity is invalid",
-        ErrorCode::InvalidArgument,
-        closed.open(parent, {}, Desktop::Types::ChildSurface::QueueConfiguration::owned(0)).code));
+        StatusCode::InvalidArgument,
+        closed.open(parent, {}, Desktop::Types::ChildSurface::QueueConfiguration::owned(0)).status().code()));
 
     Desktop::ChildSurface surface;
     static_cast<void>(context.expectTrue("default zero-sized ChildSurface description opens", surface.open(parent).ok()));
@@ -73,22 +74,23 @@ void testChildSurfaces(TestSupport::Context &context)
     static_cast<void>(context.expectEq("default ChildSurface pixels remain zero", Desktop::Types::PixelSize{}, surface.pixelSize()));
     static_cast<void>(context.expectFalse("default ChildSurface is hidden", surface.visible()));
     static_cast<void>(context.expectTrue("default ChildSurface enables interaction", surface.userInteractionEnabled()));
-    static_cast<void>(context.expectEq("second ChildSurface open reports AlreadyOpen", ErrorCode::AlreadyOpen, surface.open(parent).code));
+    static_cast<void>(
+        context.expectEq("second ChildSurface open reports AlreadyOpen", StatusCode::AlreadyOpen, surface.open(parent).status().code()));
 
     // Check the native host, then reopen with caller-owned event storage.
     const auto parentHandle = Desktop::Native::Win32::getHandle(parent);
     const auto childHandle = Desktop::Native::Win32::getHandle(surface);
     if(!context.expectTrue(
            "ChildSurface native handles resolve",
-           parentHandle.status.ok() && parentHandle->window != nullptr && childHandle.status.ok() && childHandle->window != nullptr))
+           parentHandle.ok() && parentHandle.value().window != nullptr && childHandle.ok() && childHandle.value().window != nullptr))
     {
         static_cast<void>(surface.close());
         static_cast<void>(parent.close());
         return;
     }
 
-    const HWND parentHwnd = parentHandle->window;
-    const HWND initialSurfaceHwnd = childHandle->window;
+    const HWND parentHwnd = parentHandle.value().window;
+    const HWND initialSurfaceHwnd = childHandle.value().window;
     static_cast<void>(context.expectEq("native host is directly parented", parentHwnd, GetParent(initialSurfaceHwnd)));
     const DWORD initialStyle = static_cast<DWORD>(GetWindowLongPtrW(initialSurfaceHwnd, GWL_STYLE));
     static_cast<void>(context.expectTrue("native host uses WS_CHILD", (initialStyle & WS_CHILD) != 0));
@@ -154,9 +156,9 @@ void testChildSurfaces(TestSupport::Context &context)
     static_cast<void>(surface.setRect({{-30, -20}, {180, 100}}));
     const auto clippingHandle = Desktop::Native::Win32::getHandle(surface);
     HWND surfaceHwnd = nullptr;
-    if(context.expectTrue("reopened ChildSurface native handle resolves", clippingHandle.status.ok() && clippingHandle->window != nullptr))
+    if(context.expectTrue("reopened ChildSurface native handle resolves", clippingHandle.ok() && clippingHandle.value().window != nullptr))
     {
-        surfaceHwnd = clippingHandle->window;
+        surfaceHwnd = clippingHandle.value().window;
         POINT parentOrigin{};
         RECT childFrame{};
         const bool parentOriginResolved = ClientToScreen(parentHwnd, &parentOrigin) != FALSE;
@@ -173,19 +175,20 @@ void testChildSurfaces(TestSupport::Context &context)
     }
     static_cast<void>(surface.setRect(authoritativeBeforeParentChange));
     const auto origin = surface.clientToScreen({0, 0});
-    if(context.expectTrue("ChildSurface clientToScreen succeeds", origin.status.ok()))
+    if(context.expectTrue("ChildSurface clientToScreen succeeds", origin.ok()))
     {
-        const auto local = surface.screenToClient(*origin);
-        if(context.expectTrue("ChildSurface screenToClient succeeds", local.status.ok()))
+        const auto local = surface.screenToClient(origin.value());
+        if(context.expectTrue("ChildSurface screenToClient succeeds", local.ok()))
         {
-            static_cast<void>(context.expectEq("ChildSurface coordinate conversion round-trips origin", Desktop::Types::LogicalPosition{}, *local));
+            static_cast<void>(
+                context.expectEq("ChildSurface coordinate conversion round-trips origin", Desktop::Types::LogicalPosition{}, local.value()));
         }
     }
 
     // Verify visibility, interaction, and sibling stacking behavior.
     static_cast<void>(context.expectTrue("ChildSurface show is idempotent", surface.show().ok()));
     Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::WindowStyleQuery);
-    static_cast<void>(context.expectEq("visibility query failure is returned", ErrorCode::NativeFailure, surface.hide().code));
+    static_cast<void>(context.expectEq("visibility query failure is returned", StatusCode::NativeFailure, surface.hide().status().code()));
     static_cast<void>(context.expectTrue("visibility query failure preserves cache", surface.visible()));
     if(surfaceHwnd != nullptr)
     {
@@ -219,43 +222,44 @@ void testChildSurfaces(TestSupport::Context &context)
     const auto siblingHandle = Desktop::Native::Win32::getHandle(sibling);
     if(context.expectTrue(
            "sibling ordering native handles resolve",
-           surfaceOrderHandle.status.ok() && surfaceOrderHandle->window != nullptr && siblingHandle.status.ok() && siblingHandle->window != nullptr))
+           surfaceOrderHandle.ok() && surfaceOrderHandle.value().window != nullptr && siblingHandle.ok() && siblingHandle.value().window != nullptr))
     {
-        const HWND surfaceOrderHwnd = surfaceOrderHandle->window;
-        const HWND siblingHwnd = siblingHandle->window;
+        const HWND surfaceOrderHwnd = surfaceOrderHandle.value().window;
+        const HWND siblingHwnd = siblingHandle.value().window;
         static_cast<void>(context.expectEq("placeAbove produces adjacent native order", siblingHwnd, GetWindow(surfaceOrderHwnd, GW_HWNDNEXT)));
         static_cast<void>(context.expectTrue("placeBelow succeeds for a valid sibling", surface.placeBelow(sibling).ok()));
         static_cast<void>(context.expectEq("placeBelow produces adjacent native order", surfaceOrderHwnd, GetWindow(siblingHwnd, GW_HWNDNEXT)));
     }
-    static_cast<void>(context.expectEq("self sibling is invalid", ErrorCode::InvalidArgument, surface.placeAbove(surface).code));
+    static_cast<void>(context.expectEq("self sibling is invalid", StatusCode::InvalidArgument, surface.placeAbove(surface).status().code()));
     const Desktop::ChildSurface closedSibling;
-    static_cast<void>(context.expectEq("closed sibling is invalid", ErrorCode::InvalidArgument, surface.placeBelow(closedSibling).code));
+    static_cast<void>(context.expectEq("closed sibling is invalid", StatusCode::InvalidArgument, surface.placeBelow(closedSibling).status().code()));
 
     Desktop::Window otherParent;
     static_cast<void>(otherParent.open(parentDescription, Desktop::Events::owned(8)));
     Desktop::ChildSurface otherSurface;
     static_cast<void>(otherSurface.open(otherParent, {}, Desktop::Types::ChildSurface::QueueConfiguration::owned(8)));
-    static_cast<void>(context.expectEq("different-parent sibling is invalid", ErrorCode::InvalidArgument, surface.placeAbove(otherSurface).code));
+    static_cast<void>(
+        context.expectEq("different-parent sibling is invalid", StatusCode::InvalidArgument, surface.placeAbove(otherSurface).status().code()));
     static_cast<void>(otherSurface.close());
     static_cast<void>(otherParent.close());
 
     // Reject foreign-thread queries, mutations, and close operations.
-    ErrorCode wrongThreadMutation = ErrorCode::Success;
-    ErrorCode wrongThreadClose = ErrorCode::Success;
+    StatusCode wrongThreadMutation = StatusCode::Success;
+    StatusCode wrongThreadClose = StatusCode::Success;
     ErrorCode wrongThreadHandle = ErrorCode::Success;
     bool wrongThreadOwnership = true;
     std::thread wrongThread(
         [&]
         {
             wrongThreadOwnership = surface.ownedByCurrentThread();
-            wrongThreadMutation = surface.setPosition({1, 2}).code;
-            wrongThreadClose = surface.close().code;
-            wrongThreadHandle = Desktop::Native::Win32::getHandle(surface).status.code;
+            wrongThreadMutation = surface.setPosition({1, 2}).status().code();
+            wrongThreadClose = surface.close().status().code();
+            wrongThreadHandle = Desktop::Native::Win32::getHandle(surface).status().code();
         });
     wrongThread.join();
     static_cast<void>(context.expectFalse("ChildSurface rejects foreign-thread ownership", wrongThreadOwnership));
-    static_cast<void>(context.expectEq("wrong-thread mutation reports ResourceBusy", ErrorCode::ResourceBusy, wrongThreadMutation));
-    static_cast<void>(context.expectEq("wrong-thread close reports ResourceBusy", ErrorCode::ResourceBusy, wrongThreadClose));
+    static_cast<void>(context.expectEq("wrong-thread mutation reports ResourceBusy", StatusCode::ResourceBusy, wrongThreadMutation));
+    static_cast<void>(context.expectEq("wrong-thread close reports ResourceBusy", StatusCode::ResourceBusy, wrongThreadClose));
     static_cast<void>(context.expectEq("wrong-thread native handle reports ResourceBusy", ErrorCode::ResourceBusy, wrongThreadHandle));
 
     // Check queue coalescing and per-lifetime event sequencing.
@@ -351,8 +355,8 @@ void testChildSurfaces(TestSupport::Context &context)
         Desktop::Types::LifetimeState::NativeDestroyedPendingFinalize,
         surface.lifetimeState()));
     static_cast<void>(
-        context.expectEq("native handle invalidates after destruction", ErrorCode::NotOpen, Desktop::Native::Win32::getHandle(surface).status.code));
-    static_cast<void>(context.expectEq("reopen before finalization is rejected", ErrorCode::AlreadyOpen, surface.open(parent).code));
+        context.expectEq("native handle invalidates after destruction", ErrorCode::NotOpen, Desktop::Native::Win32::getHandle(surface).status().code()));
+    static_cast<void>(context.expectEq("reopen before finalization is rejected", StatusCode::AlreadyOpen, surface.open(parent).status().code()));
     bool foundNativeDestroyed = false;
 
     while(surface.popEvent(event))
@@ -370,18 +374,20 @@ void testChildSurfaces(TestSupport::Context &context)
     if(context.expectTrue("pump fixture opens", pumpedSurface.open(parent, {}, Desktop::Types::ChildSurface::QueueConfiguration::owned(4)).ok()))
     {
         const auto pumpedNativeHandle = Desktop::Native::Win32::getHandle(pumpedSurface);
-        if(context.expectTrue("pump fixture exposes HWND", pumpedNativeHandle.status.ok() && pumpedNativeHandle->window != nullptr))
+        if(context.expectTrue("pump fixture exposes HWND", pumpedNativeHandle.ok() && pumpedNativeHandle.value().window != nullptr))
         {
-            if(context.expectTrue("native close message posts", PostMessageW(pumpedNativeHandle->window, WM_CLOSE, 0, 0) != FALSE))
+            if(context.expectTrue("native close message posts", PostMessageW(pumpedNativeHandle.value().window, WM_CLOSE, 0, 0) != FALSE))
             {
                 const Desktop::Types::Events::PumpResult childPump = Desktop::Events::poll();
-                static_cast<void>(context.expectTrue("shared event pump processes ChildSurface native messages", childPump.status.ok()));
-                static_cast<void>(context.expectEq("shared pump counts a ChildSurface event", std::size_t{1}, childPump.eventsQueued));
-                static_cast<void>(context.expectEq("shared pump reports no ChildSurface drop", std::uint64_t{0}, childPump.eventsDropped));
-                static_cast<void>(context.expectEq(
-                    "pumped native destruction enters pending finalization",
-                    Desktop::Types::LifetimeState::NativeDestroyedPendingFinalize,
-                    pumpedSurface.lifetimeState()));
+                if(context.expectTrue("shared event pump processes ChildSurface native messages", childPump.ok()))
+                {
+                    static_cast<void>(context.expectEq("shared pump counts a ChildSurface event", std::size_t{1}, childPump.value().eventsQueued));
+                    static_cast<void>(context.expectEq("shared pump reports no ChildSurface drop", std::uint64_t{0}, childPump.value().eventsDropped));
+                    static_cast<void>(context.expectEq(
+                        "pumped native destruction enters pending finalization",
+                        Desktop::Types::LifetimeState::NativeDestroyedPendingFinalize,
+                        pumpedSurface.lifetimeState()));
+                }
             }
         }
         static_cast<void>(pumpedSurface.close());
@@ -390,19 +396,19 @@ void testChildSurfaces(TestSupport::Context &context)
     Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::Allocation);
     static_cast<void>(context.expectEq(
         "ChildSurface allocation failure is translated",
-        ErrorCode::OutOfMemory,
-        surface.open(parent, {}, Desktop::Types::ChildSurface::QueueConfiguration::owned(4)).code));
+        StatusCode::OutOfMemory,
+        surface.open(parent, {}, Desktop::Types::ChildSurface::QueueConfiguration::owned(4)).status().code()));
     Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::NativeCreation);
     static_cast<void>(context.expectEq(
         "ChildSurface native creation failure rolls back",
-        ErrorCode::OpenFailed,
-        surface.open(parent, {}, Desktop::Types::ChildSurface::QueueConfiguration::owned(4)).code));
+        StatusCode::OpenFailed,
+        surface.open(parent, {}, Desktop::Types::ChildSurface::QueueConfiguration::owned(4)).status().code()));
     static_cast<void>(context.expectFalse("failed ChildSurface open leaves no lifetime", surface.isOpen()));
     static_cast<void>(context.expectTrue(
         "ChildSurface recovers after open rollback",
         surface.open(parent, {}, Desktop::Types::ChildSurface::QueueConfiguration::owned(4)).ok()));
     Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::Close);
-    static_cast<void>(context.expectEq("ChildSurface close failure is retryable", ErrorCode::CloseFailed, surface.close().code));
+    static_cast<void>(context.expectEq("ChildSurface close failure is retryable", StatusCode::CloseFailed, surface.close().status().code()));
     static_cast<void>(context.expectTrue("failed ChildSurface close preserves native lifetime", surface.isOpen()));
     static_cast<void>(context.expectTrue("ChildSurface close retry succeeds", surface.close().ok()));
 #endif
@@ -432,9 +438,9 @@ void testChildSurfaces(TestSupport::Context &context)
     {
         const auto abandonedNativeHandle = Desktop::Native::Win32::getHandle(*abandoned);
         HWND abandonedHandle = nullptr;
-        if(context.expectTrue("deferred cleanup fixture exposes HWND", abandonedNativeHandle.status.ok() && abandonedNativeHandle->window != nullptr))
+        if(context.expectTrue("deferred cleanup fixture exposes HWND", abandonedNativeHandle.ok() && abandonedNativeHandle.value().window != nullptr))
         {
-            abandonedHandle = abandonedNativeHandle->window;
+            abandonedHandle = abandonedNativeHandle.value().window;
         }
 
         std::thread destroyer(

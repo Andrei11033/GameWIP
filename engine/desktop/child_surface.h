@@ -5,6 +5,7 @@
 
 #include "desktop/events.h"
 #include "desktop/window.h"
+#include "status/result.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -147,14 +148,14 @@ namespace GameWIP::Desktop
         /// @param parent Open top-level Window whose owner thread and client origin are inherited.
         /// @param description Initial logical geometry, visibility, and interaction state.
         /// @return Success, or a status explaining why no native host was opened.
-        [[nodiscard]] IO::Types::Status open(Window &parent, const Types::ChildSurface::Description &description = {}) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> open(Window &parent, const Types::ChildSurface::Description &description = {}) noexcept;
         /// @brief Opens with an explicit owned-or-borrowed event-queue policy.
         /// @param parent Open top-level Window whose owner thread and client origin are inherited.
         /// @param description Initial logical geometry, visibility, and interaction state.
         /// @param queue Explicit storage ownership and capacity policy.
         /// @details Borrowed storage remains retained during native-loss finalization and deferred owner-thread cleanup.
         /// @return Success, or a status explaining why no native host was opened.
-        [[nodiscard]] IO::Types::Status open(
+        [[nodiscard]] GameWIP::Status::Types::Result<void> open(
             Window &parent,
             const Types::ChildSurface::Description &description,
             Types::ChildSurface::QueueConfiguration queue) noexcept;
@@ -165,7 +166,7 @@ namespace GameWIP::Desktop
         [[nodiscard]] Types::LifetimeState lifetimeState() const noexcept;
         /// @brief Closes or finalizes the current lifetime on its owner thread.
         /// @return Success when closed or already closed; ResourceBusy on the wrong thread; otherwise cleanup failure.
-        [[nodiscard]] IO::Types::Status close() noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> close() noexcept;
         /// @}
 
         /// @name Parent and ownership
@@ -233,15 +234,15 @@ namespace GameWIP::Desktop
         /// @brief Changes parent-relative logical position and extent together.
         /// @param rect New authoritative rectangle; zero extents and negative positions are valid.
         /// @return Success or the validation/native failure.
-        [[nodiscard]] IO::Types::Status setRect(Types::LogicalRect rect) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> setRect(Types::LogicalRect rect) noexcept;
         /// @brief Changes only the parent-relative logical position.
         /// @param position New position; negative coordinates are valid.
         /// @return Success or the validation/native failure.
-        [[nodiscard]] IO::Types::Status setPosition(Types::LogicalPosition position) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> setPosition(Types::LogicalPosition position) noexcept;
         /// @brief Changes only the logical extent.
         /// @param size New extent; zero dimensions are valid.
         /// @return Success or the validation/native failure.
-        [[nodiscard]] IO::Types::Status setSize(Types::LogicalSize size) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> setSize(Types::LogicalSize size) noexcept;
         /// @}
 
         /// @name Coordinate conversion
@@ -250,11 +251,11 @@ namespace GameWIP::Desktop
         /// @brief Converts a ChildSurface-local logical position to physical virtual-screen coordinates.
         /// @param position Logical position relative to the ChildSurface client origin.
         /// @return Conversion status and physical screen position.
-        [[nodiscard]] Types::Result<Types::ScreenPosition> clientToScreen(Types::LogicalPosition position) const noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<Types::ScreenPosition> clientToScreen(Types::LogicalPosition position) const noexcept;
         /// @brief Converts a physical virtual-screen position to ChildSurface-local logical coordinates.
         /// @param position Physical virtual-screen position.
         /// @return Conversion status and logical client-local position.
-        [[nodiscard]] Types::Result<Types::LogicalPosition> screenToClient(Types::ScreenPosition position) const noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<Types::LogicalPosition> screenToClient(Types::ScreenPosition position) const noexcept;
         /// @}
 
         /// @name Visibility and interaction
@@ -262,14 +263,14 @@ namespace GameWIP::Desktop
 
         /// @brief Makes the native host visible without requesting activation.
         /// @return Success or the lifecycle/native failure.
-        [[nodiscard]] IO::Types::Status show() noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> show() noexcept;
         /// @brief Hides the native host.
         /// @return Success or the lifecycle/native failure.
-        [[nodiscard]] IO::Types::Status hide() noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> hide() noexcept;
         /// @brief Enables or disables normal native interaction for the host and descendants.
         /// @param enabled Whether interaction should be enabled.
         /// @return Success or the lifecycle/native failure.
-        [[nodiscard]] IO::Types::Status setUserInteractionEnabled(bool enabled) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> setUserInteractionEnabled(bool enabled) noexcept;
         /// @}
 
         /// @name Native sibling ordering
@@ -277,18 +278,18 @@ namespace GameWIP::Desktop
 
         /// @brief Places this host at the front of its native sibling order.
         /// @return Success or the lifecycle/native failure.
-        [[nodiscard]] IO::Types::Status bringToFront() noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> bringToFront() noexcept;
         /// @brief Places this host at the back of its native sibling order.
         /// @return Success or the lifecycle/native failure.
-        [[nodiscard]] IO::Types::Status sendToBack() noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> sendToBack() noexcept;
         /// @brief Places this host immediately above a compatible native sibling.
         /// @param sibling Different open ChildSurface in the same parent lifetime and owner thread.
         /// @return Success, InvalidArgument for an incompatible sibling, or lifecycle/native failure.
-        [[nodiscard]] IO::Types::Status placeAbove(const ChildSurface &sibling) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> placeAbove(const ChildSurface &sibling) noexcept;
         /// @brief Places this host immediately below a compatible native sibling.
         /// @param sibling Different open ChildSurface in the same parent lifetime and owner thread.
         /// @return Success, InvalidArgument for an incompatible sibling, or lifecycle/native failure.
-        [[nodiscard]] IO::Types::Status placeBelow(const ChildSurface &sibling) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> placeBelow(const ChildSurface &sibling) noexcept;
         /// @}
 
     private:

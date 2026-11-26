@@ -43,7 +43,7 @@ int runCancellationSignalFailureChildMode()
         result.status.ok() && result.outcome == Terminal::Types::Input::ReadOutcome::Cancelled && cancellationElapsed < std::chrono::seconds{2};
     std::cout << std::format(
         "Cancellation code={} outcome={} elapsedMs={}\n",
-        IO::errorCodeName(result.status.code),
+        GameWIP::Status::Types::codeName(result.status.code()),
         static_cast<int>(result.outcome),
         std::chrono::duration_cast<std::chrono::milliseconds>(cancellationElapsed).count());
     Hooks::reset();
@@ -65,23 +65,23 @@ void testCancellationSignalFailure(TestSupport::Context &context, const std::fil
     child.waitTimeout = std::chrono::seconds{30};
     child.captureOutput = true;
     const TestSupport::Types::Process::Result childResult = TestSupport::runChildProcess(child);
-    static_cast<void>(context.expectTrue("infinite cancellation child infrastructure succeeds", childResult.status.ok()));
-    static_cast<void>(context.expectEq("infinite cancellation child exits", TestSupport::Types::Process::Outcome::Exited, childResult.outcome));
+    static_cast<void>(context.expectTrue("infinite cancellation child infrastructure succeeds", childResult.ok()));
+    static_cast<void>(context.expectEq("infinite cancellation child exits", TestSupport::Types::Process::Outcome::Exited, childResult.value().outcome));
 
-    if(childResult.outcome == TestSupport::Types::Process::Outcome::Exited)
+    if(childResult.value().outcome == TestSupport::Types::Process::Outcome::Exited)
     {
-        static_cast<void>(context.expectEq("infinite cancellation child returns success", std::uint32_t{0}, childResult.exitCode));
+        static_cast<void>(context.expectEq("infinite cancellation child returns success", std::uint32_t{0}, childResult.value().exitCode));
     }
 
-    if(!childResult.status.ok() || childResult.outcome != TestSupport::Types::Process::Outcome::Exited || childResult.exitCode != 0)
+    if(!childResult.ok() || childResult.value().outcome != TestSupport::Types::Process::Outcome::Exited || childResult.value().exitCode != 0)
     {
         context.info(
             std::format(
                 "{} outcome={} exit={}\n{}",
-                TestSupport::formatInfrastructureStatus(childResult.status),
-                static_cast<int>(childResult.outcome),
-                childResult.exitCode,
-                childResult.outputBytes));
+                TestSupport::formatStatus(childResult.status()),
+                static_cast<int>(childResult.value().outcome),
+                childResult.value().exitCode,
+                childResult.value().outputBytes));
     }
 
     const auto run = [&context](std::string_view label, bool forceSignalFailure)
@@ -133,7 +133,7 @@ void testCancellationResetFailure(TestSupport::Context &context)
     Hooks::forceNextCancellationResetFailure();
     const Hooks::Win32::Win32ConsoleWaitResult failed =
         Hooks::Win32::waitForConsoleRecordForTest(std::chrono::milliseconds{0}, stopSource.get_token());
-    static_cast<void>(context.expectEq("ResetEvent failure is returned", ErrorCode::NativeFailure, failed.status.code));
+    static_cast<void>(context.expectEq("ResetEvent failure is returned", ErrorCode::NativeFailure, failed.status.code()));
     static_cast<void>(
         context.expectFalse("ResetEvent failure is not cancellation", failed.outcome == Terminal::Types::Input::ReadOutcome::Cancelled));
     static_cast<void>(context.expectEq("ResetEvent failure enters no native wait", std::size_t{0}, Hooks::Win32::consoleWaitCallCount()));

@@ -12,7 +12,7 @@ namespace GameWIP::FileSystem::Platform::Win32
     /// ------------------------------------------------------------
 
     /// @brief Opens a drive or UNC root with the requested access and reparse behavior.
-    [[nodiscard]] HandleResult openRootDirectory(
+    [[nodiscard]] Result<HandleInfo> openRootDirectory(
         const std::wstring &root,
         DWORD shareMode,
         ACCESS_MASK desiredAccess,
@@ -30,14 +30,14 @@ namespace GameWIP::FileSystem::Platform::Win32
 
         if(!handle.isValid())
         {
-            return {.status = makeLastErrorStatus(fallback)};
+            return failure<HandleInfo>(makeLastErrorStatus(fallback));
         }
 
-        return {.status = IO::successStatus(), .handle = std::move(handle)};
+        return Result<HandleInfo>::success(HandleInfo{.handle = std::move(handle)});
     }
 
     /// @brief Calls NtCreateFile relative to a parent handle with explicit reparse behavior.
-    [[nodiscard]] HandleResult openChildNative(
+    [[nodiscard]] Result<HandleInfo> openChildNative(
         HANDLE parent,
         const std::wstring &name,
         ACCESS_MASK desiredAccess,
@@ -51,7 +51,7 @@ namespace GameWIP::FileSystem::Platform::Win32
 
         if(api.createFile == nullptr)
         {
-            return {.status = IO::makeStatus(ErrorCode::Unsupported, 0, "NtCreateFile is unavailable")};
+            return failure<HandleInfo>(Status::withDiagnostic(ErrorCode::Unsupported, "NtCreateFile is unavailable"));
         }
 
         UNICODE_STRING objectName{};
@@ -80,14 +80,15 @@ namespace GameWIP::FileSystem::Platform::Win32
 
         if(!NT_SUCCESS(status))
         {
-            return {.status = makeNtStatus(status, fallback)};
+            return failure<HandleInfo>(makeNtStatus(status, fallback));
         }
 
-        return {.status = IO::successStatus(), .handle = UniqueHandle{rawHandle}, .information = ioStatus.Information};
+        return Result<HandleInfo>::success(
+            HandleInfo{.handle = UniqueHandle{rawHandle}, .information = ioStatus.Information});
     }
 
     /// @brief Opens one child and rejects reparse points when the policy requires it.
-    [[nodiscard]] HandleResult openChild(HANDLE parent, const std::wstring &name, bool doNotFollow, bool forTraversal, DWORD shareMode)
+    [[nodiscard]] Result<HandleInfo> openChild(HANDLE parent, const std::wstring &name, bool doNotFollow, bool forTraversal, DWORD shareMode)
     {
         ULONG openOptions = kOpenOptionsBase;
 
@@ -113,79 +114,78 @@ namespace GameWIP::FileSystem::Platform::Win32
     }
 
     /// @brief Traverses and retains the parent directory required for a race-resistant final open.
-    [[nodiscard]] HandleResult openParentStrict(const ParsedPathResult &path, DWORD shareMode, std::vector<UniqueHandle> *heldHandles)
+    [[nodiscard]] Result<HandleInfo> openParentStrict(const ParsedPath &path, DWORD shareMode, std::vector<UniqueHandle> *heldHandles)
     {
         if(path.components.empty())
         {
-            return {.status = IO::makeStatus(ErrorCode::InvalidArgument)};
+            return failure<HandleInfo>(ErrorCode::InvalidArgument);
         }
 
         // Open the root and retain it when the caller needs the full traversal chain.
-        HandleResult parent = openRootDirectory(path.root, shareMode);
+        auto parent = openRootDirectory(path.root, shareMode);
 
-        if(!parent.status.ok())
+        if(!parent.ok())
         {
-            return parent;
+            return failure<HandleInfo>(parent.status());
         }
 
         if(heldHandles != nullptr)
         {
-            heldHandles->push_back(UniqueHandle{});
-            heldHandles->back() = std::move(parent.handle);
-            parent.handle = UniqueHandle{};
+            heldHandles->push_back(std::move(parent).value().handle);
         }
 
-        HANDLE currentParent = heldHandles != nullptr ? heldHandles->back().get() : parent.handle.get();
+        HANDLE currentParent = heldHandles != nullptr ? heldHandles->back().get() : parent.value().handle.get();
 
         // Resolve each parent directory without following reparse points.
         for(std::size_t index = 0; index + 1 < path.components.size(); ++index)
         {
-            HandleResult child = openChild(currentParent, path.components[index], true, true, shareMode);
+            auto child = openChild(currentParent, path.components[index], true, true, shareMode);
 
-            if(!child.status.ok())
+            if(!child.ok())
             {
-                return child;
-            }
-            EntryQueryResult childInfo = queryHandleInfo(child.handle.get());
-
-            if(!childInfo.status.ok())
-            {
-                return {.status = std::move(childInfo.status)};
+                return failure<HandleInfo>(child.status());
             }
 
-            if(childInfo.info.kind == Types::EntryKind::Symlink)
+            auto childInfo = queryHandleInfo(child.value().handle.get());
+
+            if(!childInfo.ok())
             {
-                return {.status = symlinkPolicyRejectedStatus()};
+                return failure<HandleInfo>(childInfo.status());
             }
 
-            if(childInfo.info.kind != Types::EntryKind::Directory)
+            if(childInfo.value().kind == Types::EntryKind::Symlink)
             {
-                return {.status = IO::makeStatus(ErrorCode::NotDirectory)};
+                return failure<HandleInfo>(symlinkPolicyRejectedStatus());
+            }
+
+            if(childInfo.value().kind != Types::EntryKind::Directory)
+            {
+                return failure<HandleInfo>(ErrorCode::NotDirectory);
             }
 
             if(heldHandles != nullptr)
             {
-                heldHandles->push_back(std::move(child.handle));
+                heldHandles->push_back(std::move(child).value().handle);
                 currentParent = heldHandles->back().get();
             }
             else
             {
-                parent.handle = std::move(child.handle);
-                currentParent = parent.handle.get();
+                parent.value().handle = std::move(child).value().handle;
+                currentParent = parent.value().handle.get();
             }
         }
 
         // Return either the retained ancestry or the final parent handle.
         if(heldHandles != nullptr)
         {
-            return {.status = IO::successStatus(), .handle = UniqueHandle{}};
+            return Result<HandleInfo>::success(HandleInfo{});
         }
 
         return parent;
     }
 
     /// @brief Opens an existing final entry with requested access and symlink behavior.
-    [[nodiscard]] OpenPathResult openExistingPath(
+    [[nodiscard]] Result<OpenPath> openExistingPath(
         const Types::Path &path,
         Types::SymlinkPolicy symlinkPolicy,
         ACCESS_MASK desiredAccess,
@@ -193,11 +193,11 @@ namespace GameWIP::FileSystem::Platform::Win32
         bool allowDirectory,
         ErrorCode fallback)
     {
-        WidePathResult absolutePath = absoluteNativePath(path);
+        auto absolutePath = absoluteNativePath(path);
 
-        if(!absolutePath.status.ok())
+        if(!absolutePath.ok())
         {
-            return {.status = std::move(absolutePath.status)};
+            return failure<OpenPath>(absolutePath.status());
         }
 
         // Use ordinary Win32 resolution when the policy follows every symlink.
@@ -210,65 +210,71 @@ namespace GameWIP::FileSystem::Platform::Win32
                 flags |= FILE_FLAG_BACKUP_SEMANTICS;
             }
 
-            UniqueHandle handle{CreateFileW(absolutePath.path.c_str(), desiredAccess, shareMode, nullptr, OPEN_EXISTING, flags, nullptr)};
+            UniqueHandle handle{CreateFileW(absolutePath.value().c_str(), desiredAccess, shareMode, nullptr, OPEN_EXISTING, flags, nullptr)};
 
             if(!handle.isValid())
             {
-                return {.status = makeLastErrorStatus(fallback)};
+                return failure<OpenPath>(makeLastErrorStatus(fallback));
             }
-            EntryQueryResult info = queryHandleInfo(handle.get());
 
-            if(!info.status.ok())
+            auto info = queryHandleInfo(handle.get());
+
+            if(!info.ok())
             {
-                return {.status = std::move(info.status)};
+                return failure<OpenPath>(info.status());
             }
 
-            if(!allowDirectory && info.info.kind == Types::EntryKind::Directory)
+            if(!allowDirectory && info.value().kind == Types::EntryKind::Directory)
             {
-                return {.status = IO::makeStatus(ErrorCode::IsDirectory)};
+                return failure<OpenPath>(ErrorCode::IsDirectory);
             }
 
-            return {.status = IO::successStatus(), .handle = std::move(handle), .info = info.info};
+            return Result<OpenPath>::success(OpenPath{.handle = std::move(handle), .info = std::move(info).value()});
         }
 
-        ParsedPathResult parsedPath = parseAbsolutePath(absolutePath.path);
+        auto parsedPath = parseAbsolutePath(absolutePath.value());
 
-        if(!parsedPath.status.ok())
+        if(!parsedPath.ok())
         {
-            return {.status = std::move(parsedPath.status)};
+            return failure<OpenPath>(parsedPath.status());
         }
 
         // Open roots directly because they have no parent components.
-        if(parsedPath.components.empty())
+        if(parsedPath.value().components.empty())
         {
-            HandleResult root =
-                openRootDirectory(parsedPath.root, shareMode, desiredAccess, symlinkPolicy == Types::SymlinkPolicy::DoNotFollow, fallback);
+            auto root = openRootDirectory(
+                parsedPath.value().root,
+                shareMode,
+                desiredAccess,
+                symlinkPolicy == Types::SymlinkPolicy::DoNotFollow,
+                fallback);
 
-            if(!root.status.ok())
+            if(!root.ok())
             {
-                return {.status = std::move(root.status)};
-            }
-            EntryQueryResult info = queryHandleInfo(root.handle.get());
-
-            if(!info.status.ok())
-            {
-                return {.status = std::move(info.status)};
+                return failure<OpenPath>(root.status());
             }
 
-            if(!allowDirectory && info.info.kind == Types::EntryKind::Directory)
+            auto info = queryHandleInfo(root.value().handle.get());
+
+            if(!info.ok())
             {
-                return {.status = IO::makeStatus(ErrorCode::IsDirectory)};
+                return failure<OpenPath>(info.status());
             }
 
-            return {.status = IO::successStatus(), .handle = std::move(root.handle), .info = info.info};
+            if(!allowDirectory && info.value().kind == Types::EntryKind::Directory)
+            {
+                return failure<OpenPath>(ErrorCode::IsDirectory);
+            }
+
+            return Result<OpenPath>::success(OpenPath{.handle = std::move(root).value().handle, .info = std::move(info).value()});
         }
 
         // Resolve the parent with stable handles for strict symlink policies.
-        HandleResult parent = openParentStrict(parsedPath, shareMode);
+        auto parent = openParentStrict(parsedPath.value(), shareMode);
 
-        if(!parent.status.ok())
+        if(!parent.ok())
         {
-            return {.status = std::move(parent.status)};
+            return failure<OpenPath>(parent.status());
         }
 
         ULONG openOptions = kOpenOptionsBase;
@@ -283,9 +289,9 @@ namespace GameWIP::FileSystem::Platform::Win32
             openOptions |= FILE_OPEN_REPARSE_POINT;
         }
 
-        HandleResult finalHandle = openChildNative(
-            parent.handle.get(),
-            parsedPath.components.back(),
+        auto finalHandle = openChildNative(
+            parent.value().handle.get(),
+            parsedPath.value().components.back(),
             desiredAccess,
             shareMode,
             FILE_OPEN,
@@ -293,118 +299,126 @@ namespace GameWIP::FileSystem::Platform::Win32
             FILE_ATTRIBUTE_NORMAL,
             fallback);
 
-        if(!finalHandle.status.ok())
+        if(!finalHandle.ok())
         {
-            return {.status = std::move(finalHandle.status)};
-        }
-        EntryQueryResult info = queryHandleInfo(finalHandle.handle.get());
-
-        if(!info.status.ok())
-        {
-            return {.status = std::move(info.status)};
+            return failure<OpenPath>(finalHandle.status());
         }
 
-        if(!allowDirectory && info.info.kind == Types::EntryKind::Directory)
+        auto info = queryHandleInfo(finalHandle.value().handle.get());
+
+        if(!info.ok())
         {
-            return {.status = IO::makeStatus(ErrorCode::IsDirectory)};
+            return failure<OpenPath>(info.status());
         }
 
-        return {.status = IO::successStatus(), .handle = std::move(finalHandle.handle), .info = info.info};
+        if(!allowDirectory && info.value().kind == Types::EntryKind::Directory)
+        {
+            return failure<OpenPath>(ErrorCode::IsDirectory);
+        }
+
+        return Result<OpenPath>::success(
+            OpenPath{.handle = std::move(finalHandle).value().handle, .info = std::move(info).value()});
     }
 
     /// @brief Retains every traversal handle so a multi-step operation cannot swap path components.
-    [[nodiscard]] StablePathResult stabilizeExistingPath(const Types::Path &path, Types::SymlinkPolicy symlinkPolicy, bool requireDirectory)
+    [[nodiscard]] Result<StablePath> stabilizeExistingPath(const Types::Path &path, Types::SymlinkPolicy symlinkPolicy, bool requireDirectory)
     {
-        WidePathResult absolutePath = absoluteNativePath(path);
+        auto absolutePath = absoluteNativePath(path);
 
-        if(!absolutePath.status.ok())
+        if(!absolutePath.ok())
         {
-            return {.status = std::move(absolutePath.status)};
+            return failure<StablePath>(absolutePath.status());
         }
 
         // Keep one stable handle when ordinary symlink traversal is allowed.
         if(symlinkPolicy == Types::SymlinkPolicy::FollowAll)
         {
-            OpenPathResult opened = openExistingPath(path, symlinkPolicy, kQueryAccess, kShareWithoutDelete, true, ErrorCode::StatFailed);
+            auto opened = openExistingPath(path, symlinkPolicy, kQueryAccess, kShareWithoutDelete, true, ErrorCode::StatFailed);
 
-            if(!opened.status.ok())
+            if(!opened.ok())
             {
-                return {.status = std::move(opened.status)};
+                return failure<StablePath>(opened.status());
             }
 
-            if(requireDirectory && opened.info.kind != Types::EntryKind::Directory)
+            if(requireDirectory && opened.value().info.kind != Types::EntryKind::Directory)
             {
-                return {.status = IO::makeStatus(ErrorCode::NotDirectory)};
+                return failure<StablePath>(ErrorCode::NotDirectory);
             }
+
             std::vector<UniqueHandle> handles;
-            handles.push_back(std::move(opened.handle));
-            return {.status = IO::successStatus(), .handles = std::move(handles), .info = opened.info};
+            OpenPath openedValue = std::move(opened).value();
+            Types::EntryInfo info = std::move(openedValue.info);
+            handles.push_back(std::move(openedValue.handle));
+            return Result<StablePath>::success(StablePath{.handles = std::move(handles), .info = std::move(info)});
         }
 
-        ParsedPathResult parsedPath = parseAbsolutePath(absolutePath.path);
+        auto parsedPath = parseAbsolutePath(absolutePath.value());
 
-        if(!parsedPath.status.ok())
+        if(!parsedPath.ok())
         {
-            return {.status = std::move(parsedPath.status)};
+            return failure<StablePath>(parsedPath.status());
         }
 
         std::vector<UniqueHandle> handles;
         const DWORD stableShare = kShareWithoutDelete;
 
         // Keep the root handle as the complete stable path.
-        if(parsedPath.components.empty())
+        if(parsedPath.value().components.empty())
         {
             const bool doNotFollowRoot = symlinkPolicy == Types::SymlinkPolicy::DoNotFollow;
-            HandleResult root = openRootDirectory(parsedPath.root, stableShare, kDirectoryTraversalAccess, doNotFollowRoot);
+            auto root = openRootDirectory(parsedPath.value().root, stableShare, kDirectoryTraversalAccess, doNotFollowRoot);
 
-            if(!root.status.ok())
+            if(!root.ok())
             {
-                return {.status = std::move(root.status)};
-            }
-            EntryQueryResult info = queryHandleInfo(root.handle.get());
-
-            if(!info.status.ok())
-            {
-                return {.status = std::move(info.status)};
+                return failure<StablePath>(root.status());
             }
 
-            if(requireDirectory && info.info.kind != Types::EntryKind::Directory)
+            auto info = queryHandleInfo(root.value().handle.get());
+
+            if(!info.ok())
             {
-                return {.status = IO::makeStatus(ErrorCode::NotDirectory)};
+                return failure<StablePath>(info.status());
             }
-            handles.push_back(std::move(root.handle));
-            return {.status = IO::successStatus(), .handles = std::move(handles), .info = info.info};
+
+            if(requireDirectory && info.value().kind != Types::EntryKind::Directory)
+            {
+                return failure<StablePath>(ErrorCode::NotDirectory);
+            }
+
+            handles.push_back(std::move(root).value().handle);
+            return Result<StablePath>::success(StablePath{.handles = std::move(handles), .info = std::move(info).value()});
         }
 
         // Retain each resolved component so later operations use the same ancestry.
-        HandleResult parent = openParentStrict(parsedPath, stableShare, &handles);
+        auto parent = openParentStrict(parsedPath.value(), stableShare, &handles);
 
-        if(!parent.status.ok())
+        if(!parent.ok())
         {
-            return {.status = std::move(parent.status)};
+            return failure<StablePath>(parent.status());
         }
 
         const bool doNotFollowFinal = symlinkPolicy == Types::SymlinkPolicy::DoNotFollow;
-        HandleResult finalHandle = openChild(handles.back().get(), parsedPath.components.back(), doNotFollowFinal, requireDirectory, stableShare);
+        auto finalHandle = openChild(handles.back().get(), parsedPath.value().components.back(), doNotFollowFinal, requireDirectory, stableShare);
 
-        if(!finalHandle.status.ok())
+        if(!finalHandle.ok())
         {
-            return {.status = std::move(finalHandle.status)};
-        }
-        EntryQueryResult info = queryHandleInfo(finalHandle.handle.get());
-
-        if(!info.status.ok())
-        {
-            return {.status = std::move(info.status)};
+            return failure<StablePath>(finalHandle.status());
         }
 
-        if(requireDirectory && info.info.kind != Types::EntryKind::Directory)
+        auto info = queryHandleInfo(finalHandle.value().handle.get());
+
+        if(!info.ok())
         {
-            return {.status = IO::makeStatus(ErrorCode::NotDirectory)};
+            return failure<StablePath>(info.status());
         }
 
-        handles.push_back(std::move(finalHandle.handle));
-        return {.status = IO::successStatus(), .handles = std::move(handles), .info = info.info};
+        if(requireDirectory && info.value().kind != Types::EntryKind::Directory)
+        {
+            return failure<StablePath>(ErrorCode::NotDirectory);
+        }
+
+        handles.push_back(std::move(finalHandle).value().handle);
+        return Result<StablePath>::success(StablePath{.handles = std::move(handles), .info = std::move(info).value()});
     }
 
 } // namespace GameWIP::FileSystem::Platform::Win32

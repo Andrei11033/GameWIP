@@ -17,6 +17,7 @@
 namespace
 {
     namespace Input = GameWIP::Input;
+    namespace Status = GameWIP::Status::Types;
     namespace TestSupport = GameWIP::TestSupport;
 
     /// ------------------------------------------------------------
@@ -31,11 +32,11 @@ namespace
 
         static_cast<void>(context.expectFalse("new Input system is closed", input.isOpen()));
         static_cast<void>(
-            context.expectEq("capture on closed system reports NotOpen", GameWIP::IO::Types::ErrorCode::NotOpen, input.capture(frame).status.code));
+            context.expectEq("capture on closed system reports NotOpen", Status::Code::NotOpen, input.capture(frame).status().code()));
 
         static_cast<void>(context.expectTrue("Input system opens", input.open().ok()));
         static_cast<void>(context.expectTrue("opened Input system reports open", input.isOpen()));
-        static_cast<void>(context.expectEq("second open reports AlreadyOpen", GameWIP::IO::Types::ErrorCode::AlreadyOpen, input.open().code));
+        static_cast<void>(context.expectEq("second open reports AlreadyOpen", Status::Code::AlreadyOpen, input.open().status().code()));
         static_cast<void>(context.expectTrue("Input system closes", input.close().ok()));
     }
 
@@ -74,17 +75,19 @@ namespace
         };
 
         // Add the device and resolve its standard and persistent controls.
-        Input::Types::DeviceId device{};
-        if(!context.expectTrue("synthetic device is added", source.addDevice(description, device).ok()))
+        const auto addDeviceResult = source.addDevice(description);
+        if(!context.expectTrue("synthetic device is added", addDeviceResult.ok()))
         {
             return;
         }
+        const Input::Types::DeviceId device = addDeviceResult.value();
 
-        std::span<const Input::Types::DeviceInfo> devices;
-        if(!context.expectTrue("synthetic devices are queryable", input.devices(devices).ok()))
+        const auto devicesResult = input.devices();
+        if(!context.expectTrue("synthetic devices are queryable", devicesResult.ok()))
         {
             return;
         }
+        const std::span<const Input::Types::DeviceInfo> devices = devicesResult.value();
         const Input::Types::DeviceInfo *deviceInfo = Input::Query::findDevice(devices, device);
         if(!context.expectTrue("synthetic device is discoverable", deviceInfo != nullptr))
         {
@@ -110,7 +113,7 @@ namespace
 
         Input::Types::Frame frame;
         const auto connectedCapture = input.capture(frame);
-        if(!context.expectTrue("initial synthetic capture succeeds", connectedCapture.status.ok()))
+        if(!context.expectTrue("initial synthetic capture succeeds", connectedCapture.ok()))
         {
             return;
         }
@@ -136,7 +139,7 @@ namespace
         static_cast<void>(context.expectTrue("second relative delta publishes", source.addRelativeDelta(axis, Input::Types::Value{2.75F}).ok()));
 
         const auto pressedCapture = input.capture(frame);
-        if(!context.expectTrue("pressed synthetic capture succeeds", pressedCapture.status.ok()))
+        if(!context.expectTrue("pressed synthetic capture succeeds", pressedCapture.ok()))
         {
             return;
         }
@@ -151,7 +154,7 @@ namespace
         static_cast<void>(context.expectTrue("negative relative delta publishes", source.addRelativeDelta(axis, Input::Types::Value{-1.5F}).ok()));
 
         const auto releasedCapture = input.capture(frame);
-        if(!context.expectTrue("released synthetic capture succeeds", releasedCapture.status.ok()))
+        if(!context.expectTrue("released synthetic capture succeeds", releasedCapture.ok()))
         {
             return;
         }
@@ -164,25 +167,25 @@ namespace
         // Reject value types and update modes that do not match each element.
         static_cast<void>(context.expectEq(
             "wrong absolute value type is rejected",
-            GameWIP::IO::Types::ErrorCode::InvalidArgument,
-            source.setAbsoluteValue(buttonElement, Input::Types::Value{1.0F}).code));
+            Status::Code::InvalidArgument,
+            source.setAbsoluteValue(buttonElement, Input::Types::Value{1.0F}).status().code()));
 
         static_cast<void>(context.expectEq(
             "relative update on absolute element is rejected",
-            GameWIP::IO::Types::ErrorCode::InvalidArgument,
-            source.addRelativeDelta(buttonElement, Input::Types::Value{1.0F}).code));
+            Status::Code::InvalidArgument,
+            source.addRelativeDelta(buttonElement, Input::Types::Value{1.0F}).status().code()));
 
         static_cast<void>(context.expectEq(
             "wrong relative value type is rejected",
-            GameWIP::IO::Types::ErrorCode::InvalidArgument,
-            source.addRelativeDelta(axis, Input::Types::Value{true}).code));
+            Status::Code::InvalidArgument,
+            source.addRelativeDelta(axis, Input::Types::Value{true}).status().code()));
 
         // Capture committed text and repeat events without a new press.
         static_cast<void>(
             context.expectTrue("synthetic text commit succeeds", source.commitText(Input::Types::SurfaceId{77}, "Synthetic text").ok()));
 
         const auto textCapture = input.capture(frame);
-        if(!context.expectTrue("synthetic text capture succeeds", textCapture.status.ok()))
+        if(!context.expectTrue("synthetic text capture succeeds", textCapture.ok()))
         {
             return;
         }
@@ -205,7 +208,7 @@ namespace
         static_cast<void>(context.expectTrue("element repeat succeeds", source.repeat(buttonElement).ok()));
 
         const auto repeatCapture = input.capture(frame);
-        if(!context.expectTrue("repeat capture succeeds", repeatCapture.status.ok()))
+        if(!context.expectTrue("repeat capture succeeds", repeatCapture.ok()))
         {
             return;
         }
@@ -230,7 +233,7 @@ namespace
         static_cast<void>(context.expectTrue("element invalidation succeeds", source.invalidate(buttonElement).ok()));
 
         const auto invalidationCapture = input.capture(frame);
-        if(!context.expectTrue("invalidation capture succeeds", invalidationCapture.status.ok()))
+        if(!context.expectTrue("invalidation capture succeeds", invalidationCapture.ok()))
         {
             return;
         }
@@ -257,7 +260,7 @@ namespace
         static_cast<void>(context.expectTrue("synthetic device removal succeeds", source.removeDevice(device).ok()));
 
         const auto disconnectedCapture = input.capture(frame);
-        if(!context.expectTrue("disconnected synthetic capture succeeds", disconnectedCapture.status.ok()))
+        if(!context.expectTrue("disconnected synthetic capture succeeds", disconnectedCapture.ok()))
         {
             return;
         }

@@ -18,8 +18,8 @@ rectangles remain comparable in one physical desktop space.
 
 ## Conversion
 
-`clientToScreen(LogicalPosition)` returns `Types::Result<ScreenPosition>`;
-`screenToClient(ScreenPosition)` returns `Types::Result<LogicalPosition>`. Win32 does the native
+`clientToScreen(LogicalPosition)` returns `GameWIP::Status::Types::Result<ScreenPosition>`;
+`screenToClient(ScreenPosition)` returns `GameWIP::Status::Types::Result<LogicalPosition>`. Win32 does the native
 conversion and Window applies DPI rounding at the boundary, so round trips near fractional scales
 may differ by one logical unit.
 

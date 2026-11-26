@@ -1,6 +1,7 @@
 /// @file win32_notification_center.cpp
 /// @brief Implements the Win32 notification-center bridge.
 
+#include "desktop/internal/results.h"
 #include "desktop/internal/desktop_test_hooks.h"
 #include "desktop/platform/shell.h"
 #include "desktop/platform/win32/internal/win32_shell_helpers.h"
@@ -24,7 +25,7 @@ namespace GameWIP::Desktop::Platform
 
     namespace
     {
-        using IO::Types::ErrorCode;
+        using ErrorCode = GameWIP::Status::Types::Code;
         using Win32::kTrayCallbackMessage;
 
         /// @brief Owns the hidden message HWND used for one notification center.
@@ -39,10 +40,10 @@ namespace GameWIP::Desktop::Platform
 
         inline constexpr wchar_t kNotificationWindowClassName[] = L"GameWIP.Shell.NotificationMessage";
 
-        [[nodiscard]] IO::Types::Status ensureNotificationWindowClass() noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Status ensureNotificationWindowClass() noexcept;
 
         /// @brief Rejects notification features unsupported by the Win32 balloon fallback.
-        [[nodiscard]] IO::Types::Status validateBasicNotification(
+        [[nodiscard]] GameWIP::Status::Types::Status validateBasicNotification(
             const OwnedNotificationDescription &description,
             std::wstring &title,
             std::wstring &body,
@@ -52,20 +53,20 @@ namespace GameWIP::Desktop::Platform
                !description.group.empty() || !description.badge.empty() || description.progress.has_value() ||
                description.urgency != Types::Notifications::Urgency::Normal)
             {
-                return IO::makeStatus(ErrorCode::Unsupported);
+                return GameWIP::Desktop::Internal::statusFor(ErrorCode::Unsupported);
             }
 
             if(!utf8ToUtf16(description.title, title, nativeCode) || !utf8ToUtf16(description.body, body, nativeCode))
             {
-                return IO::makeStatus(ErrorCode::EncodingFailed, nativeCode);
+                return GameWIP::Desktop::Internal::statusFor(ErrorCode::EncodingFailed, nativeCode, GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
             }
 
             if(title.size() >= ARRAYSIZE(NOTIFYICONDATAW{}.szInfoTitle) || body.size() >= ARRAYSIZE(NOTIFYICONDATAW{}.szInfo))
             {
-                return IO::makeStatus(ErrorCode::SizeLimitExceeded);
+                return GameWIP::Desktop::Internal::statusFor(ErrorCode::SizeLimitExceeded);
             }
 
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
 
         LRESULT CALLBACK notificationWindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
@@ -130,7 +131,7 @@ namespace GameWIP::Desktop::Platform
             return DefWindowProcW(window, message, wParam, lParam);
         }
 
-        [[nodiscard]] IO::Types::Status ensureNotificationWindowClass() noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status ensureNotificationWindowClass() noexcept
         {
             WNDCLASSEXW existing{};
             existing.cbSize = sizeof(existing);
@@ -138,7 +139,7 @@ namespace GameWIP::Desktop::Platform
 
             if(GetClassInfoExW(instance, kNotificationWindowClassName, &existing) != FALSE)
             {
-                return IO::successStatus();
+                return GameWIP::Status::Types::Status{};
             }
 
             WNDCLASSEXW classInfo{};
@@ -152,10 +153,10 @@ namespace GameWIP::Desktop::Platform
                 return statusFromWin32(ErrorCode::NativeFailure, GetLastError(), "RegisterClassExW notification window");
             }
 
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
 
-        [[nodiscard]] IO::Types::Status showBasicNotification(
+        [[nodiscard]] GameWIP::Status::Types::Status showBasicNotification(
             NotificationNative &native,
             std::uint64_t id,
             const OwnedNotificationDescription &description,
@@ -164,7 +165,7 @@ namespace GameWIP::Desktop::Platform
             std::wstring title;
             std::wstring body;
             DWORD nativeCode = ERROR_SUCCESS;
-            IO::Types::Status status = validateBasicNotification(description, title, body, nativeCode);
+            GameWIP::Status::Types::Status status = validateBasicNotification(description, title, body, nativeCode);
 
             if(!status.ok())
             {
@@ -196,10 +197,10 @@ namespace GameWIP::Desktop::Platform
                 return statusFromWin32(ErrorCode::NativeFailure, GetLastError(), "Shell_NotifyIconW notification");
             }
 
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
 
-        [[nodiscard]] IO::Types::Status applyNotification(
+        [[nodiscard]] GameWIP::Status::Types::Status applyNotification(
             NotificationCenterState &state,
             std::uint64_t id,
             const OwnedNotificationDescription &description,
@@ -207,14 +208,14 @@ namespace GameWIP::Desktop::Platform
         {
             if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ShellNativeApply))
             {
-                return IO::makeStatus(ErrorCode::NativeFailure);
+                return GameWIP::Desktop::Internal::statusFor(ErrorCode::NativeFailure);
             }
 
             auto *native = static_cast<NotificationNative *>(state.platform);
 
             if(native == nullptr || native->window == nullptr)
             {
-                return IO::makeStatus(ErrorCode::NotOpen);
+                return GameWIP::Desktop::Internal::statusFor(ErrorCode::NotOpen);
             }
 
             try
@@ -223,11 +224,11 @@ namespace GameWIP::Desktop::Platform
             }
             catch(const std::bad_alloc &)
             {
-                return IO::makeStatus(ErrorCode::OutOfMemory);
+                return GameWIP::Desktop::Internal::statusFor(ErrorCode::OutOfMemory);
             }
             catch(...)
             {
-                return IO::makeStatus(ErrorCode::Unknown);
+                return GameWIP::Desktop::Internal::statusFor(ErrorCode::Unknown);
             }
         }
 
@@ -237,14 +238,14 @@ namespace GameWIP::Desktop::Platform
     /// Notification-center integration
     /// ------------------------------------------------------------
 
-    IO::Types::Status openNotificationCenter(NotificationCenterState &state) noexcept
+    GameWIP::Status::Types::Status openNotificationCenter(NotificationCenterState &state) noexcept
     {
         if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ShellNativeOpen))
         {
-            return IO::makeStatus(ErrorCode::NativeFailure);
+            return GameWIP::Desktop::Internal::statusFor(ErrorCode::NativeFailure);
         }
 
-        IO::Types::Status status = ensureNotificationWindowClass();
+        GameWIP::Status::Types::Status status = ensureNotificationWindowClass();
 
         if(!status.ok())
         {
@@ -278,40 +279,40 @@ namespace GameWIP::Desktop::Platform
                 return statusFromWin32(ErrorCode::NativeFailure, GetLastError(), "CreateWindowExW notification message window");
             }
             state.open = true;
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(ErrorCode::OutOfMemory);
+            return GameWIP::Desktop::Internal::statusFor(ErrorCode::OutOfMemory);
         }
         catch(...)
         {
-            return IO::makeStatus(ErrorCode::Unknown);
+            return GameWIP::Desktop::Internal::statusFor(ErrorCode::Unknown);
         }
     }
 
-    IO::Types::Status publishNotification(NotificationCenterState &state, std::uint64_t id, const OwnedNotificationDescription &description) noexcept
+    GameWIP::Status::Types::Status publishNotification(NotificationCenterState &state, std::uint64_t id, const OwnedNotificationDescription &description) noexcept
     {
         return applyNotification(state, id, description, true);
     }
 
-    IO::Types::Status updateNotification(NotificationCenterState &state, std::uint64_t id, const OwnedNotificationDescription &description) noexcept
+    GameWIP::Status::Types::Status updateNotification(NotificationCenterState &state, std::uint64_t id, const OwnedNotificationDescription &description) noexcept
     {
         return applyNotification(state, id, description, false);
     }
 
-    IO::Types::Status dismissNotification(NotificationCenterState &state, std::uint64_t id) noexcept
+    GameWIP::Status::Types::Status dismissNotification(NotificationCenterState &state, std::uint64_t id) noexcept
     {
         if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ShellNativeApply))
         {
-            return IO::makeStatus(ErrorCode::NativeFailure);
+            return GameWIP::Desktop::Internal::statusFor(ErrorCode::NativeFailure);
         }
 
         auto *native = static_cast<NotificationNative *>(state.platform);
 
         if(native == nullptr || native->window == nullptr)
         {
-            return IO::makeStatus(ErrorCode::NotOpen);
+            return GameWIP::Desktop::Internal::statusFor(ErrorCode::NotOpen);
         }
 
         NOTIFYICONDATAW data{};
@@ -329,14 +330,14 @@ namespace GameWIP::Desktop::Platform
             }
         }
 
-        return IO::successStatus();
+        return GameWIP::Status::Types::Status{};
     }
 
-    IO::Types::Status closeNotificationCenter(NotificationCenterState &state) noexcept
+    GameWIP::Status::Types::Status closeNotificationCenter(NotificationCenterState &state) noexcept
     {
         if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ShellNativeClose))
         {
-            return IO::makeStatus(ErrorCode::NativeFailure);
+            return GameWIP::Desktop::Internal::statusFor(ErrorCode::NativeFailure);
         }
 
         auto *native = static_cast<NotificationNative *>(state.platform);
@@ -344,7 +345,7 @@ namespace GameWIP::Desktop::Platform
         if(native == nullptr)
         {
             state.open = false;
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
 
         // Remove every balloon before destroying its callback window.
@@ -365,7 +366,7 @@ namespace GameWIP::Desktop::Platform
         delete native;
         state.platform = nullptr;
         state.open = false;
-        return IO::successStatus();
+        return GameWIP::Status::Types::Status{};
     }
 
     void closeNotificationCenterBestEffort(NotificationCenterState &state) noexcept

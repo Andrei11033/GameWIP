@@ -51,13 +51,13 @@ void testManualDpiAndCoordinates(TestSupport::Context &context, const GameWIP::T
     {
         const auto screen = window.clientToScreen(point);
 
-        if(!screen.status.ok())
+        if(!screen.ok())
         {
             conversionsRoundTrip = false;
             break;
         }
-        const auto logical = window.screenToClient(*screen);
-        conversionsRoundTrip = conversionsRoundTrip && logical.status.ok() && *logical == point;
+        const auto logical = window.screenToClient(screen.value());
+        conversionsRoundTrip = conversionsRoundTrip && logical.ok() && logical.value() == point;
     }
     static_cast<void>(context.expectTrue("client/screen edge conversions round-trip", conversionsRoundTrip));
     recordManualCheck(
@@ -69,15 +69,15 @@ void testManualDpiAndCoordinates(TestSupport::Context &context, const GameWIP::T
     // Validate the physical virtual-screen monitor geometry.
     const auto monitors = Desktop::Display::getMonitors();
 
-    if(!requireManualStatus(context, "monitor enumeration succeeds", monitors.status) ||
-       !context.expectTrue("at least one monitor is available", !monitors->empty()))
+    if(!requireManualStatus(context, "monitor enumeration succeeds", monitors) ||
+       !context.expectTrue("at least one monitor is available", !monitors.value().empty()))
     {
         return;
     }
 
     bool monitorRectsValid = true;
 
-    for(const Desktop::Types::Display::Info &monitor : *monitors)
+    for(const Desktop::Types::Display::Info &monitor : monitors.value())
     {
         monitorRectsValid = monitorRectsValid && monitor.bounds.size.width > 0 && monitor.bounds.size.height > 0 && monitor.workArea.size.width > 0 &&
                             monitor.workArea.size.height > 0;
@@ -102,7 +102,12 @@ void testManualCursor(TestSupport::Context &context, const GameWIP::Test::Deskto
 
     // Read backend capabilities and open the host Window.
     const auto capabilitiesResult = Desktop::getCapabilities();
-    const Desktop::Types::Capabilities capabilities = capabilitiesResult.value_or({});
+    if(!capabilitiesResult.ok())
+    {
+        context.fail("Window cursor capabilities", manualStatusDetails(capabilitiesResult.status()));
+        return;
+    }
+    const Desktop::Types::Capabilities &capabilities = capabilitiesResult.value();
     Desktop::Window window;
 
     if(!openManualWindow(context, window, "GameWIP cursor validation"))
@@ -197,11 +202,11 @@ void testManualCursor(TestSupport::Context &context, const GameWIP::Test::Deskto
         {
             static_cast<void>(context.expectTrue("cursor warp succeeds", window.setCursorPosition(point).ok()));
             const auto actual = window.cursorPosition();
-            static_cast<void>(context.expectTrue("cursor warp query succeeds", actual.status.ok()));
+            static_cast<void>(context.expectTrue("cursor warp query succeeds", actual.ok()));
 
-            if(actual.status.ok())
+            if(actual.ok())
             {
-                static_cast<void>(context.expectEq("cursor warp reaches requested logical point", point, *actual));
+                static_cast<void>(context.expectEq("cursor warp reaches requested logical point", point, actual.value()));
             }
         }
         recordManualCheck(

@@ -1,6 +1,7 @@
 /// @file taskbar.cpp
 /// @brief Portable TaskbarItem lifecycle and state forwarding.
 
+#include "desktop/internal/results.h"
 #include "desktop/shell_taskbar.h"
 
 #include "desktop/internal/shell_helpers.h"
@@ -28,15 +29,15 @@ namespace GameWIP::Desktop::Internal
 
     namespace
     {
-        using IO::Types::ErrorCode;
+        using ErrorCode = GameWIP::Status::Types::Code;
 
-        [[nodiscard]] IO::Types::Status error(ErrorCode code) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status error(ErrorCode code) noexcept
         {
-            return IO::makeStatus(code);
+            return GameWIP::Desktop::Internal::statusFor(code);
         }
 
         /// @brief Validates and owns taskbar thumbnail buttons with unique native IDs.
-        [[nodiscard]] IO::Types::Status validateThumbnailButtons(
+        [[nodiscard]] GameWIP::Status::Types::Status validateThumbnailButtons(
             std::span<const Types::Taskbar::ThumbnailButton> buttons,
             std::vector<OwnedThumbnailButton> &out) noexcept
         {
@@ -61,7 +62,7 @@ namespace GameWIP::Desktop::Internal
                     if(button.icon.has_value())
                     {
                         owned.icon.emplace();
-                        IO::Types::Status status = copyIcon(*button.icon, *owned.icon);
+                        GameWIP::Status::Types::Status status = copyIcon(*button.icon, *owned.icon);
 
                         if(!status.ok())
                         {
@@ -72,7 +73,7 @@ namespace GameWIP::Desktop::Internal
                     out.push_back(std::move(owned));
                 }
 
-                return IO::successStatus();
+                return GameWIP::Status::Types::Status{};
             }
             catch(const std::bad_alloc &)
             {
@@ -85,9 +86,9 @@ namespace GameWIP::Desktop::Internal
         }
 
         /// @brief Validates and copies taskbar description data into stable state.
-        [[nodiscard]] IO::Types::Status copyDescription(const Types::Taskbar::Description &description, TaskbarItemState &state) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status copyDescription(const Types::Taskbar::Description &description, TaskbarItemState &state) noexcept
         {
-            IO::Types::Status status = validateProgress(description.progress);
+            GameWIP::Status::Types::Status status = validateProgress(description.progress);
 
             if(!status.ok())
             {
@@ -123,16 +124,16 @@ namespace GameWIP::Desktop
     namespace
     {
         using Internal::TaskbarItemState;
-        using IO::Types::ErrorCode;
+        using ErrorCode = GameWIP::Status::Types::Code;
 
         /// @brief Builds a portable status from a single error code.
-        [[nodiscard]] IO::Types::Status error(ErrorCode code) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status error(ErrorCode code) noexcept
         {
-            return IO::makeStatus(code);
+            return GameWIP::Desktop::Internal::statusFor(code);
         }
 
         /// @brief Validates an open taskbar item and its owner-thread access.
-        [[nodiscard]] IO::Types::Status requireOwnedTaskbar(TaskbarItemState *state, bool owned) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status requireOwnedTaskbar(TaskbarItemState *state, bool owned) noexcept
         {
             return Internal::requireOwnedShellResource(
                 state != nullptr && state->open && state->platform != nullptr && state->window != nullptr,
@@ -165,7 +166,7 @@ namespace GameWIP::Desktop
         }
     }
 
-    IO::Types::Status TaskbarItem::open(Window &window, const Types::Taskbar::Description &description) noexcept
+    GameWIP::Status::Types::Result<void> TaskbarItem::open(Window &window, const Types::Taskbar::Description &description) noexcept
     {
         // Validate the Window and reject options that require an event queue.
         if(state_ != nullptr)
@@ -202,7 +203,7 @@ namespace GameWIP::Desktop
             candidate->ownerThread = std::this_thread::get_id();
             candidate->window = windowState;
             candidate->windowId = windowState->id;
-            IO::Types::Status status = Internal::copyDescription(description, *candidate);
+            GameWIP::Status::Types::Status status = Internal::copyDescription(description, *candidate);
 
             if(!status.ok())
             {
@@ -218,7 +219,7 @@ namespace GameWIP::Desktop
             }
             windowState->taskbarItem = candidate.get();
             state_ = std::move(candidate);
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
         catch(const std::bad_alloc &)
         {
@@ -230,7 +231,7 @@ namespace GameWIP::Desktop
         }
     }
 
-    IO::Types::Status TaskbarItem::open(Window &window, const Types::Taskbar::Description &description, ShellEventQueue &eventQueue) noexcept
+    GameWIP::Status::Types::Result<void> TaskbarItem::open(Window &window, const Types::Taskbar::Description &description, ShellEventQueue &eventQueue) noexcept
     {
         // Validate the Window and reject duplicate taskbar bindings.
         if(state_ != nullptr)
@@ -262,7 +263,7 @@ namespace GameWIP::Desktop
             candidate->ownerThread = std::this_thread::get_id();
             candidate->window = windowState;
             candidate->windowId = windowState->id;
-            IO::Types::Status status = Internal::copyDescription(description, *candidate);
+            GameWIP::Status::Types::Status status = Internal::copyDescription(description, *candidate);
 
             if(!status.ok())
             {
@@ -288,7 +289,7 @@ namespace GameWIP::Desktop
             // Publish the taskbar binding only after native initialization succeeds.
             windowState->taskbarItem = candidate.get();
             state_ = std::move(candidate);
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
         catch(const std::bad_alloc &)
         {
@@ -320,11 +321,11 @@ namespace GameWIP::Desktop
         return state_ != nullptr && state_->eventQueue != nullptr;
     }
 
-    IO::Types::Status TaskbarItem::close() noexcept
+    GameWIP::Status::Types::Result<void> TaskbarItem::close() noexcept
     {
         if(state_ == nullptr)
         {
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
 
         if(!ownedByCurrentThread())
@@ -332,7 +333,7 @@ namespace GameWIP::Desktop
             return error(ErrorCode::ResourceBusy);
         }
 
-        const IO::Types::Status status = Platform::closeTaskbar(*state_);
+        const GameWIP::Status::Types::Status status = Platform::closeTaskbar(*state_);
 
         if(!status.ok())
         {
@@ -346,12 +347,12 @@ namespace GameWIP::Desktop
 
         Internal::unbindQueue(state_->eventQueue);
         state_.reset();
-        return IO::successStatus();
+        return GameWIP::Status::Types::Status{};
     }
 
-    IO::Types::Status TaskbarItem::setProgress(std::optional<Types::Shell::Progress> progress) noexcept
+    GameWIP::Status::Types::Result<void> TaskbarItem::setProgress(std::optional<Types::Shell::Progress> progress) noexcept
     {
-        IO::Types::Status status = requireOwnedTaskbar(Internal::TaskbarItemAccess::state(*this), ownedByCurrentThread());
+        GameWIP::Status::Types::Status status = requireOwnedTaskbar(Internal::TaskbarItemAccess::state(*this), ownedByCurrentThread());
 
         if(!status.ok())
         {
@@ -378,9 +379,9 @@ namespace GameWIP::Desktop
         return status;
     }
 
-    IO::Types::Status TaskbarItem::setOverlayIcon(std::optional<Types::IconImageView> icon) noexcept
+    GameWIP::Status::Types::Result<void> TaskbarItem::setOverlayIcon(std::optional<Types::IconImageView> icon) noexcept
     {
-        IO::Types::Status status = requireOwnedTaskbar(Internal::TaskbarItemAccess::state(*this), ownedByCurrentThread());
+        GameWIP::Status::Types::Status status = requireOwnedTaskbar(Internal::TaskbarItemAccess::state(*this), ownedByCurrentThread());
 
         if(!status.ok())
         {
@@ -426,9 +427,9 @@ namespace GameWIP::Desktop
         }
     }
 
-    IO::Types::Status TaskbarItem::setThumbnailButtons(std::span<const Types::Taskbar::ThumbnailButton> buttons) noexcept
+    GameWIP::Status::Types::Result<void> TaskbarItem::setThumbnailButtons(std::span<const Types::Taskbar::ThumbnailButton> buttons) noexcept
     {
-        IO::Types::Status status = requireOwnedTaskbar(Internal::TaskbarItemAccess::state(*this), ownedByCurrentThread());
+        GameWIP::Status::Types::Status status = requireOwnedTaskbar(Internal::TaskbarItemAccess::state(*this), ownedByCurrentThread());
 
         if(!status.ok())
         {

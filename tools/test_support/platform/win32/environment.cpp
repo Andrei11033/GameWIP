@@ -39,7 +39,7 @@ namespace
     /// Environment mutation
     /// ------------------------------------------------------------
 
-    [[nodiscard]] GameWIP::TestSupport::Types::InfrastructureStatus writeEnvironmentVariable(std::string_view name, std::string_view value) noexcept
+    [[nodiscard]] GameWIP::Status::Types::Result<void> writeEnvironmentVariable(std::string_view name, std::string_view value) noexcept
     {
         try
         {
@@ -48,24 +48,32 @@ namespace
             const std::wstring nameWide = GameWIP::TestSupport::Internal::Win32::utf8ToWide(name);
             const std::wstring valueWide = GameWIP::TestSupport::Internal::Win32::utf8ToWide(value);
             const errno_t error = _wputenv_s(nameWide.c_str(), valueWide.c_str());
-            return error == 0 ? GameWIP::TestSupport::Types::InfrastructureStatus{}
-                              : failureStatus(GameWIP::TestSupport::Types::InfrastructureError::EnvironmentFailed, static_cast<std::uint64_t>(error));
+
+            if(error != 0)
+            {
+                using GameWIP::Status::Types::NativeCode;
+                using GameWIP::Status::Types::NativeCodeDomain;
+                return GameWIP::Status::Types::Result<void>::failure(
+                    failureStatus(GameWIP::Status::Types::Code::EnvironmentFailed, NativeCode{NativeCodeDomain::Errno, error}));
+            }
+
+            return GameWIP::Status::Types::Result<void>::success();
         }
         catch(const std::bad_alloc &)
         {
-            return failureStatus(GameWIP::TestSupport::Types::InfrastructureError::OutOfMemory);
+            return GameWIP::Status::Types::Result<void>::failure(failureStatus(GameWIP::Status::Types::Code::OutOfMemory));
         }
         catch(const std::invalid_argument &)
         {
-            return failureStatus(GameWIP::TestSupport::Types::InfrastructureError::InvalidArgument);
+            return GameWIP::Status::Types::Result<void>::failure(failureStatus(GameWIP::Status::Types::Code::InvalidArgument));
         }
         catch(const std::length_error &)
         {
-            return failureStatus(GameWIP::TestSupport::Types::InfrastructureError::InvalidArgument);
+            return GameWIP::Status::Types::Result<void>::failure(failureStatus(GameWIP::Status::Types::Code::InvalidArgument));
         }
         catch(...)
         {
-            return failureStatus(GameWIP::TestSupport::Types::InfrastructureError::EnvironmentFailed);
+            return GameWIP::Status::Types::Result<void>::failure(failureStatus(GameWIP::Status::Types::Code::EnvironmentFailed));
         }
     }
 } // namespace
@@ -78,7 +86,6 @@ namespace GameWIP::TestSupport::Platform
 
     EnvironmentReadResult readEnvironmentVariable(std::string_view name) noexcept
     {
-        EnvironmentReadResult result;
         try
         {
             validateEnvironmentName(name);
@@ -96,17 +103,19 @@ namespace GameWIP::TestSupport::Platform
 
                 if(readError == ERROR_ENVVAR_NOT_FOUND)
                 {
-                    return result;
+                    return EnvironmentReadResult::success(std::nullopt);
                 }
 
                 if(readError == ERROR_SUCCESS)
                 {
-                    result.value = std::string{};
-                    return result;
+                    return EnvironmentReadResult::success(std::string{});
                 }
 
-                result.status = Internal::failureStatus(Types::InfrastructureError::EnvironmentFailed, readError);
-                return result;
+                using GameWIP::Status::Types::NativeCode;
+                using GameWIP::Status::Types::NativeCodeDomain;
+                return EnvironmentReadResult::failure(Internal::failureStatus(
+                    GameWIP::Status::Types::Code::EnvironmentFailed,
+                    NativeCode{NativeCodeDomain::Win32Error, readError}));
             }
 
             std::wstring value(requiredSize, L'\0');
@@ -115,42 +124,40 @@ namespace GameWIP::TestSupport::Platform
 
             if(copied == 0 || copied >= requiredSize)
             {
-                result.status = Internal::failureStatus(Types::InfrastructureError::EnvironmentFailed, GetLastError());
-                return result;
+                using GameWIP::Status::Types::NativeCode;
+                using GameWIP::Status::Types::NativeCodeDomain;
+                return EnvironmentReadResult::failure(Internal::failureStatus(
+                    GameWIP::Status::Types::Code::EnvironmentFailed,
+                    NativeCode{NativeCodeDomain::Win32Error, GetLastError()}));
             }
 
             value.resize(copied);
-            result.value = GameWIP::TestSupport::Internal::Win32::wideToUtf8(value);
-            return result;
+            return EnvironmentReadResult::success(GameWIP::TestSupport::Internal::Win32::wideToUtf8(value));
         }
         catch(const std::bad_alloc &)
         {
-            result.status = Internal::failureStatus(Types::InfrastructureError::OutOfMemory);
-            return result;
+            return EnvironmentReadResult::failure(Internal::failureStatus(GameWIP::Status::Types::Code::OutOfMemory));
         }
         catch(const std::invalid_argument &)
         {
-            result.status = Internal::failureStatus(Types::InfrastructureError::InvalidArgument);
-            return result;
+            return EnvironmentReadResult::failure(Internal::failureStatus(GameWIP::Status::Types::Code::InvalidArgument));
         }
         catch(const std::length_error &)
         {
-            result.status = Internal::failureStatus(Types::InfrastructureError::InvalidArgument);
-            return result;
+            return EnvironmentReadResult::failure(Internal::failureStatus(GameWIP::Status::Types::Code::InvalidArgument));
         }
         catch(...)
         {
-            result.status = Internal::failureStatus(Types::InfrastructureError::EnvironmentFailed);
-            return result;
+            return EnvironmentReadResult::failure(Internal::failureStatus(GameWIP::Status::Types::Code::EnvironmentFailed));
         }
     }
 
-    Types::InfrastructureStatus setEnvironmentVariableValue(std::string_view name, std::string_view value) noexcept
+    Types::Result<void> setEnvironmentVariableValue(std::string_view name, std::string_view value) noexcept
     {
         return writeEnvironmentVariable(name, value);
     }
 
-    Types::InfrastructureStatus unsetEnvironmentVariableValue(std::string_view name) noexcept
+    Types::Result<void> unsetEnvironmentVariableValue(std::string_view name) noexcept
     {
         return writeEnvironmentVariable(name, std::string_view{});
     }

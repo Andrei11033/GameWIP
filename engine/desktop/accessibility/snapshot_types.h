@@ -10,7 +10,7 @@
 #include "desktop/accessibility/relations.h"
 #include "desktop/accessibility/text.h"
 
-#include "io/status.h"
+#include "status/result.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -124,20 +124,16 @@ namespace GameWIP::Desktop::Types::Accessibility
         LimitExceeded
     };
 
-    /// @brief Rich result from portable snapshot validation.
-    struct ValidationResult
+    /// @brief Validation details retained for success or a semantic validation failure.
+    struct ValidationInfo
     {
-        IO::Types::Status status;                      ///< Success, InvalidArgument, SizeLimitExceeded, or implementation allocation failure.
-        ValidationIssue issue = ValidationIssue::None; ///< First deterministic semantic issue, or None for resource failures.
-        NodeId node = kInvalidNodeId;                  ///< Offending node when known.
-        std::size_t index = 0;                         ///< Offending node or bounded field index, depending on issue.
-
-        /// @brief Reports whether validation completed successfully.
-        [[nodiscard]] constexpr bool ok() const noexcept
-        {
-            return status.ok();
-        }
+        ValidationIssue issue = ValidationIssue::None; ///< First deterministic semantic issue, or None when valid.
+        NodeId node = kInvalidNodeId;                   ///< Offending node when known.
+        std::size_t index = 0;                          ///< Offending node or bounded field index, depending on issue.
     };
+
+    /// @brief Shared result carrying validation details on success or semantic failure.
+    using ValidationResult = GameWIP::Status::Types::Result<ValidationInfo>;
 
     /// @brief Summary of the currently published immutable snapshot.
     struct SnapshotInfo

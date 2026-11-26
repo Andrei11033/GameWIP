@@ -33,22 +33,22 @@ namespace GameWIP::TestSupport
         ScopedProcessState &operator=(ScopedProcessState &&) = delete;
 
         /// @brief Returns the lock-acquisition status.
-        [[nodiscard]] Types::InfrastructureStatus status() const noexcept;
+        [[nodiscard]] Types::Status status() const noexcept;
         /// @brief Returns the sticky status of restoration failures observed by owned guards.
         /// @details A failed restoration remains observable even if a later explicit retry succeeds.
-        [[nodiscard]] Types::InfrastructureStatus restorationStatus() const noexcept;
+        [[nodiscard]] Types::Status restorationStatus() const noexcept;
 
     private:
         friend class ScopedEnvironmentVariable;
         friend class ScopedUnsetEnvironmentVariable;
         friend class ScopedCurrentPath;
 
-        void recordRestorationFailure(Types::InfrastructureStatus status) noexcept;
+        void recordRestorationFailure(Types::Status status) noexcept;
 
         // Lock and restoration state
         std::unique_lock<std::recursive_mutex> lock_;
-        Types::InfrastructureStatus status_;
-        Types::InfrastructureStatus restorationStatus_;
+        Types::Status status_;
+        Types::Status restorationStatus_;
     };
 
     /// @brief Default retained-memory limit for combined child stdout/stderr capture.
@@ -96,11 +96,9 @@ namespace GameWIP::TestSupport
             OutcomeUnavailable       ///< The child started but its final outcome could not be inspected.
         };
 
-        /// @brief Result of one child-process execution.
-        struct Result
+        /// @brief Observable output and exit state of one child-process execution.
+        struct Execution
         {
-            // Execution outcome
-            InfrastructureStatus status;           ///< Infrastructure operation status, independent of child outcome.
             std::uint32_t exitCode = 0;            ///< Exact native exit code when outcome is Exited.
             Outcome outcome = Outcome::NotStarted; ///< Observable child-process outcome.
 
@@ -108,6 +106,9 @@ namespace GameWIP::TestSupport
             bool outputTruncated = false; ///< True when capture drained and discarded bytes beyond the retained limit.
             std::string outputBytes;      ///< Retained arbitrary combined stdout/stderr bytes; may contain malformed UTF-8.
         };
+
+        /// @brief Result containing the child execution outcome and captured output.
+        using Result = GameWIP::Status::Types::Result<Execution>;
     } // namespace Types::Process
 
     /// ------------------------------------------------------------
@@ -129,9 +130,9 @@ namespace GameWIP::TestSupport
         ScopedEnvironmentVariable &operator=(ScopedEnvironmentVariable &&) = delete;      ///< Process-state ownership cannot be move-assigned.
 
         /// @brief Returns the construction status; a failed guard is inert.
-        [[nodiscard]] Types::InfrastructureStatus status() const noexcept;
+        [[nodiscard]] Types::Status status() const noexcept;
         /// @brief Restores the previous value and reports failures or concurrent state changes.
-        [[nodiscard]] Types::InfrastructureStatus restore() noexcept;
+        [[nodiscard]] Types::Result<void> restore() noexcept;
 
     private:
         // Process-state ownership
@@ -143,8 +144,8 @@ namespace GameWIP::TestSupport
         std::optional<std::string> expectedValue_; ///< Value expected to remain until restoration.
 
         // Guard status
-        Types::InfrastructureStatus status_;            ///< Construction status.
-        Types::InfrastructureStatus restorationStatus_; ///< Most recent restoration status.
+        Types::Status status_;            ///< Construction status.
+        Types::Status restorationStatus_; ///< Most recent restoration status.
         bool restored_ = false;                         ///< True once restoration succeeds.
     };
 
@@ -164,9 +165,9 @@ namespace GameWIP::TestSupport
         ScopedUnsetEnvironmentVariable &operator=(ScopedUnsetEnvironmentVariable &&) = delete; ///< Process-state ownership cannot be move-assigned.
 
         /// @brief Returns the construction status; a failed guard is inert.
-        [[nodiscard]] Types::InfrastructureStatus status() const noexcept;
+        [[nodiscard]] Types::Status status() const noexcept;
         /// @brief Restores the previous value and reports failures or concurrent state changes.
-        [[nodiscard]] Types::InfrastructureStatus restore() noexcept;
+        [[nodiscard]] Types::Result<void> restore() noexcept;
 
     private:
         // Process-state ownership
@@ -178,8 +179,8 @@ namespace GameWIP::TestSupport
         std::optional<std::string> expectedValue_; ///< Value expected to remain until restoration.
 
         // Guard status
-        Types::InfrastructureStatus status_;            ///< Construction status.
-        Types::InfrastructureStatus restorationStatus_; ///< Most recent restoration status.
+        Types::Status status_;            ///< Construction status.
+        Types::Status restorationStatus_; ///< Most recent restoration status.
         bool restored_ = false;                         ///< True once restoration succeeds.
     };
 

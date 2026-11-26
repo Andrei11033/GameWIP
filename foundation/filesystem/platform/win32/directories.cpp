@@ -16,13 +16,13 @@ namespace GameWIP::FileSystem::Platform
     /// Directory operations
     /// ------------------------------------------------------------
 
-    IO::Types::Status createDirectory(const Types::Path &path, const Types::Directory::CreateOptions &options) noexcept
+    Result<void> createDirectory(const Types::Path &path, const Types::Directory::CreateOptions &options) noexcept
     {
         try
         {
             if(path.empty() || !isValidSymlinkPolicy(options.symlinkPolicy))
             {
-                return IO::makeStatus(ErrorCode::InvalidArgument);
+                return failure<void>(ErrorCode::InvalidArgument);
             }
 
             if(options.symlinkPolicy != Types::SymlinkPolicy::FollowAll)
@@ -30,53 +30,53 @@ namespace GameWIP::FileSystem::Platform
                 return createDirectoryStrict(path, options);
             }
 
-            EntryQueryResult existing = queryEntryImpl(path, Types::SymlinkPolicy::FollowAll);
+            auto existing = queryEntryImpl(path, Types::SymlinkPolicy::FollowAll);
 
-            if(existing.status.ok())
+            if(existing.ok())
             {
-                if(existing.info.kind == Types::EntryKind::Directory)
+                if(existing.value().kind == Types::EntryKind::Directory)
                 {
-                    return options.succeedIfAlreadyExists ? IO::successStatus() : IO::makeStatus(ErrorCode::AlreadyExists);
+                    return options.succeedIfAlreadyExists ? success() : failure<void>(ErrorCode::AlreadyExists);
                 }
-                return IO::makeStatus(ErrorCode::AlreadyExists);
+                return failure<void>(ErrorCode::AlreadyExists);
             }
 
-            if(existing.status.code != ErrorCode::NotFound)
+            if(existing.status().code() != ErrorCode::NotFound)
             {
-                return std::move(existing.status);
+                return failure<void>(existing.status());
             }
 
-            WidePathResult nativePath = absoluteNativePath(path);
+            auto nativePath = absoluteNativePath(path);
 
-            if(!nativePath.status.ok())
+            if(!nativePath.ok())
             {
-                return std::move(nativePath.status);
+                return failure<void>(nativePath.status());
             }
 
-            if(CreateDirectoryW(nativePath.path.c_str(), nullptr) == FALSE)
+            if(CreateDirectoryW(nativePath.value().c_str(), nullptr) == FALSE)
             {
-                return makeLastErrorStatus(ErrorCode::DirectoryCreateFailed);
+                return failure<void>(makeLastErrorStatus(ErrorCode::DirectoryCreateFailed));
             }
 
-            return IO::successStatus();
+            return success();
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(ErrorCode::OutOfMemory);
+            return failure<void>(ErrorCode::OutOfMemory);
         }
         catch(...)
         {
-            return IO::makeStatus(ErrorCode::Unknown);
+            return failure<void>(ErrorCode::Unknown);
         }
     }
 
-    IO::Types::Status createDirectories(const Types::Path &path, const Types::Directory::CreateOptions &options) noexcept
+    Result<void> createDirectories(const Types::Path &path, const Types::Directory::CreateOptions &options) noexcept
     {
         try
         {
             if(path.empty() || !isValidSymlinkPolicy(options.symlinkPolicy))
             {
-                return IO::makeStatus(ErrorCode::InvalidArgument);
+                return failure<void>(ErrorCode::InvalidArgument);
             }
 
             if(options.symlinkPolicy != Types::SymlinkPolicy::FollowAll)
@@ -84,147 +84,151 @@ namespace GameWIP::FileSystem::Platform
                 return createDirectoriesStrict(path, options);
             }
 
-            WidePathResult absolutePath = absoluteNativePath(path);
+            auto absolutePath = absoluteNativePath(path);
 
-            if(!absolutePath.status.ok())
+            if(!absolutePath.ok())
             {
-                return std::move(absolutePath.status);
+                return failure<void>(absolutePath.status());
             }
 
-            ParsedPathResult parsedPath = parseAbsolutePath(absolutePath.path);
+            auto parsedPath = parseAbsolutePath(absolutePath.value());
 
-            if(!parsedPath.status.ok())
+            if(!parsedPath.ok())
             {
-                return std::move(parsedPath.status);
+                return failure<void>(parsedPath.status());
             }
 
-            if(parsedPath.components.empty())
+            if(parsedPath.value().components.empty())
             {
-                return options.succeedIfAlreadyExists ? IO::successStatus() : IO::makeStatus(ErrorCode::AlreadyExists);
+                return options.succeedIfAlreadyExists ? success() : failure<void>(ErrorCode::AlreadyExists);
             }
 
-            Types::Path current = std::filesystem::path{parsedPath.root};
+            Types::Path current = std::filesystem::path{parsedPath.value().root};
             bool createdAny = false;
 
-            for(const std::wstring &component : parsedPath.components)
+            for(const std::wstring &component : parsedPath.value().components)
             {
                 current /= std::filesystem::path{component};
-                EntryQueryResult existing = queryEntryImpl(current, Types::SymlinkPolicy::FollowAll);
+                auto existing = queryEntryImpl(current, Types::SymlinkPolicy::FollowAll);
 
-                if(existing.status.ok())
+                if(existing.ok())
                 {
-                    if(existing.info.kind != Types::EntryKind::Directory)
+                    if(existing.value().kind != Types::EntryKind::Directory)
                     {
-                        return IO::makeStatus(ErrorCode::AlreadyExists);
+                        return failure<void>(ErrorCode::AlreadyExists);
                     }
                     continue;
                 }
 
-                if(existing.status.code != ErrorCode::NotFound)
+                if(existing.status().code() != ErrorCode::NotFound)
                 {
-                    return std::move(existing.status);
+                    return failure<void>(existing.status());
                 }
 
-                WidePathResult nativeCurrent = absoluteNativePath(current);
+                auto nativeCurrent = absoluteNativePath(current);
 
-                if(!nativeCurrent.status.ok())
+                if(!nativeCurrent.ok())
                 {
-                    return std::move(nativeCurrent.status);
+                    return failure<void>(nativeCurrent.status());
                 }
 
-                if(CreateDirectoryW(nativeCurrent.path.c_str(), nullptr) == FALSE)
+                if(CreateDirectoryW(nativeCurrent.value().c_str(), nullptr) == FALSE)
                 {
-                    return makeLastErrorStatus(ErrorCode::DirectoryCreateFailed);
+                    return failure<void>(makeLastErrorStatus(ErrorCode::DirectoryCreateFailed));
                 }
 
                 createdAny = true;
             }
 
-            return (createdAny || options.succeedIfAlreadyExists) ? IO::successStatus() : IO::makeStatus(ErrorCode::AlreadyExists);
+            return (createdAny || options.succeedIfAlreadyExists) ? success() : failure<void>(ErrorCode::AlreadyExists);
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(ErrorCode::OutOfMemory);
+            return failure<void>(ErrorCode::OutOfMemory);
         }
         catch(...)
         {
-            return IO::makeStatus(ErrorCode::Unknown);
+            return failure<void>(ErrorCode::Unknown);
         }
     }
 
-    Types::BoolResult isRootPath(const Types::Path &path) noexcept
+    Result<bool> isRootPath(const Types::Path &path) noexcept
     {
         try
         {
-            WidePathResult absolutePath = absoluteNativePath(path);
+            auto absolutePath = absoluteNativePath(path);
 
-            if(!absolutePath.status.ok())
+            if(!absolutePath.ok())
             {
-                return {.status = std::move(absolutePath.status)};
+                return failure<bool>(absolutePath.status());
             }
 
-            ParsedPathResult parsedPath = parseAbsolutePath(absolutePath.path);
+            auto parsedPath = parseAbsolutePath(absolutePath.value());
 
-            if(!parsedPath.status.ok())
+            if(!parsedPath.ok())
             {
-                return {.status = std::move(parsedPath.status)};
+                return failure<bool>(parsedPath.status());
             }
 
-            return {.status = IO::successStatus(), .value = parsedPath.components.empty()};
+            return Result<bool>::success(parsedPath.value().components.empty());
         }
         catch(const std::bad_alloc &)
         {
-            return {.status = IO::makeStatus(ErrorCode::OutOfMemory)};
+            return failure<bool>(ErrorCode::OutOfMemory);
         }
         catch(...)
         {
-            return {.status = IO::makeStatus(ErrorCode::Unknown)};
+            return failure<bool>(ErrorCode::Unknown);
         }
     }
 
-    Types::Directory::ListResult listDirectory(const Types::Path &path, const Types::Directory::ListOptions &options) noexcept
+    Result<std::vector<Types::Directory::Entry>> listDirectory(
+        const Types::Path &path,
+        const Types::Directory::ListOptions &options) noexcept
     {
         try
         {
             if(path.empty() || !isValidSymlinkPolicy(options.symlinkPolicy))
             {
-                return {.status = IO::makeStatus(ErrorCode::InvalidArgument)};
+                return failure<std::vector<Types::Directory::Entry>>(ErrorCode::InvalidArgument);
             }
 
             return listDirectoryImpl(path, options);
         }
         catch(const std::bad_alloc &)
         {
-            return {.status = IO::makeStatus(ErrorCode::OutOfMemory)};
+            return failure<std::vector<Types::Directory::Entry>>(ErrorCode::OutOfMemory);
         }
         catch(...)
         {
-            return {.status = IO::makeStatus(ErrorCode::Unknown)};
+            return failure<std::vector<Types::Directory::Entry>>(ErrorCode::Unknown);
         }
     }
 
-    DirectoryCursorOpenResult openDirectoryCursor(const Types::Path &path, Types::SymlinkPolicy symlinkPolicy) noexcept
+    Result<std::unique_ptr<Internal::DirectoryCursorState>> openDirectoryCursor(
+        const Types::Path &path,
+        Types::SymlinkPolicy symlinkPolicy) noexcept
     {
         try
         {
             if(path.empty() || !isValidSymlinkPolicy(symlinkPolicy))
             {
-                return {.status = IO::makeStatus(ErrorCode::InvalidArgument)};
+                return failure<std::unique_ptr<Internal::DirectoryCursorState>>(ErrorCode::InvalidArgument);
             }
 
             return openDirectoryCursorImpl(path, symlinkPolicy);
         }
         catch(const std::bad_alloc &)
         {
-            return {.status = IO::makeStatus(ErrorCode::OutOfMemory)};
+            return failure<std::unique_ptr<Internal::DirectoryCursorState>>(ErrorCode::OutOfMemory);
         }
         catch(...)
         {
-            return {.status = IO::makeStatus(ErrorCode::Unknown)};
+            return failure<std::unique_ptr<Internal::DirectoryCursorState>>(ErrorCode::Unknown);
         }
     }
 
-    DirectoryCursorNextResult readDirectoryCursor(Internal::DirectoryCursorState &state) noexcept
+    Result<std::optional<DirectoryCursorEntry>> readDirectoryCursor(Internal::DirectoryCursorState &state) noexcept
     {
         try
         {
@@ -232,15 +236,15 @@ namespace GameWIP::FileSystem::Platform
         }
         catch(const std::bad_alloc &)
         {
-            return {.status = IO::makeStatus(ErrorCode::OutOfMemory)};
+            return failure<std::optional<DirectoryCursorEntry>>(ErrorCode::OutOfMemory);
         }
         catch(...)
         {
-            return {.status = IO::makeStatus(ErrorCode::Unknown)};
+            return failure<std::optional<DirectoryCursorEntry>>(ErrorCode::Unknown);
         }
     }
 
-    DirectoryCursorOpenResult openChildDirectoryCursor(
+    Result<std::unique_ptr<Internal::DirectoryCursorState>> openChildDirectoryCursor(
         const Internal::DirectoryCursorState &parent,
         const Types::Path &path,
         Types::SymlinkPolicy symlinkPolicy) noexcept
@@ -249,18 +253,18 @@ namespace GameWIP::FileSystem::Platform
         {
             if(path.empty() || !isValidSymlinkPolicy(symlinkPolicy))
             {
-                return {.status = IO::makeStatus(ErrorCode::InvalidArgument)};
+                return failure<std::unique_ptr<Internal::DirectoryCursorState>>(ErrorCode::InvalidArgument);
             }
 
             return openChildDirectoryCursorImpl(parent, path, symlinkPolicy);
         }
         catch(const std::bad_alloc &)
         {
-            return {.status = IO::makeStatus(ErrorCode::OutOfMemory)};
+            return failure<std::unique_ptr<Internal::DirectoryCursorState>>(ErrorCode::OutOfMemory);
         }
         catch(...)
         {
-            return {.status = IO::makeStatus(ErrorCode::Unknown)};
+            return failure<std::unique_ptr<Internal::DirectoryCursorState>>(ErrorCode::Unknown);
         }
     }
 

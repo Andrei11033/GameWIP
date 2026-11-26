@@ -16,15 +16,14 @@ namespace GameWIP::Logger::Internal::Core
     {
         [[nodiscard]] Types::Init::Result failedInitAfterException(const Types::Config &config, ErrorCode code) noexcept
         {
-            Types::Init::Result result;
-            result.status = IO::makeStatus(code);
-            result.requestedOutput = config.output;
+            Types::Init::Info info;
+            info.requestedOutput = config.output;
             try
             {
                 if(GameWIP::Logger::running())
                 {
-                    result.outcome = Types::Init::Outcome::Started;
-                    result.effectiveOutput = GameWIP::Logger::getOutput();
+                    info.outcome = Types::Init::Outcome::Started;
+                    info.effectiveOutput = GameWIP::Logger::getOutput();
                 }
                 else
                 {
@@ -33,18 +32,18 @@ namespace GameWIP::Logger::Internal::Core
             }
             catch(...)
             {
-                result.outcome = Types::Init::Outcome::Disabled;
-                result.effectiveOutput = OutputMode::None;
+                info.outcome = Types::Init::Outcome::Disabled;
+                info.effectiveOutput = OutputMode::None;
             }
 
-            return result;
+            return Types::Init::Result::failure(makeStatus(code), std::move(info));
         }
     } // namespace
 
     /// @brief Callback registered with atexit that delegates to the idempotent public shutdown path.
     void shutdownLoggerAtExit()
     {
-        GameWIP::Logger::shutdown();
+        static_cast<void>(GameWIP::Logger::shutdown());
     }
 } // namespace GameWIP::Logger::Internal::Core
 
@@ -96,13 +95,10 @@ GameWIP::Logger::Types::FlushResult GameWIP::Logger::flush(std::optional<std::ch
 {
     try
     {
-        Types::FlushResult invalid;
-
         // Reject invalid timeouts before taking the lifecycle lock.
         if(timeout && timeout->count() < 0)
         {
-            invalid.status = IO::makeStatus(ErrorCode::InvalidArgument);
-            return invalid;
+            return Types::FlushResult::failure(makeStatus(ErrorCode::InvalidArgument));
         }
 
         if(!timeout)
@@ -117,27 +113,21 @@ GameWIP::Logger::Types::FlushResult GameWIP::Logger::flush(std::optional<std::ch
 
         if(!lockBefore(lifecycleLock, deadline))
         {
-            Types::FlushResult result;
-            result.outcome = Types::FlushOutcome::TimedOut;
-            return result;
+            return Types::FlushResult::success(Types::FlushInfo{.outcome = Types::FlushOutcome::TimedOut});
         }
         return flushInternal(&deadline);
     }
     catch(const std::bad_alloc &)
     {
-        Types::FlushResult result;
-        result.status = IO::makeStatus(ErrorCode::OutOfMemory);
-        return result;
+        return Types::FlushResult::failure(makeStatus(ErrorCode::OutOfMemory));
     }
     catch(...)
     {
-        Types::FlushResult result;
-        result.status = IO::makeStatus(ErrorCode::Unknown);
-        return result;
+        return Types::FlushResult::failure(makeStatus(ErrorCode::Unknown));
     }
 }
 
-GameWIP::IO::Types::Status GameWIP::Logger::Internal::Core::shutdownImpl()
+GameWIP::Status::Types::Status GameWIP::Logger::Internal::Core::shutdownImpl()
 {
     std::lock_guard<std::mutex> lifecycleLock(loggerState().lifecycleMutex);
     Status status;
@@ -158,14 +148,14 @@ GameWIP::IO::Types::Status GameWIP::Logger::Internal::Core::shutdownImpl()
 
         // Flush accepted output and close the file sink.
         const Types::FlushResult flushResult = flushInternal(nullptr);
-        status = firstFailure(std::move(status), flushResult.status);
+        status = firstFailure(std::move(status), flushResult.status());
 
         {
             std::lock_guard<std::mutex> outputLock(loggerState().outputMutex);
 
             if(loggerState().logFile.isOpen())
             {
-                const Status closeStatus = loggerState().logFile.close();
+                const Status closeStatus = loggerState().logFile.close().status();
                 status = firstFailure(std::move(status), closeStatus);
             }
             loggerState().fileOutputAvailableAtomic.store(false, std::memory_order_release);
@@ -173,11 +163,11 @@ GameWIP::IO::Types::Status GameWIP::Logger::Internal::Core::shutdownImpl()
     }
     catch(const std::bad_alloc &)
     {
-        status = firstFailure(std::move(status), IO::makeStatus(ErrorCode::OutOfMemory));
+        status = firstFailure(std::move(status), makeStatus(ErrorCode::OutOfMemory));
     }
     catch(...)
     {
-        status = firstFailure(std::move(status), IO::makeStatus(ErrorCode::Unknown));
+        status = firstFailure(std::move(status), makeStatus(ErrorCode::Unknown));
     }
 
     // Clear published state and release configured runtime storage.
@@ -202,18 +192,19 @@ GameWIP::IO::Types::Status GameWIP::Logger::Internal::Core::shutdownImpl()
     return status;
 }
 
-GameWIP::IO::Types::Status GameWIP::Logger::shutdown() noexcept
+GameWIP::Status::Types::Result<void> GameWIP::Logger::shutdown() noexcept
 {
     try
     {
-        return shutdownImpl();
+        const GameWIP::Status::Types::Status status = shutdownImpl();
+        return resultFromStatus(status);
     }
     catch(const std::bad_alloc &)
     {
-        return IO::makeStatus(ErrorCode::OutOfMemory);
+        return Status::Types::Result<void>::failure(makeStatus(ErrorCode::OutOfMemory));
     }
     catch(...)
     {
-        return IO::makeStatus(ErrorCode::Unknown);
+        return Status::Types::Result<void>::failure(makeStatus(ErrorCode::Unknown));
     }
 }

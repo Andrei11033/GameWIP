@@ -8,18 +8,18 @@
 void testPassiveValuesAndClosedState(TestSupport::Context &context)
 {
     // Validate result access and portable value contracts.
-    Desktop::Types::Result<Desktop::Types::LogicalSize> value{IO::successStatus(), Desktop::Types::LogicalSize{12, 24}};
+    GameWIP::Status::Types::Result<Desktop::Types::LogicalSize> value =
+        GameWIP::Status::Types::Result<Desktop::Types::LogicalSize>::success({12, 24});
     static_cast<void>(context.expectTrue("successful populated result is usable", value.ok()));
-    static_cast<void>(context.expectEq("mutable arrow accesses the contained value", std::uint32_t{12}, value->width));
-    value->height = 48;
+    static_cast<void>(context.expectEq("mutable access reads the contained value", std::uint32_t{12}, value.value().width));
+    value.value().height = 48;
     const auto &constantValue = value;
-    static_cast<void>(context.expectEq("const dereference observes the same value", std::uint32_t{48}, (*constantValue).height));
-    static_cast<void>(context.expectEq("const arrow accesses the contained value", std::uint32_t{48}, constantValue->height));
-    value.status = IO::makeStatus(ErrorCode::NativeFailure);
+    static_cast<void>(context.expectEq("const access observes the same value", std::uint32_t{48}, constantValue.value().height));
+    value = GameWIP::Status::Types::Result<Desktop::Types::LogicalSize>::failure(
+        GameWIP::Status::Types::Status(ErrorCode::NativeFailure), {1, 2});
     static_cast<void>(context.expectFalse("failed status makes a populated result unusable", value.ok()));
-    static_cast<void>(context.expectEq("failed result uses the explicit fallback", Desktop::Types::LogicalSize{1, 2}, value.value_or({1, 2})));
-    value = {IO::successStatus(), std::nullopt};
-    static_cast<void>(context.expectFalse("success status without a value is unusable", value.ok()));
+    static_cast<void>(context.expectTrue("failed result preserves its partial value", value.hasValue()));
+    static_cast<void>(context.expectEq("partial value remains available", Desktop::Types::LogicalSize{1, 2}, value.value()));
 
     static_cast<void>(context.expectFalse("default window id is invalid", Desktop::Types::WindowId{}.isValid()));
     static_cast<void>(context.expectTrue("nonzero window id is valid", Desktop::Types::WindowId{4}.isValid()));
@@ -71,20 +71,23 @@ void testPassiveValuesAndClosedState(TestSupport::Context &context)
 
     // Check capability reporting and event pumping without open windows.
     const auto capabilities = Desktop::getCapabilities();
-    static_cast<void>(context.expectTrue("capability query succeeds", capabilities.status.ok()));
+    static_cast<void>(context.expectTrue("capability query succeeds", capabilities.ok()));
     if(capabilities.ok())
     {
-        static_cast<void>(context.expectTrue("Win32 supports multiple windows", capabilities->supports(Desktop::Types::Capability::MultipleWindows)));
+        static_cast<void>(context.expectTrue(
+            "Win32 supports multiple windows",
+            capabilities.value().supports(Desktop::Types::Capability::MultipleWindows)));
+        static_cast<void>(context.expectTrue(
+            "Win32 supports custom native cursors",
+            capabilities.value().supports(Desktop::Types::Capability::CustomCursor)));
         static_cast<void>(
-            context.expectTrue("Win32 supports custom native cursors", capabilities->supports(Desktop::Types::Capability::CustomCursor)));
+            context.expectFalse("Count is not a capability", capabilities.value().supports(Desktop::Types::Capability::Count)));
     }
 
-    static_cast<void>(context.expectFalse("Count is not a capability", capabilities->supports(Desktop::Types::Capability::Count)));
-
     const Desktop::Types::Events::PumpResult idlePoll = Desktop::Events::poll();
-    static_cast<void>(context.expectTrue("poll with no windows is a successful no-op", idlePoll.status.ok()));
+    static_cast<void>(context.expectTrue("poll with no windows is a successful no-op", idlePoll.ok()));
     const Desktop::Types::Events::PumpResult badWait = Desktop::Events::wait(std::chrono::milliseconds{-2});
-    static_cast<void>(context.expectEq("timeout below forever sentinel is invalid", ErrorCode::InvalidArgument, badWait.status.code));
+    static_cast<void>(context.expectEq("timeout below forever sentinel is invalid", ErrorCode::InvalidArgument, badWait.status().code()));
 
     // Verify default and closed Window state.
     Desktop::Window closed;
@@ -92,7 +95,8 @@ void testPassiveValuesAndClosedState(TestSupport::Context &context)
     static_cast<void>(context.expectEq("default lifetime is Closed", Desktop::Types::LifetimeState::Closed, closed.lifetimeState()));
     static_cast<void>(context.expectEq("closed id is invalid", Desktop::Types::WindowId{}, closed.id()));
     static_cast<void>(context.expectEq("closed title is empty", std::string_view{}, closed.title()));
-    static_cast<void>(context.expectEq("closed operation reports NotOpen", ErrorCode::NotOpen, closed.setTitle("unused").code));
+    static_cast<void>(
+        context.expectEq("closed operation reports NotOpen", ErrorCode::NotOpen, closed.setTitle("unused").status().code()));
     static_cast<void>(context.expectTrue("repeated close on closed Window succeeds", closed.close().ok()));
 }
 
@@ -101,8 +105,8 @@ void testDescriptionValidation(TestSupport::Context &context)
     const auto expectInvalid = [&context](std::string_view name, const Desktop::Types::Description &description)
     {
         Desktop::Window window;
-        const IO::Types::Status status = window.open(description);
-        static_cast<void>(context.expectEq(name, ErrorCode::InvalidArgument, status.code));
+        const GameWIP::Status::Types::Result<void> status = window.open(description);
+        static_cast<void>(context.expectEq(name, ErrorCode::InvalidArgument, status.status().code()));
         static_cast<void>(context.expectFalse("invalid description leaves Window closed", window.isOpen()));
     };
 
@@ -183,8 +187,14 @@ void testDescriptionValidation(TestSupport::Context &context)
 
     Desktop::Window window;
     static_cast<void>(
-        context.expectEq("zero internal queue capacity is invalid", ErrorCode::InvalidArgument, window.open({}, Desktop::Events::owned(0)).code));
+        context.expectEq(
+            "zero internal queue capacity is invalid",
+            ErrorCode::InvalidArgument,
+            window.open({}, Desktop::Events::owned(0)).status().code()));
     const std::span<Desktop::Types::Event> empty;
     static_cast<void>(
-        context.expectEq("empty external queue is invalid", ErrorCode::InvalidArgument, window.open({}, Desktop::Events::borrowed(empty)).code));
+        context.expectEq(
+            "empty external queue is invalid",
+            ErrorCode::InvalidArgument,
+            window.open({}, Desktop::Events::borrowed(empty)).status().code()));
 }

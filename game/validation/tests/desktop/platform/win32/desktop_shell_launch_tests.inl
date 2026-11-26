@@ -103,28 +103,27 @@ void testShellRegistrationLaunch(TestSupport::Context &context, const std::files
                             static_cast<void>(TestSupport::removeIfExists(receiptPath));
                             static_cast<void>(TestSupport::removeIfExists(argumentsPath));
                         }};
-        RegistrationTypes::Result registration;
+        const RegistrationTypes::Result registration = [&]
+        {
+            if(file)
+            {
+                RegistrationTypes::FileExtensionDescription description;
+                description.ownerKey = owner;
+                description.extension = target;
+                description.displayName = "GameWIP association launch regression";
+                description.defaultAction = action;
+                return Desktop::Registration::registerFileExtension(description);
+            }
 
-        if(file)
-        {
-            RegistrationTypes::FileExtensionDescription description;
-            description.ownerKey = owner;
-            description.extension = target;
-            description.displayName = "GameWIP association launch regression";
-            description.defaultAction = action;
-            registration = Desktop::Registration::registerFileExtension(description);
-        }
-        else
-        {
             RegistrationTypes::UriSchemeDescription description;
             description.ownerKey = owner;
             description.scheme = target;
             description.displayName = "GameWIP association launch regression";
             description.defaultAction = action;
-            registration = Desktop::Registration::registerUriScheme(description);
-        }
+            return Desktop::Registration::registerUriScheme(description);
+        }();
 
-        if(!context.expectTrue(kind + " launch registration succeeds", registration.status.ok()))
+        if(!context.expectTrue(kind + " launch registration succeeds", registration.ok()))
         {
             continue;
         }
@@ -227,11 +226,11 @@ void testShellRegistrationLaunch(TestSupport::Context &context, const std::files
         const auto receipt = TestSupport::readTextFile(receiptPath);
         const auto receivedArguments = TestSupport::readTextFile(argumentsPath);
 
-        if(receivedArguments.status.ok())
+        if(receivedArguments.ok())
         {
-            context.info(kind + " received arguments:\n" + receivedArguments.text);
+            context.info(kind + " received arguments:\n" + receivedArguments.value());
         }
-        static_cast<void>(context.expectTrue(kind + " controlled launch receipt matches", launched && receipt.status.ok() && receipt.text == token));
+        static_cast<void>(context.expectTrue(kind + " controlled launch receipt matches", launched && receipt.ok() && receipt.value() == token));
     }
 }
 #endif

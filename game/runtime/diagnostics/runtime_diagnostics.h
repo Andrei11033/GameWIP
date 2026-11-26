@@ -6,8 +6,8 @@
 #include "desktop/events.h"
 #include "desktop/window.h"
 #include "input/system.h"
-#include "io/status.h"
 #include "runtime/logging.h"
+#include "status/result.h"
 
 #include <cstdint>
 #include <string_view>
@@ -16,8 +16,8 @@
 namespace GameWIP::Game::RuntimeDiagnostics
 {
     namespace Desktop = GameWIP::Desktop;
-    namespace IO = GameWIP::IO;
     namespace Input = GameWIP::Input;
+    namespace Status = GameWIP::Status;
 
     /// ------------------------------------------------------------
     /// Operation status
@@ -27,13 +27,13 @@ namespace GameWIP::Game::RuntimeDiagnostics
     void writeEmergencyMessage(std::string_view message) noexcept;
 
     /// @brief Writes a failed status with its portable and native codes to stderr.
-    void writeEmergencyStatus(std::string_view action, const IO::Types::Status &status);
+    void writeEmergencyStatus(std::string_view action, const Status::Types::Status &status);
 
     /// @brief Synchronously reports a failed operation with its portable and native status.
-    void reportFailure(Logging::Area area, std::string_view action, const IO::Types::Status &status);
+    void reportFailure(Logging::Area area, std::string_view action, const Status::Types::Status &status);
 
     /// @brief Queues a recoverable operation issue with its portable and native status.
-    void reportWarning(Logging::Area area, std::string_view action, const IO::Types::Status &status);
+    void reportWarning(Logging::Area area, std::string_view action, const Status::Types::Status &status);
 
     /// ------------------------------------------------------------
     /// Window reports
@@ -67,7 +67,7 @@ namespace GameWIP::Game::RuntimeDiagnostics
     /// ------------------------------------------------------------
 
     /// @brief Native source detach callback run before Input closes.
-    using InputDetachCallback = IO::Types::Status (*)(void *context) noexcept;
+    using InputDetachCallback = Status::Types::Result<void> (*)(void *context) noexcept;
 
     /// @brief Captures input health, optionally detaches native sources, and closes the input system.
     /// @param input Input session to close.

@@ -3,35 +3,39 @@
 
 #pragma once
 
-#include "io/status.h"
+#include "status/status.h"
 
+#include <cstdint>
 #include <format>
 #include <new>
 #include <stdexcept>
-#include <string>
 #include <string_view>
 
 namespace GameWIP::Terminal::Internal
 {
     /// @brief Builds a diagnostic status without letting allocation failures escape a checked boundary.
-    [[nodiscard]] inline IO::Types::Status statusWithMessage(IO::Types::ErrorCode code, std::string_view message) noexcept
-    {
-        if(message.empty())
-        {
-            return IO::makeStatus(code);
-        }
+    using Status = GameWIP::Status::Types::Status;
+    using StatusCode = GameWIP::Status::Types::Code;
 
-        try
-        {
-            return IO::makeStatus(code, 0, std::string(message));
-        }
-        catch(...)
-        {
-            return IO::makeStatus(code);
-        }
+    [[nodiscard]] inline Status statusWithMessage(StatusCode code, std::string_view message) noexcept
+    {
+        return message.empty() ? Status(code) : Status::withDiagnostic(code, message);
     }
 
-    [[nodiscard]] inline IO::Types::Status exceptionStatus() noexcept
+    [[nodiscard]] inline Status backendStatus(StatusCode code, std::int64_t nativeCode = 0, std::string_view message = {}) noexcept
+    {
+        if(nativeCode != 0)
+        {
+            using GameWIP::Status::Types::NativeCode;
+            using GameWIP::Status::Types::NativeCodeDomain;
+
+            return Status::withDiagnostic(code, NativeCode{NativeCodeDomain::Other, nativeCode}, message);
+        }
+
+        return statusWithMessage(code, message);
+    }
+
+    [[nodiscard]] inline Status exceptionStatus() noexcept
     {
         try
         {
@@ -39,19 +43,19 @@ namespace GameWIP::Terminal::Internal
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
+            return Status(StatusCode::OutOfMemory);
         }
         catch(const std::length_error &)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::SizeLimitExceeded);
+            return Status(StatusCode::SizeLimitExceeded);
         }
         catch(const std::format_error &)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
+            return Status(StatusCode::InvalidArgument);
         }
         catch(...)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::Unknown);
+            return Status(StatusCode::Unknown);
         }
     }
 } // namespace GameWIP::Terminal::Internal

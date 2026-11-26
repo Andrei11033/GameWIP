@@ -35,22 +35,22 @@ namespace GameWIP::FileSystem
         return mode_;
     }
 
-    IO::Types::Status FileLock::unlock() noexcept
+    GameWIP::Status::Types::Result<void> FileLock::unlock() noexcept
     {
         if(!active())
         {
             state_.reset();
-            return IO::successStatus();
+            return GameWIP::Status::Types::Result<void>::success();
         }
 
-        IO::Types::Status status = Platform::unlockFile(*state_);
+        auto result = Platform::unlockFile(*state_);
 
-        if(status.ok())
+        if(result.ok())
         {
             state_.reset();
         }
 
-        return status;
+        return result;
     }
 
     FileLock::FileLock(std::unique_ptr<Internal::FileLockState> state, Types::Lock::Mode mode) noexcept

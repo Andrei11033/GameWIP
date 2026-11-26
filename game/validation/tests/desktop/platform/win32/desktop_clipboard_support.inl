@@ -8,6 +8,7 @@
 namespace Clipboard = Desktop::Clipboard;
 namespace ClipboardTypes = Desktop::Types::Clipboard;
 namespace Transfer = Desktop::Types::DataTransfer;
+using StatusCode = GameWIP::Status::Types::Code;
 
 #if defined(__clang__)
 #pragma clang unsafe_buffer_usage begin

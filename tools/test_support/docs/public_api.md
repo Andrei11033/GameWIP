@@ -14,14 +14,12 @@ Installed consumers link `GameWIP::TestSupport`; source-tree consumers link `Tes
 
 ## Shared types
 
-`GameWIP::TestSupport::Types` is the single passive-type tree. Shared infrastructure vocabulary remains at its root:
+`GameWIP::TestSupport::Types` aliases the shared `GameWIP::Status::Types::Status` and `Result<T>` types. `TextResult`, `BoolResult`, and
+`CountResult` are results for `std::string`, `bool`, and `std::size_t`. Use `status().code()` for portable decisions and inspect optional native
+diagnostics only for reporting.
 
-- `InfrastructureError`: compact operational categories, including `EncodingFailed` for malformed UTF-8 text data.
-- `InfrastructureStatus`: `error` plus optional numeric `nativeCode`; `ok()` is true only for `None`.
-- `TextResult`, `BoolResult`, and `CountResult`: shared status plus one value.
-
-`formatInfrastructureStatus()` (`types.h`) formats a status only when human-readable diagnostics are requested and may allocate; status
-construction and inspection never allocate diagnostic text.
+`formatStatus()` formats a status only when diagnostics are requested and may allocate. Code-only status construction and inspection do not allocate
+diagnostic text.
 
 ## Reporting types
 
@@ -55,9 +53,10 @@ to standalone contexts; runner-owned contexts leave the shared sink to the `Runn
 - `fileExists()`, `fileContains()`, and `countFileOccurrences()`;
 - `createDirectories()` and `removeIfExists()`.
 
-Text-file operations are strict UTF-8. They do not normalize Unicode, add/remove a BOM, or convert line endings. `readTextFile()` returns only valid
-UTF-8 in `TextResult::text`; malformed bytes report `EncodingFailed`, and an incomplete suffix does so only when the measured contents were read
-completely. Valid short reads and short reads ending in an incomplete suffix report `FileOperationFailed`. Failures may retain the complete valid prefix.
+Text-file operations are strict UTF-8. They do not normalize Unicode, add/remove a BOM, or convert line endings. `readTextFile()` returns valid UTF-8
+through `value()`; malformed bytes report `EncodingFailed`, and an incomplete suffix does so only when the measured contents were read completely.
+Valid short reads and short reads ending in an incomplete suffix report `FileOperationFailed`. Failures may retain the complete valid prefix in
+`value()`; check `hasValue()` before accessing it.
 `writeTextFile()` validates before creating parent directories or opening/truncating the destination.
 
 `ScopedCurrentPath` requires `ScopedProcessState`, and its `restore()` reports explicit restoration failures or process-state conflicts.
@@ -69,11 +68,12 @@ Child-process vocabulary lives under `Types::Process`:
 - `EnvironmentOverride`: one child environment set/unset override;
 - `Options`: executable, arguments, `environmentOverrides`, optional `waitTimeout`, child-only `workingDirectory`, capture policy, and environment inheritance;
 - `Outcome`: `NotStarted`, `Exited`, `TimedOut`, `TerminatedDuringCleanup`, or `OutcomeUnavailable`;
-- `Result`: infrastructure status, exact exit code when available, outcome, `outputTruncated`, and retained raw `outputBytes`.
+- `Execution`: exact exit code when available, process outcome, `outputTruncated`, and retained raw `outputBytes`.
+- `Result`: shared status plus `Execution`; failures retain execution state when available.
 
 `runChildProcess()` is the active operation. `kDefaultMaxCapturedOutputBytes` (4 MiB) is the default `Options` capture limit. Child stdout/stderr
-capture is arbitrary bytes, not UTF-8 text. External processes may emit malformed data and TestSupport must preserve that data unchanged within the
-configured retention limit.
+capture is arbitrary bytes, not UTF-8 text. External processes may emit malformed data and TestSupport preserves those bytes unchanged within the
+configured retention limit. Check `status()` for infrastructure success and `hasValue()` before reading execution details.
 
 `ScopedProcessState`, `ScopedEnvironmentVariable`, and `ScopedUnsetEnvironmentVariable` also live in `test_support/process.h`. The process-state scope
 serializes TestSupport's process-global operations only: environment or current-directory changes made directly through native or standard-library

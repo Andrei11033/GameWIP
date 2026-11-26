@@ -15,7 +15,7 @@ Width and height must be nonzero and native-representable, the
 hotspot inside the image, `intendedDpi` nonzero, the resolved
 stride at least one row, and the payload size exactly `resolvedStride * height`. A variant set must be non-empty with at most
 one image per intended DPI. Invalid input returns a failed
-`Types::Result<Cursor>` with no value.
+`GameWIP::Status::Types::Result<Cursor>` with no value.
 
 The span overload eagerly creates every variant before publishing. If creation
 or allocation fails, it releases created variants and returns no `Cursor`.
@@ -32,6 +32,8 @@ rebuilding. The hotspot belongs to each variant and stays in physical pixels (no
 
 `Cursor` is default-constructible (invalid), copyable, movable, and cheaply shared; copies share the same immutable native
 variants, which live until the last `Cursor` handle and Window binding release them.
+
+`createCursor()` returns `GameWIP::Status::Types::Result<Cursor>`; `setCursor()` returns `Result<void>`.
 
 `setCursor(window, cursor)` requires a valid cursor and an open Window on its
 owner thread. The Window keeps its own shared reference, so the caller may
@@ -68,7 +70,7 @@ auto image = GameWIP::Desktop::Types::Cursor::ImageView::packed({32, 32}, {4, 3}
 auto created = GameWIP::Desktop::createCursor(image);
 if(created.ok())
 {
-    static_cast<void>(GameWIP::Desktop::setCursor(window, *created));
+    static_cast<void>(GameWIP::Desktop::setCursor(window, created.value()));
 }
 ```
 
@@ -83,7 +85,7 @@ std::array<GameWIP::Desktop::Types::Cursor::ImageView, 3> variants{
 auto created = GameWIP::Desktop::createCursor(variants);
 if(created.ok())
 {
-    static_cast<void>(GameWIP::Desktop::setCursor(window, *created));
+    static_cast<void>(GameWIP::Desktop::setCursor(window, created.value()));
 }
 ```
 
@@ -92,14 +94,14 @@ if(created.ok())
 ```cpp
 if(created.ok())
 {
-    static_cast<void>(GameWIP::Desktop::setCursor(primary, *created));
-    static_cast<void>(GameWIP::Desktop::setCursor(tools, *created));
+    static_cast<void>(GameWIP::Desktop::setCursor(primary, created.value()));
+    static_cast<void>(GameWIP::Desktop::setCursor(tools, created.value()));
 
     // A system shape clears only primary's custom binding.
     static_cast<void>(primary.setCursorShape(GameWIP::Desktop::Types::CursorShape::Arrow));
 
     // Select the same shared resource again when the override is needed.
-    static_cast<void>(GameWIP::Desktop::setCursor(primary, *created));
+    static_cast<void>(GameWIP::Desktop::setCursor(primary, created.value()));
 }
 ```
 

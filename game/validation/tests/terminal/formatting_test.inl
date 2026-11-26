@@ -19,23 +19,23 @@ void testReentrantFormatting(TestSupport::Context &context, const std::filesyste
 
     // Verify global Terminal reentry from a formatter.
     const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(child);
-    static_cast<void>(context.expectTrue("reentrant formatter child infrastructure succeeds", result.status.ok()));
-    static_cast<void>(context.expectEq("reentrant formatter child exits", TestSupport::Types::Process::Outcome::Exited, result.outcome));
-    static_cast<void>(context.expectEq("reentrant formatter child returns zero", std::uint32_t{0}, result.exitCode));
+    static_cast<void>(context.expectTrue("reentrant formatter child infrastructure succeeds", result.ok()));
+    static_cast<void>(context.expectEq("reentrant formatter child exits", TestSupport::Types::Process::Outcome::Exited, result.value().outcome));
+    static_cast<void>(context.expectEq("reentrant formatter child returns zero", std::uint32_t{0}, result.value().exitCode));
     static_cast<void>(
-        context.expectEq("reentrant formatter preserves nested and outer output", std::string{"innerouterinnerouter\n"}, result.outputBytes));
+        context.expectEq("reentrant formatter preserves nested and outer output", std::string{"innerouterinnerouter\n"}, result.value().outputBytes));
 
     // Verify reentry across Session and global output.
     child.arguments = {std::string(kSessionReentrantFormatChildArgument)};
     const TestSupport::Types::Process::Result sessionResult = TestSupport::runChildProcess(child);
-    static_cast<void>(context.expectTrue("Session reentrant formatter child infrastructure succeeds", sessionResult.status.ok()));
+    static_cast<void>(context.expectTrue("Session reentrant formatter child infrastructure succeeds", sessionResult.ok()));
     static_cast<void>(
-        context.expectEq("Session reentrant formatter child exits", TestSupport::Types::Process::Outcome::Exited, sessionResult.outcome));
-    static_cast<void>(context.expectEq("Session reentrant formatter child returns zero", std::uint32_t{0}, sessionResult.exitCode));
+        context.expectEq("Session reentrant formatter child exits", TestSupport::Types::Process::Outcome::Exited, sessionResult.value().outcome));
+    static_cast<void>(context.expectEq("Session reentrant formatter child returns zero", std::uint32_t{0}, sessionResult.value().exitCode));
     static_cast<void>(context.expectEq(
         "Session formatter supports nested Session/global output and checked close",
         std::string{"innerouterinnerouter\nglobalouterouter"},
-        sessionResult.outputBytes));
+        sessionResult.value().outputBytes));
 }
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
@@ -49,16 +49,16 @@ void testUtf8OutputContracts(TestSupport::Context &context)
     const std::string incomplete{"ok\xe2\x82", 4};
 
     // Reject malformed text before writing.
-    const IO::Types::Status malformedText = Terminal::writeText(malformed);
-    static_cast<void>(context.expectEq("redirected text rejects malformed UTF-8", ErrorCode::EncodingFailed, malformedText.code));
+    const auto malformedText = Terminal::writeText(malformed);
+    static_cast<void>(context.expectEq("redirected text rejects malformed UTF-8", ErrorCode::EncodingFailed, malformedText.status().code()));
     static_cast<void>(context.expectTrue("malformed text emits no bytes", Hooks::capturedOutput(Terminal::Types::Output::Stream::Stdout).empty()));
 
-    const IO::Types::Status incompleteLine = Terminal::writeLine(incomplete);
-    static_cast<void>(context.expectEq("redirected line rejects incomplete UTF-8", ErrorCode::EncodingFailed, incompleteLine.code));
+    const auto incompleteLine = Terminal::writeLine(incomplete);
+    static_cast<void>(context.expectEq("redirected line rejects incomplete UTF-8", ErrorCode::EncodingFailed, incompleteLine.status().code()));
     static_cast<void>(context.expectTrue("incomplete line emits no bytes", Hooks::capturedOutput(Terminal::Types::Output::Stream::Stdout).empty()));
 
-    const IO::Types::Status malformedFormatted = Terminal::print("{}", malformed);
-    static_cast<void>(context.expectEq("formatted output rejects malformed UTF-8", ErrorCode::EncodingFailed, malformedFormatted.code));
+    const auto malformedFormatted = Terminal::print("{}", malformed);
+    static_cast<void>(context.expectEq("formatted output rejects malformed UTF-8", ErrorCode::EncodingFailed, malformedFormatted.status().code()));
     static_cast<void>(
         context.expectTrue("malformed formatted output emits no bytes", Hooks::capturedOutput(Terminal::Types::Output::Stream::Stdout).empty()));
 
@@ -66,11 +66,12 @@ void testUtf8OutputContracts(TestSupport::Context &context)
     Terminal::OutputBuffer buffer;
     static_cast<void>(context.expectTrue("buffer accepts trusted UTF-8 prefix", buffer.appendText("prefix").ok()));
     const std::string before{buffer.text()};
-    static_cast<void>(context.expectEq("buffer rejects malformed append", ErrorCode::EncodingFailed, buffer.appendText(malformed).code));
+    static_cast<void>(context.expectEq("buffer rejects malformed append", ErrorCode::EncodingFailed, buffer.appendText(malformed).status().code()));
     static_cast<void>(context.expectEq("buffer preserves previous text after malformed append", before, std::string{buffer.text()}));
-    static_cast<void>(context.expectEq("buffer rejects incomplete line append", ErrorCode::EncodingFailed, buffer.appendLine(incomplete).code));
+    static_cast<void>(context.expectEq("buffer rejects incomplete line append", ErrorCode::EncodingFailed, buffer.appendLine(incomplete).status().code()));
     static_cast<void>(context.expectEq("buffer preserves previous text after incomplete line append", before, std::string{buffer.text()}));
-    static_cast<void>(context.expectEq("buffer rejects malformed formatted suffix", ErrorCode::EncodingFailed, buffer.print("{}", malformed).code));
+    static_cast<void>(
+        context.expectEq("buffer rejects malformed formatted suffix", ErrorCode::EncodingFailed, buffer.print("{}", malformed).status().code()));
     static_cast<void>(context.expectEq("buffer rolls back malformed formatted suffix", before, std::string{buffer.text()}));
 
     // Keep arbitrary bytes separate from UTF-8 text segments.
@@ -81,7 +82,7 @@ void testUtf8OutputContracts(TestSupport::Context &context)
     static_cast<void>(context.expectEq(
         "segmented text rejects malformed UTF-8 before output",
         ErrorCode::EncodingFailed,
-        Terminal::writeSegments(invalidTextSegments).code));
+        Terminal::writeSegments(invalidTextSegments).status().code()));
     static_cast<void>(
         context.expectTrue("invalid segmented text emits nothing", Hooks::capturedOutput(Terminal::Types::Output::Stream::Stdout).empty()));
 

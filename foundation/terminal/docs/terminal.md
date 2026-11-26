@@ -93,8 +93,8 @@ Capability queries are snapshots; the status returned by the requested operation
 
 Installed consumers link `GameWIP::Terminal`; source-tree consumers may link `Terminal`.
 
-Terminal publicly depends on IO for statuses, flush modes, and byte-write
-results. It privately reuses Unicode for strict scalar conversion and grapheme
+Terminal publicly depends on Status for operation results and IO for stream
+types, flush modes, and byte-write progress. It privately reuses Unicode for strict scalar conversion and grapheme
 traversal. Logger uses Terminal for normal console output; Terminal does not
 depend on Logger.
 

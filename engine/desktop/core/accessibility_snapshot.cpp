@@ -1,6 +1,7 @@
 /// @file accessibility_snapshot.cpp
 /// @brief Owned authoring storage and indexed immutable snapshot inspection.
 
+#include "desktop/internal/results.h"
 #include "desktop/internal/accessibility_state.h"
 
 #include <algorithm>
@@ -288,11 +289,11 @@ namespace GameWIP::Desktop::Accessibility
         return limits_;
     }
 
-    IO::Types::Status SnapshotBuilder::setGeneration(A::Generation generation) noexcept
+    GameWIP::Status::Types::Result<void> SnapshotBuilder::setGeneration(A::Generation generation) noexcept
     {
         if(generation == 0)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
+            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::InvalidArgument));
         }
 
         try
@@ -302,19 +303,19 @@ namespace GameWIP::Desktop::Accessibility
                 state_ = std::make_unique<Internal::SnapshotBuilderState>();
             }
             state_->generation = generation;
-            return {};
+            return GameWIP::Status::Types::Result<void>::success();
         }
         catch(...)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
+            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::OutOfMemory));
         }
     }
 
-    IO::Types::Status SnapshotBuilder::setRoot(A::NodeId root) noexcept
+    GameWIP::Status::Types::Result<void> SnapshotBuilder::setRoot(A::NodeId root) noexcept
     {
         if(root == 0)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
+            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::InvalidArgument));
         }
 
         try
@@ -324,32 +325,39 @@ namespace GameWIP::Desktop::Accessibility
                 state_ = std::make_unique<Internal::SnapshotBuilderState>();
             }
             state_->root = root;
-            return {};
+            return GameWIP::Status::Types::Result<void>::success();
         }
         catch(...)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
+            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::OutOfMemory));
         }
     }
 
-    IO::Types::Status SnapshotBuilder::addNode(const A::Node &node) noexcept
+    GameWIP::Status::Types::Result<void> SnapshotBuilder::addNode(const A::Node &node) noexcept
     {
         // Validate limits and the node's identity before allocating.
-        if(validate({}, limits_).issue == A::ValidationIssue::InvalidLimits || node.id == 0)
+        const auto limitsValidation = validate({}, limits_);
+
+        if(!limitsValidation.hasValue())
         {
-            return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
+            return GameWIP::Status::Types::Result<void>::failure(limitsValidation.status());
+        }
+
+        if(limitsValidation.value().issue == A::ValidationIssue::InvalidLimits || node.id == 0)
+        {
+            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::InvalidArgument));
         }
 
         try
         {
             if(state_ && state_->nodes.size() >= limits_.maximumNodes)
             {
-                return IO::makeStatus(IO::Types::ErrorCode::SizeLimitExceeded);
+                return GameWIP::Status::Types::Result<void>::failure(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::SizeLimitExceeded));
             }
 
             if(state_ && state_->nodeIds.contains(node.id))
             {
-                return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
+                return GameWIP::Status::Types::Result<void>::failure(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::InvalidArgument));
             }
 
             // Check per-node and aggregate copy budgets before deep-copying views.
@@ -357,7 +365,7 @@ namespace GameWIP::Desktop::Accessibility
 
             if(!boundedNode(node, limits_, bytes))
             {
-                return IO::makeStatus(IO::Types::ErrorCode::SizeLimitExceeded);
+                return GameWIP::Status::Types::Result<void>::failure(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::SizeLimitExceeded));
             }
             auto owned = std::make_shared<Internal::OwnedAccessibilityNode>(node);
 
@@ -380,15 +388,15 @@ namespace GameWIP::Desktop::Accessibility
             state_->owned.push_back(std::move(owned));
             state_->nodes.push_back(state_->owned.back()->node);
             state_->textBytes = bytes;
-            return {};
+            return GameWIP::Status::Types::Result<void>::success();
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
+            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::OutOfMemory));
         }
         catch(...)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::SizeLimitExceeded);
+            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::SizeLimitExceeded));
         }
     }
 

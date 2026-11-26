@@ -4,7 +4,6 @@
 #pragma once
 
 #include "desktop/display.h"
-#include "desktop/result.h"
 
 #include <cstdint>
 #include <optional>
@@ -77,21 +76,21 @@ namespace GameWIP::Desktop::Display
 
     /// @brief Enumerates snapshots for all currently known desktop monitors.
     /// @return Query status and materialized monitor snapshots on success.
-    [[nodiscard]] DESKTOP_EXPORT Types::Result<std::vector<Types::Display::Info>> getMonitors() noexcept;
+    [[nodiscard]] DESKTOP_EXPORT GameWIP::Status::Types::Result<std::vector<Types::Display::Info>> getMonitors() noexcept;
     /// @brief Returns a snapshot for the current primary monitor.
     /// @return Query status and primary-monitor snapshot on success.
-    [[nodiscard]] DESKTOP_EXPORT Types::Result<Types::Display::Info> getPrimaryMonitor() noexcept;
+    [[nodiscard]] DESKTOP_EXPORT GameWIP::Status::Types::Result<Types::Display::Info> getPrimaryMonitor() noexcept;
     /// @brief Returns a snapshot for a currently known monitor identity.
     /// @param monitor Identity of a currently known monitor.
     /// @return Query status and matching monitor snapshot on success.
-    [[nodiscard]] DESKTOP_EXPORT Types::Result<Types::Display::Info> getMonitor(Types::Display::MonitorId monitor) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT GameWIP::Status::Types::Result<Types::Display::Info> getMonitor(Types::Display::MonitorId monitor) noexcept;
     /// @brief Returns current color information for a currently known monitor.
     /// @param monitor Identity of a currently known monitor.
     /// @return Query status and current operating-system color facts on success.
-    [[nodiscard]] DESKTOP_EXPORT Types::Result<Types::Display::ColorInfo> getColorInfo(Types::Display::MonitorId monitor) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT GameWIP::Status::Types::Result<Types::Display::ColorInfo> getColorInfo(Types::Display::MonitorId monitor) noexcept;
     /// @brief Returns current color information for an open Window's monitor.
     /// @param window Open Window whose cached current monitor is queried.
     /// @return Query status and current operating-system color facts on success.
-    [[nodiscard]] DESKTOP_EXPORT Types::Result<Types::Display::ColorInfo> getColorInfo(const Window &window) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT GameWIP::Status::Types::Result<Types::Display::ColorInfo> getColorInfo(const Window &window) noexcept;
     /// @}
 } // namespace GameWIP::Desktop::Display

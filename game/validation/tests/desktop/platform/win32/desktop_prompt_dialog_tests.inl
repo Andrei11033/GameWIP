@@ -11,6 +11,7 @@ void testPromptDialogs(TestSupport::Context &context)
 {
     Win32TestHooks::resetDialogState();
 
+    using StatusCode = GameWIP::Status::Types::Code;
     using PromptDialogs::Button;
     using PromptDialogs::ButtonId;
     using PromptDialogs::Option;
@@ -19,7 +20,7 @@ void testPromptDialogs(TestSupport::Context &context)
     // Validate required buttons and portable button identifiers.
     PromptDialogs::Description description;
     static_cast<void>(
-        context.expectEq("Prompt requires a button", ErrorCode::InvalidArgument, Desktop::Dialogs::showPrompt(description).status.code));
+        context.expectEq("Prompt requires a button", StatusCode::InvalidArgument, Desktop::Dialogs::showPrompt(description).status().code()));
 
     std::array<Button, 3> buttons{
         Button{ButtonId{1}, "Proceed", "Use recommended settings"},
@@ -29,47 +30,53 @@ void testPromptDialogs(TestSupport::Context &context)
 
     buttons[0].id = {};
     static_cast<void>(
-        context.expectEq("Prompt rejects zero button ID", ErrorCode::InvalidArgument, Desktop::Dialogs::showPrompt(description).status.code));
+        context.expectEq("Prompt rejects zero button ID", StatusCode::InvalidArgument, Desktop::Dialogs::showPrompt(description).status().code()));
     buttons[0].id = ButtonId{1};
     buttons[1].id = ButtonId{1};
-    static_cast<void>(
-        context.expectEq("Prompt rejects duplicate button ID", ErrorCode::InvalidArgument, Desktop::Dialogs::showPrompt(description).status.code));
+    static_cast<void>(context.expectEq(
+        "Prompt rejects duplicate button ID",
+        StatusCode::InvalidArgument,
+        Desktop::Dialogs::showPrompt(description).status().code()));
     buttons[1].id = ButtonId{2};
     buttons[0].label = {};
-    static_cast<void>(
-        context.expectEq("Prompt rejects empty button label", ErrorCode::InvalidArgument, Desktop::Dialogs::showPrompt(description).status.code));
+    static_cast<void>(context.expectEq(
+        "Prompt rejects empty button label",
+        StatusCode::InvalidArgument,
+        Desktop::Dialogs::showPrompt(description).status().code()));
     buttons[0].label = std::string_view{"bad\0label", 9};
     static_cast<void>(
-        context.expectEq("Prompt rejects button-label null", ErrorCode::InvalidArgument, Desktop::Dialogs::showPrompt(description).status.code));
+        context.expectEq("Prompt rejects button-label null", StatusCode::InvalidArgument, Desktop::Dialogs::showPrompt(description).status().code()));
     buttons[0].label = std::string_view{"\xC3", 1};
     Win32TestHooks::completeNextPromptDialog({});
-    static_cast<void>(
-        context.expectEq("Prompt rejects malformed button label", ErrorCode::EncodingFailed, Desktop::Dialogs::showPrompt(description).status.code));
+    static_cast<void>(context.expectEq(
+        "Prompt rejects malformed button label",
+        StatusCode::EncodingFailed,
+        Desktop::Dialogs::showPrompt(description).status().code()));
     buttons[0].label = "Proceed";
     buttons[0].description = std::string_view{"bad\0description", 15};
     static_cast<void>(context.expectEq(
         "Prompt rejects button-description null",
-        ErrorCode::InvalidArgument,
-        Desktop::Dialogs::showPrompt(description).status.code));
+        StatusCode::InvalidArgument,
+        Desktop::Dialogs::showPrompt(description).status().code()));
     buttons[0].description = std::string_view{"\xF0\x28\x8C\x28", 4};
     Win32TestHooks::completeNextPromptDialog({});
     static_cast<void>(context.expectEq(
         "Prompt rejects malformed button description",
-        ErrorCode::EncodingFailed,
-        Desktop::Dialogs::showPrompt(description).status.code));
+        StatusCode::EncodingFailed,
+        Desktop::Dialogs::showPrompt(description).status().code()));
     buttons[0].description = "Use recommended settings";
 
     description.defaultButton = ButtonId{99};
     static_cast<void>(context.expectEq(
         "Prompt default button must reference a button",
-        ErrorCode::InvalidArgument,
-        Desktop::Dialogs::showPrompt(description).status.code));
+        StatusCode::InvalidArgument,
+        Desktop::Dialogs::showPrompt(description).status().code()));
     description.defaultButton = {};
     description.cancelButton = ButtonId{99};
     static_cast<void>(context.expectEq(
         "Prompt cancel button must reference a button",
-        ErrorCode::InvalidArgument,
-        Desktop::Dialogs::showPrompt(description).status.code));
+        StatusCode::InvalidArgument,
+        Desktop::Dialogs::showPrompt(description).status().code()));
     description.cancelButton = {};
 
     // Validate option identifiers, labels, and default selection.
@@ -77,51 +84,57 @@ void testPromptDialogs(TestSupport::Context &context)
     description.options = options;
     options[0].id = {};
     static_cast<void>(
-        context.expectEq("Prompt rejects zero option ID", ErrorCode::InvalidArgument, Desktop::Dialogs::showPrompt(description).status.code));
+        context.expectEq("Prompt rejects zero option ID", StatusCode::InvalidArgument, Desktop::Dialogs::showPrompt(description).status().code()));
     options[0].id = OptionId{1};
     options[1].id = OptionId{1};
-    static_cast<void>(
-        context.expectEq("Prompt rejects duplicate option ID", ErrorCode::InvalidArgument, Desktop::Dialogs::showPrompt(description).status.code));
+    static_cast<void>(context.expectEq(
+        "Prompt rejects duplicate option ID",
+        StatusCode::InvalidArgument,
+        Desktop::Dialogs::showPrompt(description).status().code()));
     options[1].id = OptionId{std::numeric_limits<std::uint32_t>::max()};
     options[0].label = {};
-    static_cast<void>(
-        context.expectEq("Prompt rejects empty option label", ErrorCode::InvalidArgument, Desktop::Dialogs::showPrompt(description).status.code));
+    static_cast<void>(context.expectEq(
+        "Prompt rejects empty option label",
+        StatusCode::InvalidArgument,
+        Desktop::Dialogs::showPrompt(description).status().code()));
     options[0].label = std::string_view{"bad\0option", 10};
     static_cast<void>(
-        context.expectEq("Prompt rejects option-label null", ErrorCode::InvalidArgument, Desktop::Dialogs::showPrompt(description).status.code));
+        context.expectEq("Prompt rejects option-label null", StatusCode::InvalidArgument, Desktop::Dialogs::showPrompt(description).status().code()));
     options[0].label = std::string_view{"\xC3", 1};
     Win32TestHooks::completeNextPromptDialog({});
-    static_cast<void>(
-        context.expectEq("Prompt rejects malformed option label", ErrorCode::EncodingFailed, Desktop::Dialogs::showPrompt(description).status.code));
+    static_cast<void>(context.expectEq(
+        "Prompt rejects malformed option label",
+        StatusCode::EncodingFailed,
+        Desktop::Dialogs::showPrompt(description).status().code()));
     options[0].label = "Fast";
     description.defaultOption = OptionId{99};
     static_cast<void>(context.expectEq(
         "Prompt default option must reference an option",
-        ErrorCode::InvalidArgument,
-        Desktop::Dialogs::showPrompt(description).status.code));
+        StatusCode::InvalidArgument,
+        Desktop::Dialogs::showPrompt(description).status().code()));
     description.defaultOption = {};
     description.options = {};
     description.defaultOption = OptionId{1};
     static_cast<void>(context.expectEq(
         "Prompt default option is invalid without options",
-        ErrorCode::InvalidArgument,
-        Desktop::Dialogs::showPrompt(description).status.code));
+        StatusCode::InvalidArgument,
+        Desktop::Dialogs::showPrompt(description).status().code()));
     description.options = options;
     description.defaultOption = {};
 
     // Validate optional checkbox and text fields.
     description.checkBox = PromptDialogs::CheckBox{};
     static_cast<void>(
-        context.expectEq("Prompt checkbox requires a label", ErrorCode::InvalidArgument, Desktop::Dialogs::showPrompt(description).status.code));
+        context.expectEq("Prompt checkbox requires a label", StatusCode::InvalidArgument, Desktop::Dialogs::showPrompt(description).status().code()));
     description.checkBox = PromptDialogs::CheckBox{std::string_view{"bad\0check", 9}, false};
     static_cast<void>(
-        context.expectEq("Prompt checkbox rejects null", ErrorCode::InvalidArgument, Desktop::Dialogs::showPrompt(description).status.code));
+        context.expectEq("Prompt checkbox rejects null", StatusCode::InvalidArgument, Desktop::Dialogs::showPrompt(description).status().code()));
     description.checkBox = PromptDialogs::CheckBox{std::string_view{"\xC3", 1}, false};
     Win32TestHooks::completeNextPromptDialog({});
     static_cast<void>(context.expectEq(
         "Prompt checkbox rejects malformed UTF-8",
-        ErrorCode::EncodingFailed,
-        Desktop::Dialogs::showPrompt(description).status.code));
+        StatusCode::EncodingFailed,
+        Desktop::Dialogs::showPrompt(description).status().code()));
     description.checkBox.reset();
 
     const auto rejectText = [&](std::string_view name, std::string_view PromptDialogs::Description::*member)
@@ -129,14 +142,14 @@ void testPromptDialogs(TestSupport::Context &context)
         description.*member = std::string_view{"bad\0text", 8};
         static_cast<void>(context.expectEq(
             std::format("Prompt {} rejects null", name),
-            ErrorCode::InvalidArgument,
-            Desktop::Dialogs::showPrompt(description).status.code));
+            StatusCode::InvalidArgument,
+            Desktop::Dialogs::showPrompt(description).status().code()));
         description.*member = std::string_view{"\xC3", 1};
         Win32TestHooks::completeNextPromptDialog({});
         static_cast<void>(context.expectEq(
             std::format("Prompt {} rejects malformed UTF-8", name),
-            ErrorCode::EncodingFailed,
-            Desktop::Dialogs::showPrompt(description).status.code));
+            StatusCode::EncodingFailed,
+            Desktop::Dialogs::showPrompt(description).status().code()));
         description.*member = {};
     };
 
@@ -159,11 +172,14 @@ void testPromptDialogs(TestSupport::Context &context)
     description.checkBox = PromptDialogs::CheckBox{"Remember this", true};
     Win32TestHooks::completeNextPromptDialog({.buttonIndex = 0, .optionIndex = 1, .checkBoxChecked = false, .dismissed = false});
     const auto accepted = Desktop::Dialogs::showPrompt(description);
-    static_cast<void>(context.expectTrue("rich Prompt succeeds", accepted.status.ok()));
-    static_cast<void>(context.expectEq("rich Prompt accepts selected action", DialogTypes::Outcome::Accepted, accepted.outcome));
-    static_cast<void>(context.expectEq("portable button ID round trips", buttons[0].id, accepted.button));
-    static_cast<void>(context.expectEq("portable option ID round trips", options[1].id, accepted.option));
-    static_cast<void>(context.expectEq("Prompt final checkbox state returns", std::optional<bool>{false}, accepted.checkBoxChecked));
+    if(!context.expectTrue("rich Prompt succeeds", accepted.ok()))
+    {
+        return;
+    }
+    static_cast<void>(context.expectEq("rich Prompt accepts selected action", DialogTypes::Outcome::Accepted, accepted.value().outcome));
+    static_cast<void>(context.expectEq("portable button ID round trips", buttons[0].id, accepted.value().button));
+    static_cast<void>(context.expectEq("portable option ID round trips", options[1].id, accepted.value().option));
+    static_cast<void>(context.expectEq("Prompt final checkbox state returns", std::optional<bool>{false}, accepted.value().checkBoxChecked));
 
     const auto &snapshot = Win32TestHooks::lastPromptDialogSnapshot();
     static_cast<void>(context.expectEq(
@@ -183,14 +199,22 @@ void testPromptDialogs(TestSupport::Context &context)
 
     Win32TestHooks::completeNextPromptDialog({.buttonIndex = 1, .optionIndex = 0, .checkBoxChecked = true, .dismissed = false});
     const auto explicitCancel = Desktop::Dialogs::showPrompt(description);
-    static_cast<void>(context.expectEq("configured cancel action is cancelled", DialogTypes::Outcome::Cancelled, explicitCancel.outcome));
-    static_cast<void>(context.expectEq("configured cancel ID round trips", buttons[1].id, explicitCancel.button));
-    static_cast<void>(context.expectEq("cancelled Prompt retains final option", options[0].id, explicitCancel.option));
-    static_cast<void>(context.expectEq("cancelled Prompt retains final checkbox", std::optional<bool>{true}, explicitCancel.checkBoxChecked));
+    if(!context.expectTrue("configured Prompt cancellation succeeds", explicitCancel.ok()))
+    {
+        return;
+    }
+    static_cast<void>(context.expectEq("configured cancel action is cancelled", DialogTypes::Outcome::Cancelled, explicitCancel.value().outcome));
+    static_cast<void>(context.expectEq("configured cancel ID round trips", buttons[1].id, explicitCancel.value().button));
+    static_cast<void>(context.expectEq("cancelled Prompt retains final option", options[0].id, explicitCancel.value().option));
+    static_cast<void>(context.expectEq("cancelled Prompt retains final checkbox", std::optional<bool>{true}, explicitCancel.value().checkBoxChecked));
     Win32TestHooks::completeNextPromptDialog({.optionIndex = 1, .checkBoxChecked = false, .dismissed = true});
     const auto dismissed = Desktop::Dialogs::showPrompt(description);
-    static_cast<void>(context.expectEq("Prompt dismissal is cancelled", DialogTypes::Outcome::Cancelled, dismissed.outcome));
-    static_cast<void>(context.expectEq("Prompt dismissal uses semantic cancel ID", buttons[1].id, dismissed.button));
+    if(!context.expectTrue("Prompt dismissal succeeds", dismissed.ok()))
+    {
+        return;
+    }
+    static_cast<void>(context.expectEq("Prompt dismissal is cancelled", DialogTypes::Outcome::Cancelled, dismissed.value().outcome));
+    static_cast<void>(context.expectEq("Prompt dismissal uses semantic cancel ID", buttons[1].id, dismissed.value().button));
 
     description.cancelButton = {};
     description.defaultButton = {};
@@ -199,52 +223,55 @@ void testPromptDialogs(TestSupport::Context &context)
     description.checkBox.reset();
     Win32TestHooks::completeNextPromptDialog({.dismissed = true});
     const auto noSemanticCancel = Desktop::Dialogs::showPrompt(description);
-    static_cast<void>(context.expectFalse("Prompt dismissal without cancel has no ID", noSemanticCancel.button.has_value()));
-    static_cast<void>(context.expectFalse("Prompt with no option selection has no option", noSemanticCancel.option.has_value()));
-    static_cast<void>(context.expectFalse("Prompt without checkbox returns nullopt", noSemanticCancel.checkBoxChecked.has_value()));
+    if(!context.expectTrue("Prompt dismissal without a semantic cancel succeeds", noSemanticCancel.ok()))
+    {
+        return;
+    }
+    static_cast<void>(context.expectFalse("Prompt dismissal without cancel has no ID", noSemanticCancel.value().button.has_value()));
+    static_cast<void>(context.expectFalse("Prompt with no option selection has no option", noSemanticCancel.value().option.has_value()));
+    static_cast<void>(context.expectFalse("Prompt without checkbox returns nullopt", noSemanticCancel.value().checkBoxChecked.has_value()));
 
-    // Malformed native selections and backend failures leave results defaulted.
+    // Malformed native selections and backend failures return no selection.
     Win32TestHooks::completeNextPromptDialog({.buttonIndex = 0, .optionIndex = description.options.size() + 1, .dismissed = false});
     const auto malformedOption = Desktop::Dialogs::showPrompt(description);
-    static_cast<void>(context.expectEq("malformed Prompt option reports native failure", ErrorCode::NativeFailure, malformedOption.status.code));
-    static_cast<void>(context.expectTrue(
-        "malformed Prompt option leaves every result field defaulted",
-        malformedOption.status.code == ErrorCode::NativeFailure && malformedOption.outcome == DialogTypes::Outcome::Cancelled &&
-            !malformedOption.button.has_value() && !malformedOption.option.has_value() && !malformedOption.checkBoxChecked.has_value()));
+    static_cast<void>(context.expectEq("malformed Prompt option reports native failure", StatusCode::NativeFailure, malformedOption.status().code()));
+    static_cast<void>(context.expectFalse("malformed Prompt option has no selection", malformedOption.hasValue()));
 
     Win32TestHooks::completeNextPromptDialog({.buttonIndex = 0, .optionIndex = (std::numeric_limits<std::size_t>::max)(), .dismissed = false});
     const auto maximumMalformedOption = Desktop::Dialogs::showPrompt(description);
-    static_cast<void>(context.expectTrue(
-        "maximum malformed Prompt option leaves every result field defaulted",
-        maximumMalformedOption.status.code == ErrorCode::NativeFailure && maximumMalformedOption.outcome == DialogTypes::Outcome::Cancelled &&
-            !maximumMalformedOption.button.has_value() && !maximumMalformedOption.option.has_value() &&
-            !maximumMalformedOption.checkBoxChecked.has_value()));
+    static_cast<void>(context.expectEq(
+        "maximum malformed Prompt option reports native failure",
+        StatusCode::NativeFailure,
+        maximumMalformedOption.status().code()));
+    static_cast<void>(context.expectFalse("maximum malformed Prompt option has no selection", maximumMalformedOption.hasValue()));
 
     description.options = options;
     description.defaultOption = {};
     Win32TestHooks::completeNextPromptDialog({.buttonIndex = 2, .dismissed = false});
     const auto largeId = Desktop::Dialogs::showPrompt(description);
-    static_cast<void>(context.expectEq("large uint32 Prompt ID is accepted", buttons[2].id, largeId.button));
+    if(!context.expectTrue("large uint32 Prompt ID selection succeeds", largeId.ok()))
+    {
+        return;
+    }
+    static_cast<void>(context.expectEq("large uint32 Prompt ID is accepted", buttons[2].id, largeId.value().button));
 
     Win32TestHooks::completeNextPromptDialog({.buttonIndex = 0, .dismissed = false});
     Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::Allocation);
     auto failed = Desktop::Dialogs::showPrompt(description);
-    static_cast<void>(context.expectEq("Prompt allocation failure maps", ErrorCode::OutOfMemory, failed.status.code));
-    static_cast<void>(context.expectTrue(
-        "failed Prompt domain fields remain defaulted",
-        failed.outcome == DialogTypes::Outcome::Cancelled && !failed.button.has_value() && !failed.option.has_value() &&
-            !failed.checkBoxChecked.has_value()));
+    static_cast<void>(context.expectEq("Prompt allocation failure maps", StatusCode::OutOfMemory, failed.status().code()));
+    static_cast<void>(context.expectFalse("failed Prompt has no selection", failed.hasValue()));
 
     Win32TestHooks::completeNextPromptDialog({.buttonIndex = 0, .dismissed = false});
     Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::DialogNativeOperation);
     failed = Desktop::Dialogs::showPrompt(description);
-    static_cast<void>(context.expectEq("Prompt native failure maps", ErrorCode::NativeFailure, failed.status.code));
-    static_cast<void>(context.expectFalse("native-failed Prompt button remains absent", failed.button.has_value()));
+    static_cast<void>(context.expectEq("Prompt native failure maps", StatusCode::NativeFailure, failed.status().code()));
+    static_cast<void>(context.expectFalse("native-failed Prompt has no selection", failed.hasValue()));
 
     Win32TestHooks::completeNextPromptDialog({.buttonIndex = 0, .dismissed = false});
     Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::DialogResult);
     failed = Desktop::Dialogs::showPrompt(description);
-    static_cast<void>(context.expectEq("Prompt invalid native result maps", ErrorCode::NativeFailure, failed.status.code));
+    static_cast<void>(context.expectEq("Prompt invalid native result maps", StatusCode::NativeFailure, failed.status().code()));
+    static_cast<void>(context.expectFalse("invalid native Prompt result has no selection", failed.hasValue()));
 }
 
 #endif

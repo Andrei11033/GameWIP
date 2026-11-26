@@ -3,8 +3,7 @@
 
 #pragma once
 
-#include "io/status.h"
-#include "desktop/result.h"
+#include "status/result.h"
 #include "desktop/types.h"
 #include "desktop/desktop_export.h"
 
@@ -47,7 +46,7 @@ namespace GameWIP::Desktop::Renderer
     /// observe successive states. Concurrent C++ Window destruction remains unsupported; stop or join renderer readers before destruction.
     /// @param window Window whose renderer-facing getter contract is broadened.
     /// @return Success, NotOpen for a closed Window, ResourceBusy on the wrong thread, or OutOfMemory when allocation fails.
-    [[nodiscard]] DESKTOP_EXPORT IO::Types::Status enableConcurrentPresentationReads(Window &window) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT GameWIP::Status::Types::Result<void> enableConcurrentPresentationReads(Window &window) noexcept;
 
     /// @brief Returns whether concurrent renderer-facing presentation reads have been enabled.
     /// @details Returns false by default without allocating. It remains true across close/reopen after the first successful enable. After enablement
@@ -62,18 +61,18 @@ namespace GameWIP::Desktop::Renderer
     /// @details Independent from concurrent presentation-read enablement.
     /// @param window Open Window to update; the call must run on its owner thread.
     /// @return Success, or the open-state, thread, or already-attached failure.
-    [[nodiscard]] DESKTOP_EXPORT IO::Types::Status attachOcclusionProvider(Window &window) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT GameWIP::Status::Types::Result<void> attachOcclusionProvider(Window &window) noexcept;
     /// @brief Returns whether an occlusion provider is attached.
     [[nodiscard]] DESKTOP_EXPORT bool hasOcclusionProvider(const Window &window) noexcept;
     /// @brief Publishes a renderer-observed occlusion transition.
     /// @param window Window receiving renderer presentation feedback.
     /// @param occluded Authoritative current renderer occlusion state.
     /// @return Success, or the open-state, thread, or missing-provider failure.
-    [[nodiscard]] DESKTOP_EXPORT IO::Types::Status reportOcclusion(Window &window, bool occluded) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT GameWIP::Status::Types::Result<void> reportOcclusion(Window &window, bool occluded) noexcept;
     /// @brief Detaches the current occlusion provider and clears its state.
     /// @param window Window whose provider is detached.
     /// @return Success, or the open-state or wrong-thread failure.
-    [[nodiscard]] DESKTOP_EXPORT IO::Types::Status detachOcclusionProvider(Window &window) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT GameWIP::Status::Types::Result<void> detachOcclusionProvider(Window &window) noexcept;
     /// @}
 
     /// @name Pointer hit masks
@@ -90,7 +89,7 @@ namespace GameWIP::Desktop::Renderer
     /// @param window Open Window to inspect on its owner thread.
     /// @return Status plus the generation, framebuffer size, and exact required word count;
     /// Unsupported when the backend does not advertise pointer-mask routing.
-    [[nodiscard]] DESKTOP_EXPORT Types::Result<Types::Renderer::PointerHitMaskTarget> beginPointerHitMaskUpdate(Window &window) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT GameWIP::Status::Types::Result<Types::Renderer::PointerHitMaskTarget> beginPointerHitMaskUpdate(Window &window) noexcept;
     /// @brief Publishes an exact-size packed mask for a previously returned generation.
     /// @details Owner-thread operation; copies words before return. Rows run from top to bottom.
     /// Pixel (x, y) uses bit x % 32 in word y * ceil(width / 32) + x / 32, least-significant bit first.
@@ -101,14 +100,14 @@ namespace GameWIP::Desktop::Renderer
     /// @param words Exact-size packed mask; bit one accepts the corresponding pixel.
     /// @return Success; Interrupted for a stale, zero, or consumed generation; InvalidArgument
     /// for wrong size or nonzero padding; otherwise the open-state, thread, or allocation failure.
-    [[nodiscard]] DESKTOP_EXPORT IO::Types::Status publishPointerHitMask(
+    [[nodiscard]] DESKTOP_EXPORT GameWIP::Status::Types::Result<void> publishPointerHitMask(
         Window &window,
         std::uint64_t generation,
         std::span<const Types::Renderer::PointerHitMaskWord> words) noexcept;
     /// @brief Clears any published pointer hit mask.
     /// @param window Window whose mask is cleared.
     /// @return Success, or the open-state or wrong-thread failure.
-    [[nodiscard]] DESKTOP_EXPORT IO::Types::Status clearPointerHitMask(Window &window) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT GameWIP::Status::Types::Result<void> clearPointerHitMask(Window &window) noexcept;
     /// @brief Returns whether a current pointer hit mask is published.
     /// @return True when a mask matching the current framebuffer generation is published.
     [[nodiscard]] DESKTOP_EXPORT bool hasPointerHitMask(const Window &window) noexcept;

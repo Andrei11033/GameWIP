@@ -11,8 +11,8 @@ A worker writes accepted records; lifecycle calls coordinate with that worker.
 
 Normal calls copy accepted data into a bounded queue and return. Reports bypass
 filters and queue pressure, try enabled channels, and flush active normal sinks
-without draining older queued records. Operations return direct failures;
-asynchronous sink failures appear in health state.
+without draining older queued records. Fallible operations return shared
+status-bearing results; asynchronous sink failures appear in health state.
 
 ## Consumer manual
 
@@ -55,5 +55,6 @@ health types are listed under that namespace in the generated class index.
 
 ## Dependency boundary
 
-Installed consumers link `GameWIP::Logger`. IO is public because Logger's result types expose IO status. Terminal, FileSystem, and Unicode are private
-implementation dependencies.
+Installed consumers link `GameWIP::Logger`. Status is public because Logger's
+result types use the shared contract. IO, Terminal, FileSystem, and Unicode are
+private implementation dependencies.

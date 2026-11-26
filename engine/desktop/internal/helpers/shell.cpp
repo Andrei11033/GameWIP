@@ -1,6 +1,7 @@
 /// @file shell.cpp
 /// @brief Shared shell text, image, and queue ownership helpers.
 
+#include "desktop/internal/results.h"
 #include "desktop/internal/shell_helpers.h"
 
 #include "base/checked_arithmetic.h"
@@ -19,12 +20,12 @@ namespace GameWIP::Desktop::Internal
 
     namespace
     {
-        using IO::Types::ErrorCode;
+        using ErrorCode = GameWIP::Status::Types::Code;
 
         /// @brief Builds a portable status from a single error code.
-        [[nodiscard]] IO::Types::Status error(ErrorCode code) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status error(ErrorCode code) noexcept
         {
-            return IO::makeStatus(code);
+            return GameWIP::Desktop::Internal::statusFor(code);
         }
 
         /// @brief Computes checked RGBA8 storage size for a shell image.
@@ -57,11 +58,11 @@ namespace GameWIP::Desktop::Internal
     }
 
     /// @brief Validates optional progress state before native shell publication.
-    [[nodiscard]] IO::Types::Status validateProgress(const std::optional<Types::Shell::Progress> &progress) noexcept
+    [[nodiscard]] GameWIP::Status::Types::Status validateProgress(const std::optional<Types::Shell::Progress> &progress) noexcept
     {
         if(!progress.has_value())
         {
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
 
         if(!std::isfinite(progress->fraction))
@@ -74,11 +75,11 @@ namespace GameWIP::Desktop::Internal
             return error(ErrorCode::InvalidArgument);
         }
 
-        return IO::successStatus();
+        return GameWIP::Status::Types::Status{};
     }
 
     /// @brief Validates and deep-copies a call-scoped icon view into retained state.
-    [[nodiscard]] IO::Types::Status copyIcon(Types::IconImageView view, OwnedIconImage &out) noexcept
+    [[nodiscard]] GameWIP::Status::Types::Status copyIcon(Types::IconImageView view, OwnedIconImage &out) noexcept
     {
         std::size_t byteCount = 0;
 
@@ -91,7 +92,7 @@ namespace GameWIP::Desktop::Internal
         {
             out.size = view.size;
             out.rgba8.assign(view.rgba8.begin(), view.rgba8.end());
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
         catch(const std::bad_alloc &)
         {
@@ -106,7 +107,7 @@ namespace GameWIP::Desktop::Internal
     // Queue ownership
 
     /// @brief Binds one shell resource to an owner-thread queue and increments its bind count.
-    [[nodiscard]] IO::Types::Status bindQueue(ShellEventQueue &queue, std::thread::id owner, ShellEventQueueState *&outQueue) noexcept
+    [[nodiscard]] GameWIP::Status::Types::Status bindQueue(ShellEventQueue &queue, std::thread::id owner, ShellEventQueueState *&outQueue) noexcept
     {
         ShellEventQueueState *candidate = ShellEventQueueAccess::state(queue);
 
@@ -127,18 +128,18 @@ namespace GameWIP::Desktop::Internal
         }
         ++candidate->boundResourceCount;
         outQueue = candidate;
-        return IO::successStatus();
+        return GameWIP::Status::Types::Status{};
     }
 
     /// @brief Checks native liveness before enforcing shell-resource owner-thread access.
-    [[nodiscard]] IO::Types::Status requireOwnedShellResource(bool live, bool owned) noexcept
+    [[nodiscard]] GameWIP::Status::Types::Status requireOwnedShellResource(bool live, bool owned) noexcept
     {
         if(!live)
         {
             return error(ErrorCode::NotOpen);
         }
 
-        return owned ? IO::successStatus() : error(ErrorCode::ResourceBusy);
+        return owned ? GameWIP::Status::Types::Status{} : error(ErrorCode::ResourceBusy);
     }
 
     /// @brief Drops one resource binding and clears its non-owning queue pointer.

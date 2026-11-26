@@ -110,13 +110,13 @@ struct ScopedLoggerShutdown
 
 [[nodiscard]] bool flushCompleted(const Logger::Types::FlushResult &result) noexcept
 {
-    return result.status.ok() && result.outcome == Logger::Types::FlushOutcome::Completed;
+    return result.ok() && result.value().outcome == Logger::Types::FlushOutcome::Completed;
 }
 
 [[nodiscard]] bool reportDelivered(const Logger::Types::Report::Result &result) noexcept
 {
-    return result.status.ok() && result.outcome == Logger::Types::Report::Outcome::Completed &&
-           result.delivery != Logger::Types::Report::Delivery::None;
+    return result.ok() && result.value().outcome == Logger::Types::Report::Outcome::Completed &&
+           result.value().delivery != Logger::Types::Report::Delivery::None;
 }
 
 [[nodiscard]] std::string pathText(TestContext &context, const std::filesystem::path &path)
@@ -133,26 +133,26 @@ struct ScopedLoggerShutdown
 {
     const Logger::Types::LogFilePathResult result = Logger::getLogFilePath();
 
-    if(!result.status.ok())
+    if(!result.ok())
     {
-        context.fail("query Logger log file path", std::format("code={} native={}", static_cast<int>(result.status.code), result.status.nativeCode));
+        context.fail("query Logger log file path", std::format("code={}", static_cast<int>(result.status().code())));
         return {};
     }
 
-    return pathFromText(context, result.utf8);
+    return pathFromText(context, result.value());
 }
 
 [[nodiscard]] std::string readWholeFile(TestContext &context, const std::filesystem::path &path)
 {
     TestSupport::Types::TextResult result = TestSupport::readTextFile(path);
 
-    if(!result.status.ok())
+    if(!result.ok())
     {
-        context.fail("read Logger log fixture", TestSupport::formatInfrastructureStatus(result.status));
+        context.fail("read Logger log fixture", TestSupport::formatStatus(result.status()));
         return {};
     }
 
-    return std::move(result.text);
+    return std::move(result).value();
 }
 
 [[nodiscard]] std::filesystem::path testDirectory(TestContext &context, std::string_view name)
@@ -162,7 +162,7 @@ struct ScopedLoggerShutdown
 
     if(!status.ok())
     {
-        context.fail("create Logger test directory", TestSupport::formatInfrastructureStatus(status));
+        context.fail("create Logger test directory", TestSupport::formatStatus(status.status()));
     }
 
     return directory;

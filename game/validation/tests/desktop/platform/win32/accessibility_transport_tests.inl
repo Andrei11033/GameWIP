@@ -88,13 +88,14 @@ void testQueues(Context &context)
     check(context, "semantic focus publishes", bridge.publish(tree.view(6)).ok());
     drain(window);
     const auto handles = Desktop::Native::Win32::getHandle(window);
+    check(context, "focus message fixture has a native handle", handles.ok());
 
-    if(handles.status.ok())
+    if(handles.ok())
     {
         // Deterministic native message boundary, independent of desktop activation policy.
-        SendMessageW(handles->window, WM_KILLFOCUS, 0, 0);
+        SendMessageW(handles.value().window, WM_KILLFOCUS, 0, 0);
         drain(window);
-        SendMessageW(handles->window, WM_SETFOCUS, 0, 0);
+        SendMessageW(handles.value().window, WM_SETFOCUS, 0, 0);
         bool focusEvent = false;
 
         while(Desktop::Internal::TestHooks::popAccessibilityNotification(window, notification))
@@ -104,7 +105,7 @@ void testQueues(Context &context)
         check(context, "host focus regain notifies semantic focused node", focusEvent);
     }
 
-    check(context, "event pump succeeds", Desktop::Events::poll().status.ok());
+    check(context, "event pump succeeds", Desktop::Events::poll().ok());
     check(context, "small bridge closes", window.close().ok());
 }
 
@@ -138,7 +139,7 @@ void testCapacityAndInteraction(Context &context)
 
     tree.children[0] = 3;
     tree.nodes[1].id = 3;
-    equal(context, "new native identity rejects at lifetime bound", Error::SizeLimitExceeded, bridge.publish(tree.view(2)).code);
+    equal(context, "new native identity rejects at lifetime bound", Error::SizeLimitExceeded, bridge.publish(tree.view(2)).status().code());
     equal(context, "provider pressure preserves committed generation", A::Generation{1}, bridge.snapshotInfo().generation);
     check(context, "provider pressure preserves old semantic identity", bridge.readSnapshot().find(2) != nullptr);
 
@@ -151,7 +152,7 @@ void testCapacityAndInteraction(Context &context)
     if(bridge.features().supports(A::Feature::Announcements))
     {
         check(context, "default-locale announcement queues", bridge.announce({1, "Queued speech"}).ok());
-        equal(context, "announcement language support is explicit", Error::Unsupported, bridge.announce({1, "Bonjour", "fr-FR"}).code);
+        equal(context, "announcement language support is explicit", Error::Unsupported, bridge.announce({1, "Bonjour", "fr-FR"}).status().code());
         check(context, "announcement matching source language queues", bridge.announce({1, "Queued speech", "en-US"}).ok());
         tree.nodes[0].name = "Updated root";
         tree.nodes[1].name = "Updated button";
@@ -227,7 +228,7 @@ void testClosePublicationRace(Context &context)
         [&]
         {
             started = true;
-            result = bridge.publish(tree.view(2)).code;
+            result = bridge.publish(tree.view(2)).status().code();
         });
 
     while(!started.load())

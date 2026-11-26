@@ -81,7 +81,7 @@ int main()
     while(window.isOpen() && !window.hasCloseRequest())
     {
         const auto pump = GameWIP::Desktop::Events::wait(std::chrono::milliseconds{16});
-        if(!pump.status.ok())
+        if(!pump.ok())
         {
             static_cast<void>(window.close());
             return 2;
@@ -103,14 +103,12 @@ thread (@ref desktop_lifecycle_events).
 
 ## Failure handling
 
-Window operations return direct `IO::Types::Status` values or typed
-`Types::Result<T>`/operation-result structures. For query results, inspect
-`ok()` before consuming the optional `value`. Dereference and arrow access terminate
-the process if either the status failed or the value is absent; `value_or()` returns
-the supplied fallback in either case. Operation-specific results document their
-own progress fields. A failed event wait or pump does not close an open window
-automatically. Call `close()` and handle its status; destruction performs only
-best-effort cleanup.
+Window operations return shared status results or operation-specific result
+structures. For value results, inspect `ok()` before consuming `value()`;
+`hasValue()` reports whether complete or partial data is available. Operation-
+specific results document their own progress fields. A failed event wait or
+pump does not close an open window automatically. Call `close()` and handle its
+result; destruction performs only best-effort cleanup.
 
 The close request is sticky even if the corresponding queue event is coalesced
 or dropped. Use `hasCloseRequest()` for lifecycle policy and `popEvent()` for

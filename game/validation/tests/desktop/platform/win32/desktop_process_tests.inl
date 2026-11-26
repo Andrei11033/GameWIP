@@ -46,13 +46,13 @@ static_assert(std::is_same_v<decltype(Desktop::Types::Events::FilesDropped{}.pat
     {
         return 2;
     }
-    return Desktop::Display::getColorInfo(primary->id).ok() ? 0 : 3;
+    return Desktop::Display::getColorInfo(primary.value().id).ok() ? 0 : 3;
 }
 
 [[nodiscard]] int runWindowColorShutdownChild() noexcept
 {
     const auto primary = Desktop::Display::getPrimaryMonitor();
-    if(!primary.ok() || !Desktop::Display::getColorInfo(primary->id).ok())
+    if(!primary.ok() || !Desktop::Display::getColorInfo(primary.value().id).ok())
     {
         return 2;
     }
@@ -72,12 +72,12 @@ static_assert(std::is_same_v<decltype(Desktop::Types::Events::FilesDropped{}.pat
         return 4;
     }
     const auto handle = Desktop::Native::Win32::getHandle(window);
-    if(!handle.status.ok() || handle->window == nullptr || PostMessageW(static_cast<HWND>(handle->window), WM_CLOSE, 0, 0) == FALSE)
+    if(!handle.ok() || handle.value().window == nullptr || PostMessageW(static_cast<HWND>(handle.value().window), WM_CLOSE, 0, 0) == FALSE)
     {
         return 5;
     }
 
-    if(!Desktop::Events::poll().status.ok() || !window.hasCloseRequest())
+    if(!Desktop::Events::poll().ok() || !window.hasCloseRequest())
     {
         return 6;
     }
@@ -107,7 +107,7 @@ static_assert(std::is_same_v<decltype(Desktop::Types::Events::FilesDropped{}.pat
                 return;
             }
 
-            if(!Desktop::Display::getColorInfo(*window).status.ok())
+            if(!Desktop::Display::getColorInfo(*window).ok())
             {
                 workerResult = 3;
                 return;
@@ -289,7 +289,7 @@ static_assert(std::is_same_v<decltype(Desktop::Types::Events::FilesDropped{}.pat
     const Desktop::Types::Events::PumpResult waitResult = Desktop::Events::wait();
     static_cast<void>(progress.close());
     static_cast<void>(owner.close());
-    return waitResult.status.ok() ? 5 : 0;
+    return waitResult.ok() ? 5 : 0;
 }
 #endif
 
@@ -311,7 +311,7 @@ static_assert(std::is_same_v<decltype(Desktop::Types::Events::FilesDropped{}.pat
         return 3;
     }
 
-    if(!Desktop::Events::poll().status.ok())
+    if(!Desktop::Events::poll().ok())
     {
         return 4;
     }
@@ -357,13 +357,14 @@ void testDesktopProcessShutdown(TestSupport::Context &context, const std::filesy
         const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(child);
         const std::string name = std::format("{} exits cleanly", argument);
 
-        if(!result.status.ok())
+        if(!result.ok())
         {
-            context.fail(name, TestSupport::formatInfrastructureStatus(result.status));
+            context.fail(name, TestSupport::formatStatus(result.status()));
             continue;
         }
+        const TestSupport::Types::Process::Execution &execution = result.value();
         static_cast<void>(
-            context.expectEq(std::format("{} reports an exact exit", argument), TestSupport::Types::Process::Outcome::Exited, result.outcome));
-        static_cast<void>(context.expectEq(name, std::uint32_t{0}, result.exitCode));
+            context.expectEq(std::format("{} reports an exact exit", argument), TestSupport::Types::Process::Outcome::Exited, execution.outcome));
+        static_cast<void>(context.expectEq(name, std::uint32_t{0}, execution.exitCode));
     }
 }

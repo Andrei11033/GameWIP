@@ -8,13 +8,13 @@
 #include "runtime/profiling.h"
 
 #include "logger/logging.h"
-#include "io/status.h"
 
 #include <gamewip/version.h>
 
 #include <chrono>
 #include <cstdlib>
 #include <format>
+#include <string>
 #include <string_view>
 
 namespace
@@ -22,6 +22,7 @@ namespace
     namespace Color = GameWIP::Profiling::Color;
     namespace Diagnostics = GameWIP::Game::RuntimeDiagnostics;
     namespace Logger = GameWIP::Logger;
+    namespace Status = GameWIP::Status::Types;
     using LogArea = GameWIP::Game::Logging::Area;
 
     /// ------------------------------------------------------------
@@ -80,6 +81,17 @@ namespace
         }
         return "unknown";
     }
+
+    [[nodiscard]] std::string statusDescription(const Status::Status &status)
+    {
+        const Status::Diagnostic *diagnostic = status.diagnostic();
+        const std::string nativeCode =
+            diagnostic != nullptr && diagnostic->nativeCode.has_value()
+                ? std::format("{}:{}", Status::nativeCodeDomainName(diagnostic->nativeCode->domain), diagnostic->nativeCode->value)
+                : "<none>";
+        const std::string message = diagnostic != nullptr && !diagnostic->message.empty() ? diagnostic->message : "<none>";
+        return std::format("code={} nativeCode={} message=\"{}\"", Status::codeName(status.code()), nativeCode, message);
+    }
 } // namespace
 
 namespace GameWIP::Game::Runtime
@@ -104,19 +116,17 @@ namespace GameWIP::Game::Runtime
 
     void reportLoggerInitializationFailure(const Logger::Types::Init::Result &result)
     {
+        const Logger::Types::Init::Info *info = result.hasValue() ? &result.value() : nullptr;
+        const std::string setupStatus =
+            info != nullptr && info->outputSetupStatus.has_value() ? statusDescription(*info->outputSetupStatus) : "<none>";
         Diagnostics::writeEmergencyMessage(
             std::format(
-                "GameWIP: Logger initialization failed: status(code={}, nativeCode={}, message=\"{}\"), "
-                "outcome={}, requested_output={}, effective_output={}, output_setup(code={}, nativeCode={}, message=\"{}\")",
-                GameWIP::IO::errorCodeName(result.status.code),
-                result.status.nativeCode,
-                result.status.message.empty() ? "<none>" : result.status.message,
-                result.outcome == Logger::Types::Init::Outcome::Started ? "started" : "disabled",
-                outputModeName(result.requestedOutput),
-                outputModeName(result.effectiveOutput),
-                GameWIP::IO::errorCodeName(result.outputSetupStatus.code),
-                result.outputSetupStatus.nativeCode,
-                result.outputSetupStatus.message.empty() ? "<none>" : result.outputSetupStatus.message));
+                "GameWIP: Logger initialization failed: status({}), outcome={}, requested_output={}, effective_output={}, output_setup({})",
+                statusDescription(result.status()),
+                info != nullptr && info->outcome == Logger::Types::Init::Outcome::Started ? "started" : "disabled",
+                info != nullptr ? outputModeName(info->requestedOutput) : "unknown",
+                info != nullptr ? outputModeName(info->effectiveOutput) : "unknown",
+                setupStatus));
     }
 
     void reportInvalidOptions(const Options &options)
@@ -212,15 +222,19 @@ namespace GameWIP::Game::Runtime
 
         // Flush runtime messages before reading Logger statistics.
         const Logger::Types::FlushResult flushResult = Logger::flush();
-        if(!flushResult.status.ok())
+        if(!flushResult.ok())
         {
-            Diagnostics::reportFailure(LogArea::Shutdown, "Logger flush failed", flushResult.status);
+            Diagnostics::reportFailure(LogArea::Shutdown, "Logger flush failed", flushResult.status());
             primaryExitCode = EXIT_FAILURE;
         }
 
         // Report accumulated Logger health before the final stop record.
         const Logger::Types::Stats stats = Logger::getStats();
         const Logger::Types::Health::Snapshot health = Logger::getHealth();
+        const std::string lastNativeCode = health.lastNativeCode.has_value() ? std::to_string(health.lastNativeCode->value) : "none";
+        const std::string_view lastNativeCodeDomain = health.lastNativeCode.has_value()
+                                                          ? Status::nativeCodeDomainName(health.lastNativeCode->domain)
+                                                          : std::string_view{"none"};
         if(Logger::shouldLog(Logger::Types::Level::Trace, LogArea::Shutdown))
         {
             Logger::trace(
@@ -239,10 +253,13 @@ namespace GameWIP::Game::Runtime
                     .field("effective_output", outputModeName(health.effectiveOutput))
                     .field("logger_failure_count", health.failureCount)
                     .field("last_failure_source", loggerFailureSourceName(health.lastFailureSource))
-                    .field("last_error_code", GameWIP::IO::errorCodeName(health.lastError))
-                    .field("last_native_code", health.lastNativeCode)
+                    .field("last_error_code", GameWIP::Status::Types::codeName(health.lastError))
+                    .field("last_native_code_domain", lastNativeCodeDomain)
+                    .field("last_native_code", lastNativeCode)
                     .field("process_exit_code", primaryExitCode)
-                    .field("flush_outcome", flushResult.outcome == Logger::Types::FlushOutcome::Completed ? "completed" : "timed_out"),
+                    .field(
+                        "flush_outcome",
+                        flushResult.hasValue() && flushResult.value().outcome == Logger::Types::FlushOutcome::Completed ? "completed" : "timed_out"),
                 "Logger session summary");
         }
         else if(
@@ -265,10 +282,10 @@ namespace GameWIP::Game::Runtime
         Logger::info(LogArea::Shutdown, Logger::record().field("exit_code", primaryExitCode), "Logger stopping");
 
         // Stop Logger after every shutdown report has been written.
-        const GameWIP::IO::Types::Status shutdownStatus = Logger::shutdown();
-        if(!shutdownStatus.ok())
+        const auto shutdownResult = Logger::shutdown();
+        if(!shutdownResult.ok())
         {
-            Diagnostics::writeEmergencyStatus("Logger shutdown failed", shutdownStatus);
+            Diagnostics::writeEmergencyStatus("Logger shutdown failed", shutdownResult.status());
             return EXIT_FAILURE;
         }
         return primaryExitCode;

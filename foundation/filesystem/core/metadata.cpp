@@ -15,46 +15,49 @@ namespace GameWIP::FileSystem
     {
         // Predicate and metadata failure payloads
 
-        Types::EntryInfoResult entryInfoFailure(IO::Types::Status status) noexcept
+        GameWIP::Status::Types::Result<Types::EntryInfo> entryInfoFailure(GameWIP::Status::Types::Status status) noexcept
         {
-            return {.status = std::move(status), .info = Types::EntryInfo{}};
+            return GameWIP::Status::Types::Result<Types::EntryInfo>::failure(std::move(status));
         }
 
-        Types::EntryInfoResult entryInfoFailure(ErrorCode code) noexcept
+        GameWIP::Status::Types::Result<Types::EntryInfo> entryInfoFailure(ErrorCode code) noexcept
         {
-            return {.status = IO::makeStatus(code), .info = Types::EntryInfo{}};
+            return entryInfoFailure(GameWIP::Status::Types::Status(code));
         }
 
-        Types::LastWriteTimeResult lastWriteTimeFailure(IO::Types::Status status) noexcept
+        GameWIP::Status::Types::Result<Types::FileTime> lastWriteTimeFailure(GameWIP::Status::Types::Status status) noexcept
         {
-            return {.status = std::move(status), .time = Types::FileTime{}};
+            return GameWIP::Status::Types::Result<Types::FileTime>::failure(std::move(status));
         }
 
-        Types::LastWriteTimeResult lastWriteTimeFailure(ErrorCode code) noexcept
+        GameWIP::Status::Types::Result<Types::FileTime> lastWriteTimeFailure(ErrorCode code) noexcept
         {
-            return {.status = IO::makeStatus(code), .time = Types::FileTime{}};
+            return lastWriteTimeFailure(GameWIP::Status::Types::Status(code));
         }
 
         // Shared entry-predicate flow
 
         template <typename Predicate>
-        Types::BoolResult queryEntryPredicate(const Types::Path &path, const Types::EntryOptions &options, Predicate &&matches) noexcept
+        GameWIP::Status::Types::Result<bool> queryEntryPredicate(
+            const Types::Path &path,
+            const Types::EntryOptions &options,
+            Predicate &&matches) noexcept
         {
             try
             {
-                Platform::EntryQueryResult result = queryEntry(path, options.symlinkPolicy);
+                auto result = queryEntry(path, options.symlinkPolicy);
 
-                if(result.status.code == ErrorCode::NotFound)
+                if(result.status().code() == ErrorCode::NotFound)
                 {
-                    return {.status = IO::successStatus(), .value = false};
+                    return GameWIP::Status::Types::Result<bool>::success(false);
                 }
 
-                if(!result.status.ok())
+                if(!result.ok())
                 {
-                    return boolFailure(std::move(result.status));
+                    return boolFailure(result.status());
                 }
 
-                return {.status = IO::successStatus(), .value = matches(result.info)};
+                return GameWIP::Status::Types::Result<bool>::success(matches(result.value()));
             }
             catch(const std::bad_alloc &)
             {
@@ -71,7 +74,7 @@ namespace GameWIP::FileSystem
     /// Entry presence and metadata
     /// ------------------------------------------------------------
 
-    Types::BoolResult exists(const Types::Path &path, const Types::EntryOptions &options) noexcept
+    GameWIP::Status::Types::Result<bool> exists(const Types::Path &path, const Types::EntryOptions &options) noexcept
     {
         return queryEntryPredicate(
             path,
@@ -82,18 +85,11 @@ namespace GameWIP::FileSystem
             });
     }
 
-    Types::EntryInfoResult getEntryInfo(const Types::Path &path, const Types::EntryOptions &options) noexcept
+    GameWIP::Status::Types::Result<Types::EntryInfo> getEntryInfo(const Types::Path &path, const Types::EntryOptions &options) noexcept
     {
         try
         {
-            Platform::EntryQueryResult result = queryEntry(path, options.symlinkPolicy);
-
-            if(!result.status.ok())
-            {
-                return entryInfoFailure(std::move(result.status));
-            }
-
-            return {.status = IO::successStatus(), .info = result.info};
+            return queryEntry(path, options.symlinkPolicy);
         }
         catch(const std::bad_alloc &)
         {
@@ -109,7 +105,7 @@ namespace GameWIP::FileSystem
     /// Entry-kind predicates
     /// ------------------------------------------------------------
 
-    Types::BoolResult isRegularFile(const Types::Path &path, const Types::EntryOptions &options) noexcept
+    GameWIP::Status::Types::Result<bool> isRegularFile(const Types::Path &path, const Types::EntryOptions &options) noexcept
     {
         return queryEntryPredicate(
             path,
@@ -120,7 +116,7 @@ namespace GameWIP::FileSystem
             });
     }
 
-    Types::BoolResult isDirectory(const Types::Path &path, const Types::EntryOptions &options) noexcept
+    GameWIP::Status::Types::Result<bool> isDirectory(const Types::Path &path, const Types::EntryOptions &options) noexcept
     {
         return queryEntryPredicate(
             path,
@@ -131,7 +127,7 @@ namespace GameWIP::FileSystem
             });
     }
 
-    Types::BoolResult isSymlink(const Types::Path &path, const Types::EntryOptions &options) noexcept
+    GameWIP::Status::Types::Result<bool> isSymlink(const Types::Path &path, const Types::EntryOptions &options) noexcept
     {
         return queryEntryPredicate(
             path,
@@ -146,49 +142,49 @@ namespace GameWIP::FileSystem
     /// Metadata values
     /// ------------------------------------------------------------
 
-    IO::Types::SizeResult getFileSize(const Types::Path &path, const Types::EntryOptions &options) noexcept
+    GameWIP::Status::Types::Result<std::uint64_t> getFileSize(const Types::Path &path, const Types::EntryOptions &options) noexcept
     {
-        Types::EntryInfoResult info = getEntryInfo(path, options);
+        auto info = getEntryInfo(path, options);
 
-        if(!info.status.ok())
+        if(!info.ok())
         {
-            return sizeFailure(std::move(info.status));
+            return sizeFailure(info.status());
         }
 
-        if(info.info.kind != Types::EntryKind::RegularFile || !info.info.hasSize)
+        if(info.value().kind != Types::EntryKind::RegularFile || !info.value().hasSize)
         {
             return sizeFailure(ErrorCode::InvalidArgument);
         }
 
-        return {.status = IO::successStatus(), .sizeBytes = info.info.sizeBytes};
+        return GameWIP::Status::Types::Result<std::uint64_t>::success(info.value().sizeBytes);
     }
 
-    Types::LastWriteTimeResult getLastWriteTime(const Types::Path &path, const Types::EntryOptions &options) noexcept
+    GameWIP::Status::Types::Result<Types::FileTime> getLastWriteTime(const Types::Path &path, const Types::EntryOptions &options) noexcept
     {
-        Types::EntryInfoResult info = getEntryInfo(path, options);
+        auto info = getEntryInfo(path, options);
 
-        if(!info.status.ok())
+        if(!info.ok())
         {
-            return lastWriteTimeFailure(std::move(info.status));
+            return lastWriteTimeFailure(info.status());
         }
 
-        if(!info.info.hasLastWriteTime)
+        if(!info.value().hasLastWriteTime)
         {
             return lastWriteTimeFailure(ErrorCode::StatFailed);
         }
 
-        return {.status = IO::successStatus(), .time = info.info.lastWriteTime};
+        return GameWIP::Status::Types::Result<Types::FileTime>::success(info.value().lastWriteTime);
     }
 
-    Types::BoolResult isReadOnly(const Types::Path &path, const Types::EntryOptions &options) noexcept
+    GameWIP::Status::Types::Result<bool> isReadOnly(const Types::Path &path, const Types::EntryOptions &options) noexcept
     {
-        Types::EntryInfoResult info = getEntryInfo(path, options);
+        auto info = getEntryInfo(path, options);
 
-        if(!info.status.ok())
+        if(!info.ok())
         {
-            return boolFailure(std::move(info.status));
+            return boolFailure(info.status());
         }
 
-        return {.status = IO::successStatus(), .value = info.info.readOnly};
+        return GameWIP::Status::Types::Result<bool>::success(info.value().readOnly);
     }
 } // namespace GameWIP::FileSystem

@@ -26,38 +26,39 @@ namespace GameWIP::FileSystem
             return text.contains('/') || text.contains('\\') || text.contains('\0');
         }
 
-        [[nodiscard]] IO::Types::Status validateAtomicTemporaryPrefix(std::string_view prefix) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Result<void> validateAtomicTemporaryPrefix(std::string_view prefix) noexcept
         {
             if(!validUtf8(prefix))
             {
-                return IO::makeStatus(ErrorCode::EncodingFailed);
+                return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::EncodingFailed));
             }
 
             if(prefix.empty() || prefix == "." || prefix == ".." || hasPathSeparator(prefix))
             {
-                return IO::makeStatus(ErrorCode::InvalidArgument);
+                return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::InvalidArgument));
             }
 
-            return IO::successStatus();
+            return GameWIP::Status::Types::Result<void>::success();
         }
 
         // Parent-directory validation
 
-        [[nodiscard]] IO::Types::Status validateDirectoryExists(const Types::Path &path, Types::SymlinkPolicy symlinkPolicy) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Result<void>
+        validateDirectoryExists(const Types::Path &path, Types::SymlinkPolicy symlinkPolicy) noexcept
         {
-            Platform::EntryQueryResult result = queryEntry(path, symlinkPolicy);
+            auto result = queryEntry(path, symlinkPolicy);
 
-            if(!result.status.ok())
+            if(!result.ok())
             {
-                return std::move(result.status);
+                return GameWIP::Status::Types::Result<void>::failure(result.status());
             }
 
-            if(result.info.kind != Types::EntryKind::Directory)
+            if(result.value().kind != Types::EntryKind::Directory)
             {
-                return IO::makeStatus(ErrorCode::NotDirectory);
+                return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::NotDirectory));
             }
 
-            return IO::successStatus();
+            return GameWIP::Status::Types::Result<void>::success();
         }
 
         // Same-directory temporary-path generation
@@ -86,7 +87,7 @@ namespace GameWIP::FileSystem
     /// Atomic replacement
     /// ------------------------------------------------------------
 
-    IO::Types::Status writeAllBytesAtomic(
+    GameWIP::Status::Types::Result<void> writeAllBytesAtomic(
         const Types::Path &path,
         std::span<const std::byte> bytes,
         const Types::File::AtomicWriteOptions &options) noexcept
@@ -97,10 +98,10 @@ namespace GameWIP::FileSystem
             if(path.empty() || !isValidReplaceMode(options.replaceMode) || !isValidSymlinkPolicy(options.symlinkPolicy) ||
                !IO::isValidFlushMode(options.flushMode))
             {
-                return IO::makeStatus(ErrorCode::InvalidArgument);
+                return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::InvalidArgument));
             }
 
-            IO::Types::Status prefixStatus = validateAtomicTemporaryPrefix(options.temporaryNamePrefix);
+            auto prefixStatus = validateAtomicTemporaryPrefix(options.temporaryNamePrefix);
 
             if(!prefixStatus.ok())
             {
@@ -115,7 +116,7 @@ namespace GameWIP::FileSystem
             }
 
             // Ensure the parent exists before checking the destination.
-            IO::Types::Status parentStatus =
+            auto parentStatus =
                 options.createParentDirectories
                     ? createDirectories(
                           parent,
@@ -128,32 +129,32 @@ namespace GameWIP::FileSystem
             }
 
             // Reject conflicts and unsupported symlink replacement before creating a temporary.
-            Platform::EntryQueryResult destination = queryEntry(path, options.symlinkPolicy);
+            auto destination = queryEntry(path, options.symlinkPolicy);
 
-            if(destination.status.ok() && options.replaceMode == Types::ReplaceMode::FailIfExists)
+            if(destination.ok() && options.replaceMode == Types::ReplaceMode::FailIfExists)
             {
-                return IO::makeStatus(ErrorCode::AlreadyExists);
+                return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::AlreadyExists));
             }
 
-            if(!destination.status.ok() && destination.status.code != ErrorCode::NotFound)
+            if(!destination.ok() && destination.status().code() != ErrorCode::NotFound)
             {
-                return std::move(destination.status);
+                return GameWIP::Status::Types::Result<void>::failure(destination.status());
             }
 
-            if(destination.status.ok() && options.symlinkPolicy != Types::SymlinkPolicy::DoNotFollow && finalEntryIsSymlink(path))
+            if(destination.ok() && options.symlinkPolicy != Types::SymlinkPolicy::DoNotFollow && finalEntryIsSymlink(path))
             {
-                return IO::makeStatus(ErrorCode::Unsupported);
+                return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::Unsupported));
             }
 
             Types::Path temporaryPath;
-            IO::Types::Status openStatus = IO::makeStatus(ErrorCode::AlreadyExists);
+            auto openResult = GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::AlreadyExists));
             FileWriter writer;
 
             // Stage the replacement in a same-directory temporary with bounded collision retries.
-            for(std::uint64_t attempt = 0; attempt < 64 && openStatus.code == ErrorCode::AlreadyExists; ++attempt)
+            for(std::uint64_t attempt = 0; attempt < 64 && openResult.status().code() == ErrorCode::AlreadyExists; ++attempt)
             {
                 temporaryPath = uniqueAtomicTemporaryPath(parent, options.temporaryNamePrefix, attempt);
-                openStatus = writer.open(
+                openResult = writer.open(
                     temporaryPath,
                     Types::File::WriterOpenOptions{
                         .mode = Types::File::WriterMode::CreateNew,
@@ -163,75 +164,76 @@ namespace GameWIP::FileSystem
                         .flushOnClose = IO::Types::FlushMode::None});
             }
 
-            if(!openStatus.ok())
+            if(!openResult.ok())
             {
-                return openStatus;
+                return openResult;
             }
 
             // Write, flush, and close the temporary before replacing the destination.
-            IO::Types::WriteResult writeResult = IO::writeAllBytes(writer, bytes);
+            auto writeResult = IO::writeAllBytes(writer, bytes);
 
-            if(!writeResult.status.ok())
+            if(!writeResult.ok())
             {
                 static_cast<void>(writer.close());
                 static_cast<void>(removeFile(temporaryPath, Types::RemoveOptions{.succeedIfMissing = true}));
-                return std::move(writeResult.status);
+                return GameWIP::Status::Types::Result<void>::failure(writeResult.status());
             }
 
-            IO::Types::Status flushStatus = writer.flush(options.flushMode);
+            auto flushResult = writer.flush(options.flushMode);
 
-            if(!flushStatus.ok())
+            if(!flushResult.ok())
             {
                 static_cast<void>(writer.close());
                 static_cast<void>(removeFile(temporaryPath, Types::RemoveOptions{.succeedIfMissing = true}));
-                return flushStatus;
+                return flushResult;
             }
 
-            IO::Types::Status closeStatus = writer.close();
+            auto closeResult = writer.close();
 
-            if(!closeStatus.ok())
+            if(!closeResult.ok())
             {
                 static_cast<void>(removeFile(temporaryPath, Types::RemoveOptions{.succeedIfMissing = true}));
-                return closeStatus;
+                return closeResult;
             }
 
             // Publish the completed temporary with the selected replacement policy.
-            IO::Types::Status commitStatus = Platform::movePath(temporaryPath, path, options.replaceMode, options.symlinkPolicy);
+            auto commitResult = Platform::movePath(temporaryPath, path, options.replaceMode, options.symlinkPolicy);
 
-            if(!commitStatus.ok())
+            if(!commitResult.ok())
             {
                 static_cast<void>(removeFile(temporaryPath, Types::RemoveOptions{.succeedIfMissing = true}));
-                return commitStatus;
+                return commitResult;
             }
 
             // The replacement is committed; a parent-flush failure is post-commit.
             if(options.flushParentDirectory)
             {
-                IO::Types::Status parentFlushStatus = Platform::flushDirectory(parent);
+                auto parentFlushResult = Platform::flushDirectory(parent);
 
-                if(!parentFlushStatus.ok())
+                if(!parentFlushResult.ok())
                 {
-                    return parentFlushStatus;
+                    return parentFlushResult;
                 }
             }
 
-            return IO::successStatus();
+            return GameWIP::Status::Types::Result<void>::success();
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(ErrorCode::OutOfMemory);
+            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::OutOfMemory));
         }
         catch(...)
         {
-            return IO::makeStatus(ErrorCode::Unknown);
+            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::Unknown));
         }
     }
 
-    IO::Types::Status writeAllTextAtomic(const Types::Path &path, std::string_view utf8Text, const Types::File::AtomicWriteOptions &options) noexcept
+    GameWIP::Status::Types::Result<void>
+    writeAllTextAtomic(const Types::Path &path, std::string_view utf8Text, const Types::File::AtomicWriteOptions &options) noexcept
     {
         if(!validUtf8(utf8Text))
         {
-            return IO::makeStatus(ErrorCode::EncodingFailed);
+            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::EncodingFailed));
         }
 
         return writeAllBytesAtomic(path, std::as_bytes(std::span<const char>(utf8Text.data(), utf8Text.size())), options);

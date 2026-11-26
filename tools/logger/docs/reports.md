@@ -12,12 +12,12 @@ Reports intentionally do **not** drain older asynchronous queue entries. Use `fl
 Timed overloads take `std::chrono::milliseconds` before message/format text. `0ms` is no-wait, positive values bound Logger-owned waits, and negative
 durations return `InvalidArgument`. Native operations already entered cannot be cancelled.
 
-`Types::Report::Result::delivery` counts accepting targets among the eligible normal sinks, debug
-output, and fatal popup: `None`, `Partial`, or `Complete`. Delivery and flush completion are
+`Types::Report::Result::value().delivery` counts accepting targets among the eligible normal sinks, debug output, and fatal popup: `None`, `Partial`, or
+`Complete`. Delivery and flush completion are
 separate:
 a report can be delivered and then encounter a flush failure. A successful flush reports only the guarantee provided by the underlying IO flush mode;
-it does not claim physical-media durability. `status` carries the first real operation failure while other channels are still attempted. `outcome`
-independently reports `Completed` or `TimedOut`.
+it does not claim physical-media durability. `status()` carries the first real operation failure while other channels are still attempted.
+`value().outcome` independently reports `Completed` or `TimedOut`. A failed result may retain delivery details in `value()`.
 
 `reportError()` fixes severity to Error. `reportFatal()` fixes severity to Fatal and owns popup behavior. `fatalTerminate()` performs the fatal report
 attempt and then calls `std::terminate()` regardless of report result.

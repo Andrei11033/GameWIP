@@ -207,10 +207,10 @@ additionally mirrors passing checks, informational lines, metrics, stress diagno
 The retained report receives complete TestSupport output when file reporting is enabled. An invalid report path disables only retained output; it must
 not hide console failures or change test counts.
 
-TestSupport infrastructure helpers keep setup and operating-system failures separate from the behavior under test. Callers must inspect a result's
-`status` before using its payload. For child processes, infrastructure `status`, process `outcome`, and exact `exitCode` are independent: a nonzero
-child exit or an expected timeout is a domain outcome, not an infrastructure failure. Use `TestSupport::formatInfrastructureStatus()` only when a
-failed status needs to be recorded in diagnostics. See @ref test_support_public_api, @ref test_support_child_processes, and @ref
+TestSupport infrastructure helpers keep setup and operating-system failures separate from the behavior under test. Callers inspect `status()` and
+check `hasValue()` before using an optional payload. For child processes, infrastructure status, process outcome, and exact exit code are
+independent: a nonzero child exit or an expected timeout is a domain outcome, not an infrastructure failure. Use `TestSupport::formatStatus()` when
+a status needs to be recorded in diagnostics. See @ref test_support_public_api, @ref test_support_child_processes, and @ref
 test_support_files_environment for the complete API contract.
 
 - A failed expectation does not abort the suite.

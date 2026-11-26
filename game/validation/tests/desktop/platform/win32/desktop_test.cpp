@@ -77,7 +77,21 @@ namespace
     namespace NotificationTypes = Desktop::Types::Notifications;
     namespace JumpListTypes = Desktop::Types::JumpLists;
     namespace RegistrationTypes = Desktop::Types::Registration;
-    using IO::Types::ErrorCode;
+    using ErrorCode = GameWIP::Status::Types::Code;
+    using OperationStatus = GameWIP::Status::Types::Status;
+
+    [[nodiscard]] std::string manualStatusDetails(const OperationStatus &status)
+    {
+        const GameWIP::Status::Types::Diagnostic *diagnostic = status.diagnostic();
+        const std::string nativeCode = diagnostic != nullptr && diagnostic->nativeCode.has_value()
+                                           ? std::format(
+                                                 "{}:{}",
+                                                 static_cast<unsigned int>(diagnostic->nativeCode->domain),
+                                                 diagnostic->nativeCode->value)
+                                           : "<none>";
+        const std::string message = diagnostic != nullptr && !diagnostic->message.empty() ? diagnostic->message : "<none>";
+        return std::format("code={} native={} message={}", GameWIP::Status::Types::codeName(status.code()), nativeCode, message);
+    }
 
 #include "validation/tests/desktop/platform/win32/desktop_process_tests.inl"
 
@@ -177,26 +191,16 @@ namespace GameWIP::Test
     int runDesktopTests(int argc, char **argv, const DesktopTestOptions &options)
     {
         // Dispatch child-process modes before creating the suite runner.
-        if(GameWIP::Validation::hasProcessArgument(argc, argv, "--desktop-test-child=result-empty-arrow"))
+        if(GameWIP::Validation::hasProcessArgument(argc, argv, "--desktop-test-child=result-missing-value"))
         {
             std::set_terminate(
                 []
                 {
                     std::_Exit(73);
                 });
-            const Desktop::Types::Result<Desktop::Types::LogicalSize> result{IO::successStatus(), std::nullopt};
-            return static_cast<int>(result->width);
-        }
-
-        if(GameWIP::Validation::hasProcessArgument(argc, argv, "--desktop-test-child=result-failed-dereference"))
-        {
-            std::set_terminate(
-                []
-                {
-                    std::_Exit(73);
-                });
-            Desktop::Types::Result<Desktop::Types::LogicalSize> result{IO::makeStatus(ErrorCode::NativeFailure), Desktop::Types::LogicalSize{1, 2}};
-            return static_cast<int>((*result).width);
+            const auto result = GameWIP::Status::Types::Result<Desktop::Types::LogicalSize>::failure(
+                GameWIP::Status::Types::Status(ErrorCode::NativeFailure));
+            return static_cast<int>(result.value().width);
         }
 
         if(GameWIP::Validation::hasProcessArgument(argc, argv, "--desktop-test-child=accessibility-client"))

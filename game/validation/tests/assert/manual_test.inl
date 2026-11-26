@@ -114,7 +114,7 @@ void testManualAssertUi(TestContext &context, const AssertTestOptions &options)
         context.skip("manual assert UI Abort child", "child crash tests are disabled");
     }
 
-    Logger::flush(2s);
+    static_cast<void>(Logger::flush(2s));
 #else
     context.skip("manual assert UI tests", "ASSERT_ENABLED=0");
 #endif

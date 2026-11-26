@@ -3,6 +3,7 @@
 
 #include "terminal/output.h"
 
+#include "terminal/internal/results.h"
 #include "terminal/internal/scopes.h"
 
 #include <span>
@@ -11,27 +12,6 @@
 
 namespace GameWIP::Terminal
 {
-    namespace
-    {
-        /// @brief Copies a stored status without letting optional diagnostic allocation escape a noexcept boundary.
-        [[nodiscard]] IO::Types::Status copyStatus(const IO::Types::Status &status) noexcept
-        {
-            if(status.message.empty())
-            {
-                return IO::makeStatus(status.code, status.nativeCode);
-            }
-
-            try
-            {
-                return IO::makeStatus(status.code, status.nativeCode, status.message);
-            }
-            catch(...)
-            {
-                return IO::makeStatus(status.code, status.nativeCode);
-            }
-        }
-    } // namespace
-
     /// ------------------------------------------------------------
     /// Output segment construction
     /// ------------------------------------------------------------
@@ -131,18 +111,18 @@ namespace GameWIP::Terminal
         return active_;
     }
 
-    const IO::Types::Status &AlternateScreenScope::status() const noexcept
+    const GameWIP::Status::Types::Status &AlternateScreenScope::status() const noexcept
     {
         return status_;
     }
 
-    IO::Types::Status AlternateScreenScope::leave() noexcept
+    GameWIP::Status::Types::Result<void> AlternateScreenScope::leave() noexcept
     {
         if(active_)
         {
             if(restorationEmitted_)
             {
-                status_ = Terminal::flush(stream_, options_.flushMode);
+                status_ = Terminal::flush(stream_, options_.flushMode).status();
 
                 if(status_.ok())
                 {
@@ -169,7 +149,7 @@ namespace GameWIP::Terminal
             }
         }
 
-        return copyStatus(status_);
+        return Internal::result(status_);
     }
 
     CursorHiddenScope::CursorHiddenScope() noexcept = default;
@@ -236,18 +216,18 @@ namespace GameWIP::Terminal
         return active_;
     }
 
-    const IO::Types::Status &CursorHiddenScope::status() const noexcept
+    const GameWIP::Status::Types::Status &CursorHiddenScope::status() const noexcept
     {
         return status_;
     }
 
-    IO::Types::Status CursorHiddenScope::restore() noexcept
+    GameWIP::Status::Types::Result<void> CursorHiddenScope::restore() noexcept
     {
         if(active_)
         {
             if(restorationEmitted_)
             {
-                status_ = Terminal::flush(stream_, options_.flushMode);
+                status_ = Terminal::flush(stream_, options_.flushMode).status();
 
                 if(status_.ok())
                 {
@@ -274,6 +254,6 @@ namespace GameWIP::Terminal
             }
         }
 
-        return copyStatus(status_);
+        return Internal::result(status_);
     }
 } // namespace GameWIP::Terminal

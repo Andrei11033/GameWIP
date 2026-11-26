@@ -21,12 +21,12 @@ namespace GameWIP::Game::RuntimeDiagnostics::InputControlEvents::Internal
 
     [[nodiscard]] const Types::DeviceInfo *findDevice(const GameWIP::Input::System &input, Types::DeviceId id)
     {
-        const Types::DeviceInfo *device = nullptr;
-        if(!input.findDevice(id, device).ok())
+        const auto deviceResult = input.findDevice(id);
+        if(!deviceResult.ok())
         {
             return nullptr;
         }
-        return device;
+        return deviceResult.value();
     }
 
     [[nodiscard]] const Types::ElementInfo *findElement(const Types::DeviceInfo *device, Types::ElementId id)

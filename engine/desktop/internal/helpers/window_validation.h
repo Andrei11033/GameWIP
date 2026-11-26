@@ -18,7 +18,7 @@ namespace GameWIP::Desktop::Internal::Helpers
     /// Window request validation
     /// ------------------------------------------------------------
 
-    [[nodiscard]] IO::Types::Status error(IO::Types::ErrorCode code) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Status error(GameWIP::Status::Types::Code code) noexcept;
     [[nodiscard]] bool validSize(Types::LogicalSize size) noexcept;
     [[nodiscard]] bool validPixelSize(Types::PixelSize size) noexcept;
     [[nodiscard]] bool validRect(const Types::LogicalRect &rect) noexcept;
@@ -42,6 +42,6 @@ namespace GameWIP::Desktop::Internal::Helpers
     /// Window access validation
     /// ------------------------------------------------------------
 
-    [[nodiscard]] IO::Types::Status requireState(WindowState *state) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Status requireState(WindowState *state) noexcept;
 
 } // namespace GameWIP::Desktop::Internal::Helpers

@@ -87,7 +87,7 @@ namespace GameWIP::Game::Runtime
         while(true)
         {
             GAMEWIP_PROFILE_ZONE("Runtime event cycle", Color::kFrame);
-            Desktop::Types::Events::PumpResult events;
+            Desktop::Types::Events::PumpResult events = Desktop::Types::Events::PumpResult::success({});
 
             // Wait for the next combined Window and Input tick.
             if(!window.hasCloseRequest())
@@ -101,7 +101,10 @@ namespace GameWIP::Game::Runtime
                 summary.totalWaitMilliseconds += waited.count();
                 summary.maximumWaitMilliseconds = std::max(summary.maximumWaitMilliseconds, waited.count());
                 events = Desktop::Events::poll();
-                summary.eventsDropped += events.eventsDropped;
+                if(events.hasValue())
+                {
+                    summary.eventsDropped += events.value().eventsDropped;
+                }
             }
 
             // Drain Window events before capturing Input for this tick.
@@ -122,10 +125,11 @@ namespace GameWIP::Game::Runtime
             const auto queue = window.eventQueueInfo();
             if(queue.droppedEvents > reportedDroppedEvents)
             {
+                const std::uint64_t droppedThisPump = events.hasValue() ? events.value().eventsDropped : 0;
                 Logger::warn(
                     LogArea::Window,
                     Logger::record()
-                        .field("events_dropped_this_pump", events.eventsDropped)
+                        .field("events_dropped_this_pump", droppedThisPump)
                         .field("events_dropped_total", queue.droppedEvents)
                         .field("queue_capacity", queue.capacity),
                     "Window event queue dropped events");
@@ -133,18 +137,18 @@ namespace GameWIP::Game::Runtime
             }
 
             // Capture Input and report only the first failure until it resumes.
-            Input::Types::CaptureResult capture;
+            const Input::Types::CaptureResult capture = [&]()
             {
                 GAMEWIP_PROFILE_ZONE("Capture Input Frame", Color::kInput);
-                capture = input.capture(inputFrame);
-            }
+                return input.capture(inputFrame);
+            }();
 
-            if(!capture.status.ok())
+            if(!capture.ok())
             {
                 ++summary.inputCaptureFailures;
                 if(!inputCaptureFailureReported)
                 {
-                    Diagnostics::reportWarning(LogArea::Input, "Input capture failed", capture.status);
+                    Diagnostics::reportWarning(LogArea::Input, "Input capture failed", capture.status());
                     inputCaptureFailureReported = true;
                 }
             }
@@ -182,9 +186,9 @@ namespace GameWIP::Game::Runtime
             }
 
             // Stop on pump failure or a close request before scheduling another tick.
-            if(!events.status.ok())
+            if(!events.ok())
             {
-                Diagnostics::reportFailure(LogArea::Window, "Event pump failed", events.status);
+                Diagnostics::reportFailure(LogArea::Window, "Event pump failed", events.status());
                 return false;
             }
 

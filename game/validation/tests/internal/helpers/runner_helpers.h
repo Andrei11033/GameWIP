@@ -176,7 +176,7 @@ namespace GameWIP::Test::Internal::RunnerHelpers
 
         if(!reportStatus.failureStatus.ok())
         {
-            std::cerr << "[TEST INFRA] report sink failed: " << TestSupport::formatInfrastructureStatus(reportStatus.failureStatus) << '\n';
+            std::cerr << "[TEST INFRA] report sink failed: " << TestSupport::formatStatus(reportStatus.failureStatus) << '\n';
         }
 
         return exitCode;

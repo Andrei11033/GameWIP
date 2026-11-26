@@ -24,19 +24,19 @@ void paintManualValidationSurface(const Desktop::Window &window, ManualSurfaceLa
 
     const auto native = Desktop::Native::Win32::getHandle(window);
 
-    if(!native.status.ok() || native->window == nullptr)
+    if(!native.ok() || native.value().window == nullptr)
     {
         return;
     }
 
     RECT client{};
 
-    if(GetClientRect(native->window, &client) == FALSE)
+    if(GetClientRect(native.value().window, &client) == FALSE)
     {
         return;
     }
 
-    HDC device = GetDC(native->window);
+    HDC device = GetDC(native.value().window);
 
     if(device == nullptr)
     {
@@ -44,7 +44,7 @@ void paintManualValidationSurface(const Desktop::Window &window, ManualSurfaceLa
     }
 
     // Prepare DPI-scaled geometry and drawing helpers.
-    const UINT dpi = GetDpiForWindow(native->window);
+    const UINT dpi = GetDpiForWindow(native.value().window);
     const auto logical = [dpi](int value)
     {
         return MulDiv(value, static_cast<int>(dpi), 96);
@@ -236,7 +236,7 @@ void paintManualValidationSurface(const Desktop::Window &window, ManualSurfaceLa
         DeleteObject(edgePen);
     }
 
-    ReleaseDC(native->window, device);
+    ReleaseDC(native.value().window, device);
 }
 
 template <typename Payload> [[nodiscard]] bool consumeEventOfType(Desktop::Window &window)

@@ -5,14 +5,14 @@
 
 #include "desktop/shell_types.h"
 
-#include "io/status.h"
+#include "status/result.h"
 
 #include <string>
 
 namespace GameWIP::Desktop::Platform
 {
     /// @brief Builds a native executable and argument string from a portable launch action.
-    [[nodiscard]] IO::Types::Status makeLaunchCommand(
+    [[nodiscard]] GameWIP::Status::Types::Status makeLaunchCommand(
         const Types::Shell::LaunchActionView &action,
         bool allowPlaceholders,
         std::wstring &executable,

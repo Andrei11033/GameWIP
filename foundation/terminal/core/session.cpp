@@ -4,6 +4,7 @@
 #include "terminal/session.h"
 
 #include "terminal/internal/input.h"
+#include "terminal/internal/results.h"
 #include "terminal/platform/backend.h"
 #include "terminal/internal/status.h"
 #include "terminal/internal/session_state.h"
@@ -27,17 +28,17 @@ namespace GameWIP::Terminal
 {
     namespace Internal
     {
-        IO::Types::Status invalidArgumentStatus() noexcept
+        GameWIP::Status::Types::Status invalidArgumentStatus() noexcept
         {
-            return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
+            return GameWIP::Terminal::Internal::backendStatus(GameWIP::Status::Types::Code::InvalidArgument);
         }
 
-        IO::Types::Status notOpenStatus() noexcept
+        GameWIP::Status::Types::Status notOpenStatus() noexcept
         {
-            return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
+            return GameWIP::Terminal::Internal::backendStatus(GameWIP::Status::Types::Code::NotOpen);
         }
 
-        [[nodiscard]] IO::Types::Status claimDirectInput(Types::Input::Stream stream) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Status claimDirectInput(Types::Input::Stream stream) noexcept;
         void releaseDirectInput(Types::Input::Stream stream) noexcept;
     } // namespace Internal
 
@@ -47,7 +48,7 @@ namespace GameWIP::Terminal
 
     namespace
     {
-        using IO::Types::ErrorCode;
+        using ErrorCode = GameWIP::Status::Types::Code;
 
         /// ------------------------------------------------------------
         /// Input ownership state
@@ -71,7 +72,7 @@ namespace GameWIP::Terminal
 
         struct ReadDecision
         {
-            IO::Types::Status status = IO::successStatus();
+            GameWIP::Status::Types::Status status = GameWIP::Status::Types::Status{};
             bool cancelled = false;
         };
 
@@ -111,9 +112,9 @@ namespace GameWIP::Terminal
                    mode == Types::Input::LineEndingMode::NormalizeToLf;
         }
 
-        [[nodiscard]] IO::Types::Status unsupportedStatus() noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status unsupportedStatus() noexcept
         {
-            return IO::makeStatus(ErrorCode::Unsupported);
+            return GameWIP::Terminal::Internal::backendStatus(ErrorCode::Unsupported);
         }
 
         [[nodiscard]] bool operationSupported(const Types::Input::Capabilities &capabilities, ReadOperation operation) noexcept
@@ -143,14 +144,14 @@ namespace GameWIP::Terminal
             return capabilities.supportsByteInput || capabilities.supportsUtf8Text || capabilities.supportsLineInput;
         }
 
-        [[nodiscard]] IO::Types::Status validateTimeout(const std::optional<std::chrono::milliseconds> &timeout)
+        [[nodiscard]] GameWIP::Status::Types::Status validateTimeout(const std::optional<std::chrono::milliseconds> &timeout)
         {
             if(timeout.has_value() && timeout->count() < 0)
             {
                 return invalidArgumentStatus();
             }
 
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
 
         [[nodiscard]] ReadDecision validateReadContract(
@@ -239,7 +240,7 @@ namespace GameWIP::Terminal
             return mode;
         }
 
-        void appendRestorationDiagnostic(IO::Types::Status &primary, const IO::Types::Status &restoration) noexcept
+        void appendRestorationDiagnostic(GameWIP::Status::Types::Status &primary, const GameWIP::Status::Types::Status &restoration) noexcept
         {
             if(primary.ok() || restoration.ok())
             {
@@ -248,18 +249,40 @@ namespace GameWIP::Terminal
 
             try
             {
-                if(!primary.message.empty())
-                {
-                    primary.message.append(" ");
-                }
-                primary.message.append("Terminal input restoration also failed");
+                const GameWIP::Status::Types::Diagnostic *primaryDiagnostic = primary.diagnostic();
+                const GameWIP::Status::Types::Diagnostic *restorationDiagnostic = restoration.diagnostic();
 
-                if(!restoration.message.empty())
+                std::string message = primaryDiagnostic != nullptr ? primaryDiagnostic->message : std::string{};
+                if(!message.empty())
                 {
-                    primary.message.append(": ");
-                    primary.message.append(restoration.message);
+                    message.append(" ");
                 }
-                primary.message.push_back('.');
+                message.append("Terminal input restoration also failed");
+
+                if(restorationDiagnostic != nullptr && !restorationDiagnostic->message.empty())
+                {
+                    message.append(": ");
+                    message.append(restorationDiagnostic->message);
+                }
+                message.push_back('.');
+
+                if(primaryDiagnostic != nullptr && primaryDiagnostic->nativeCode.has_value())
+                {
+                    GameWIP::Status::Types::Status enriched =
+                        GameWIP::Status::Types::Status::withDiagnostic(primary.code(), *primaryDiagnostic->nativeCode, message);
+                    if(enriched.diagnostic() != nullptr)
+                    {
+                        primary = std::move(enriched);
+                    }
+                }
+                else
+                {
+                    GameWIP::Status::Types::Status enriched = GameWIP::Status::Types::Status::withDiagnostic(primary.code(), message);
+                    if(enriched.diagnostic() != nullptr)
+                    {
+                        primary = std::move(enriched);
+                    }
+                }
             }
             // NOLINTNEXTLINE(bugprone-empty-catch) -- Diagnostic enrichment must not replace the primary failure.
             catch(...)
@@ -272,13 +295,13 @@ namespace GameWIP::Terminal
         /// Managed input acquisition and restoration
         /// ------------------------------------------------------------
 
-        [[nodiscard]] IO::Types::Status restoreManagedInput(
+        [[nodiscard]] GameWIP::Status::Types::Status restoreManagedInput(
             Types::Input::Stream stream,
             PreparedInputOwnership &ownership,
             const void *owner,
             bool retainOwnershipOnFailure) noexcept
         {
-            IO::Types::Status restoration = IO::successStatus();
+            GameWIP::Status::Types::Status restoration = GameWIP::Status::Types::Status{};
 
             // Restore the previous terminal mode while stream I/O is serialized.
             try
@@ -291,11 +314,11 @@ namespace GameWIP::Terminal
             }
             catch(const std::bad_alloc &)
             {
-                restoration = IO::makeStatus(ErrorCode::OutOfMemory);
+                restoration = GameWIP::Terminal::Internal::backendStatus(ErrorCode::OutOfMemory);
             }
             catch(...)
             {
-                restoration = IO::makeStatus(ErrorCode::Unknown);
+                restoration = GameWIP::Terminal::Internal::backendStatus(ErrorCode::Unknown);
             }
 
             if(!restoration.ok() && retainOwnershipOnFailure)
@@ -327,7 +350,7 @@ namespace GameWIP::Terminal
             return restoration;
         }
 
-        [[nodiscard]] IO::Types::Status acquireManagedInput(
+        [[nodiscard]] GameWIP::Status::Types::Status acquireManagedInput(
             const Types::SessionOptions &options,
             const void *owner,
             PreparedInputOwnership &ownership) noexcept
@@ -336,7 +359,7 @@ namespace GameWIP::Terminal
             ownership = {};
 
             const bool directClaim = owner == nullptr;
-            IO::Types::Status status = directClaim ? Internal::claimDirectInput(options.input) : Internal::claimInput(options.input, owner);
+            GameWIP::Status::Types::Status status = directClaim ? Internal::claimDirectInput(options.input) : Internal::claimInput(options.input, owner);
 
             if(!status.ok())
             {
@@ -353,13 +376,13 @@ namespace GameWIP::Terminal
                     std::lock_guard lock(Internal::inputIoMutex(options.input));
                     Types::Input::CapabilitiesResult capabilityResult = Platform::getInputCapabilities(options.input);
 
-                    if(!capabilityResult.status.ok())
+                    if(!capabilityResult.ok())
                     {
-                        status = std::move(capabilityResult.status);
+                        status = capabilityResult.status();
                     }
                     else
                     {
-                        ownership.capabilities = capabilityResult.capabilities;
+                        ownership.capabilities = capabilityResult.value();
 
                         if(ownership.capabilities.kind == Types::StreamKind::Detached)
                         {
@@ -372,11 +395,11 @@ namespace GameWIP::Terminal
                         else if(ownership.capabilities.kind == Types::StreamKind::Terminal)
                         {
                             Platform::InputModeSnapshotResult snapshot = Platform::captureInputMode(options.input);
-                            status = snapshot.status;
+                            status = snapshot.status();
 
                             if(status.ok())
                             {
-                                ownership.previousMode = snapshot.snapshot;
+                                ownership.previousMode = snapshot.value();
                                 ownership.hasPreviousMode = true;
                                 status =
                                     Platform::setInputMode(options.input, managedMode(options, ownership.previousMode.mode, ownership.capabilities));
@@ -387,11 +410,11 @@ namespace GameWIP::Terminal
             }
             catch(const std::bad_alloc &)
             {
-                status = IO::makeStatus(ErrorCode::OutOfMemory);
+                status = GameWIP::Terminal::Internal::backendStatus(ErrorCode::OutOfMemory);
             }
             catch(...)
             {
-                status = IO::makeStatus(ErrorCode::Unknown);
+                status = GameWIP::Terminal::Internal::backendStatus(ErrorCode::Unknown);
             }
 
             if(status.ok())
@@ -400,7 +423,7 @@ namespace GameWIP::Terminal
             }
 
             // Roll back the claim and any mode change if setup failed.
-            const IO::Types::Status restoration = restoreManagedInput(options.input, ownership, owner, false);
+            const GameWIP::Status::Types::Status restoration = restoreManagedInput(options.input, ownership, owner, false);
             appendRestorationDiagnostic(status, restoration);
             return status;
         }
@@ -425,7 +448,7 @@ namespace GameWIP::Terminal
                 static_cast<void>(restoreManagedInput(options_.input, ownership_, nullptr, false));
             }
 
-            [[nodiscard]] IO::Types::Status open(
+            [[nodiscard]] GameWIP::Status::Types::Status open(
                 Types::Input::DeliveryMode deliveryMode,
                 Types::Input::ControlKeyMode controlKeyMode = Types::Input::ControlKeyMode::NativeProcessing) noexcept
             {
@@ -439,9 +462,9 @@ namespace GameWIP::Terminal
                 return ownership_.capabilities;
             }
 
-            [[nodiscard]] IO::Types::Status finish(IO::Types::Status primary) noexcept
+            [[nodiscard]] GameWIP::Status::Types::Status finish(GameWIP::Status::Types::Status primary) noexcept
             {
-                const IO::Types::Status restoration = restoreManagedInput(options_.input, ownership_, nullptr, false);
+                const GameWIP::Status::Types::Status restoration = restoreManagedInput(options_.input, ownership_, nullptr, false);
 
                 if(primary.ok())
                 {
@@ -456,19 +479,14 @@ namespace GameWIP::Terminal
             PreparedInputOwnership ownership_{};
         };
 
-        template <typename Result> [[nodiscard]] Result failedResult(IO::Types::Status status)
+        template <typename Result> [[nodiscard]] Result failedResult(GameWIP::Status::Types::Status status)
         {
-            Result result;
-            result.status = std::move(status);
-            return result;
+            return Internal::failedResult<Result>(std::move(status));
         }
 
         template <typename Result> [[nodiscard]] Result cancelledResult()
         {
-            Result result;
-            result.status = IO::successStatus();
-            result.outcome = Types::Input::ReadOutcome::Cancelled;
-            return result;
+            return Internal::cancelledResult<Result>();
         }
 
         template <typename Options> [[nodiscard]] ReadDecision validateDirectReadOptions(const Options &options)
@@ -502,11 +520,11 @@ namespace GameWIP::Terminal
             return inputCoordinator(stream).ioMutex;
         }
 
-        IO::Types::Status claimInput(Types::Input::Stream stream, const void *owner) noexcept
+        GameWIP::Status::Types::Status claimInput(Types::Input::Stream stream, const void *owner) noexcept
         {
             if(!validInputStream(stream) || owner == nullptr)
             {
-                return IO::makeStatus(ErrorCode::InvalidArgument);
+                return GameWIP::Terminal::Internal::backendStatus(ErrorCode::InvalidArgument);
             }
 
             try
@@ -516,22 +534,22 @@ namespace GameWIP::Terminal
 
                 if(coordinator.owner != nullptr || coordinator.directLease)
                 {
-                    return IO::makeStatus(ErrorCode::ResourceBusy);
+                    return GameWIP::Terminal::Internal::backendStatus(ErrorCode::ResourceBusy);
                 }
                 coordinator.owner = owner;
-                return IO::successStatus();
+                return GameWIP::Status::Types::Status{};
             }
             catch(...)
             {
-                return IO::makeStatus(ErrorCode::Unknown);
+                return GameWIP::Terminal::Internal::backendStatus(ErrorCode::Unknown);
             }
         }
 
-        IO::Types::Status claimDirectInput(Types::Input::Stream stream) noexcept
+        GameWIP::Status::Types::Status claimDirectInput(Types::Input::Stream stream) noexcept
         {
             if(!validInputStream(stream))
             {
-                return IO::makeStatus(ErrorCode::InvalidArgument);
+                return GameWIP::Terminal::Internal::backendStatus(ErrorCode::InvalidArgument);
             }
 
             try
@@ -541,14 +559,14 @@ namespace GameWIP::Terminal
 
                 if(coordinator.owner != nullptr || coordinator.directLease)
                 {
-                    return IO::makeStatus(ErrorCode::ResourceBusy);
+                    return GameWIP::Terminal::Internal::backendStatus(ErrorCode::ResourceBusy);
                 }
                 coordinator.directLease = true;
-                return IO::successStatus();
+                return GameWIP::Status::Types::Status{};
             }
             catch(...)
             {
-                return IO::makeStatus(ErrorCode::Unknown);
+                return GameWIP::Terminal::Internal::backendStatus(ErrorCode::Unknown);
             }
         }
 
@@ -605,32 +623,32 @@ namespace GameWIP::Terminal
     /// Lifecycle
     /// ------------------------------------------------------------
 
-    IO::Types::Status Session::restoreOutputState(bool retainOnFailure) noexcept
+    GameWIP::Status::Types::Status Session::restoreOutputState(bool retainOnFailure) noexcept
     {
         if(!state_)
         {
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
 
         try
         {
             std::lock_guard lock(state_->persistentOutputMutex);
-            IO::Types::Status firstFailure = IO::successStatus();
+            GameWIP::Status::Types::Status firstFailure = GameWIP::Status::Types::Status{};
 
             // Restore persistent scopes in reverse activation order.
             while(state_->outputRestoreCount > 0)
             {
                 const State::PersistentOutputState restore = state_->outputRestoreOrder[state_->outputRestoreCount - 1];
 
-                IO::Types::Status status = IO::successStatus();
+                GameWIP::Status::Types::Status status = GameWIP::Status::Types::Status{};
 
                 switch(restore)
                 {
                 case State::PersistentOutputState::CursorHidden:
-                    status = state_->cursorHiddenScope.restore();
+                    status = state_->cursorHiddenScope.restore().status();
                     break;
                 case State::PersistentOutputState::AlternateScreen:
-                    status = state_->alternateScreenScope.leave();
+                    status = state_->alternateScreenScope.leave().status();
                     break;
                 }
 
@@ -664,11 +682,11 @@ namespace GameWIP::Terminal
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(ErrorCode::OutOfMemory);
+            return GameWIP::Terminal::Internal::backendStatus(ErrorCode::OutOfMemory);
         }
         catch(...)
         {
-            return IO::makeStatus(ErrorCode::Unknown);
+            return GameWIP::Terminal::Internal::backendStatus(ErrorCode::Unknown);
         }
     }
 
@@ -704,12 +722,12 @@ namespace GameWIP::Terminal
         return state_ && state_->open.load(std::memory_order_acquire);
     }
 
-    IO::Types::Status Session::open(const Types::SessionOptions &options) noexcept
+    GameWIP::Status::Types::Result<void> Session::open(const Types::SessionOptions &options) noexcept
     {
         if(!validInputStream(options.input) || !validOutputStream(options.output) || !validDeliveryMode(options.deliveryMode) ||
            !validControlKeyMode(options.controlKeyMode))
         {
-            return IO::makeStatus(ErrorCode::InvalidArgument);
+            return Internal::result(GameWIP::Terminal::Internal::backendStatus(ErrorCode::InvalidArgument));
         }
 
         try
@@ -722,43 +740,43 @@ namespace GameWIP::Terminal
 
             if(State::Operation::activeOnCurrentThread(*state_))
             {
-                return IO::makeStatus(ErrorCode::AlreadyOpen);
+                return Internal::result(GameWIP::Terminal::Internal::backendStatus(ErrorCode::AlreadyOpen));
             }
             State::Mutation mutation(*state_);
 
             if(state_->open.load(std::memory_order_acquire))
             {
-                return IO::makeStatus(ErrorCode::AlreadyOpen);
+                return Internal::result(GameWIP::Terminal::Internal::backendStatus(ErrorCode::AlreadyOpen));
             }
 
             // Acquire input ownership and configure its mode before publishing the session.
             PreparedInputOwnership ownership;
-            IO::Types::Status status = acquireManagedInput(options, state_.get(), ownership);
+            GameWIP::Status::Types::Status status = acquireManagedInput(options, state_.get(), ownership);
 
             if(!status.ok())
             {
-                return status;
+                return Internal::result(std::move(status));
             }
             state_->options = options;
             state_->ownership = ownership;
             state_->open.store(true, std::memory_order_release);
-            return IO::successStatus();
+            return GameWIP::Status::Types::Result<void>::success();
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(ErrorCode::OutOfMemory);
+            return Internal::result(GameWIP::Terminal::Internal::backendStatus(ErrorCode::OutOfMemory));
         }
         catch(...)
         {
-            return IO::makeStatus(ErrorCode::Unknown);
+            return Internal::result(GameWIP::Terminal::Internal::backendStatus(ErrorCode::Unknown));
         }
     }
 
-    IO::Types::Status Session::close() noexcept
+    GameWIP::Status::Types::Result<void> Session::close() noexcept
     {
         if(!state_)
         {
-            return IO::successStatus();
+            return GameWIP::Status::Types::Result<void>::success();
         }
 
         try
@@ -766,40 +784,40 @@ namespace GameWIP::Terminal
             // Prevent reentrant close while waiting for active operations to drain.
             if(State::Operation::activeOnCurrentThread(*state_))
             {
-                return IO::makeStatus(ErrorCode::ResourceBusy);
+                return Internal::result(GameWIP::Terminal::Internal::backendStatus(ErrorCode::ResourceBusy));
             }
             State::Mutation mutation(*state_);
 
             if(!state_->open.load(std::memory_order_acquire))
             {
-                return IO::successStatus();
+                return GameWIP::Status::Types::Result<void>::success();
             }
 
             // Restore output modes before releasing the managed input session.
-            IO::Types::Status status = restoreOutputState(true);
+            GameWIP::Status::Types::Status status = restoreOutputState(true);
 
             if(!status.ok())
             {
-                return status;
+                return Internal::result(std::move(status));
             }
 
             status = restoreManagedInput(state_->options.input, state_->ownership, state_.get(), true);
 
             if(!status.ok())
             {
-                return status;
+                return Internal::result(std::move(status));
             }
 
             state_->open.store(false, std::memory_order_release);
-            return IO::successStatus();
+            return GameWIP::Status::Types::Result<void>::success();
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(ErrorCode::OutOfMemory);
+            return Internal::result(GameWIP::Terminal::Internal::backendStatus(ErrorCode::OutOfMemory));
         }
         catch(...)
         {
-            return IO::makeStatus(ErrorCode::Unknown);
+            return Internal::result(GameWIP::Terminal::Internal::backendStatus(ErrorCode::Unknown));
         }
     }
 
@@ -841,15 +859,15 @@ namespace GameWIP::Terminal
                 return cancelledResult<Types::Input::EventResult>();
             }
             std::lock_guard inputLock(Internal::inputIoMutex(state_->options.input));
-            return Platform::readEvent(state_->options.input, state_->options.output, options);
+            return Internal::result(Platform::readEvent(state_->options.input, state_->options.output, options));
         }
         catch(const std::bad_alloc &)
         {
-            return failedResult<Types::Input::EventResult>(IO::makeStatus(ErrorCode::OutOfMemory));
+            return failedResult<Types::Input::EventResult>(GameWIP::Terminal::Internal::backendStatus(ErrorCode::OutOfMemory));
         }
         catch(...)
         {
-            return failedResult<Types::Input::EventResult>(IO::makeStatus(ErrorCode::Unknown));
+            return failedResult<Types::Input::EventResult>(GameWIP::Terminal::Internal::backendStatus(ErrorCode::Unknown));
         }
     }
 
@@ -887,15 +905,15 @@ namespace GameWIP::Terminal
                 return cancelledResult<Types::Input::ByteResult>();
             }
             std::lock_guard inputLock(Internal::inputIoMutex(state_->options.input));
-            return Platform::readBytes(state_->options.input, outputBuffer, options);
+            return Internal::result(Platform::readBytes(state_->options.input, outputBuffer, options));
         }
         catch(const std::bad_alloc &)
         {
-            return failedResult<Types::Input::ByteResult>(IO::makeStatus(ErrorCode::OutOfMemory));
+            return failedResult<Types::Input::ByteResult>(GameWIP::Terminal::Internal::backendStatus(ErrorCode::OutOfMemory));
         }
         catch(...)
         {
-            return failedResult<Types::Input::ByteResult>(IO::makeStatus(ErrorCode::Unknown));
+            return failedResult<Types::Input::ByteResult>(GameWIP::Terminal::Internal::backendStatus(ErrorCode::Unknown));
         }
     }
 
@@ -938,15 +956,15 @@ namespace GameWIP::Terminal
                 return cancelledResult<Types::Input::TextResult>();
             }
             std::lock_guard inputLock(Internal::inputIoMutex(state_->options.input));
-            return Platform::readText(state_->options.input, options);
+            return Internal::result(Platform::readText(state_->options.input, options));
         }
         catch(const std::bad_alloc &)
         {
-            return failedResult<Types::Input::TextResult>(IO::makeStatus(ErrorCode::OutOfMemory));
+            return failedResult<Types::Input::TextResult>(GameWIP::Terminal::Internal::backendStatus(ErrorCode::OutOfMemory));
         }
         catch(...)
         {
-            return failedResult<Types::Input::TextResult>(IO::makeStatus(ErrorCode::Unknown));
+            return failedResult<Types::Input::TextResult>(GameWIP::Terminal::Internal::backendStatus(ErrorCode::Unknown));
         }
     }
 
@@ -991,18 +1009,22 @@ namespace GameWIP::Terminal
 
             if(state_->ownership.capabilities.kind == Types::StreamKind::Terminal && state_->ownership.capabilities.supportsEventInput)
             {
-                return Internal::managedTerminalLineRead(state_->options.input, state_->options.output, options, state_->lineBoundaryStorage);
+                return Internal::result(Internal::managedTerminalLineRead(
+                    state_->options.input,
+                    state_->options.output,
+                    options,
+                    state_->lineBoundaryStorage));
             }
             std::lock_guard inputLock(Internal::inputIoMutex(state_->options.input));
-            return Platform::readLine(state_->options.input, options);
+            return Internal::result(Platform::readLine(state_->options.input, options));
         }
         catch(const std::bad_alloc &)
         {
-            return failedResult<Types::Input::LineResult>(IO::makeStatus(ErrorCode::OutOfMemory));
+            return failedResult<Types::Input::LineResult>(GameWIP::Terminal::Internal::backendStatus(ErrorCode::OutOfMemory));
         }
         catch(...)
         {
-            return failedResult<Types::Input::LineResult>(IO::makeStatus(ErrorCode::Unknown));
+            return failedResult<Types::Input::LineResult>(GameWIP::Terminal::Internal::backendStatus(ErrorCode::Unknown));
         }
     }
 
@@ -1010,7 +1032,7 @@ namespace GameWIP::Terminal
     {
         if(!state_)
         {
-            return {.status = notOpenStatus(), .capabilities = {}};
+            return Internal::failure<Types::Input::Capabilities>(notOpenStatus());
         }
 
         try
@@ -1019,14 +1041,14 @@ namespace GameWIP::Terminal
 
             if(!state_->open.load(std::memory_order_acquire))
             {
-                return {.status = notOpenStatus(), .capabilities = {}};
+                return Internal::failure<Types::Input::Capabilities>(notOpenStatus());
             }
 
-            return {.status = IO::successStatus(), .capabilities = state_->ownership.capabilities};
+            return GameWIP::Status::Types::Result<Types::Input::Capabilities>::success(state_->ownership.capabilities);
         }
         catch(...)
         {
-            return {.status = Internal::exceptionStatus(), .capabilities = {}};
+            return Internal::failure<Types::Input::Capabilities>(Internal::exceptionStatus());
         }
     }
 
@@ -1060,7 +1082,7 @@ namespace GameWIP::Terminal
         try
         {
             DirectInputLease lease(stream);
-            IO::Types::Status status = lease.open(Types::Input::DeliveryMode::Events);
+            GameWIP::Status::Types::Status status = lease.open(Types::Input::DeliveryMode::Events);
 
             if(!status.ok())
             {
@@ -1078,24 +1100,24 @@ namespace GameWIP::Terminal
             if(decision.cancelled)
             {
                 Types::Input::EventResult result = cancelledResult<Types::Input::EventResult>();
-                result.status = lease.finish(std::move(result.status));
-                return result;
+                status = lease.finish(result.status());
+                return Internal::withStatus(std::move(result), std::move(status));
             }
-            Types::Input::EventResult result;
+            Types::Input::EventResult result = [&]
             {
                 std::lock_guard lock(Internal::inputIoMutex(stream));
-                result = Platform::readEvent(stream, Types::Output::Stream::Stdout, options);
-            }
-            result.status = lease.finish(std::move(result.status));
-            return result;
+                return Platform::readEvent(stream, Types::Output::Stream::Stdout, options);
+            }();
+            status = lease.finish(result.status());
+            return Internal::withStatus(std::move(result), std::move(status));
         }
         catch(const std::bad_alloc &)
         {
-            return failedResult<Types::Input::EventResult>(IO::makeStatus(ErrorCode::OutOfMemory));
+            return failedResult<Types::Input::EventResult>(GameWIP::Terminal::Internal::backendStatus(ErrorCode::OutOfMemory));
         }
         catch(...)
         {
-            return failedResult<Types::Input::EventResult>(IO::makeStatus(ErrorCode::Unknown));
+            return failedResult<Types::Input::EventResult>(GameWIP::Terminal::Internal::backendStatus(ErrorCode::Unknown));
         }
     }
 
@@ -1129,7 +1151,7 @@ namespace GameWIP::Terminal
         try
         {
             DirectInputLease lease(stream);
-            IO::Types::Status status = lease.open(Types::Input::DeliveryMode::Stream);
+            GameWIP::Status::Types::Status status = lease.open(Types::Input::DeliveryMode::Stream);
 
             if(!status.ok())
             {
@@ -1143,21 +1165,21 @@ namespace GameWIP::Terminal
                 status = lease.finish(decision.status);
                 return failedResult<Types::Input::ByteResult>(std::move(status));
             }
-            Types::Input::ByteResult result;
+            Types::Input::ByteResult result = [&]
             {
                 std::lock_guard lock(Internal::inputIoMutex(stream));
-                result = Platform::readBytes(stream, outputBuffer, options);
-            }
-            result.status = lease.finish(std::move(result.status));
-            return result;
+                return Platform::readBytes(stream, outputBuffer, options);
+            }();
+            status = lease.finish(result.status());
+            return Internal::withStatus(std::move(result), std::move(status));
         }
         catch(const std::bad_alloc &)
         {
-            return failedResult<Types::Input::ByteResult>(IO::makeStatus(ErrorCode::OutOfMemory));
+            return failedResult<Types::Input::ByteResult>(GameWIP::Terminal::Internal::backendStatus(ErrorCode::OutOfMemory));
         }
         catch(...)
         {
-            return failedResult<Types::Input::ByteResult>(IO::makeStatus(ErrorCode::Unknown));
+            return failedResult<Types::Input::ByteResult>(GameWIP::Terminal::Internal::backendStatus(ErrorCode::Unknown));
         }
     }
 
@@ -1188,7 +1210,7 @@ namespace GameWIP::Terminal
         try
         {
             DirectInputLease lease(stream);
-            IO::Types::Status status = lease.open(Types::Input::DeliveryMode::Stream);
+            GameWIP::Status::Types::Status status = lease.open(Types::Input::DeliveryMode::Stream);
 
             if(!status.ok())
             {
@@ -1202,21 +1224,21 @@ namespace GameWIP::Terminal
                 status = lease.finish(decision.status);
                 return failedResult<Types::Input::TextResult>(std::move(status));
             }
-            Types::Input::TextResult result;
+            Types::Input::TextResult result = [&]
             {
                 std::lock_guard lock(Internal::inputIoMutex(stream));
-                result = Platform::readText(stream, options);
-            }
-            result.status = lease.finish(std::move(result.status));
-            return result;
+                return Platform::readText(stream, options);
+            }();
+            status = lease.finish(result.status());
+            return Internal::withStatus(std::move(result), std::move(status));
         }
         catch(const std::bad_alloc &)
         {
-            return failedResult<Types::Input::TextResult>(IO::makeStatus(ErrorCode::OutOfMemory));
+            return failedResult<Types::Input::TextResult>(GameWIP::Terminal::Internal::backendStatus(ErrorCode::OutOfMemory));
         }
         catch(...)
         {
-            return failedResult<Types::Input::TextResult>(IO::makeStatus(ErrorCode::Unknown));
+            return failedResult<Types::Input::TextResult>(GameWIP::Terminal::Internal::backendStatus(ErrorCode::Unknown));
         }
     }
 
@@ -1247,7 +1269,7 @@ namespace GameWIP::Terminal
         try
         {
             DirectInputLease lease(stream);
-            IO::Types::Status status = lease.open(Types::Input::DeliveryMode::Stream);
+            GameWIP::Status::Types::Status status = lease.open(Types::Input::DeliveryMode::Stream);
 
             if(!status.ok())
             {
@@ -1261,29 +1283,28 @@ namespace GameWIP::Terminal
                 status = lease.finish(decision.status);
                 return failedResult<Types::Input::LineResult>(std::move(status));
             }
-            Types::Input::LineResult result;
+            Types::Input::LineResult result = [&]
+            {
+                if(lease.capabilities().kind == Types::StreamKind::Terminal && lease.capabilities().supportsEventInput)
+                {
+                    std::vector<std::size_t> graphemeStorage;
+                    return Internal::managedTerminalLineRead(stream, Types::Output::Stream::Stdout, options, graphemeStorage);
+                }
 
-            if(lease.capabilities().kind == Types::StreamKind::Terminal && lease.capabilities().supportsEventInput)
-            {
-                std::vector<std::size_t> graphemeStorage;
-                result = Internal::managedTerminalLineRead(stream, Types::Output::Stream::Stdout, options, graphemeStorage);
-            }
-            else
-            {
                 std::lock_guard lock(Internal::inputIoMutex(stream));
-                result = Platform::readLine(stream, options);
-            }
+                return Platform::readLine(stream, options);
+            }();
 
-            result.status = lease.finish(std::move(result.status));
-            return result;
+            status = lease.finish(result.status());
+            return Internal::withStatus(std::move(result), std::move(status));
         }
         catch(const std::bad_alloc &)
         {
-            return failedResult<Types::Input::LineResult>(IO::makeStatus(ErrorCode::OutOfMemory));
+            return failedResult<Types::Input::LineResult>(GameWIP::Terminal::Internal::backendStatus(ErrorCode::OutOfMemory));
         }
         catch(...)
         {
-            return failedResult<Types::Input::LineResult>(IO::makeStatus(ErrorCode::Unknown));
+            return failedResult<Types::Input::LineResult>(GameWIP::Terminal::Internal::backendStatus(ErrorCode::Unknown));
         }
     }
 } // namespace GameWIP::Terminal

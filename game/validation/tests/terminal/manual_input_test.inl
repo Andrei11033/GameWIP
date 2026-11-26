@@ -21,20 +21,20 @@ void testManualInput(TestSupport::Context &context)
 
     const Terminal::Types::Input::LineResult result = Terminal::readLine();
 
-    if(!requireManualOperation(context, "manual terminal input", "readLine", result.status))
+    if(!requireManualOperation(context, "manual terminal input", "readLine", result.status()))
     {
         return;
     }
 
-    if(result.outcome != Terminal::Types::Input::ReadOutcome::Completed)
+    if(result.value().outcome != Terminal::Types::Input::ReadOutcome::Completed)
     {
         context.fail("manual terminal input", "readLine did not complete normally");
         return;
     }
 
-    if(result.line != expected)
+    if(result.value().line != expected)
     {
-        context.fail("manual terminal input", std::format("expected '{}', received '{}'", expected, result.line));
+        context.fail("manual terminal input", std::format("expected '{}', received '{}'", expected, result.value().line));
         return;
     }
 
@@ -47,16 +47,16 @@ void testManualWrappedLineEditing(TestSupport::Context &context)
     const Terminal::Types::SizeResult size = Terminal::getTerminalSize();
     const Terminal::Types::Cursor::PositionResult position = Terminal::getCursorPosition();
 
-    if(!requireManualOperation(context, "manual wrapped line editing", "query terminal size", size.status) ||
-       !requireManualOperation(context, "manual wrapped line editing", "query cursor position", position.status))
+    if(!requireManualOperation(context, "manual wrapped line editing", "query terminal size", size.status()) ||
+       !requireManualOperation(context, "manual wrapped line editing", "query cursor position", position.status()))
     {
         return;
     }
 
     // Place the prompt close enough to the viewport bottom that wrapping exercises visible scrolling.
-    if(size.size.rows > 2 && position.position.row + 2 < size.size.rows)
+    if(size.value().rows > 2 && position.value().row + 2 < size.value().rows)
     {
-        const std::uint32_t blankLines = size.size.rows - position.position.row - 2;
+        const std::uint32_t blankLines = size.value().rows - position.value().row - 2;
 
         for(std::uint32_t line = 0; line < blankLines; ++line)
         {
@@ -67,7 +67,7 @@ void testManualWrappedLineEditing(TestSupport::Context &context)
         }
     }
 
-    const std::uint32_t minimumCharacters = size.size.columns + 10;
+    const std::uint32_t minimumCharacters = size.value().columns + 10;
     context.manual(
         std::format(
             "Wrapped input check: type at least {} ASCII characters. Before Enter, use Left, Home, End, Backspace, and Delete to edit both "
@@ -81,12 +81,12 @@ void testManualWrappedLineEditing(TestSupport::Context &context)
 
     const Terminal::Types::Input::LineResult result = Terminal::readLine();
 
-    if(!requireManualOperation(context, "manual wrapped line editing", "wrapped readLine", result.status))
+    if(!requireManualOperation(context, "manual wrapped line editing", "wrapped readLine", result.status()))
     {
         return;
     }
 
-    if(result.outcome != Terminal::Types::Input::ReadOutcome::Completed || result.line.size() < minimumCharacters)
+    if(result.value().outcome != Terminal::Types::Input::ReadOutcome::Completed || result.value().line.size() < minimumCharacters)
     {
         context.fail("manual wrapped line editing", "the completed line was not long enough to prove wrapping");
         return;
@@ -118,7 +118,7 @@ void testManualEventInput(TestSupport::Context &context, const Terminal::Types::
     }
 
     Terminal::Session session;
-    const IO::Types::Status openStatus = session.open();
+    const auto openStatus = session.open();
 
     if(!requireManualOperation(context, "manual structured input", "open event session", openStatus))
     {
@@ -135,19 +135,19 @@ void testManualEventInput(TestSupport::Context &context, const Terminal::Types::
     {
         const Terminal::Types::Input::EventResult event = session.readEvent(options);
 
-        if(!event.status.ok())
+        if(!event.ok())
         {
-            static_cast<void>(requireManualOperation(context, "manual structured input", "readEvent", event.status));
+            static_cast<void>(requireManualOperation(context, "manual structured input", "readEvent", event.status()));
             break;
         }
 
-        if(event.outcome != Terminal::Types::Input::ReadOutcome::Completed || !event.event.has_value())
+        if(event.value().outcome != Terminal::Types::Input::ReadOutcome::Completed || !event.value().event.has_value())
         {
             context.fail("manual structured input", "readEvent did not produce a key event before the deadline");
             break;
         }
 
-        const Terminal::Types::Events::Key *key = event.event->getIf<Terminal::Types::Events::Key>();
+        const Terminal::Types::Events::Key *key = event.value().event->getIf<Terminal::Types::Events::Key>();
 
         if(key == nullptr || key->action == Terminal::Types::Events::KeyAction::Release)
         {

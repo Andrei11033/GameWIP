@@ -16,7 +16,7 @@ namespace GameWIP::TestSupport::Internal
     {
         std::recursive_mutex processStateMutexInstance;
 
-        [[nodiscard]] Types::InfrastructureStatus restoreEnvironmentVariable(
+        [[nodiscard]] Types::Status restoreEnvironmentVariable(
             std::string_view name,
             const std::optional<std::string> &expectedValue,
             const std::optional<std::string> &previousValue) noexcept
@@ -25,29 +25,29 @@ namespace GameWIP::TestSupport::Internal
             {
                 const Platform::EnvironmentReadResult current = Platform::readEnvironmentVariable(name);
 
-                if(!current.status.ok())
+                if(!current.ok())
                 {
-                    return current.status;
+                    return current.status();
                 }
 
-                if(current.value != expectedValue)
+                if(current.value() != expectedValue)
                 {
-                    return failureStatus(Types::InfrastructureError::ProcessStateConflict);
+                    return failureStatus(GameWIP::Status::Types::Code::ProcessStateConflict);
                 }
 
                 if(previousValue)
                 {
-                    return Platform::setEnvironmentVariableValue(name, *previousValue);
+                    return Platform::setEnvironmentVariableValue(name, *previousValue).status();
                 }
-                return Platform::unsetEnvironmentVariableValue(name);
+                return Platform::unsetEnvironmentVariableValue(name).status();
             }
             catch(const std::bad_alloc &)
             {
-                return failureStatus(Types::InfrastructureError::OutOfMemory);
+                return failureStatus(GameWIP::Status::Types::Code::OutOfMemory);
             }
             catch(...)
             {
-                return failureStatus(Types::InfrastructureError::EnvironmentFailed);
+                return failureStatus(GameWIP::Status::Types::Code::EnvironmentFailed);
             }
         }
     } // namespace
@@ -68,31 +68,29 @@ namespace GameWIP::TestSupport
         }
         catch(const std::bad_alloc &)
         {
-            status_ = {.error = Types::InfrastructureError::OutOfMemory};
+            status_ = Types::Status(GameWIP::Status::Types::Code::OutOfMemory);
         }
         catch(const std::system_error &error)
         {
-            status_ = {
-                .error = Types::InfrastructureError::PlatformFailure,
-                .nativeCode = static_cast<std::uint64_t>(static_cast<std::uint32_t>(error.code().value()))};
+            status_ = Internal::failureStatus(GameWIP::Status::Types::Code::NativeFailure, Internal::nativeCode(error.code()));
         }
         catch(...)
         {
-            status_ = {.error = Types::InfrastructureError::PlatformFailure};
+            status_ = Types::Status(GameWIP::Status::Types::Code::NativeFailure);
         }
     }
 
-    Types::InfrastructureStatus ScopedProcessState::status() const noexcept
+    Types::Status ScopedProcessState::status() const noexcept
     {
         return status_;
     }
 
-    Types::InfrastructureStatus ScopedProcessState::restorationStatus() const noexcept
+    Types::Status ScopedProcessState::restorationStatus() const noexcept
     {
         return restorationStatus_;
     }
 
-    void ScopedProcessState::recordRestorationFailure(Types::InfrastructureStatus status) noexcept
+    void ScopedProcessState::recordRestorationFailure(Types::Status status) noexcept
     {
         if(!status.ok() && restorationStatus_.ok())
         {
@@ -118,23 +116,23 @@ namespace GameWIP::TestSupport
             name_.assign(name);
             const Platform::EnvironmentReadResult readResult = Platform::readEnvironmentVariable(name_);
 
-            if(!readResult.status.ok())
+            if(!readResult.ok())
             {
-                status_ = readResult.status;
+                status_ = readResult.status();
                 return;
             }
 
-            previousValue_ = readResult.value;
+            previousValue_ = readResult.value();
             expectedValue_ = value.empty() ? std::nullopt : std::optional<std::string>{std::string(value)};
-            status_ = Platform::setEnvironmentVariableValue(name_, value);
+            status_ = Platform::setEnvironmentVariableValue(name_, value).status();
         }
         catch(const std::bad_alloc &)
         {
-            status_ = {.error = Types::InfrastructureError::OutOfMemory};
+            status_ = Types::Status(GameWIP::Status::Types::Code::OutOfMemory);
         }
         catch(...)
         {
-            status_ = {.error = Types::InfrastructureError::EnvironmentFailed};
+            status_ = Types::Status(GameWIP::Status::Types::Code::EnvironmentFailed);
         }
     }
 
@@ -143,21 +141,21 @@ namespace GameWIP::TestSupport
         static_cast<void>(restore());
     }
 
-    Types::InfrastructureStatus ScopedEnvironmentVariable::status() const noexcept
+    Types::Status ScopedEnvironmentVariable::status() const noexcept
     {
         return status_;
     }
 
-    Types::InfrastructureStatus ScopedEnvironmentVariable::restore() noexcept
+    Types::Result<void> ScopedEnvironmentVariable::restore() noexcept
     {
         if(!status_.ok())
         {
-            return status_;
+            return Types::Result<void>::failure(status_);
         }
 
         if(restored_)
         {
-            return restorationStatus_;
+            return restorationStatus_.ok() ? Types::Result<void>::success() : Types::Result<void>::failure(restorationStatus_);
         }
 
         restorationStatus_ = Internal::restoreEnvironmentVariable(name_, expectedValue_, previousValue_);
@@ -168,7 +166,7 @@ namespace GameWIP::TestSupport
             processState_->recordRestorationFailure(restorationStatus_);
         }
 
-        return restorationStatus_;
+        return restorationStatus_.ok() ? Types::Result<void>::success() : Types::Result<void>::failure(restorationStatus_);
     }
 
     /// ------------------------------------------------------------
@@ -189,23 +187,23 @@ namespace GameWIP::TestSupport
             name_.assign(name);
             const Platform::EnvironmentReadResult readResult = Platform::readEnvironmentVariable(name_);
 
-            if(!readResult.status.ok())
+            if(!readResult.ok())
             {
-                status_ = readResult.status;
+                status_ = readResult.status();
                 return;
             }
 
-            previousValue_ = readResult.value;
+            previousValue_ = readResult.value();
             expectedValue_ = std::nullopt;
-            status_ = Platform::unsetEnvironmentVariableValue(name_);
+            status_ = Platform::unsetEnvironmentVariableValue(name_).status();
         }
         catch(const std::bad_alloc &)
         {
-            status_ = {.error = Types::InfrastructureError::OutOfMemory};
+            status_ = Types::Status(GameWIP::Status::Types::Code::OutOfMemory);
         }
         catch(...)
         {
-            status_ = {.error = Types::InfrastructureError::EnvironmentFailed};
+            status_ = Types::Status(GameWIP::Status::Types::Code::EnvironmentFailed);
         }
     }
 
@@ -214,21 +212,21 @@ namespace GameWIP::TestSupport
         static_cast<void>(restore());
     }
 
-    Types::InfrastructureStatus ScopedUnsetEnvironmentVariable::status() const noexcept
+    Types::Status ScopedUnsetEnvironmentVariable::status() const noexcept
     {
         return status_;
     }
 
-    Types::InfrastructureStatus ScopedUnsetEnvironmentVariable::restore() noexcept
+    Types::Result<void> ScopedUnsetEnvironmentVariable::restore() noexcept
     {
         if(!status_.ok())
         {
-            return status_;
+            return Types::Result<void>::failure(status_);
         }
 
         if(restored_)
         {
-            return restorationStatus_;
+            return restorationStatus_.ok() ? Types::Result<void>::success() : Types::Result<void>::failure(restorationStatus_);
         }
 
         restorationStatus_ = Internal::restoreEnvironmentVariable(name_, expectedValue_, previousValue_);
@@ -239,6 +237,6 @@ namespace GameWIP::TestSupport
             processState_->recordRestorationFailure(restorationStatus_);
         }
 
-        return restorationStatus_;
+        return restorationStatus_.ok() ? Types::Result<void>::success() : Types::Result<void>::failure(restorationStatus_);
     }
 } // namespace GameWIP::TestSupport

@@ -10,6 +10,8 @@
 
 namespace GameWIP::IO
 {
+    namespace ResultTypes = GameWIP::Status::Types;
+
     /// ------------------------------------------------------------
     /// Memory reader
     /// ------------------------------------------------------------
@@ -34,26 +36,28 @@ namespace GameWIP::IO
         return isOpen();
     }
 
-    Types::ReadResult MemoryReader::read(std::span<std::byte> destination) noexcept
+    ResultTypes::Result<Types::ReadProgress> MemoryReader::read(std::span<std::byte> destination) noexcept
     {
         if(!open_)
         {
-            return {.status = makeStatus(Types::ErrorCode::NotOpen), .bytesRead = 0, .endOfStream = false};
+            return ResultTypes::Result<Types::ReadProgress>::failure(
+                ResultTypes::Status(ResultTypes::Code::NotOpen), Types::ReadProgress{.bytesRead = 0, .endOfStream = false});
         }
 
         if(position_ > bytes_.size())
         {
-            return {.status = makeStatus(Types::ErrorCode::InvalidArgument), .bytesRead = 0, .endOfStream = false};
+            return ResultTypes::Result<Types::ReadProgress>::failure(
+                ResultTypes::Status(ResultTypes::Code::InvalidArgument), Types::ReadProgress{.bytesRead = 0, .endOfStream = false});
         }
 
         if(destination.empty())
         {
-            return {.status = {}, .bytesRead = 0, .endOfStream = position_ >= bytes_.size()};
+            return ResultTypes::Result<Types::ReadProgress>::success({.bytesRead = 0, .endOfStream = position_ >= bytes_.size()});
         }
 
         if(position_ >= bytes_.size())
         {
-            return {.status = {}, .bytesRead = 0, .endOfStream = true};
+            return ResultTypes::Result<Types::ReadProgress>::success({.bytesRead = 0, .endOfStream = true});
         }
 
         const auto available = bytes_.size() - position_;
@@ -74,52 +78,52 @@ namespace GameWIP::IO
 
         position_ += count;
 
-        return {.status = {}, .bytesRead = count, .endOfStream = position_ == bytes_.size()};
+        return ResultTypes::Result<Types::ReadProgress>::success({.bytesRead = count, .endOfStream = position_ == bytes_.size()});
     }
 
-    Types::Status MemoryReader::close() noexcept
+    ResultTypes::Result<void> MemoryReader::close() noexcept
     {
         open_ = false;
-        return successStatus();
+        return ResultTypes::Result<void>::success();
     }
 
-    Types::PositionResult MemoryReader::position() const noexcept
+    ResultTypes::Result<std::uint64_t> MemoryReader::position() const noexcept
     {
         if(!open_)
         {
-            return {.status = makeStatus(Types::ErrorCode::NotOpen), .position = 0};
+            return ResultTypes::Result<std::uint64_t>::failure(ResultTypes::Status(ResultTypes::Code::NotOpen));
         }
 
-        return {.status = {}, .position = static_cast<std::uint64_t>(position_)};
+        return ResultTypes::Result<std::uint64_t>::success(static_cast<std::uint64_t>(position_));
     }
 
-    Types::SizeResult MemoryReader::size() const noexcept
+    ResultTypes::Result<std::uint64_t> MemoryReader::size() const noexcept
     {
         if(!open_)
         {
-            return {.status = makeStatus(Types::ErrorCode::NotOpen), .sizeBytes = 0};
+            return ResultTypes::Result<std::uint64_t>::failure(ResultTypes::Status(ResultTypes::Code::NotOpen));
         }
 
-        return {.status = {}, .sizeBytes = static_cast<std::uint64_t>(bytes_.size())};
+        return ResultTypes::Result<std::uint64_t>::success(static_cast<std::uint64_t>(bytes_.size()));
     }
 
-    Types::Status MemoryReader::seek(std::int64_t offset, Types::SeekOrigin origin) noexcept
+    ResultTypes::Result<void> MemoryReader::seek(std::int64_t offset, Types::SeekOrigin origin) noexcept
     {
         if(!open_)
         {
-            return makeStatus(Types::ErrorCode::NotOpen);
+            return ResultTypes::Result<void>::failure(ResultTypes::Status(ResultTypes::Code::NotOpen));
         }
 
         if(bytes_.size() > static_cast<std::size_t>(std::numeric_limits<std::int64_t>::max()))
         {
-            return makeStatus(Types::ErrorCode::SizeLimitExceeded);
+            return ResultTypes::Result<void>::failure(ResultTypes::Status(ResultTypes::Code::SizeLimitExceeded));
         }
 
         const auto size = static_cast<std::int64_t>(bytes_.size());
 
         if(position_ > static_cast<std::size_t>(size))
         {
-            return makeStatus(Types::ErrorCode::InvalidArgument);
+            return ResultTypes::Result<void>::failure(ResultTypes::Status(ResultTypes::Code::InvalidArgument));
         }
 
         std::int64_t base = 0;
@@ -139,18 +143,18 @@ namespace GameWIP::IO
             break;
 
         default:
-            return makeStatus(Types::ErrorCode::InvalidArgument);
+            return ResultTypes::Result<void>::failure(ResultTypes::Status(ResultTypes::Code::InvalidArgument));
         }
 
         if(offset < -base || offset > size - base)
         {
-            return makeStatus(Types::ErrorCode::SeekFailed);
+            return ResultTypes::Result<void>::failure(ResultTypes::Status(ResultTypes::Code::SeekFailed));
         }
 
         const auto target = base + offset;
         position_ = static_cast<std::size_t>(target);
 
-        return successStatus();
+        return ResultTypes::Result<void>::success();
     }
 
 } // namespace GameWIP::IO

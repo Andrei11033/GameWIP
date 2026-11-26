@@ -34,7 +34,7 @@ void testInteractiveIgnoreOnce(TestContext &context)
 
     ASSERT_INTERACTIVE_MSG(false, "interactive ignore once test");
 
-    Logger::flush(2s);
+    static_cast<void>(Logger::flush(2s));
     const Logger::Types::Stats stats = Logger::getStats();
     const std::string contents = readFile(context, assertLogFilePath(context));
     context.expectEq("ASSERT_INTERACTIVE ignore_once not queued", stats.queued, std::size_t{0});
@@ -78,7 +78,7 @@ void testInteractiveAlwaysIgnore(TestContext &context)
     interactiveAlwaysIgnoreSite();
     interactiveAlwaysIgnoreSite();
 
-    Logger::flush(2s);
+    static_cast<void>(Logger::flush(2s));
     const Logger::Types::Stats stats = Logger::getStats();
     const std::string contents = readFile(context, assertLogFilePath(context));
     context.expectEq("ASSERT_INTERACTIVE always_ignore not queued", stats.queued, std::size_t{0});
@@ -120,7 +120,7 @@ void testVerifyInteractiveEvaluation(TestContext &context)
     context.expectEq("VERIFY_INTERACTIVE failing evaluates once", failingEvaluations, 1);
 
 #if ASSERT_ENABLED
-    Logger::flush(2s);
+    static_cast<void>(Logger::flush(2s));
     const std::string contents = readFile(context, assertLogFilePath(context));
 #if ASSERT_DIAGNOSTICS
     context.expectTrue(
@@ -134,7 +134,7 @@ void testVerifyInteractiveEvaluation(TestContext &context)
         "verify interactive message was embedded");
 #endif
 #else
-    Logger::flush(2s);
+    static_cast<void>(Logger::flush(2s));
     const Logger::Types::Stats stats = Logger::getStats();
     context.expectEq("VERIFY_INTERACTIVE disabled does not report", stats.written, std::size_t{0});
 #endif
@@ -163,7 +163,7 @@ void testVerifyInteractiveAlwaysIgnoreStillEvaluates(TestContext &context)
     verifyInteractiveAlwaysIgnoreSite(evaluations);
     verifyInteractiveAlwaysIgnoreSite(evaluations);
 
-    Logger::flush(2s);
+    static_cast<void>(Logger::flush(2s));
     const std::string contents = readFile(context, assertLogFilePath(context));
     context.expectEq("VERIFY_INTERACTIVE Always Ignore still evaluates", evaluations, 2);
 #if ASSERT_DIAGNOSTICS

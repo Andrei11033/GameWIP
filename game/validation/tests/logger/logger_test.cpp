@@ -140,7 +140,7 @@ namespace GameWIP::Test
 
                 if(!context.processState.status().ok())
                 {
-                    context.fail("acquire Logger process-state scope", TestSupport::formatInfrastructureStatus(context.processState.status()));
+                    context.fail("acquire Logger process-state scope", TestSupport::formatStatus(context.processState.status()));
                     return;
                 }
 
@@ -148,7 +148,7 @@ namespace GameWIP::Test
 
                 if(!workspace.status().ok())
                 {
-                    context.fail("create Logger test workspace", TestSupport::formatInfrastructureStatus(workspace.status()));
+                    context.fail("create Logger test workspace", TestSupport::formatStatus(workspace.status()));
                     return;
                 }
                 context.logRoot = workspace.path();
@@ -157,7 +157,7 @@ namespace GameWIP::Test
 
                 if(!currentPath.status().ok())
                 {
-                    context.fail("set Logger test working directory", TestSupport::formatInfrastructureStatus(currentPath.status()));
+                    context.fail("set Logger test working directory", TestSupport::formatStatus(currentPath.status()));
                     return;
                 }
 

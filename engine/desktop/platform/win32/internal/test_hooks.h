@@ -163,19 +163,19 @@ namespace GameWIP::Desktop::Internal::TestHooks::Win32
     [[nodiscard]] DESKTOP_TEST_EXPORT const MessageDialogSnapshot &lastMessageDialogSnapshot() noexcept;
     DESKTOP_TEST_EXPORT void completeNextPromptDialog(PromptDialogResponse response) noexcept;
     [[nodiscard]] DESKTOP_TEST_EXPORT const PromptDialogSnapshot &lastPromptDialogSnapshot() noexcept;
-    [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status testDialogApartment() noexcept;
-    [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status testShellApartment() noexcept;
-    [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status createJumpLink(const Types::JumpLists::Task &task, void *&out) noexcept;
+    [[nodiscard]] DESKTOP_TEST_EXPORT GameWIP::Status::Types::Status testDialogApartment() noexcept;
+    [[nodiscard]] DESKTOP_TEST_EXPORT GameWIP::Status::Types::Status testShellApartment() noexcept;
+    [[nodiscard]] DESKTOP_TEST_EXPORT GameWIP::Status::Types::Status createJumpLink(const Types::JumpLists::Task &task, void *&out) noexcept;
 
     /// ------------------------------------------------------------
     /// Progress dialog inspection and control
     /// ------------------------------------------------------------
 
     [[nodiscard]] DESKTOP_TEST_EXPORT ProgressDialogNativeSnapshot inspectProgressDialog(const ProgressDialog &dialog) noexcept;
-    [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status requestProgressDialogCancel(ProgressDialog &dialog) noexcept;
-    [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status requestProgressDialogClose(ProgressDialog &dialog) noexcept;
-    [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status destroyNativeProgressDialog(ProgressDialog &dialog) noexcept;
-    [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status simulateProgressDialogDpiChange(
+    [[nodiscard]] DESKTOP_TEST_EXPORT GameWIP::Status::Types::Status requestProgressDialogCancel(ProgressDialog &dialog) noexcept;
+    [[nodiscard]] DESKTOP_TEST_EXPORT GameWIP::Status::Types::Status requestProgressDialogClose(ProgressDialog &dialog) noexcept;
+    [[nodiscard]] DESKTOP_TEST_EXPORT GameWIP::Status::Types::Status destroyNativeProgressDialog(ProgressDialog &dialog) noexcept;
+    [[nodiscard]] DESKTOP_TEST_EXPORT GameWIP::Status::Types::Status simulateProgressDialogDpiChange(
         ProgressDialog &dialog,
         NativePixelRect suggestedBounds,
         std::uint32_t dpi) noexcept;
@@ -188,9 +188,9 @@ namespace GameWIP::Desktop::Internal::TestHooks::Win32
     /// Drag/drop native contracts
     /// ------------------------------------------------------------
 
-    [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status prepareDragDropSource(const Types::DragDrop::Description &description) noexcept;
-    [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status testDragDropOleInitialization() noexcept;
-    [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status testDragDropMaterialization() noexcept;
+    [[nodiscard]] DESKTOP_TEST_EXPORT GameWIP::Status::Types::Status prepareDragDropSource(const Types::DragDrop::Description &description) noexcept;
+    [[nodiscard]] DESKTOP_TEST_EXPORT GameWIP::Status::Types::Status testDragDropOleInitialization() noexcept;
+    [[nodiscard]] DESKTOP_TEST_EXPORT GameWIP::Status::Types::Status testDragDropMaterialization() noexcept;
     [[nodiscard]] DESKTOP_TEST_EXPORT Types::DragDrop::Result droppedDragDropSourceResult(
         Types::DragDrop::Effect performed,
         Types::DragDrop::Effect allowed) noexcept;
@@ -240,19 +240,19 @@ namespace GameWIP::Desktop::Internal::Win32
     /// Dialog and shell hooks
     /// ------------------------------------------------------------
 
-    [[nodiscard]] IO::Types::Status testDialogApartment() noexcept;
-    [[nodiscard]] IO::Types::Status testShellApartment() noexcept;
-    [[nodiscard]] IO::Types::Status createJumpLinkForTests(const Types::JumpLists::Task &task, void *&out) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Status testDialogApartment() noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Status testShellApartment() noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Status createJumpLinkForTests(const Types::JumpLists::Task &task, void *&out) noexcept;
 
     /// ------------------------------------------------------------
     /// Progress dialog hooks
     /// ------------------------------------------------------------
 
     [[nodiscard]] TestHooks::Win32::ProgressDialogNativeSnapshot inspectProgressDialog(const ProgressDialogState *state) noexcept;
-    [[nodiscard]] IO::Types::Status requestProgressDialogCancel(ProgressDialogState *state) noexcept;
-    [[nodiscard]] IO::Types::Status requestProgressDialogClose(ProgressDialogState *state) noexcept;
-    [[nodiscard]] IO::Types::Status destroyNativeProgressDialog(ProgressDialogState *state) noexcept;
-    [[nodiscard]] IO::Types::Status simulateProgressDialogDpiChange(
+    [[nodiscard]] GameWIP::Status::Types::Status requestProgressDialogCancel(ProgressDialogState *state) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Status requestProgressDialogClose(ProgressDialogState *state) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Status destroyNativeProgressDialog(ProgressDialogState *state) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Status simulateProgressDialogDpiChange(
         ProgressDialogState *state,
         TestHooks::Win32::NativePixelRect suggestedBounds,
         std::uint32_t dpi) noexcept;
@@ -265,9 +265,9 @@ namespace GameWIP::Desktop::Internal::Win32
     /// Drag/drop hooks
     /// ------------------------------------------------------------
 
-    [[nodiscard]] IO::Types::Status prepareDragDropSource(const Types::DragDrop::Description &description) noexcept;
-    [[nodiscard]] IO::Types::Status testDragDropOleInitialization() noexcept;
-    [[nodiscard]] IO::Types::Status testDragDropMaterialization() noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Status prepareDragDropSource(const Types::DragDrop::Description &description) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Status testDragDropOleInitialization() noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Status testDragDropMaterialization() noexcept;
     [[nodiscard]] Types::DragDrop::Result testDroppedDragDropSourceResult(
         Types::DragDrop::Effect performed,
         Types::DragDrop::Effect allowed) noexcept;

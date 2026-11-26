@@ -46,17 +46,17 @@ namespace GameWIP::Logger
             catch(const std::format_error &)
             {
                 recordFormatFailure();
-                return reportFailure(IO::Types::ErrorCode::InvalidArgument);
+                return reportFailure(GameWIP::Status::Types::Code::InvalidArgument);
             }
             catch(const std::bad_alloc &)
             {
                 recordAllocationFailure();
-                return reportFailure(IO::Types::ErrorCode::OutOfMemory);
+                return reportFailure(GameWIP::Status::Types::Code::OutOfMemory);
             }
             catch(...)
             {
                 recordAllocationFailure();
-                return reportFailure(IO::Types::ErrorCode::Unknown);
+                return reportFailure(GameWIP::Status::Types::Code::Unknown);
             }
         }
 
@@ -88,17 +88,17 @@ namespace GameWIP::Logger
             catch(const std::format_error &)
             {
                 recordFormatFailure();
-                return reportFailure(IO::Types::ErrorCode::InvalidArgument);
+                return reportFailure(GameWIP::Status::Types::Code::InvalidArgument);
             }
             catch(const std::bad_alloc &)
             {
                 recordAllocationFailure();
-                return reportFailure(IO::Types::ErrorCode::OutOfMemory);
+                return reportFailure(GameWIP::Status::Types::Code::OutOfMemory);
             }
             catch(...)
             {
                 recordAllocationFailure();
-                return reportFailure(IO::Types::ErrorCode::Unknown);
+                return reportFailure(GameWIP::Status::Types::Code::Unknown);
             }
         }
 
@@ -115,7 +115,7 @@ namespace GameWIP::Logger
             {
                 if(GameWIP::Unicode::Utf8::validate(message).outcome != GameWIP::Unicode::Types::ValidationOutcome::Valid)
                 {
-                    return reportFailure(IO::Types::ErrorCode::EncodingFailed);
+                    return reportFailure(GameWIP::Status::Types::Code::EncodingFailed);
                 }
 
                 const std::size_t maxMessageLength = getMaxMessageLengthForFormatting();
@@ -130,12 +130,12 @@ namespace GameWIP::Logger
             catch(const std::bad_alloc &)
             {
                 recordAllocationFailure();
-                return reportFailure(IO::Types::ErrorCode::OutOfMemory);
+                return reportFailure(GameWIP::Status::Types::Code::OutOfMemory);
             }
             catch(...)
             {
                 recordAllocationFailure();
-                return reportFailure(IO::Types::ErrorCode::Unknown);
+                return reportFailure(GameWIP::Status::Types::Code::Unknown);
             }
         }
     } // namespace Internal::Core

@@ -1,6 +1,7 @@
 /// @file accessibility_validation.cpp
 /// @brief Complete portable validation before immutable semantic replacement.
 
+#include "desktop/internal/results.h"
 #include "desktop/accessibility.h"
 #include "unicode/unicode.h"
 
@@ -102,11 +103,9 @@ namespace GameWIP::Desktop::Accessibility
 
         A::ValidationResult fail(Issue issue, A::NodeId node = 0, std::size_t index = 0)
         {
-            return {
-                IO::makeStatus(issue == Issue::LimitExceeded ? IO::Types::ErrorCode::SizeLimitExceeded : IO::Types::ErrorCode::InvalidArgument),
-                issue,
-                node,
-                index};
+            const GameWIP::Status::Types::Code code =
+                issue == Issue::LimitExceeded ? GameWIP::Status::Types::Code::SizeLimitExceeded : GameWIP::Status::Types::Code::InvalidArgument;
+            return A::ValidationResult::failure(GameWIP::Desktop::Internal::statusFor(code), A::ValidationInfo{issue, node, index});
         }
 
         bool validLimits(const A::Limits &limits) noexcept
@@ -752,15 +751,17 @@ namespace GameWIP::Desktop::Accessibility
                 }
             }
 
-            return {};
+            return A::ValidationResult::success(A::ValidationInfo{});
         }
         catch(const std::bad_alloc &)
         {
-            return {IO::makeStatus(IO::Types::ErrorCode::OutOfMemory)};
+            return A::ValidationResult::failure(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::OutOfMemory));
         }
         catch(...)
         {
-            return {IO::makeStatus(IO::Types::ErrorCode::SizeLimitExceeded), Issue::LimitExceeded};
+            return A::ValidationResult::failure(
+                GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::SizeLimitExceeded),
+                A::ValidationInfo{Issue::LimitExceeded});
         }
     }
 } // namespace GameWIP::Desktop::Accessibility

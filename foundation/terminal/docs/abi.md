@@ -35,8 +35,8 @@ Internal platform headers and test hooks are not installed.
 ## Binary compatibility
 
 The public interface exposes C++ standard-library types including `std::string`, `std::string_view`, `std::span`, `std::optional`, `std::stop_token`,
-`std::format_string`, and `std::chrono::milliseconds`. Checked operations report failures through IO status/result types rather than exposing a
-Terminal exception hierarchy. `Session` contains a private `std::unique_ptr` to an incomplete implementation state. Consumers must follow the project
+`std::format_string`, and `std::chrono::milliseconds`. Checked operations report failures through the shared `GameWIP::Status` result types rather
+than exposing a Terminal exception hierarchy. `Session` contains a private `std::unique_ptr` to an incomplete implementation state. Consumers must follow the project
 compiler, language-mode, standard-library, runtime-library, architecture, and build-configuration compatibility policy. See @ref
 project_library_compatibility.
 
@@ -63,7 +63,7 @@ depending on bridge signatures directly.
 
 ## Dependency direction
 
-Terminal publicly depends on IO because statuses, flush modes, and byte-write results appear in its public API. Logger depends on Terminal for console
+Terminal publicly depends on Status for operation results and IO for stream types, flush modes, and byte-write progress. Logger depends on Terminal for console
 output. Terminal must not depend on Logger or higher-level runtime systems.
 
 ## Test hooks

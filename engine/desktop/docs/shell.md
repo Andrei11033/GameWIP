@@ -97,7 +97,7 @@ bool quit = false;
 while(!quit)
 {
     const auto pump = D::Events::wait(std::chrono::milliseconds{16});
-    if(!pump.status.ok())
+    if(!pump.ok())
     {
         break;
     }
@@ -124,7 +124,7 @@ if(closed.ok())
 notification identities. Basic notifications need no queue; actions, text inputs, and dismissal
 events require the queue overload.
 
-`publish()` returns `Types::Result<NotificationId>`; check `ok()` first. `update(id, description)`
+`publish()` returns `GameWIP::Status::Types::Result<NotificationId>`; check `ok()` first. `update(id, description)`
 preserves the ID (a failed update keeps the previous description); `dismiss(id)` removes it. IDs
 are valid only for the open center that issued them, not across close/reopen. Publication success
 does not guarantee that OS policy displays the notification.
@@ -141,7 +141,7 @@ open for the publication's lifetime, then dismiss the returned ID and close expl
 ```cpp
 #include "desktop/shell_notifications.h"
 
-GameWIP::Desktop::Types::Result<GameWIP::Desktop::Types::Shell::NotificationId> publishExportComplete(GameWIP::Desktop::NotificationCenter &center)
+GameWIP::Status::Types::Result<GameWIP::Desktop::Types::Shell::NotificationId> publishExportComplete(GameWIP::Desktop::NotificationCenter &center)
 {
     GameWIP::Desktop::Types::Notifications::Description description;
     description.title = "Export complete";
@@ -173,7 +173,7 @@ document. The call copies both the argument and task arrays before returning:
 #include <array>
 #include <functional>
 
-GameWIP::IO::Types::Status publishEditorTasks(const GameWIP::FileSystem::Types::Path &executable)
+GameWIP::Status::Types::Result<void> publishEditorTasks(const GameWIP::FileSystem::Types::Path &executable)
 {
     namespace D = GameWIP::Desktop;
     const std::array<D::Types::Shell::LaunchArgumentView, 1> arguments{D::Types::Shell::LaunchArguments::literal("--new-document")};
@@ -236,7 +236,8 @@ GameWIP::Desktop::Types::Registration::Result registerExampleUri(const GameWIP::
 }
 ```
 
-Inspect both `status` and `conflicts`. Registration only changes shell metadata; the application
+Inspect `result.status()` and, when `result.hasValue()`, `result.value().conflicts`. A failed
+registration can retain conflict details. Registration only changes shell metadata; the application
 owns command-line parsing and target validation at launch. Stateless jump-list and registration
 calls need no Window or queue.
 Win32 taskbar and jump-list calls need an STA-compatible COM apartment and return `ResourceBusy`

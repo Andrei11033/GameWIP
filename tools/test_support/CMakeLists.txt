@@ -45,9 +45,9 @@ add_subdirectory(platform)
 target_include_directories(TestSupport PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/tools> $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 
 target_compile_features(TestSupport PUBLIC cxx_std_23)
-target_link_libraries(TestSupport PRIVATE Unicode)
+target_link_libraries(TestSupport PUBLIC GameWIP::Status PRIVATE Unicode)
 
-# TestSupport may use foundational Unicode for real text semantics, but must not
+# TestSupport may use foundational Status and Unicode, but must not
 # acquire IO, FileSystem, Logger, Assert, engine, or other higher-level GameWIP dependencies.
 set(test_support_forbidden_gamewip_targets
     IO
@@ -70,8 +70,8 @@ foreach(property_name LINK_LIBRARIES INTERFACE_LINK_LIBRARIES)
             if(link_item IN_LIST test_support_forbidden_gamewip_targets)
                 message(FATAL_ERROR "TestSupport must not depend on '${link_item}'.")
             endif()
-            if(link_item MATCHES "^GameWIP::" AND NOT link_item STREQUAL "GameWIP::Unicode")
-                message(FATAL_ERROR "TestSupport may depend only on foundational Unicode, but ${property_name} contains '${link_item}'.")
+            if(link_item MATCHES "^GameWIP::" AND NOT link_item STREQUAL "GameWIP::Status" AND NOT link_item STREQUAL "GameWIP::Unicode")
+                message(FATAL_ERROR "TestSupport may depend only on foundational Status and Unicode, but ${property_name} contains '${link_item}'.")
             endif()
         endforeach()
     endif()

@@ -2,6 +2,7 @@
 /// @brief Win32 child-process pipe draining for TestSupport.
 
 #include "test_support/platform/win32/internal/output_capture.h"
+#include "test_support/internal/status.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -20,14 +21,18 @@ namespace GameWIP::TestSupport::Internal::Win32
         std::size_t captureLimit,
         std::string &outputBytes,
         bool &outputTruncated,
-        Types::InfrastructureStatus &outputStatus) noexcept
+        Types::Status &outputStatus) noexcept
     {
-        const auto setOutputFailure = [&outputStatus](Types::InfrastructureError error, std::uint64_t nativeCode = 0) noexcept
+        const auto setOutputFailure = [&outputStatus](GameWIP::Status::Types::Code code, std::uint64_t nativeCode = 0) noexcept
         {
             if(outputStatus.ok())
             {
-                outputStatus.error = error;
-                outputStatus.nativeCode = nativeCode;
+                const auto native = nativeCode == 0
+                                        ? std::nullopt
+                                        : std::optional<GameWIP::Status::Types::NativeCode>(
+                                              GameWIP::Status::Types::NativeCode{GameWIP::Status::Types::NativeCodeDomain::Win32Error,
+                                                                               static_cast<std::int64_t>(nativeCode)});
+                outputStatus = Internal::failureStatus(code, native);
             }
         };
 
@@ -46,7 +51,7 @@ namespace GameWIP::TestSupport::Internal::Win32
 
                     if(readError != ERROR_BROKEN_PIPE)
                     {
-                        setOutputFailure(Types::InfrastructureError::CaptureFailed, readError);
+                        setOutputFailure(GameWIP::Status::Types::Code::ProcessCaptureFailed, readError);
                     }
                     break;
                 }
@@ -73,17 +78,17 @@ namespace GameWIP::TestSupport::Internal::Win32
         }
         catch(const std::bad_alloc &)
         {
-            setOutputFailure(Types::InfrastructureError::OutOfMemory);
+            setOutputFailure(GameWIP::Status::Types::Code::OutOfMemory);
         }
         catch(...)
         {
-            setOutputFailure(Types::InfrastructureError::CaptureFailed);
+            setOutputFailure(GameWIP::Status::Types::Code::ProcessCaptureFailed);
         }
 
         // Release the process thread waiting for the reader.
         if(SetEvent(outputDoneHandle) == FALSE)
         {
-            setOutputFailure(Types::InfrastructureError::CaptureFailed, GetLastError());
+            setOutputFailure(GameWIP::Status::Types::Code::ProcessCaptureFailed, GetLastError());
         }
     }
 } // namespace GameWIP::TestSupport::Internal::Win32

@@ -10,39 +10,39 @@ namespace GameWIP::FileSystem::Platform::Win32
     /// ------------------------------------------------------------
 
     /// @brief Enforces an open request's existing-entry kind and replacement rules.
-    [[nodiscard]] IO::Types::Status validateExistingEntry(const Types::Path &path, const NativeOpenRequest &request)
+    [[nodiscard]] Result<void> validateExistingEntry(const Types::Path &path, const NativeOpenRequest &request)
     {
-        EntryQueryResult entry = queryEntryImpl(path, request.symlinkPolicy);
+        auto entry = queryEntryImpl(path, request.symlinkPolicy);
 
-        if(!entry.status.ok())
+        if(!entry.ok())
         {
-            if(entry.status.code == ErrorCode::NotFound && request.existingEntryRule == ExistingEntryRule::MayCreateRegularFile)
+            if(entry.status().code() == ErrorCode::NotFound && request.existingEntryRule == ExistingEntryRule::MayCreateRegularFile)
             {
-                return IO::successStatus();
+                return success();
             }
-            return std::move(entry.status);
+            return failure<void>(entry.status());
         }
 
         if(request.creationDisposition == CREATE_NEW)
         {
-            return IO::makeStatus(ErrorCode::AlreadyExists);
+            return failure<void>(ErrorCode::AlreadyExists);
         }
 
-        if(entry.info.kind == Types::EntryKind::Directory)
+        if(entry.value().kind == Types::EntryKind::Directory)
         {
-            return IO::makeStatus(ErrorCode::IsDirectory);
+            return failure<void>(ErrorCode::IsDirectory);
         }
 
-        if(entry.info.kind != Types::EntryKind::RegularFile)
+        if(entry.value().kind != Types::EntryKind::RegularFile)
         {
-            return IO::makeStatus(ErrorCode::InvalidArgument);
+            return failure<void>(ErrorCode::InvalidArgument);
         }
 
-        return IO::successStatus();
+        return success();
     }
 
     /// @brief Publishes a successfully opened native handle into platform-neutral file state.
-    [[nodiscard]] IO::Types::Status assignFileState(
+    [[nodiscard]] Result<void> assignFileState(
         std::unique_ptr<Internal::FileState> &state,
         UniqueHandle handle,
         const NativeOpenRequest &request)
@@ -56,27 +56,27 @@ namespace GameWIP::FileSystem::Platform::Win32
         newState->appendMode = request.appendMode;
 
         state = std::move(newState);
-        return IO::successStatus();
+        return success();
     }
 
     /// @brief Moves a native file pointer using one validated seek origin.
-    [[nodiscard]] IO::Types::Status seekNativeHandle(HANDLE handle, std::int64_t offset, IO::Types::SeekOrigin origin);
+    [[nodiscard]] Result<void> seekNativeHandle(HANDLE handle, std::int64_t offset, IO::Types::SeekOrigin origin);
     /// @brief Queries the current unsigned native file position.
-    [[nodiscard]] IO::Types::PositionResult nativePosition(HANDLE handle);
+    [[nodiscard]] Result<std::uint64_t> nativePosition(HANDLE handle);
 
     /// @brief Resizes a handle and reports a failed restoration of its original file pointer.
-    [[nodiscard]] IO::Types::Status truncateNativeHandle(HANDLE handle, std::uint64_t sizeBytes)
+    [[nodiscard]] Result<void> truncateNativeHandle(HANDLE handle, std::uint64_t sizeBytes)
     {
         if(sizeBytes > static_cast<std::uint64_t>(std::numeric_limits<std::int64_t>::max()))
         {
-            return IO::makeStatus(ErrorCode::SizeLimitExceeded);
+            return failure<void>(ErrorCode::SizeLimitExceeded);
         }
 
-        const IO::Types::PositionResult originalPosition = nativePosition(handle);
+        auto originalPosition = nativePosition(handle);
 
-        if(!originalPosition.status.ok())
+        if(!originalPosition.ok())
         {
-            return originalPosition.status;
+            return failure<void>(originalPosition.status());
         }
 
         LARGE_INTEGER target{};
@@ -84,53 +84,53 @@ namespace GameWIP::FileSystem::Platform::Win32
 
         if(SetFilePointerEx(handle, target, nullptr, FILE_BEGIN) == FALSE)
         {
-            return makeLastErrorStatus(ErrorCode::ResizeFailed);
+            return failure<void>(makeLastErrorStatus(ErrorCode::ResizeFailed));
         }
 
         if(SetEndOfFile(handle) == FALSE)
         {
-            return makeLastErrorStatus(ErrorCode::ResizeFailed);
+            return failure<void>(makeLastErrorStatus(ErrorCode::ResizeFailed));
         }
 
-        if(originalPosition.position <= sizeBytes)
+        if(originalPosition.value() <= sizeBytes)
         {
-            return seekNativeHandle(handle, static_cast<std::int64_t>(originalPosition.position), IO::Types::SeekOrigin::Begin);
+            return seekNativeHandle(handle, static_cast<std::int64_t>(originalPosition.value()), IO::Types::SeekOrigin::Begin);
         }
 
-        return IO::successStatus();
+        return success();
     }
 
     /// @brief Performs a handle-relative final open for non-FollowAll policies.
-    [[nodiscard]] IO::Types::Status openNativeFileStrict(
+    [[nodiscard]] Result<void> openNativeFileStrict(
         std::unique_ptr<Internal::FileState> &state,
         const Types::Path &path,
         const NativeOpenRequest &request)
     {
-        WidePathResult absolutePath = absoluteNativePath(path);
+        auto absolutePath = absoluteNativePath(path);
 
-        if(!absolutePath.status.ok())
+        if(!absolutePath.ok())
         {
-            return std::move(absolutePath.status);
+            return failure<void>(absolutePath.status());
         }
 
-        ParsedPathResult parsedPath = parseAbsolutePath(absolutePath.path);
+        auto parsedPath = parseAbsolutePath(absolutePath.value());
 
-        if(!parsedPath.status.ok())
+        if(!parsedPath.ok())
         {
-            return std::move(parsedPath.status);
+            return failure<void>(parsedPath.status());
         }
 
-        if(parsedPath.components.empty())
+        if(parsedPath.value().components.empty())
         {
-            return IO::makeStatus(ErrorCode::IsDirectory);
+            return failure<void>(ErrorCode::IsDirectory);
         }
 
         // Resolve the parent without reopening its validated ancestors.
-        HandleResult parent = openParentStrict(parsedPath);
+        auto parent = openParentStrict(parsedPath.value());
 
-        if(!parent.status.ok())
+        if(!parent.ok())
         {
-            return std::move(parent.status);
+            return failure<void>(parent.status());
         }
 
         ULONG openOptions = kOpenOptionsBase | FILE_NON_DIRECTORY_FILE;
@@ -140,11 +140,11 @@ namespace GameWIP::FileSystem::Platform::Win32
             openOptions |= FILE_OPEN_REPARSE_POINT;
         }
 
-        const auto openFinal = [&](ULONG createDisposition) -> HandleResult
+        const auto openFinal = [&](ULONG createDisposition) -> Result<HandleInfo>
         {
             return openChildNative(
-                parent.handle.get(),
-                parsedPath.components.back(),
+                parent.value().handle.get(),
+                parsedPath.value().components.back(),
                 request.desiredAccess,
                 nativeShareMode(request.share),
                 createDisposition,
@@ -155,7 +155,7 @@ namespace GameWIP::FileSystem::Platform::Win32
 
         // Select native creation semantics and any required post-open truncation.
         bool truncateAfterOpen = false;
-        HandleResult finalHandle{.status = IO::makeStatus(ErrorCode::InvalidArgument)};
+        auto finalHandle = failure<HandleInfo>(ErrorCode::InvalidArgument);
 
         switch(request.creationDisposition)
         {
@@ -175,54 +175,54 @@ namespace GameWIP::FileSystem::Platform::Win32
         case CREATE_ALWAYS:
             finalHandle = openFinal(FILE_CREATE);
 
-            if(!finalHandle.status.ok() && finalHandle.status.code == ErrorCode::AlreadyExists)
+            if(!finalHandle.ok() && finalHandle.status().code() == ErrorCode::AlreadyExists)
             {
                 finalHandle = openFinal(FILE_OPEN);
                 truncateAfterOpen = true;
             }
             break;
         default:
-            return IO::makeStatus(ErrorCode::InvalidArgument);
+            return failure<void>(ErrorCode::InvalidArgument);
         }
 
-        if(!finalHandle.status.ok())
+        if(!finalHandle.ok())
         {
-            return std::move(finalHandle.status);
+            return failure<void>(finalHandle.status());
         }
 
         // Validate the opened entry before truncating or publishing its handle.
-        EntryQueryResult info = queryHandleInfo(finalHandle.handle.get());
+        auto info = queryHandleInfo(finalHandle.value().handle.get());
 
-        if(!info.status.ok())
+        if(!info.ok())
         {
-            return std::move(info.status);
+            return failure<void>(info.status());
         }
 
-        if(info.info.kind == Types::EntryKind::Directory)
+        if(info.value().kind == Types::EntryKind::Directory)
         {
-            return IO::makeStatus(ErrorCode::IsDirectory);
+            return failure<void>(ErrorCode::IsDirectory);
         }
 
-        if(info.info.kind != Types::EntryKind::RegularFile)
+        if(info.value().kind != Types::EntryKind::RegularFile)
         {
-            return IO::makeStatus(ErrorCode::InvalidArgument);
+            return failure<void>(ErrorCode::InvalidArgument);
         }
 
         if(truncateAfterOpen)
         {
-            IO::Types::Status truncateStatus = truncateNativeHandle(finalHandle.handle.get(), 0);
+            auto truncateResult = truncateNativeHandle(finalHandle.value().handle.get(), 0);
 
-            if(!truncateStatus.ok())
+            if(!truncateResult.ok())
             {
-                return truncateStatus;
+                return truncateResult;
             }
         }
 
-        return assignFileState(state, std::move(finalHandle.handle), request);
+        return assignFileState(state, std::move(finalHandle).value().handle, request);
     }
 
     /// @brief Executes one validated native open and initializes FileState on success.
-    [[nodiscard]] IO::Types::Status openNativeFile(
+    [[nodiscard]] Result<void> openNativeFile(
         std::unique_ptr<Internal::FileState> &state,
         const Types::Path &path,
         const NativeOpenRequest &request)
@@ -230,7 +230,7 @@ namespace GameWIP::FileSystem::Platform::Win32
         if(path.empty() || !isValidFileShare(request.share) || !isValidSymlinkPolicy(request.symlinkPolicy) ||
            !IO::isValidFlushMode(request.flushOnClose))
         {
-            return IO::makeStatus(ErrorCode::InvalidArgument);
+            return failure<void>(ErrorCode::InvalidArgument);
         }
 
         // Use handle-relative traversal when the policy restricts symlink following.
@@ -240,22 +240,22 @@ namespace GameWIP::FileSystem::Platform::Win32
         }
 
         // Check existing-entry and replacement policy before opening the full path.
-        IO::Types::Status existingStatus = validateExistingEntry(path, request);
+        auto existingStatus = validateExistingEntry(path, request);
 
         if(!existingStatus.ok())
         {
             return existingStatus;
         }
 
-        WidePathResult absolutePath = absoluteNativePath(path);
+        auto absolutePath = absoluteNativePath(path);
 
-        if(!absolutePath.status.ok())
+        if(!absolutePath.ok())
         {
-            return std::move(absolutePath.status);
+            return failure<void>(absolutePath.status());
         }
 
         UniqueHandle handle{CreateFileW(
-            absolutePath.path.c_str(),
+            absolutePath.value().c_str(),
             request.desiredAccess,
             nativeShareMode(request.share),
             nullptr,
@@ -265,7 +265,7 @@ namespace GameWIP::FileSystem::Platform::Win32
 
         if(!handle.isValid())
         {
-            return makeLastErrorStatus(ErrorCode::OpenFailed);
+            return failure<void>(makeLastErrorStatus(ErrorCode::OpenFailed));
         }
         return assignFileState(state, std::move(handle), request);
     }
@@ -275,7 +275,7 @@ namespace GameWIP::FileSystem::Platform::Win32
     /// ------------------------------------------------------------
 
     /// @brief Implements native seek after validating origin and signed offset semantics.
-    [[nodiscard]] IO::Types::Status seekNativeHandle(HANDLE handle, std::int64_t offset, IO::Types::SeekOrigin origin)
+    [[nodiscard]] Result<void> seekNativeHandle(HANDLE handle, std::int64_t offset, IO::Types::SeekOrigin origin)
     {
         DWORD moveMethod = FILE_BEGIN;
 
@@ -291,7 +291,7 @@ namespace GameWIP::FileSystem::Platform::Win32
             moveMethod = FILE_END;
             break;
         default:
-            return IO::makeStatus(ErrorCode::InvalidArgument);
+            return failure<void>(ErrorCode::InvalidArgument);
         }
 
         LARGE_INTEGER distance{};
@@ -299,61 +299,61 @@ namespace GameWIP::FileSystem::Platform::Win32
 
         if(SetFilePointerEx(handle, distance, nullptr, moveMethod) == FALSE)
         {
-            return makeLastErrorStatus(ErrorCode::SeekFailed);
+            return failure<void>(makeLastErrorStatus(ErrorCode::SeekFailed));
         }
 
-        return IO::successStatus();
+        return success();
     }
 
     /// @brief Returns the current native file pointer without changing it.
-    [[nodiscard]] IO::Types::PositionResult nativePosition(HANDLE handle)
+    [[nodiscard]] Result<std::uint64_t> nativePosition(HANDLE handle)
     {
         LARGE_INTEGER distance{};
         LARGE_INTEGER position{};
 
         if(SetFilePointerEx(handle, distance, &position, FILE_CURRENT) == FALSE)
         {
-            return {.status = makeLastErrorStatus(ErrorCode::SeekFailed)};
+            return failure<std::uint64_t>(makeLastErrorStatus(ErrorCode::SeekFailed));
         }
 
         if(position.QuadPart < 0)
         {
-            return {.status = IO::makeStatus(ErrorCode::SizeLimitExceeded)};
+            return failure<std::uint64_t>(ErrorCode::SizeLimitExceeded);
         }
 
-        return {.status = IO::successStatus(), .position = static_cast<std::uint64_t>(position.QuadPart)};
+        return Result<std::uint64_t>::success(static_cast<std::uint64_t>(position.QuadPart));
     }
 
     /// @brief Returns the unsigned file size for one open native handle.
-    [[nodiscard]] IO::Types::SizeResult nativeFileSize(HANDLE handle)
+    [[nodiscard]] Result<std::uint64_t> nativeFileSize(HANDLE handle)
     {
         LARGE_INTEGER size{};
 
         if(GetFileSizeEx(handle, &size) == FALSE)
         {
-            return {.status = makeLastErrorStatus(ErrorCode::StatFailed)};
+            return failure<std::uint64_t>(makeLastErrorStatus(ErrorCode::StatFailed));
         }
 
         if(size.QuadPart < 0)
         {
-            return {.status = IO::makeStatus(ErrorCode::SizeLimitExceeded)};
+            return failure<std::uint64_t>(ErrorCode::SizeLimitExceeded);
         }
 
-        return {.status = IO::successStatus(), .sizeBytes = static_cast<std::uint64_t>(size.QuadPart)};
+        return Result<std::uint64_t>::success(static_cast<std::uint64_t>(size.QuadPart));
     }
 
     /// @brief Releases a whole-file native lock and decrements shared active-lock state.
-    [[nodiscard]] IO::Types::Status unlockNativeFile(Internal::FileLockState &state) noexcept
+    [[nodiscard]] Result<void> unlockNativeFile(Internal::FileLockState &state) noexcept
     {
         if(!state.active)
         {
-            return IO::successStatus();
+            return success();
         }
 
 #if FILESYSTEM_INTERNAL_TEST_HOOKS
         if(fileUnlockFailureForced())
         {
-            return IO::makeStatus(ErrorCode::UnlockFailed);
+            return failure<void>(ErrorCode::UnlockFailed);
         }
 
 #endif
@@ -362,7 +362,7 @@ namespace GameWIP::FileSystem::Platform::Win32
 
         if(UnlockFileEx(nativeHandle(state), 0, MAXDWORD, MAXDWORD, &overlapped) == FALSE)
         {
-            return makeLastErrorStatus(ErrorCode::UnlockFailed);
+            return failure<void>(makeLastErrorStatus(ErrorCode::UnlockFailed));
         }
         state.active = false;
 
@@ -371,7 +371,7 @@ namespace GameWIP::FileSystem::Platform::Win32
             --(*state.activeLocks);
         }
 
-        return IO::successStatus();
+        return success();
     }
 
 } // namespace GameWIP::FileSystem::Platform::Win32

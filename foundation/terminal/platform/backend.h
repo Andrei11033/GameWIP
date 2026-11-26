@@ -5,6 +5,7 @@
 #pragma once
 
 #include "terminal/input.h"
+#include "terminal/internal/results.h"
 #include "terminal/output_types.h"
 
 #include <cstddef>
@@ -33,12 +34,7 @@ namespace GameWIP::Terminal::Platform
         bool hasNativeMode = false;
     };
 
-    /// @brief Result returned when capturing the complete backend input mode.
-    struct InputModeSnapshotResult
-    {
-        IO::Types::Status status;
-        InputModeSnapshot snapshot{};
-    };
+    using InputModeSnapshotResult = GameWIP::Status::Types::Result<InputModeSnapshot>;
 
     /// @brief Returns the platform-native line ending used by Types::Output::LineEnding::Native.
     /// @return Non-owning string literal for the current backend.
@@ -63,16 +59,16 @@ namespace GameWIP::Terminal::Platform
     [[nodiscard]] Terminal::Types::Output::CapabilitiesResult prepareOutput(Terminal::Types::Output::Stream stream);
 
     /// @brief Validates a cursor movement amount for the selected backend.
-    [[nodiscard]] IO::Types::Status validateCursorMovement(Terminal::Types::Output::Stream stream, std::uint32_t amount);
+    [[nodiscard]] GameWIP::Status::Types::Status validateCursorMovement(Terminal::Types::Output::Stream stream, std::uint32_t amount);
 
     /// @brief Validates a cursor position for the selected backend.
-    [[nodiscard]] IO::Types::Status validateCursorPosition(Terminal::Types::Output::Stream stream, Terminal::Types::Cursor::Position position);
+    [[nodiscard]] GameWIP::Status::Types::Status validateCursorPosition(Terminal::Types::Output::Stream stream, Terminal::Types::Cursor::Position position);
 
     /// @brief Validates a scroll amount for the selected backend.
-    [[nodiscard]] IO::Types::Status validateScroll(Terminal::Types::Output::Stream stream, std::uint32_t lines);
+    [[nodiscard]] GameWIP::Status::Types::Status validateScroll(Terminal::Types::Output::Stream stream, std::uint32_t lines);
 
     /// @brief Validates a terminal title for the selected backend.
-    [[nodiscard]] IO::Types::Status validateTitle(Terminal::Types::Output::Stream stream, std::string_view utf8Title);
+    [[nodiscard]] GameWIP::Status::Types::Status validateTitle(Terminal::Types::Output::Stream stream, std::string_view utf8Title);
 
     /// @brief Captures the current portable and backend-native input mode.
     /// @param stream Standard input stream to inspect.
@@ -83,13 +79,13 @@ namespace GameWIP::Terminal::Platform
     /// @param stream Standard input stream to update.
     /// @param mode Internal mode request.
     /// @return Success or portable/backend-native failure status.
-    [[nodiscard]] IO::Types::Status setInputMode(Terminal::Types::Input::Stream stream, const InputMode &mode);
+    [[nodiscard]] GameWIP::Status::Types::Status setInputMode(Terminal::Types::Input::Stream stream, const InputMode &mode);
 
     /// @brief Restores a previously captured complete input mode.
     /// @param stream Standard input stream to restore.
     /// @param snapshot Snapshot produced by captureInputMode().
     /// @return Success or portable/backend-native failure status.
-    [[nodiscard]] IO::Types::Status restoreInputMode(Terminal::Types::Input::Stream stream, const InputModeSnapshot &snapshot);
+    [[nodiscard]] GameWIP::Status::Types::Status restoreInputMode(Terminal::Types::Input::Stream stream, const InputModeSnapshot &snapshot);
 
     /// ------------------------------------------------------------
     /// Geometry and cursor state
@@ -114,7 +110,7 @@ namespace GameWIP::Terminal::Platform
     [[nodiscard]] Terminal::Types::Cursor::PositionResult getLineRenderingCursorPosition(Terminal::Types::Output::Stream stream);
 
     /// @brief Sets a backend-stable cursor coordinate for managed line rendering.
-    [[nodiscard]] IO::Types::Status setLineRenderingCursorPosition(
+    [[nodiscard]] GameWIP::Status::Types::Status setLineRenderingCursorPosition(
         Terminal::Types::Output::Stream stream,
         Terminal::Types::Cursor::Position position);
 
@@ -159,18 +155,20 @@ namespace GameWIP::Terminal::Platform
     /// @param stream Standard output stream to write.
     /// @param utf8Text Already-validated complete UTF-8 text.
     /// @return Success or portable/backend-native failure status.
-    [[nodiscard]] IO::Types::Status writeText(Terminal::Types::Output::Stream stream, std::string_view utf8Text);
+    [[nodiscard]] GameWIP::Status::Types::Status writeText(Terminal::Types::Output::Stream stream, std::string_view utf8Text);
 
     /// @brief Writes bytes to a standard output stream where practical.
     /// @param stream Standard output stream to write.
     /// @param bytes Caller-owned arbitrary binary bytes; no Unicode validity is required.
     /// @return Number of accepted bytes and operation status.
-    [[nodiscard]] IO::Types::WriteResult writeBytes(Terminal::Types::Output::Stream stream, std::span<const std::byte> bytes);
+    [[nodiscard]] GameWIP::Status::Types::Result<IO::Types::WriteProgress> writeBytes(
+        Terminal::Types::Output::Stream stream,
+        std::span<const std::byte> bytes);
 
     /// @brief Flushes a standard output stream where meaningful.
     /// @param stream Standard output stream to flush.
     /// @param mode Requested flush strength.
     /// @return Success or portable/backend-native failure status.
-    [[nodiscard]] IO::Types::Status flush(Terminal::Types::Output::Stream stream, IO::Types::FlushMode mode);
+    [[nodiscard]] GameWIP::Status::Types::Status flush(Terminal::Types::Output::Stream stream, IO::Types::FlushMode mode);
 
 } // namespace GameWIP::Terminal::Platform

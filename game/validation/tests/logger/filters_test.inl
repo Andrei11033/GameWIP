@@ -48,12 +48,12 @@ void testFilterStatusesAndConcurrency(TestContext &context, const LoggerTestOpti
     context.expectFalse("render filtered", Logger::shouldLog(Logger::Types::Level::Info, TestSource::Render));
     context.expectEq(
         "unknown source filter NotFound",
-        Logger::setSourceFilter(static_cast<Logger::Types::SourceId>(TestSource::Unknown), false).code,
-        IO::Types::ErrorCode::NotFound);
+        Logger::setSourceFilter(static_cast<Logger::Types::SourceId>(TestSource::Unknown), false).status().code(),
+        GameWIP::Status::Types::Code::NotFound);
     context.expectEq(
         "invalid level filter InvalidArgument",
-        Logger::setLevelFilter(static_cast<Logger::Types::Level>(99), true).code,
-        IO::Types::ErrorCode::InvalidArgument);
+        Logger::setLevelFilter(static_cast<Logger::Types::Level>(99), true).status().code(),
+        GameWIP::Status::Types::Code::InvalidArgument);
     context.expectTrue("reset source filters status", Logger::resetSourceFilters().ok());
     context.expectTrue("set level filter status", Logger::setLevelFilter(Logger::Types::Level::Debug, false).ok());
     context.expectFalse("debug filtered", Logger::shouldLog(Logger::Types::Level::Debug));

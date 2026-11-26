@@ -61,7 +61,7 @@ target_include_directories(
 )
 
 target_compile_features(Input PUBLIC cxx_std_23)
-target_link_libraries(Input PUBLIC IO PRIVATE Unicode)
+target_link_libraries(Input PUBLIC Status PRIVATE Unicode)
 
 set_target_properties(
     Input

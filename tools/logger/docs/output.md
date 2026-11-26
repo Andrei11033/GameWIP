@@ -5,7 +5,7 @@ and stdout/stderr routing; redirected or unsupported output remains plain. File 
 filename behavior. Debugger output and the fatal popup are emergency channels controlled separately by configuration.
 
 File-only startup may fall back to Console when configured. `Both` naturally retains Console when File setup fails. Initialization exposes
-requested/effective normal output and File/timestamp setup failures directly through `Types::Init::Result`.
+requested/effective normal output and File/timestamp setup failures through `Types::Init::Result::value()`.
 
 At runtime a failed Console or File sink is disabled for the current Logger initialization. `getOutput()` and `getHealth().effectiveOutput` reflect
 the surviving normal sink set. Reinitialization is the explicit retry boundary.

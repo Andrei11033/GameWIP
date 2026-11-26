@@ -12,14 +12,14 @@ namespace GameWIP::Logger::Internal::Core
         /// Report deadlines and results
         /// ------------------------------------------------------------
 
-        [[nodiscard]] bool markReportTimedOutIfExpired(const FlushDeadline *deadline, Types::Report::Result &result) noexcept
+        [[nodiscard]] bool markReportTimedOutIfExpired(const FlushDeadline *deadline, Types::Report::Info &info) noexcept
         {
             if(!deadlineExpired(deadline))
             {
                 return false;
             }
 
-            result.outcome = Types::Report::Outcome::TimedOut;
+            info.outcome = Types::Report::Outcome::TimedOut;
             return true;
         }
 
@@ -69,26 +69,24 @@ namespace GameWIP::Logger::Internal::Core
         bool unknownSource,
         Color sourceColor)
     {
-        Types::Report::Result result;
+        Types::Report::Info info;
+        Status status;
 
         // Validate the request before taking Logger's lifecycle lock.
         if(!isValidLevel(level))
         {
-            result.status = IO::makeStatus(ErrorCode::InvalidArgument);
-            return result;
+            return Types::Report::Result::failure(makeStatus(ErrorCode::InvalidArgument));
         }
 
         if(timeout && timeout->count() < 0)
         {
-            result.status = IO::makeStatus(ErrorCode::InvalidArgument);
-            return result;
+            return Types::Report::Result::failure(makeStatus(ErrorCode::InvalidArgument));
         }
 
         if(Unicode::Utf8::validate(source).outcome != Unicode::Types::ValidationOutcome::Valid ||
            Unicode::Utf8::validate(plainOutputText(message)).outcome != Unicode::Types::ValidationOutcome::Valid)
         {
-            result.status = IO::makeStatus(ErrorCode::EncodingFailed);
-            return result;
+            return Types::Report::Result::failure(makeStatus(ErrorCode::EncodingFailed));
         }
 
         const FlushDeadline deadlineValue = timeout ? makeFlushDeadline(*timeout) : FlushDeadline{};
@@ -101,8 +99,8 @@ namespace GameWIP::Logger::Internal::Core
         }
         else if(!lockBefore(lifecycleLock, *deadline))
         {
-            result.outcome = Types::Report::Outcome::TimedOut;
-            return result;
+            info.outcome = Types::Report::Outcome::TimedOut;
+            return Types::Report::Result::success(std::move(info));
         }
 
         std::string boundedScratch;
@@ -111,14 +109,20 @@ namespace GameWIP::Logger::Internal::Core
         const bool truncated = alreadyTruncated || truncatedNow;
 
         // Deliver to the configured sinks, then mirror to debugger output when enabled.
-        ReportSinkProgress normal = writeReportSynchronously(level, source, reportMessage, unknownSource, truncated, deadline, sourceColor);
-        result.status = firstFailure(std::move(result.status), normal.status);
-        std::size_t eligible = normal.eligible;
-        std::size_t delivered = normal.delivered;
+        const ReportSinkResult normal = writeReportSynchronously(level, source, reportMessage, unknownSource, truncated, deadline, sourceColor);
+        status = firstFailure(std::move(status), normal.status());
+        std::size_t eligible = 0;
+        std::size_t delivered = 0;
 
-        if(normal.timedOut)
+        if(normal.hasValue())
         {
-            result.outcome = Types::Report::Outcome::TimedOut;
+            eligible = normal.value().eligible;
+            delivered = normal.value().delivered;
+
+            if(normal.value().timedOut)
+            {
+                info.outcome = Types::Report::Outcome::TimedOut;
+            }
         }
 
         const bool debugEligible = loggerState().debugOutputEnabledAtomic.load(std::memory_order_acquire);
@@ -126,7 +130,7 @@ namespace GameWIP::Logger::Internal::Core
         {
             ++eligible;
 
-            if(!markReportTimedOutIfExpired(deadline, result))
+            if(!markReportTimedOutIfExpired(deadline, info))
             {
                 const Status debugStatus = writeDebugOutputInternal(level, source, reportMessage);
                 if(debugStatus.ok())
@@ -135,7 +139,7 @@ namespace GameWIP::Logger::Internal::Core
                 }
                 else
                 {
-                    result.status = firstFailure(std::move(result.status), debugStatus);
+                    status = firstFailure(std::move(status), debugStatus);
                 }
             }
         }
@@ -143,19 +147,19 @@ namespace GameWIP::Logger::Internal::Core
 #if LOGGER_INTERNAL_TEST_HOOKS
         if(deadline != nullptr && consumeTestHook(loggerTestHookState.nextTimedFlushTimeout))
         {
-            result.outcome = Types::Report::Outcome::TimedOut;
+            info.outcome = Types::Report::Outcome::TimedOut;
         }
 #endif
 
         // Flush report sinks before showing the fatal popup, then summarize delivery.
-        if(result.outcome != Types::Report::Outcome::TimedOut)
+        if(info.outcome != Types::Report::Outcome::TimedOut)
         {
             const Types::FlushResult flushed = flushSinksInternal(deadline);
-            result.status = firstFailure(std::move(result.status), flushed.status);
+            status = firstFailure(std::move(status), flushed.status());
 
-            if(flushed.outcome == Types::FlushOutcome::TimedOut)
+            if(flushed.hasValue() && flushed.value().outcome == Types::FlushOutcome::TimedOut)
             {
-                result.outcome = Types::Report::Outcome::TimedOut;
+                info.outcome = Types::Report::Outcome::TimedOut;
             }
         }
 
@@ -164,7 +168,7 @@ namespace GameWIP::Logger::Internal::Core
         {
             ++eligible;
 
-            if(!markReportTimedOutIfExpired(deadline, result))
+            if(!markReportTimedOutIfExpired(deadline, info))
             {
                 Status popupStatus;
 #if LOGGER_INTERNAL_TEST_HOOKS
@@ -188,15 +192,20 @@ namespace GameWIP::Logger::Internal::Core
                 }
                 else
                 {
-                    result.status = firstFailure(std::move(result.status), popupStatus);
+                    status = firstFailure(std::move(status), popupStatus);
                     recordHealthFailure(Types::Health::FailureSource::FatalPopup, popupStatus, true);
                 }
             }
         }
 
-        result.delivery = deliveryFrom(eligible, delivered);
+        info.delivery = deliveryFrom(eligible, delivered);
 
-        return result;
+        if(status.ok())
+        {
+            return Types::Report::Result::success(std::move(info));
+        }
+
+        return Types::Report::Result::failure(std::move(status), std::move(info));
     }
 } // namespace GameWIP::Logger::Internal::Core
 using namespace GameWIP::Logger::Internal::Core;
@@ -360,7 +369,7 @@ Status GameWIP::Logger::Internal::Core::writeDebugOutputInternal(LogLevel level,
 
     if(!isValidLevel(level))
     {
-        return IO::makeStatus(ErrorCode::InvalidArgument);
+        return makeStatus(ErrorCode::InvalidArgument);
     }
 
     try
@@ -392,25 +401,26 @@ Status GameWIP::Logger::Internal::Core::writeDebugOutputInternal(LogLevel level,
     }
     catch(const std::bad_alloc &)
     {
-        return IO::makeStatus(ErrorCode::OutOfMemory);
+        return makeStatus(ErrorCode::OutOfMemory);
     }
     catch(...)
     {
-        return IO::makeStatus(ErrorCode::Unknown);
+        return makeStatus(ErrorCode::Unknown);
     }
 }
 
-GameWIP::IO::Types::Status GameWIP::Logger::writeDebugOutput(LogLevel level, std::string_view source, std::string_view message) noexcept
+GameWIP::Status::Types::Result<void> GameWIP::Logger::writeDebugOutput(LogLevel level, std::string_view source, std::string_view message) noexcept
 {
     if(!loggerState().debugOutputEnabledAtomic.load(std::memory_order_acquire))
     {
-        return {};
+        return GameWIP::Status::Types::Result<void>::success();
     }
 
     if(Unicode::Utf8::validate(source).outcome != Unicode::Types::ValidationOutcome::Valid ||
        Unicode::Utf8::validate(message).outcome != Unicode::Types::ValidationOutcome::Valid)
     {
-        return IO::makeStatus(ErrorCode::EncodingFailed);
+        return GameWIP::Status::Types::Result<void>::failure(makeStatus(ErrorCode::EncodingFailed));
     }
-    return GameWIP::Logger::Internal::Core::writeDebugOutputInternal(level, source, message);
+    return GameWIP::Logger::Internal::Core::resultFromStatus(
+        GameWIP::Logger::Internal::Core::writeDebugOutputInternal(level, source, message));
 }

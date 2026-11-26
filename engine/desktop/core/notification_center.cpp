@@ -1,6 +1,7 @@
 /// @file notification_center.cpp
 /// @brief Portable NotificationCenter lifecycle and publication.
 
+#include "desktop/internal/results.h"
 #include "desktop/shell_notifications.h"
 
 #include "base/checked_arithmetic.h"
@@ -30,15 +31,15 @@ namespace GameWIP::Desktop::Internal
 
     namespace
     {
-        using IO::Types::ErrorCode;
+        using ErrorCode = GameWIP::Status::Types::Code;
 
-        [[nodiscard]] IO::Types::Status error(ErrorCode code) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status error(ErrorCode code) noexcept
         {
-            return IO::makeStatus(code);
+            return GameWIP::Desktop::Internal::statusFor(code);
         }
 
         /// @brief Validates and deep-copies notification text, actions, inputs, media, and scheduling.
-        [[nodiscard]] IO::Types::Status copyNotificationDescription(
+        [[nodiscard]] GameWIP::Status::Types::Status copyNotificationDescription(
             const Types::Notifications::Description &description,
             OwnedNotificationDescription &out) noexcept
         {
@@ -48,7 +49,7 @@ namespace GameWIP::Desktop::Internal
                 return error(ErrorCode::InvalidArgument);
             }
 
-            IO::Types::Status status = validateProgress(description.progress);
+            GameWIP::Status::Types::Status status = validateProgress(description.progress);
 
             if(!status.ok())
             {
@@ -147,7 +148,7 @@ namespace GameWIP::Desktop::Internal
                     out.media.push_back(std::move(owned));
                 }
 
-                return IO::successStatus();
+                return GameWIP::Status::Types::Status{};
             }
             catch(const std::bad_alloc &)
             {
@@ -170,16 +171,16 @@ namespace GameWIP::Desktop
     namespace
     {
         using Internal::NotificationCenterState;
-        using IO::Types::ErrorCode;
+        using ErrorCode = GameWIP::Status::Types::Code;
 
         /// @brief Builds a portable status from a single error code.
-        [[nodiscard]] IO::Types::Status error(ErrorCode code) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status error(ErrorCode code) noexcept
         {
-            return IO::makeStatus(code);
+            return GameWIP::Desktop::Internal::statusFor(code);
         }
 
         /// @brief Validates an open notification center and its owner-thread access.
-        [[nodiscard]] IO::Types::Status requireOwnedNotification(NotificationCenterState *state, bool owned) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status requireOwnedNotification(NotificationCenterState *state, bool owned) noexcept
         {
             return Internal::requireOwnedShellResource(state != nullptr && state->open && state->platform != nullptr, owned);
         }
@@ -210,7 +211,7 @@ namespace GameWIP::Desktop
         }
     }
 
-    IO::Types::Status NotificationCenter::open() noexcept
+    GameWIP::Status::Types::Result<void> NotificationCenter::open() noexcept
     {
         if(state_ != nullptr)
         {
@@ -223,7 +224,7 @@ namespace GameWIP::Desktop
             auto candidate = std::make_unique<Internal::NotificationCenterState>();
             candidate->ownerThread = std::this_thread::get_id();
             candidate->open = true;
-            const IO::Types::Status status = Platform::openNotificationCenter(*candidate);
+            const GameWIP::Status::Types::Status status = Platform::openNotificationCenter(*candidate);
 
             if(!status.ok())
             {
@@ -231,7 +232,7 @@ namespace GameWIP::Desktop
                 return status;
             }
             state_ = std::move(candidate);
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
         catch(const std::bad_alloc &)
         {
@@ -243,7 +244,7 @@ namespace GameWIP::Desktop
         }
     }
 
-    IO::Types::Status NotificationCenter::open(ShellEventQueue &eventQueue) noexcept
+    GameWIP::Status::Types::Result<void> NotificationCenter::open(ShellEventQueue &eventQueue) noexcept
     {
         if(state_ != nullptr)
         {
@@ -255,7 +256,7 @@ namespace GameWIP::Desktop
             // Bind the event queue before opening the native center.
             auto candidate = std::make_unique<Internal::NotificationCenterState>();
             candidate->ownerThread = std::this_thread::get_id();
-            IO::Types::Status status = Internal::bindQueue(eventQueue, candidate->ownerThread, candidate->eventQueue);
+            GameWIP::Status::Types::Status status = Internal::bindQueue(eventQueue, candidate->ownerThread, candidate->eventQueue);
 
             if(!status.ok())
             {
@@ -273,7 +274,7 @@ namespace GameWIP::Desktop
 
             // Publish only after both queue and native setup succeed.
             state_ = std::move(candidate);
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
         catch(const std::bad_alloc &)
         {
@@ -300,11 +301,11 @@ namespace GameWIP::Desktop
         return state_ != nullptr && state_->eventQueue != nullptr;
     }
 
-    IO::Types::Status NotificationCenter::close() noexcept
+    GameWIP::Status::Types::Result<void> NotificationCenter::close() noexcept
     {
         if(state_ == nullptr)
         {
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
 
         if(!ownedByCurrentThread())
@@ -312,7 +313,7 @@ namespace GameWIP::Desktop
             return error(ErrorCode::ResourceBusy);
         }
 
-        const IO::Types::Status status = Platform::closeNotificationCenter(*state_);
+        const GameWIP::Status::Types::Status status = Platform::closeNotificationCenter(*state_);
 
         if(!status.ok())
         {
@@ -322,25 +323,23 @@ namespace GameWIP::Desktop
         Internal::unbindQueue(state_->eventQueue);
         state_->notifications.clear();
         state_.reset();
-        return IO::successStatus();
+        return GameWIP::Status::Types::Status{};
     }
 
-    Types::Result<Types::Shell::NotificationId> NotificationCenter::publish(const Types::Notifications::Description &description) noexcept
+    GameWIP::Status::Types::Result<Types::Shell::NotificationId> NotificationCenter::publish(
+        const Types::Notifications::Description &description) noexcept
     {
-        Types::Result<Types::Shell::NotificationId> result{error(ErrorCode::NotOpen), std::nullopt};
-        IO::Types::Status status = requireOwnedNotification(Internal::NotificationCenterAccess::state(*this), ownedByCurrentThread());
+        GameWIP::Status::Types::Status status = requireOwnedNotification(Internal::NotificationCenterAccess::state(*this), ownedByCurrentThread());
 
         if(!status.ok())
         {
-            result.status = std::move(status);
-            return result;
+            return GameWIP::Status::Types::Result<Types::Shell::NotificationId>::failure(std::move(status));
         }
 
         // Interactive notifications need a queue for their responses.
         if((!description.actions.empty() || !description.inputs.empty()) && state_->eventQueue == nullptr)
         {
-            result.status = error(ErrorCode::InvalidArgument);
-            return result;
+            return GameWIP::Status::Types::Result<Types::Shell::NotificationId>::failure(error(ErrorCode::InvalidArgument));
         }
 
         std::uint64_t publishedId = 0;
@@ -354,8 +353,7 @@ namespace GameWIP::Desktop
 
             if(!status.ok())
             {
-                result.status = std::move(status);
-                return result;
+                return GameWIP::Status::Types::Result<Types::Shell::NotificationId>::failure(std::move(status));
             }
             std::uint64_t id = state_->nextId++;
 
@@ -379,15 +377,12 @@ namespace GameWIP::Desktop
 
             if(!status.ok())
             {
-                result.status = std::move(status);
-                return result;
+                return GameWIP::Status::Types::Result<Types::Shell::NotificationId>::failure(std::move(status));
             }
             publishedId = id;
             nativePublished = true;
             state_->notifications.emplace(id, std::move(owned));
-            result.status = IO::successStatus();
-            result.value = Types::Shell::NotificationId{id};
-            return result;
+            return GameWIP::Status::Types::Result<Types::Shell::NotificationId>::success(Types::Shell::NotificationId{id});
         }
         catch(const std::bad_alloc &)
         {
@@ -396,8 +391,7 @@ namespace GameWIP::Desktop
                 static_cast<void>(Platform::dismissNotification(*state_, publishedId));
             }
 
-            result.status = error(ErrorCode::OutOfMemory);
-            return result;
+            return GameWIP::Status::Types::Result<Types::Shell::NotificationId>::failure(error(ErrorCode::OutOfMemory));
         }
         catch(...)
         {
@@ -406,14 +400,13 @@ namespace GameWIP::Desktop
                 static_cast<void>(Platform::dismissNotification(*state_, publishedId));
             }
 
-            result.status = error(ErrorCode::Unknown);
-            return result;
+            return GameWIP::Status::Types::Result<Types::Shell::NotificationId>::failure(error(ErrorCode::Unknown));
         }
     }
 
-    IO::Types::Status NotificationCenter::update(Types::Shell::NotificationId id, const Types::Notifications::Description &description) noexcept
+    GameWIP::Status::Types::Result<void> NotificationCenter::update(Types::Shell::NotificationId id, const Types::Notifications::Description &description) noexcept
     {
-        IO::Types::Status status = requireOwnedNotification(Internal::NotificationCenterAccess::state(*this), ownedByCurrentThread());
+        GameWIP::Status::Types::Status status = requireOwnedNotification(Internal::NotificationCenterAccess::state(*this), ownedByCurrentThread());
 
         if(!status.ok())
         {
@@ -459,7 +452,7 @@ namespace GameWIP::Desktop
             }
             nativeUpdated = true;
             state_->notifications[id.value] = std::move(owned);
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
         catch(const std::bad_alloc &)
         {
@@ -481,9 +474,9 @@ namespace GameWIP::Desktop
         }
     }
 
-    IO::Types::Status NotificationCenter::dismiss(Types::Shell::NotificationId id) noexcept
+    GameWIP::Status::Types::Result<void> NotificationCenter::dismiss(Types::Shell::NotificationId id) noexcept
     {
-        IO::Types::Status status = requireOwnedNotification(Internal::NotificationCenterAccess::state(*this), ownedByCurrentThread());
+        GameWIP::Status::Types::Status status = requireOwnedNotification(Internal::NotificationCenterAccess::state(*this), ownedByCurrentThread());
 
         if(!status.ok())
         {

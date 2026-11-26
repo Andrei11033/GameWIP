@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "io/status.h"
+#include "status/result.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -35,12 +35,9 @@ namespace GameWIP::IO
             DataAndMetadataBestEffort
         };
 
-        /// @brief Result returned by byte read operations.
-        struct ReadResult
+        /// @brief Byte count and end-of-stream state returned by a read.
+        struct ReadProgress
         {
-            /// @brief Operation status. A failure may accompany valid bytes reported by bytesRead.
-            Status status;
-
             // Read progress
             /// @brief Valid bytes copied; never exceeds the destination size.
             std::size_t bytesRead = 0;
@@ -48,37 +45,12 @@ namespace GameWIP::IO
             bool endOfStream = false;
         };
 
-        /// @brief Result returned by byte write operations.
-        struct WriteResult
+        /// @brief Accepted-byte count returned by a write.
+        struct WriteProgress
         {
-            /// @brief Operation status. A failure may accompany valid bytes reported by bytesWritten.
-            Status status;
-
             // Write progress
             /// @brief Bytes accepted; never exceeds the input size.
             std::size_t bytesWritten = 0;
-        };
-
-        /// @brief Result returned by stream position operations.
-        struct PositionResult
-        {
-            /// @brief Operation status.
-            Status status;
-
-            // Stream position
-            /// @brief Current stream position in bytes from the beginning when status is successful.
-            std::uint64_t position = 0;
-        };
-
-        /// @brief Result returned by size query operations.
-        struct SizeResult
-        {
-            /// @brief Operation status.
-            Status status;
-
-            // Stream size
-            /// @brief Total stream size in bytes when status is successful.
-            std::uint64_t sizeBytes = 0;
         };
     } // namespace Types
 
@@ -99,7 +71,7 @@ namespace GameWIP::IO
 
     /// @brief Movable, non-copyable byte-input interface; implement read() and override only supported capabilities.
     /// @details Base defaults: stateless open stream, close() succeeds, canSeek() is false, position()/size()/seek()
-    /// return NotSeekable. Implementations must not retain the destination span and must contain failures in statuses;
+    /// return NotSeekable. Implementations must not retain the destination span and must contain failures in results;
     /// throwing from an override violates the contract.
     /// @see io_reader_writer_contract
     class Reader
@@ -130,33 +102,33 @@ namespace GameWIP::IO
 
         /// @brief Reads bytes into the destination.
         /// @param destination Destination valid for the call.
-        /// @return Read status, byte count, and end-of-stream state.
+        /// @return Read outcome and, when available, byte count and end-of-stream state.
         /// @note A successful zero-byte result is valid only for an empty request or at end of stream.
-        [[nodiscard]] virtual Types::ReadResult read(std::span<std::byte> destination) noexcept = 0;
+        [[nodiscard]] virtual GameWIP::Status::Types::Result<Types::ReadProgress> read(std::span<std::byte> destination) noexcept = 0;
 
         /// @brief Closes the reader when it owns closeable state.
         /// @return Success or a close failure status.
-        [[nodiscard]] virtual Types::Status close() noexcept;
+        [[nodiscard]] virtual GameWIP::Status::Types::Result<void> close() noexcept;
 
         /// @brief Returns the current stream position when supported.
         /// @return Current position, or NotSeekable for non-position-aware readers.
-        [[nodiscard]] virtual Types::PositionResult position() const noexcept;
+        [[nodiscard]] virtual GameWIP::Status::Types::Result<std::uint64_t> position() const noexcept;
 
         /// @brief Returns the stream size when supported.
         /// @return Stream size, or NotSeekable for non-size-aware readers.
-        [[nodiscard]] virtual Types::SizeResult size() const noexcept;
+        [[nodiscard]] virtual GameWIP::Status::Types::Result<std::uint64_t> size() const noexcept;
 
         /// @brief Moves the stream position when supported.
         /// @param offset Signed offset relative to origin.
         /// @param origin Origin used to interpret offset.
         /// @return Success or a seek-related failure status.
-        [[nodiscard]] virtual Types::Status seek(std::int64_t offset, Types::SeekOrigin origin) noexcept;
+        [[nodiscard]] virtual GameWIP::Status::Types::Result<void> seek(std::int64_t offset, Types::SeekOrigin origin) noexcept;
     };
 
     /// @brief Movable, non-copyable byte-output interface; implement write() and override only supported capabilities.
     /// @details Base defaults: stateless open stream, close() succeeds, canSeek() is false, position()/seek() return
     /// NotSeekable, flush() validates the mode only. Implementations must not retain the input span and must contain
-    /// failures in statuses; throwing from an override violates the contract.
+    /// failures in results; throwing from an override violates the contract.
     /// @see io_reader_writer_contract
     class Writer
     {
@@ -186,28 +158,28 @@ namespace GameWIP::IO
 
         /// @brief Writes bytes.
         /// @param bytes Input valid for the call.
-        /// @return Write status and accepted-byte count.
+        /// @return Write outcome and, when available, accepted-byte count.
         /// @note Non-empty input must not return successful zero progress.
-        [[nodiscard]] virtual Types::WriteResult write(std::span<const std::byte> bytes) noexcept = 0;
+        [[nodiscard]] virtual GameWIP::Status::Types::Result<Types::WriteProgress> write(std::span<const std::byte> bytes) noexcept = 0;
 
         /// @brief Flushes buffered data when the writer owns flushable state.
         /// @param mode Requested flush strength.
         /// @return InvalidArgument for an unknown mode; otherwise success by default.
         /// @note The base implementation performs no physical I/O.
-        [[nodiscard]] virtual Types::Status flush(Types::FlushMode mode = Types::FlushMode::Data) noexcept;
+        [[nodiscard]] virtual GameWIP::Status::Types::Result<void> flush(Types::FlushMode mode = Types::FlushMode::Data) noexcept;
 
         /// @brief Closes the writer when it owns closeable state.
         /// @return Success or a close failure status.
-        [[nodiscard]] virtual Types::Status close() noexcept;
+        [[nodiscard]] virtual GameWIP::Status::Types::Result<void> close() noexcept;
 
         /// @brief Returns the current stream position when supported.
         /// @return Current position, or NotSeekable for non-position-aware writers.
-        [[nodiscard]] virtual Types::PositionResult position() const noexcept;
+        [[nodiscard]] virtual GameWIP::Status::Types::Result<std::uint64_t> position() const noexcept;
 
         /// @brief Moves the stream position when supported.
         /// @param offset Signed offset relative to origin.
         /// @param origin Origin used to interpret offset.
         /// @return Success or a seek-related failure status.
-        [[nodiscard]] virtual Types::Status seek(std::int64_t offset, Types::SeekOrigin origin) noexcept;
+        [[nodiscard]] virtual GameWIP::Status::Types::Result<void> seek(std::int64_t offset, Types::SeekOrigin origin) noexcept;
     };
 } // namespace GameWIP::IO

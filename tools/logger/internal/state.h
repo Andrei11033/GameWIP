@@ -5,6 +5,7 @@
 
 #include "logger/internal/queue_storage.h"
 #include "logger/internal/source_registry.h"
+#include "status/result.h"
 
 #include <atomic>
 #include <condition_variable>
@@ -156,7 +157,7 @@ namespace GameWIP::Logger::Internal::Core
         Types::Health::State healthState = Types::Health::State::Disabled;
         Types::Health::FailureSource lastFailureSource = Types::Health::FailureSource::None;
         ErrorCode lastHealthError = ErrorCode::Success;
-        std::int64_t lastHealthNativeCode = 0;
+        std::optional<GameWIP::Status::Types::NativeCode> lastHealthNativeCode{};
         std::uint64_t healthFailureCount = 0;
         TimestampCache debugTimestampCache;
     };
@@ -251,11 +252,12 @@ namespace GameWIP::Logger::Internal::Core
     // Synchronous report delivery
     struct ReportSinkProgress
     {
-        Status status;
         std::size_t eligible = 0;
         std::size_t delivered = 0;
         bool timedOut = false;
     };
+
+    using ReportSinkResult = GameWIP::Status::Types::Result<ReportSinkProgress>;
 
 #if LOGGER_INTERNAL_TEST_HOOKS
     /// ------------------------------------------------------------

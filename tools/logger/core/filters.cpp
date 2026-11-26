@@ -216,14 +216,14 @@ namespace GameWIP::Logger::Internal::Core
             {
                 if(definition.name.empty() || (definition.color && !GameWIP::Logger::Internal::isValidColor(*definition.color)))
                 {
-                    outStatus = GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::InvalidArgument);
+                    outStatus = GameWIP::Logger::Internal::Core::makeStatus(GameWIP::Status::Types::Code::InvalidArgument);
                     return false;
                 }
 
                 const auto validation = GameWIP::Unicode::Utf8::validate(definition.name);
                 if(validation.outcome != GameWIP::Unicode::Types::ValidationOutcome::Valid)
                 {
-                    outStatus = GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::EncodingFailed);
+                    outStatus = GameWIP::Logger::Internal::Core::makeStatus(GameWIP::Status::Types::Code::EncodingFailed);
                     return false;
                 }
                 sources.emplace_back(definition.id, std::string(definition.name), definition.color, true);
@@ -247,7 +247,7 @@ namespace GameWIP::Logger::Internal::Core
 
             if(duplicateSource != sources.end())
             {
-                outStatus = GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::InvalidArgument);
+                outStatus = GameWIP::Logger::Internal::Core::makeStatus(GameWIP::Status::Types::Code::InvalidArgument);
                 return false;
             }
 
@@ -268,7 +268,7 @@ namespace GameWIP::Logger::Internal::Core
 
                 if(sourcePosition == sources.end() || sourcePosition->id != filter.source)
                 {
-                    outStatus = GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::InvalidArgument);
+                    outStatus = GameWIP::Logger::Internal::Core::makeStatus(GameWIP::Status::Types::Code::InvalidArgument);
                     return false;
                 }
                 filteredSources.push_back(filter.source);
@@ -279,7 +279,7 @@ namespace GameWIP::Logger::Internal::Core
 
             if(std::adjacent_find(filteredSources.begin(), filteredSources.end()) != filteredSources.end())
             {
-                outStatus = GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::InvalidArgument);
+                outStatus = GameWIP::Logger::Internal::Core::makeStatus(GameWIP::Status::Types::Code::InvalidArgument);
                 return false;
             }
 
@@ -291,13 +291,13 @@ namespace GameWIP::Logger::Internal::Core
         catch(const std::bad_alloc &)
         {
             registry.reset();
-            outStatus = GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::OutOfMemory);
+            outStatus = GameWIP::Logger::Internal::Core::makeStatus(GameWIP::Status::Types::Code::OutOfMemory);
             return false;
         }
         catch(...)
         {
             registry.reset();
-            outStatus = GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::Unknown);
+            outStatus = GameWIP::Logger::Internal::Core::makeStatus(GameWIP::Status::Types::Code::Unknown);
             return false;
         }
     }
@@ -358,7 +358,7 @@ bool GameWIP::Logger::shouldLog(Types::Level level, Types::SourceId source) noex
     return ::GameWIP::Logger::Internal::Core::shouldLogRuntime(level, source);
 }
 
-GameWIP::IO::Types::Status GameWIP::Logger::setSourceFilter(Types::SourceId source, bool enabled) noexcept
+GameWIP::Status::Types::Result<void> GameWIP::Logger::setSourceFilter(Types::SourceId source, bool enabled) noexcept
 {
     try
     {
@@ -368,27 +368,27 @@ GameWIP::IO::Types::Status GameWIP::Logger::setSourceFilter(Types::SourceId sour
 
         if(registeredSource == nullptr)
         {
-            return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::NotFound);
+            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Logger::Internal::Core::makeStatus(GameWIP::Status::Types::Code::NotFound));
         }
         registeredSource->enabled.store(enabled, std::memory_order_release);
-        return {};
+        return GameWIP::Status::Types::Result<void>::success();
     }
     catch(const std::bad_alloc &)
     {
-        return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::OutOfMemory);
+        return GameWIP::Status::Types::Result<void>::failure(GameWIP::Logger::Internal::Core::makeStatus(GameWIP::Status::Types::Code::OutOfMemory));
     }
     catch(...)
     {
-        return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::Unknown);
+        return GameWIP::Status::Types::Result<void>::failure(GameWIP::Logger::Internal::Core::makeStatus(GameWIP::Status::Types::Code::Unknown));
     }
 }
 
-GameWIP::IO::Types::Status GameWIP::Logger::resetSourceFilter(Types::SourceId source) noexcept
+GameWIP::Status::Types::Result<void> GameWIP::Logger::resetSourceFilter(Types::SourceId source) noexcept
 {
     return setSourceFilter(source, true);
 }
 
-GameWIP::IO::Types::Status GameWIP::Logger::resetSourceFilters() noexcept
+GameWIP::Status::Types::Result<void> GameWIP::Logger::resetSourceFilters() noexcept
 {
     try
     {
@@ -402,25 +402,25 @@ GameWIP::IO::Types::Status GameWIP::Logger::resetSourceFilters() noexcept
             }
         }
 
-        return {};
+        return GameWIP::Status::Types::Result<void>::success();
     }
     catch(const std::bad_alloc &)
     {
-        return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::OutOfMemory);
+        return GameWIP::Status::Types::Result<void>::failure(GameWIP::Logger::Internal::Core::makeStatus(GameWIP::Status::Types::Code::OutOfMemory));
     }
     catch(...)
     {
-        return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::Unknown);
+        return GameWIP::Status::Types::Result<void>::failure(GameWIP::Logger::Internal::Core::makeStatus(GameWIP::Status::Types::Code::Unknown));
     }
 }
 
-GameWIP::IO::Types::Status GameWIP::Logger::setLevelFilter(Types::Level level, bool enabled) noexcept
+GameWIP::Status::Types::Result<void> GameWIP::Logger::setLevelFilter(Types::Level level, bool enabled) noexcept
 {
     const std::uint8_t bit = ::GameWIP::Logger::Internal::Core::levelBit(level);
 
     if(bit == 0)
     {
-        return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::InvalidArgument);
+        return GameWIP::Status::Types::Result<void>::failure(GameWIP::Logger::Internal::Core::makeStatus(GameWIP::Status::Types::Code::InvalidArgument));
     }
 
     try
@@ -429,30 +429,30 @@ GameWIP::IO::Types::Status GameWIP::Logger::setLevelFilter(Types::Level level, b
         auto &mask = ::GameWIP::Logger::Internal::Core::loggerState().enabledLevelMask;
         mask = enabled ? static_cast<std::uint8_t>(mask | bit) : static_cast<std::uint8_t>(mask & static_cast<std::uint8_t>(~bit));
         ::GameWIP::Logger::Internal::Core::publishRuntimeStateUnlocked();
-        return {};
+        return GameWIP::Status::Types::Result<void>::success();
     }
     catch(...)
     {
-        return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::Unknown);
+        return GameWIP::Status::Types::Result<void>::failure(GameWIP::Logger::Internal::Core::makeStatus(GameWIP::Status::Types::Code::Unknown));
     }
 }
 
-GameWIP::IO::Types::Status GameWIP::Logger::resetLevelFilter(Types::Level level) noexcept
+GameWIP::Status::Types::Result<void> GameWIP::Logger::resetLevelFilter(Types::Level level) noexcept
 {
     return setLevelFilter(level, true);
 }
 
-GameWIP::IO::Types::Status GameWIP::Logger::resetLevelFilters() noexcept
+GameWIP::Status::Types::Result<void> GameWIP::Logger::resetLevelFilters() noexcept
 {
     try
     {
         std::lock_guard<std::mutex> lock(::GameWIP::Logger::Internal::Core::loggerState().logMutex);
         ::GameWIP::Logger::Internal::Core::loggerState().enabledLevelMask = ::GameWIP::Logger::Internal::Core::kAllLevelMask;
         ::GameWIP::Logger::Internal::Core::publishRuntimeStateUnlocked();
-        return {};
+        return GameWIP::Status::Types::Result<void>::success();
     }
     catch(...)
     {
-        return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::Unknown);
+        return GameWIP::Status::Types::Result<void>::failure(GameWIP::Logger::Internal::Core::makeStatus(GameWIP::Status::Types::Code::Unknown));
     }
 }

@@ -56,7 +56,7 @@ namespace GameWIP::TestSupport
 
             if(error)
             {
-                status_ = Internal::failureStatus(Types::InfrastructureError::FileOperationFailed, Internal::nativeCode(error));
+                status_ = Internal::failureStatus(GameWIP::Status::Types::Code::FileOperationFailed, Internal::nativeCode(error));
                 return;
             }
 
@@ -68,7 +68,7 @@ namespace GameWIP::TestSupport
 
             if(error)
             {
-                status_ = Internal::failureStatus(Types::InfrastructureError::FileOperationFailed, Internal::nativeCode(error));
+                status_ = Internal::failureStatus(GameWIP::Status::Types::Code::FileOperationFailed, Internal::nativeCode(error));
                 return;
             }
 
@@ -91,26 +91,26 @@ namespace GameWIP::TestSupport
 
                 if(error && error != std::errc::file_exists)
                 {
-                    status_ = Internal::failureStatus(Types::InfrastructureError::FileOperationFailed, Internal::nativeCode(error));
+                    status_ = Internal::failureStatus(GameWIP::Status::Types::Code::FileOperationFailed, Internal::nativeCode(error));
                     return;
                 }
             }
 
             status_ = Internal::failureStatus(
-                Types::InfrastructureError::FileOperationFailed,
+                GameWIP::Status::Types::Code::FileOperationFailed,
                 Internal::nativeCode(std::make_error_code(std::errc::file_exists)));
         }
         catch(const std::bad_alloc &)
         {
-            status_ = Internal::failureStatus(Types::InfrastructureError::OutOfMemory);
+            status_ = Internal::failureStatus(GameWIP::Status::Types::Code::OutOfMemory);
         }
         catch(const std::filesystem::filesystem_error &error)
         {
-            status_ = Internal::failureStatus(Types::InfrastructureError::FileOperationFailed, Internal::nativeCode(error.code()));
+            status_ = Internal::failureStatus(GameWIP::Status::Types::Code::FileOperationFailed, Internal::nativeCode(error.code()));
         }
         catch(...)
         {
-            status_ = Internal::failureStatus(Types::InfrastructureError::FileOperationFailed);
+            status_ = Internal::failureStatus(GameWIP::Status::Types::Code::FileOperationFailed);
         }
     }
 
@@ -141,7 +141,7 @@ namespace GameWIP::TestSupport
         return path_;
     }
 
-    Types::InfrastructureStatus ScopedTemporaryDirectory::status() const noexcept
+    Types::Status ScopedTemporaryDirectory::status() const noexcept
     {
         return status_;
     }
@@ -167,16 +167,16 @@ namespace GameWIP::TestSupport
                 if(error)
                 {
                     processState_->recordRestorationFailure(
-                        Internal::failureStatus(Types::InfrastructureError::FileOperationFailed, Internal::nativeCode(error)));
+                        Internal::failureStatus(GameWIP::Status::Types::Code::FileOperationFailed, Internal::nativeCode(error)));
                 }
             }
             catch(const std::bad_alloc &)
             {
-                processState_->recordRestorationFailure(Internal::failureStatus(Types::InfrastructureError::OutOfMemory));
+                processState_->recordRestorationFailure(Internal::failureStatus(GameWIP::Status::Types::Code::OutOfMemory));
             }
             catch(...)
             {
-                processState_->recordRestorationFailure(Internal::failureStatus(Types::InfrastructureError::FileOperationFailed));
+                processState_->recordRestorationFailure(Internal::failureStatus(GameWIP::Status::Types::Code::FileOperationFailed));
             }
         };
 
@@ -194,7 +194,7 @@ namespace GameWIP::TestSupport
 
             if(error)
             {
-                status_ = Internal::failureStatus(Types::InfrastructureError::FileOperationFailed, Internal::nativeCode(error));
+                status_ = Internal::failureStatus(GameWIP::Status::Types::Code::FileOperationFailed, Internal::nativeCode(error));
                 previousPath_.clear();
                 return;
             }
@@ -204,7 +204,7 @@ namespace GameWIP::TestSupport
 
             if(error)
             {
-                status_ = Internal::failureStatus(Types::InfrastructureError::FileOperationFailed, Internal::nativeCode(error));
+                status_ = Internal::failureStatus(GameWIP::Status::Types::Code::FileOperationFailed, Internal::nativeCode(error));
                 previousPath_.clear();
                 return;
             }
@@ -214,7 +214,7 @@ namespace GameWIP::TestSupport
 
             if(error)
             {
-                status_ = Internal::failureStatus(Types::InfrastructureError::FileOperationFailed, Internal::nativeCode(error));
+                status_ = Internal::failureStatus(GameWIP::Status::Types::Code::FileOperationFailed, Internal::nativeCode(error));
                 previousPath_.clear();
                 return;
             }
@@ -224,7 +224,7 @@ namespace GameWIP::TestSupport
 
             if(error)
             {
-                status_ = Internal::failureStatus(Types::InfrastructureError::FileOperationFailed, Internal::nativeCode(error));
+                status_ = Internal::failureStatus(GameWIP::Status::Types::Code::FileOperationFailed, Internal::nativeCode(error));
                 restoreAfterSetupFailure();
                 previousPath_.clear();
                 return;
@@ -232,13 +232,13 @@ namespace GameWIP::TestSupport
         }
         catch(const std::bad_alloc &)
         {
-            status_ = Internal::failureStatus(Types::InfrastructureError::OutOfMemory);
+            status_ = Internal::failureStatus(GameWIP::Status::Types::Code::OutOfMemory);
             restoreAfterSetupFailure();
             previousPath_.clear();
         }
         catch(...)
         {
-            status_ = Internal::failureStatus(Types::InfrastructureError::FileOperationFailed);
+            status_ = Internal::failureStatus(GameWIP::Status::Types::Code::FileOperationFailed);
             restoreAfterSetupFailure();
             previousPath_.clear();
         }
@@ -249,16 +249,16 @@ namespace GameWIP::TestSupport
         static_cast<void>(restore());
     }
 
-    Types::InfrastructureStatus ScopedCurrentPath::restore() noexcept
+    Types::Result<void> ScopedCurrentPath::restore() noexcept
     {
         if(!status_.ok())
         {
-            return status_;
+            return Types::Result<void>::failure(status_);
         }
 
         if(restored_)
         {
-            return restorationStatus_;
+            return restorationStatus_.ok() ? Types::Result<void>::success() : Types::Result<void>::failure(restorationStatus_);
         }
 
         try
@@ -269,29 +269,29 @@ namespace GameWIP::TestSupport
 
             if(error)
             {
-                restorationStatus_ = Internal::failureStatus(Types::InfrastructureError::FileOperationFailed, Internal::nativeCode(error));
+                restorationStatus_ = Internal::failureStatus(GameWIP::Status::Types::Code::FileOperationFailed, Internal::nativeCode(error));
                 processState_->recordRestorationFailure(restorationStatus_);
-                return restorationStatus_;
+                return Types::Result<void>::failure(restorationStatus_);
             }
 
             if(currentPath != expectedPath_)
             {
-                restorationStatus_ = Internal::failureStatus(Types::InfrastructureError::ProcessStateConflict);
+                restorationStatus_ = Internal::failureStatus(GameWIP::Status::Types::Code::ProcessStateConflict);
                 processState_->recordRestorationFailure(restorationStatus_);
-                return restorationStatus_;
+                return Types::Result<void>::failure(restorationStatus_);
             }
 
             std::filesystem::current_path(previousPath_, error);
-            restorationStatus_ = error ? Internal::failureStatus(Types::InfrastructureError::FileOperationFailed, Internal::nativeCode(error))
-                                       : Types::InfrastructureStatus{};
+            restorationStatus_ = error ? Internal::failureStatus(GameWIP::Status::Types::Code::FileOperationFailed, Internal::nativeCode(error))
+                                       : Types::Status{};
         }
         catch(const std::bad_alloc &)
         {
-            restorationStatus_ = Internal::failureStatus(Types::InfrastructureError::OutOfMemory);
+            restorationStatus_ = Internal::failureStatus(GameWIP::Status::Types::Code::OutOfMemory);
         }
         catch(...) // NOLINT(bugprone-empty-catch) -- Restoration failures are returned through the explicit method.
         {
-            restorationStatus_ = Internal::failureStatus(Types::InfrastructureError::FileOperationFailed);
+            restorationStatus_ = Internal::failureStatus(GameWIP::Status::Types::Code::FileOperationFailed);
         }
 
         restored_ = restorationStatus_.ok();
@@ -301,7 +301,7 @@ namespace GameWIP::TestSupport
             processState_->recordRestorationFailure(restorationStatus_);
         }
 
-        return restorationStatus_;
+        return restorationStatus_.ok() ? Types::Result<void>::success() : Types::Result<void>::failure(restorationStatus_);
     }
 
     const std::filesystem::path &ScopedCurrentPath::previousPath() const noexcept
@@ -309,7 +309,7 @@ namespace GameWIP::TestSupport
         return previousPath_;
     }
 
-    Types::InfrastructureStatus ScopedCurrentPath::status() const noexcept
+    Types::Status ScopedCurrentPath::status() const noexcept
     {
         return status_;
     }

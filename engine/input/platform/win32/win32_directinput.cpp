@@ -532,7 +532,7 @@ namespace GameWIP::Input::Platform::Win32
     /// Provider lifecycle
     /// ------------------------------------------------------------
 
-    IO::Types::Status initializeDirectInput(AttachmentState &attachment) noexcept
+    GameWIP::Status::Types::Status initializeDirectInput(AttachmentState &attachment) noexcept
     {
         // Initialize COM before loading DirectInput.
         const HRESULT comResult = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
@@ -542,7 +542,7 @@ namespace GameWIP::Input::Platform::Win32
         }
         else if(comResult != RPC_E_CHANGED_MODE)
         {
-            return nativeStatus(static_cast<std::uint32_t>(comResult));
+            return nativeStatus(static_cast<std::uint32_t>(comResult), GameWIP::Status::Types::NativeCodeDomain::HResult);
         }
 
         // Load the system runtime and resolve its entry point dynamically.
@@ -554,7 +554,7 @@ namespace GameWIP::Input::Platform::Win32
                 CoUninitialize();
                 attachment.directInputOwnsCom = false;
             }
-            return status(IO::Types::ErrorCode::Unsupported);
+            return status(GameWIP::Status::Types::Code::Unsupported);
         }
 
         static_assert(sizeof(DirectInput8CreateFunction) == sizeof(FARPROC));
@@ -567,7 +567,7 @@ namespace GameWIP::Input::Platform::Win32
                 CoUninitialize();
                 attachment.directInputOwnsCom = false;
             }
-            return status(IO::Types::ErrorCode::Unsupported);
+            return status(GameWIP::Status::Types::Code::Unsupported);
         }
 
         // Create and retain the DirectInput interface.
@@ -582,12 +582,12 @@ namespace GameWIP::Input::Platform::Win32
                 CoUninitialize();
                 attachment.directInputOwnsCom = false;
             }
-            return nativeStatus(static_cast<std::uint32_t>(result));
+            return nativeStatus(static_cast<std::uint32_t>(result), GameWIP::Status::Types::NativeCodeDomain::HResult);
         }
 
         attachment.directInputModule = module;
         attachment.directInput = directInput;
-        return IO::successStatus();
+        return GameWIP::Status::Types::Status{};
     }
 
     void shutdownDirectInput(AttachmentState &attachment) noexcept
@@ -619,12 +619,12 @@ namespace GameWIP::Input::Platform::Win32
     /// Device enumeration
     /// ------------------------------------------------------------
 
-    IO::Types::Status enumerateDirectInputDevices(AttachmentState &attachment, SystemState &state) noexcept
+    GameWIP::Status::Types::Status enumerateDirectInputDevices(AttachmentState &attachment, SystemState &state) noexcept
     {
         auto *directInput = static_cast<IDirectInput8W *>(attachment.directInput);
         if(directInput == nullptr)
         {
-            return status(IO::Types::ErrorCode::Unsupported);
+            return status(GameWIP::Status::Types::Code::Unsupported);
         }
 
         try
@@ -682,14 +682,16 @@ namespace GameWIP::Input::Platform::Win32
 
             if(FAILED(result) || context.failed)
             {
-                return nativeStatus(context.failed ? context.failureCode : static_cast<std::uint32_t>(result));
+                return nativeStatus(
+                    context.failed ? context.failureCode : static_cast<std::uint32_t>(result),
+                    GameWIP::Status::Types::NativeCodeDomain::HResult);
             }
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
         catch(const std::bad_alloc &)
         {
             state.pendingDiscontinuity = true;
-            return status(IO::Types::ErrorCode::OutOfMemory);
+            return status(GameWIP::Status::Types::Code::OutOfMemory);
         }
     }
 

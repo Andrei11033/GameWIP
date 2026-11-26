@@ -15,12 +15,12 @@ namespace GameWIP::Game::Runtime
     namespace
     {
         /// @brief Detaches the runtime's Win32 source before the generic session closes.
-        [[nodiscard]] IO::Types::Status detachInput(void *context) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Result<void> detachInput(void *context) noexcept
         {
             auto *attachment = static_cast<Input::Platform::Win32::Attachment *>(context);
             if(attachment == nullptr || !attachment->isAttached())
             {
-                return IO::successStatus();
+                return GameWIP::Status::Types::Result<void>::success();
             }
 
             return attachment->detach();
@@ -43,7 +43,7 @@ namespace GameWIP::Game::Runtime
         configuration.enabledBackends = std::move(enabledBackends);
     }
 
-    IO::Types::Status RuntimeInput::attachToWindow(Desktop::Window &window) noexcept
+    GameWIP::Status::Types::Result<void> RuntimeInput::attachToWindow(Desktop::Window &window) noexcept
     {
         return Input::Platform::Win32::attachToWindow(system, attachment, window);
     }

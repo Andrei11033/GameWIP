@@ -6,7 +6,6 @@
 #include "runtime/logging.h"
 #include "runtime/profiling.h"
 
-#include "io/status.h"
 #include "logger/logging.h"
 #include "logger/message_format.h"
 
@@ -95,89 +94,97 @@ namespace
     /// Optional display query fields
     /// ------------------------------------------------------------
 
-    void logDisplayQueryFailure(Display::MonitorId monitor, std::string_view query, const GameWIP::IO::Types::Status &status)
+    void logDisplayQueryFailure(Display::MonitorId monitor, std::string_view query, const GameWIP::Status::Types::Status &status)
     {
-        const std::string_view message = status.message.empty() ? std::string_view{"<none>"} : std::string_view{status.message};
+        const GameWIP::Status::Types::Diagnostic *diagnostic = status.diagnostic();
+        const std::string_view message = diagnostic != nullptr && !diagnostic->message.empty()
+                                             ? std::string_view{diagnostic->message}
+                                             : std::string_view{"<none>"};
+        Logger::Record fields = Logger::record()
+                                    .field("monitor_id", monitor.value)
+                                    .field("query", query)
+                                    .field("error_code", GameWIP::Status::Types::codeName(status.code()))
+                                    .field("status_message", message);
+        if(diagnostic != nullptr && diagnostic->nativeCode.has_value())
+        {
+            fields.field("native_code_domain", GameWIP::Status::Types::nativeCodeDomainName(diagnostic->nativeCode->domain))
+                .field("native_code", diagnostic->nativeCode->value);
+        }
         Logger::warn(
             Logging::Area::Display,
-            Logger::record()
-                .field("monitor_id", monitor.value)
-                .field("query", query)
-                .field("error_code", GameWIP::IO::errorCodeName(status.code))
-                .field("native_code", status.nativeCode)
-                .field("status_message", message),
+            std::move(fields),
             "Display query failed");
     }
 
     void addModeFields(
         Logger::Record &record,
         Display::MonitorId monitor,
-        const GameWIP::Desktop::Types::Result<Display::Mode> &activeMode,
-        const GameWIP::Desktop::Types::Result<std::vector<Display::Mode>> &supportedModes)
+        const GameWIP::Status::Types::Result<Display::Mode> &activeMode,
+        const GameWIP::Status::Types::Result<std::vector<Display::Mode>> &supportedModes)
     {
-        if(activeMode.ok())
+        if(activeMode.hasValue())
         {
-            record.field("active_mode", formatMode(*activeMode))
-                .field("active_bits_per_pixel", activeMode->bitsPerPixel)
-                .field("active_interlaced", activeMode->interlaced);
+            record.field("active_mode", formatMode(activeMode.value()))
+                .field("active_bits_per_pixel", activeMode.value().bitsPerPixel)
+                .field("active_interlaced", activeMode.value().interlaced);
         }
-        else
+        if(!activeMode.ok())
         {
-            logDisplayQueryFailure(monitor, "active_mode", activeMode.status);
+            logDisplayQueryFailure(monitor, "active_mode", activeMode.status());
         }
 
-        if(supportedModes.ok())
+        if(supportedModes.hasValue())
         {
-            record.field("mode_count", supportedModes->size());
+            record.field("mode_count", supportedModes.value().size());
         }
-        else
+        if(!supportedModes.ok())
         {
-            logDisplayQueryFailure(monitor, "supported_modes", supportedModes.status);
+            logDisplayQueryFailure(monitor, "supported_modes", supportedModes.status());
         }
     }
 
     void addColorFields(
         Logger::Record &record,
         Display::MonitorId monitor,
-        const GameWIP::Desktop::Types::Result<Display::ColorInfo> &colorInfo,
+        const GameWIP::Status::Types::Result<Display::ColorInfo> &colorInfo,
         bool detailed)
     {
         if(!colorInfo.ok())
         {
-            logDisplayQueryFailure(monitor, "color_info", colorInfo.status);
+            logDisplayQueryFailure(monitor, "color_info", colorInfo.status());
             return;
         }
 
-        record.field("color_space", colorSpaceName(colorInfo->activeColorSpace)).field("hdr", colorInfo->hdrEnabled);
+        record.field("color_space", colorSpaceName(colorInfo.value().activeColorSpace)).field("hdr", colorInfo.value().hdrEnabled);
         if(!detailed)
         {
             return;
         }
 
-        record.field("hdr_supported", colorInfo->hdrSupported).field("wide_color_gamut_supported", colorInfo->wideColorGamutSupported);
-        if(colorInfo->bitsPerColorChannel.has_value())
+        record.field("hdr_supported", colorInfo.value().hdrSupported).field("wide_color_gamut_supported", colorInfo.value().wideColorGamutSupported);
+        if(colorInfo.value().bitsPerColorChannel.has_value())
         {
-            record.field("bits_per_channel", *colorInfo->bitsPerColorChannel);
+            record.field("bits_per_channel", *colorInfo.value().bitsPerColorChannel);
         }
 
-        if(colorInfo->minimumLuminanceNits.has_value())
+        if(colorInfo.value().minimumLuminanceNits.has_value())
         {
-            record.field("minimum_luminance_nits", *colorInfo->minimumLuminanceNits);
+            record.field("minimum_luminance_nits", *colorInfo.value().minimumLuminanceNits);
         }
 
-        if(colorInfo->maximumLuminanceNits.has_value())
+        if(colorInfo.value().maximumLuminanceNits.has_value())
         {
-            record.field("maximum_luminance_nits", *colorInfo->maximumLuminanceNits);
+            record.field("maximum_luminance_nits", *colorInfo.value().maximumLuminanceNits);
         }
 
-        if(colorInfo->maximumFullFrameLuminanceNits.has_value())
+        if(colorInfo.value().maximumFullFrameLuminanceNits.has_value())
         {
-            record.field("maximum_full_frame_luminance_nits", *colorInfo->maximumFullFrameLuminanceNits);
+            record.field("maximum_full_frame_luminance_nits", *colorInfo.value().maximumFullFrameLuminanceNits);
         }
 
-        if(colorInfo->sdrWhiteLevelNits.has_value())
+        if(colorInfo.value().sdrWhiteLevelNits.has_value())
         {
-            record.field("sdr_white_level_nits", *colorInfo->sdrWhiteLevelNits);
+            record.field("sdr_white_level_nits", *colorInfo.value().sdrWhiteLevelNits);
         }
     }
 
@@ -187,9 +194,9 @@ namespace
 
     void logDisplaySummary(
         const Display::Info &monitor,
-        const GameWIP::Desktop::Types::Result<Display::Mode> &activeMode,
-        const GameWIP::Desktop::Types::Result<std::vector<Display::Mode>> &supportedModes,
-        const GameWIP::Desktop::Types::Result<Display::ColorInfo> &colorInfo)
+        const GameWIP::Status::Types::Result<Display::Mode> &activeMode,
+        const GameWIP::Status::Types::Result<std::vector<Display::Mode>> &supportedModes,
+        const GameWIP::Status::Types::Result<Display::ColorInfo> &colorInfo)
     {
         Logger::Record record = Logger::record();
         record.field("primary", monitor.primary);
@@ -208,9 +215,9 @@ namespace
 
     void logDisplayTrace(
         const Display::Info &monitor,
-        const GameWIP::Desktop::Types::Result<Display::Mode> &activeMode,
-        const GameWIP::Desktop::Types::Result<std::vector<Display::Mode>> &supportedModes,
-        const GameWIP::Desktop::Types::Result<Display::ColorInfo> &colorInfo)
+        const GameWIP::Status::Types::Result<Display::Mode> &activeMode,
+        const GameWIP::Status::Types::Result<std::vector<Display::Mode>> &supportedModes,
+        const GameWIP::Status::Types::Result<Display::ColorInfo> &colorInfo)
     {
         Logger::Record record = Logger::record();
         record.field("monitor_id", monitor.id.value)
@@ -241,10 +248,10 @@ namespace
         addColorFields(record, monitor.id, colorInfo, true);
 
         std::string report = std::format("Display '{}'", Logger::quoted(monitor.name));
-        if(supportedModes.ok() && !supportedModes->empty())
+        if(supportedModes.hasValue() && !supportedModes.value().empty())
         {
             report += "\n  Supported modes:";
-            report += formatSupportedModes(*supportedModes);
+            report += formatSupportedModes(supportedModes.value());
         }
         Logger::trace(Logging::Area::Display, record, "{}", report);
     }
@@ -256,16 +263,21 @@ namespace GameWIP::Game
     /// Display enumeration
     /// ------------------------------------------------------------
 
-    Desktop::Types::Result<std::vector<Desktop::Types::Display::Info>> inspectDisplays()
+    Status::Types::Result<std::vector<Desktop::Types::Display::Info>> inspectDisplays()
     {
         GAMEWIP_PROFILE_ZONE("Enumerate displays, display modes, and HDR state", Profiling::Color::kInitialization);
         auto monitors = Desktop::Display::getMonitors();
-        if(!monitors.ok())
+        if(!monitors.hasValue())
         {
             return monitors;
         }
 
-        Logger::debug(Logging::Area::Display, Logger::record().field("connected_display_count", monitors->size()), "Connected displays enumerated");
+        Logger::debug(
+            Logging::Area::Display,
+            Logger::record()
+                .field("connected_display_count", monitors.value().size())
+                .field("enumeration_complete", monitors.ok()),
+            monitors.ok() ? "Connected displays enumerated" : "Connected displays partially enumerated");
         const bool logDebug = Logger::shouldLog(Logger::Types::Level::Debug, Logging::Area::Display);
         const bool logTrace = Logger::shouldLog(Logger::Types::Level::Trace, Logging::Area::Display);
         if(!logDebug && !logTrace)
@@ -273,7 +285,7 @@ namespace GameWIP::Game
             return monitors;
         }
 
-        for(const Desktop::Types::Display::Info &monitor : *monitors)
+        for(const Desktop::Types::Display::Info &monitor : monitors.value())
         {
             const auto activeMode = Desktop::Display::getCurrentMode(monitor.id);
             const auto supportedModes = Desktop::Display::getModes(monitor.id);

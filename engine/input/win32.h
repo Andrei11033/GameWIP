@@ -22,15 +22,15 @@ namespace GameWIP::Input::Platform::Win32
     /// XInput, GameInput, DirectInput, and window-message providers by default.
     /// Confidently identified sources are grouped while controls remain individually
     /// addressable; raw reports can be retained for opaque HID devices.
-    class INPUT_EXPORT Attachment final
+    class Attachment final
     {
     public:
         /// @brief Creates a detached Win32 attachment.
-        Attachment() noexcept;
+        INPUT_EXPORT Attachment() noexcept;
 
         /// @brief Detaches the native source as best-effort cleanup.
         /// @details The destructor does not report a detach failure. Call detach explicitly when the status matters.
-        ~Attachment() noexcept;
+        INPUT_EXPORT ~Attachment() noexcept;
 
         Attachment(const Attachment &) = delete;
 
@@ -47,26 +47,24 @@ namespace GameWIP::Input::Platform::Win32
         /// @brief Registers the caller-owned window for Windows input delivery.
         /// @param system Open owner-thread-affine System to receive native values.
         /// @param windowHandle HWND represented as an opaque pointer.
-        /// @return Success, InvalidArgument, NotOpen, ResourceBusy, AlreadyOpen,
-        /// Unsupported, NativeFailure, or OutOfMemory.
-        [[nodiscard]] IO::Types::Status attach(System &system, void *windowHandle) noexcept;
+        /// @return Operation status.
+        [[nodiscard]] INPUT_EXPORT GameWIP::Status::Types::Result<void> attach(System &system, void *windowHandle) noexcept;
 
         /// @brief Detaches the current native source.
-        /// @return Success, ResourceBusy, or OutOfMemory.
-        [[nodiscard]] IO::Types::Status detach() noexcept;
+        /// @return Operation status.
+        [[nodiscard]] INPUT_EXPORT GameWIP::Status::Types::Result<void> detach() noexcept;
 
         /// @brief Reports whether a native source is attached.
         /// @return `true` while the attachment owns a live System connection.
-        [[nodiscard]] bool isAttached() const noexcept;
+        [[nodiscard]] INPUT_EXPORT bool isAttached() const noexcept;
 
         // ------------------------------------------------------------
         // Backend status
         // ------------------------------------------------------------
 
         /// @brief Copies startup status for the Win32 input backends.
-        /// @param outBackends Receives one status per backend.
-        /// @return Success, NotOpen, ResourceBusy, or OutOfMemory.
-        [[nodiscard]] IO::Types::Status backends(std::vector<Types::BackendInfo> &outBackends) const noexcept;
+        /// @return One status per backend on success.
+        [[nodiscard]] INPUT_EXPORT GameWIP::Status::Types::Result<std::vector<Types::BackendInfo>> backends() const noexcept;
 
         // ------------------------------------------------------------
         // Window message and text surface
@@ -74,15 +72,17 @@ namespace GameWIP::Input::Platform::Win32
 
         /// @brief Returns the text-input surface associated with the attached window.
         /// @return Surface identity while attached, or an invalid ID otherwise.
-        [[nodiscard]] Types::SurfaceId surfaceId() const noexcept;
+        [[nodiscard]] INPUT_EXPORT Types::SurfaceId surfaceId() const noexcept;
 
         /// @brief Forwards one window message to the native input backend.
         /// @param message Win32 message identifier.
         /// @param wParam Message word parameter.
         /// @param lParam Message long parameter.
-        /// @param outHandled Receives whether the backend consumed the message.
-        /// @return Success, NotOpen, ResourceBusy, InvalidArgument, Unsupported, NativeFailure, or OutOfMemory.
-        [[nodiscard]] IO::Types::Status handleMessage(std::uint32_t message, std::uint64_t wParam, std::int64_t lParam, bool &outHandled) noexcept;
+        /// @return Message status and whether the backend consumed it.
+        [[nodiscard]] INPUT_EXPORT GameWIP::Status::Types::Result<bool> handleMessage(
+            std::uint32_t message,
+            std::uint64_t wParam,
+            std::int64_t lParam) noexcept;
 
         // ------------------------------------------------------------
         // Provider polling
@@ -90,13 +90,24 @@ namespace GameWIP::Input::Platform::Win32
 
         /// @brief Polls initialized native providers and publishes observations.
         /// @details System::capture polls providers before publishing its frame.
-        /// @return Success, NotOpen, ResourceBusy, Unsupported, or OutOfMemory.
-        [[nodiscard]] IO::Types::Status poll() noexcept;
+        /// Provider failures do not prevent remaining providers from polling; the first failure is returned.
+        /// @return Operation status.
+        [[nodiscard]] INPUT_EXPORT GameWIP::Status::Types::Result<void> poll() noexcept;
 
     private:
+        [[nodiscard]] GameWIP::Status::Types::Status attachStatus(System &system, void *windowHandle) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Status detachStatus() noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Status backendsStatus(std::vector<Types::BackendInfo> &outBackends) const noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Status handleMessageStatus(
+            std::uint32_t message,
+            std::uint64_t wParam,
+            std::int64_t lParam,
+            bool &outHandled) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Status pollStatus() noexcept;
+
         static void beforeCapture(::GameWIP::Input::Internal::SystemState &state, void *context) noexcept;
         static void closeSystem(::GameWIP::Input::Internal::SystemState &state, void *context) noexcept;
-        static IO::Types::Status pollNative(::GameWIP::Input::Internal::Win32::AttachmentState &implementation) noexcept;
+        static GameWIP::Status::Types::Status pollNative(::GameWIP::Input::Internal::Win32::AttachmentState &implementation) noexcept;
 
         std::unique_ptr<::GameWIP::Input::Internal::Win32::AttachmentState> impl_{};
     };

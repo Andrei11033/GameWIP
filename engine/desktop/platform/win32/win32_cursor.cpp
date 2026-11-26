@@ -1,6 +1,7 @@
 /// @file win32_cursor.cpp
 /// @brief Win32 custom cursor materialization, lazy Window binding, and DPI selection.
 
+#include "desktop/internal/results.h"
 #include "desktop/platform/win32/internal/win32_window_backend.h"
 
 #include "desktop/platform/cursor.h"
@@ -48,13 +49,13 @@ namespace GameWIP::Desktop::Platform
         }
 
         /// @brief Converts a failed cursor API call into the library status convention.
-        [[nodiscard]] IO::Types::Status nativeCursorFailure(DWORD nativeCode, const char *operation) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status nativeCursorFailure(DWORD nativeCode, const char *operation) noexcept
         {
-            return statusFromWin32(IO::Types::ErrorCode::NativeFailure, nativeCode == ERROR_SUCCESS ? ERROR_GEN_FAILURE : nativeCode, operation);
+            return statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, nativeCode == ERROR_SUCCESS ? ERROR_GEN_FAILURE : nativeCode, operation);
         }
 
         /// @brief Materializes one RGBA cursor image as a Win32 color/mask icon.
-        [[nodiscard]] IO::Types::Status createNativeCursor(const Types::Cursor::ImageView &image, HCURSOR &cursor) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status createNativeCursor(const Types::Cursor::ImageView &image, HCURSOR &cursor) noexcept
         {
             cursor = nullptr;
 
@@ -114,7 +115,7 @@ namespace GameWIP::Desktop::Platform
                 if(!Win32::copyRgbaToBgra(image.rgba8.subspan(sourceOffset, packedRowBytes), destination.subspan(destinationOffset, packedRowBytes)))
                 {
                     DeleteObject(color);
-                    return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
+                    return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::InvalidArgument);
                 }
             }
 
@@ -171,11 +172,11 @@ namespace GameWIP::Desktop::Platform
             }
 
             Internal::recordCustomCursorCreated();
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
     } // namespace
 
-    IO::Types::Status createNativeCursorVariants(
+    GameWIP::Status::Types::Status createNativeCursorVariants(
         std::span<const Types::Cursor::ImageView> images,
         std::vector<NativeCursorVariant> &variants) noexcept
     {
@@ -183,10 +184,14 @@ namespace GameWIP::Desktop::Platform
         {
             if(Internal::consumeCursorNativeCreationFailure())
             {
-                return IO::makeStatus(IO::Types::ErrorCode::NativeFailure, ERROR_GEN_FAILURE, "injected custom cursor creation failure");
+                return GameWIP::Desktop::Internal::statusFor(
+                    GameWIP::Status::Types::Code::NativeFailure,
+                    ERROR_GEN_FAILURE,
+                    GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error,
+                    "injected custom cursor creation failure");
             }
             HCURSOR cursor = nullptr;
-            IO::Types::Status status = createNativeCursor(image, cursor);
+            GameWIP::Status::Types::Status status = createNativeCursor(image, cursor);
 
             if(!status.ok())
             {
@@ -195,7 +200,7 @@ namespace GameWIP::Desktop::Platform
             variants.push_back({image.intendedDpi, cursor});
         }
 
-        return IO::successStatus();
+        return GameWIP::Status::Types::Status{};
     }
 
     /// ------------------------------------------------------------
@@ -218,7 +223,7 @@ namespace GameWIP::Desktop::Platform
     /// Window cursor bindings
     /// ------------------------------------------------------------
 
-    IO::Types::Status setCustomCursor(WindowState &window, std::shared_ptr<const CursorState> cursor) noexcept
+    GameWIP::Status::Types::Status setCustomCursor(WindowState &window, std::shared_ptr<const CursorState> cursor) noexcept
     {
         try
         {
@@ -236,7 +241,11 @@ namespace GameWIP::Desktop::Platform
             // Publish the replacement before updating the visible cursor.
             if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::CursorBinding))
             {
-                return IO::makeStatus(IO::Types::ErrorCode::NativeFailure, ERROR_GEN_FAILURE, "injected custom cursor binding failure");
+                return GameWIP::Desktop::Internal::statusFor(
+                    GameWIP::Status::Types::Code::NativeFailure,
+                    ERROR_GEN_FAILURE,
+                    GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error,
+                    "injected custom cursor binding failure");
             }
             SetLastError(ERROR_SUCCESS);
 
@@ -257,17 +266,17 @@ namespace GameWIP::Desktop::Platform
 
             if(published == nullptr)
             {
-                return IO::makeStatus(IO::Types::ErrorCode::Unknown);
+                return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::Unknown);
             }
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::OutOfMemory);
         }
         catch(...)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::Unknown);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::Unknown);
         }
     }
 
@@ -317,7 +326,7 @@ namespace GameWIP::Desktop::Platform
         }
     }
 
-    IO::Types::Status replaceCustomCursorWithSystem(WindowState &state, HCURSOR cursor) noexcept
+    GameWIP::Status::Types::Status replaceCustomCursorWithSystem(WindowState &state, HCURSOR cursor) noexcept
     {
         CursorBinding *binding = cursorBinding(state.platform->handle);
 
@@ -325,7 +334,11 @@ namespace GameWIP::Desktop::Platform
         {
             if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::CursorBinding))
             {
-                return IO::makeStatus(IO::Types::ErrorCode::NativeFailure, ERROR_GEN_FAILURE, "injected custom cursor removal failure");
+                return GameWIP::Desktop::Internal::statusFor(
+                    GameWIP::Status::Types::Code::NativeFailure,
+                    ERROR_GEN_FAILURE,
+                    GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error,
+                    "injected custom cursor removal failure");
             }
             SetLastError(ERROR_SUCCESS);
             HANDLE removed = RemovePropW(state.platform->handle, kCursorBindingProperty);
@@ -343,7 +356,7 @@ namespace GameWIP::Desktop::Platform
             SetCursor(cursor);
         }
         delete binding;
-        return IO::successStatus();
+        return GameWIP::Status::Types::Status{};
     }
 
     /// ------------------------------------------------------------

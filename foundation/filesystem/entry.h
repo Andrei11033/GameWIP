@@ -4,7 +4,6 @@
 #pragma once
 
 #include "filesystem/path.h"
-#include "io/stream.h"
 
 #include <chrono>
 #include <cstdint>
@@ -82,24 +81,6 @@ namespace GameWIP::FileSystem
             bool readOnly = false;
         };
 
-        /// @brief Result returned by getEntryInfo().
-        struct EntryInfoResult
-        {
-            /// @brief Operation status.
-            IO::Types::Status status;
-            /// @brief Entry metadata when status is successful.
-            EntryInfo info{};
-        };
-
-        /// @brief Result returned by getLastWriteTime().
-        struct LastWriteTimeResult
-        {
-            /// @brief Operation status.
-            IO::Types::Status status;
-            /// @brief Last-write time when status is successful.
-            FileTime time{};
-        };
-
         /// @brief Options used by removeFile() and removeEmptyDirectory().
         struct RemoveOptions
         {
@@ -129,42 +110,42 @@ namespace GameWIP::FileSystem
 
     /// @brief Tests whether a filesystem entry exists.
     /// @return Successful true or false; missing entries produce successful false.
-    [[nodiscard]] Types::BoolResult exists(const Types::Path &path, const Types::EntryOptions &options = {}) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<bool> exists(const Types::Path &path, const Types::EntryOptions &options = {}) noexcept;
 
     /// @brief Returns portable metadata for an existing filesystem entry.
     /// @return Entry metadata, or NotFound when the entry is missing.
-    [[nodiscard]] Types::EntryInfoResult getEntryInfo(const Types::Path &path, const Types::EntryOptions &options = {}) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<Types::EntryInfo> getEntryInfo(const Types::Path &path, const Types::EntryOptions &options = {}) noexcept;
 
     /// @brief Tests whether a path resolves to a regular file.
     /// @return Successful true or false; missing entries produce successful false.
-    [[nodiscard]] Types::BoolResult isRegularFile(const Types::Path &path, const Types::EntryOptions &options = {}) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<bool> isRegularFile(const Types::Path &path, const Types::EntryOptions &options = {}) noexcept;
 
     /// @brief Tests whether a path resolves to a directory.
     /// @return Successful true or false; missing entries produce successful false.
-    [[nodiscard]] Types::BoolResult isDirectory(const Types::Path &path, const Types::EntryOptions &options = {}) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<bool> isDirectory(const Types::Path &path, const Types::EntryOptions &options = {}) noexcept;
 
     /// @brief Tests whether a path resolves to a symbolic link or equivalent link-like entry.
     /// @return Successful true or false; missing entries produce successful false.
-    [[nodiscard]] Types::BoolResult isSymlink(const Types::Path &path, const Types::EntryOptions &options = {}) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<bool> isSymlink(const Types::Path &path, const Types::EntryOptions &options = {}) noexcept;
 
     /// @brief Returns the size of an existing regular file.
     /// @return File size, NotFound when missing, or InvalidArgument when the resolved entry is not a regular file with portable size.
-    [[nodiscard]] IO::Types::SizeResult getFileSize(const Types::Path &path, const Types::EntryOptions &options = {}) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<std::uint64_t> getFileSize(const Types::Path &path, const Types::EntryOptions &options = {}) noexcept;
 
     /// @brief Returns the last-write time of an existing filesystem entry.
     /// @return Last-write time, or NotFound when the entry is missing.
-    [[nodiscard]] Types::LastWriteTimeResult getLastWriteTime(const Types::Path &path, const Types::EntryOptions &options = {}) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<Types::FileTime> getLastWriteTime(const Types::Path &path, const Types::EntryOptions &options = {}) noexcept;
 
     /// @brief Returns the portable basic read-only state of an existing entry.
     /// @return Successful true or false, or NotFound when the entry is missing.
-    [[nodiscard]] Types::BoolResult isReadOnly(const Types::Path &path, const Types::EntryOptions &options = {}) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<bool> isReadOnly(const Types::Path &path, const Types::EntryOptions &options = {}) noexcept;
 
     /// @brief Changes the portable basic read-only state of an existing entry.
     /// @param path Entry to update.
     /// @param readOnly True to request read-only state; false to request writable.
     /// @param options Symlink traversal behavior.
     /// @return Success or a validation, lookup, permission, or metadata failure status.
-    [[nodiscard]] IO::Types::Status setReadOnly(const Types::Path &path, bool readOnly, const Types::EntryOptions &options = {}) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<void> setReadOnly(const Types::Path &path, bool readOnly, const Types::EntryOptions &options = {}) noexcept;
 
     /// @brief Moves or renames one filesystem entry.
     /// @param from Source path.
@@ -173,5 +154,5 @@ namespace GameWIP::FileSystem
     /// @return Success or a validation, lookup, permission, conflict, or move failure status.
     /// @note Cross-volume moves return MoveFailed; no copy-and-delete fallback is performed.
     /// @note Native rename success is the operation's linearization point; later namespace changes do not change the returned success.
-    [[nodiscard]] IO::Types::Status movePath(const Types::Path &from, const Types::Path &to, const Types::MoveOptions &options = {}) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<void> movePath(const Types::Path &from, const Types::Path &to, const Types::MoveOptions &options = {}) noexcept;
 } // namespace GameWIP::FileSystem

@@ -11,20 +11,20 @@ void testEnvironmentHelpers(TestSupport::Context &context)
     const TestSupport::ScopedEnvironmentVariable emptyName(processState, "", "value");
     static_cast<void>(context.expectEq(
         "ScopedEnvironmentVariable rejects an empty name",
-        TestSupport::Types::InfrastructureError::InvalidArgument,
-        emptyName.status().error));
+        GameWIP::Status::Types::Code::InvalidArgument,
+        emptyName.status().code()));
 
     const TestSupport::ScopedUnsetEnvironmentVariable equalsName(processState, "INVALID=NAME");
     static_cast<void>(context.expectEq(
         "ScopedUnsetEnvironmentVariable rejects '=' in a name",
-        TestSupport::Types::InfrastructureError::InvalidArgument,
-        equalsName.status().error));
+        GameWIP::Status::Types::Code::InvalidArgument,
+        equalsName.status().code()));
 
     const TestSupport::ScopedEnvironmentVariable invalidUtf8(processState, "\xFF", "value");
     static_cast<void>(context.expectEq(
         "ScopedEnvironmentVariable rejects invalid UTF-8",
-        TestSupport::Types::InfrastructureError::InvalidArgument,
-        invalidUtf8.status().error));
+        GameWIP::Status::Types::Code::InvalidArgument,
+        invalidUtf8.status().code()));
 
     // Restore an initially absent variable across nested scopes.
     {
@@ -46,7 +46,7 @@ void testEnvironmentHelpers(TestSupport::Context &context)
     {
         TestSupport::ScopedEnvironmentVariable explicitRestore(processState, kScopedVariable, "explicit");
         static_cast<void>(context.expectTrue("Explicit environment restoration setup succeeds", explicitRestore.status().ok()));
-        const TestSupport::Types::InfrastructureStatus restoreStatus = explicitRestore.restore();
+        const TestSupport::Types::Result<void> restoreStatus = explicitRestore.restore();
         static_cast<void>(context.expectTrue("Explicit environment restoration succeeds", restoreStatus.ok()));
         static_cast<void>(
             context.expectTrue("Explicit environment restoration clears the value", std::getenv(std::string(kScopedVariable).c_str()) == nullptr));
@@ -60,16 +60,16 @@ void testEnvironmentHelpers(TestSupport::Context &context)
         static_cast<void>(GameWIP::Validation::PlatformTests::setEnvironmentVariable(kScopedVariable, "external"));
         static_cast<void>(context.expectEq(
             "Environment restore reports unrelated mutation",
-            TestSupport::Types::InfrastructureError::ProcessStateConflict,
-            conflicted.restore().error));
+            GameWIP::Status::Types::Code::ProcessStateConflict,
+            conflicted.restore().status().code()));
         const char *external = std::getenv(std::string(kScopedVariable).c_str());
         static_cast<void>(
             context.expectTrue("Environment conflict preserves the newer value", external != nullptr && std::string_view(external) == "external"));
         static_cast<void>(GameWIP::Validation::PlatformTests::setEnvironmentVariable(kScopedVariable, nullptr));
         static_cast<void>(context.expectEq(
             "Process-state restoration status is sticky after a successful retry",
-            TestSupport::Types::InfrastructureError::ProcessStateConflict,
-            processState.restorationStatus().error));
+            GameWIP::Status::Types::Code::ProcessStateConflict,
+            processState.restorationStatus().code()));
     }
 
     // Restore previous values after nested set and unset guards.
@@ -83,8 +83,8 @@ void testEnvironmentHelpers(TestSupport::Context &context)
 
         static_cast<void>(context.expectEq(
             "Destructor-only restoration conflict is recorded",
-            TestSupport::Types::InfrastructureError::ProcessStateConflict,
-            destructorProcessState.restorationStatus().error));
+            GameWIP::Status::Types::Code::ProcessStateConflict,
+            destructorProcessState.restorationStatus().code()));
         static_cast<void>(GameWIP::Validation::PlatformTests::setEnvironmentVariable(kScopedVariable, nullptr));
     }
 

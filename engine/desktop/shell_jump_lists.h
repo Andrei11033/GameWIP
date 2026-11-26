@@ -5,7 +5,7 @@
 
 #include "desktop/desktop_export.h"
 #include "desktop/shell_types.h"
-#include "io/status.h"
+#include "status/result.h"
 
 #include <span>
 #include <string_view>
@@ -53,5 +53,5 @@ namespace GameWIP::Desktop::JumpLists
     /// serialized by the implementation and each successful call replaces the previous snapshot.
     /// @param description Complete borrowed jump-list and recent-item snapshot.
     /// @return Success, or a validation, capability, size, allocation, or native failure. Failure leaves the previous publication unchanged.
-    [[nodiscard]] DESKTOP_EXPORT IO::Types::Status publish(const Types::JumpLists::Description &description) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT GameWIP::Status::Types::Result<void> publish(const Types::JumpLists::Description &description) noexcept;
 } // namespace GameWIP::Desktop::JumpLists

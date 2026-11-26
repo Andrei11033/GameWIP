@@ -44,38 +44,40 @@ namespace GameWIP::Desktop::Display
     /// Monitor and display-color queries
     /// ------------------------------------------------------------
 
-    Types::Result<std::vector<Types::Display::Info>> getMonitors() noexcept
+    GameWIP::Status::Types::Result<std::vector<Types::Display::Info>> getMonitors() noexcept
     {
         return Platform::getMonitors();
     }
 
-    Types::Result<Types::Display::Info> getPrimaryMonitor() noexcept
+    GameWIP::Status::Types::Result<Types::Display::Info> getPrimaryMonitor() noexcept
     {
         return Platform::getPrimaryMonitor();
     }
 
-    Types::Result<Types::Display::Info> getMonitor(Types::Display::MonitorId monitor) noexcept
+    GameWIP::Status::Types::Result<Types::Display::Info> getMonitor(Types::Display::MonitorId monitor) noexcept
     {
         return Platform::getMonitor(monitor);
     }
 
-    Types::Result<Types::Display::ColorInfo> getColorInfo(Types::Display::MonitorId monitor) noexcept
+    GameWIP::Status::Types::Result<Types::Display::ColorInfo> getColorInfo(Types::Display::MonitorId monitor) noexcept
     {
         return Platform::getColorInfo(monitor);
     }
 
-    Types::Result<Types::Display::ColorInfo> getColorInfo(const Window &window) noexcept
+    GameWIP::Status::Types::Result<Types::Display::ColorInfo> getColorInfo(const Window &window) noexcept
     {
         const Internal::WindowState *state = Internal::WindowAccess::state(window);
 
         if(state == nullptr || !window.isOpen())
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::NotOpen)};
+            return GameWIP::Status::Types::Result<Types::Display::ColorInfo>::failure(
+                GameWIP::Status::Types::Status(GameWIP::Status::Types::Code::NotOpen));
         }
 
         if(!window.ownedByCurrentThread())
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::ResourceBusy)};
+            return GameWIP::Status::Types::Result<Types::Display::ColorInfo>::failure(
+                GameWIP::Status::Types::Status(GameWIP::Status::Types::Code::ResourceBusy));
         }
 
         return Platform::getColorInfo(state->monitor);

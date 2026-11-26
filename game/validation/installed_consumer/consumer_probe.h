@@ -15,7 +15,6 @@
 #include "unicode/unicode.h"
 #elif defined(GAMEWIP_CONSUMER_IO)
 #include "io/io.h"
-#include "io/status.h"
 #include "io/stream.h"
 #elif defined(GAMEWIP_CONSUMER_FileSystem)
 #include "filesystem/file.h"
@@ -77,11 +76,11 @@ namespace
         const auto reserve = writer.reserve(32);
         const auto write = GameWIP::IO::writeAllText(writer, "isolated");
         const auto text = writer.copyText();
-        const bool writerAcceptedText = reserve.ok() && write.status.ok() && text.status.ok();
-        return writerAcceptedText && text.text == "isolated" ? 0 : 1;
+        const bool writerAcceptedText = reserve.ok() && write.ok() && text.ok();
+        return writerAcceptedText && text.value() == "isolated" ? 0 : 1;
 #elif defined(GAMEWIP_CONSUMER_FileSystem)
         const GameWIP::FileSystem::Types::File::ReadOptions options{};
-        const bool pathIsValid = GameWIP::FileSystem::pathFromUtf8("isolated.txt").status.ok();
+        const bool pathIsValid = GameWIP::FileSystem::pathFromUtf8("isolated.txt").ok();
         return pathIsValid && options.bufferSize > 0 ? 0 : 1;
 #elif defined(GAMEWIP_CONSUMER_Terminal)
         static_cast<void>(GameWIP::Terminal::getOutputCapabilities());
@@ -89,15 +88,14 @@ namespace
 #elif defined(GAMEWIP_CONSUMER_Desktop)
         GameWIP::Desktop::Window window;
         const auto capabilities = GameWIP::Desktop::getCapabilities();
-        const GameWIP::Desktop::Types::Result<GameWIP::Desktop::Cursor> cursor =
-            GameWIP::Desktop::createCursor(std::span<const GameWIP::Desktop::Types::Cursor::ImageView>{});
+        const auto cursor = GameWIP::Desktop::createCursor(std::span<const GameWIP::Desktop::Types::Cursor::ImageView>{});
         const auto feedback = GameWIP::Desktop::Renderer::attachOcclusionProvider(window);
         const auto displayColor = GameWIP::Desktop::Display::getColorInfo(window);
         const bool probesPassed = probeInstalledAccessibility() && probeInstalledDragDrop();
 
-        if(!probesPassed || !capabilities.ok() || cursor.status.code != GameWIP::IO::Types::ErrorCode::InvalidArgument || cursor.value.has_value() ||
-           GameWIP::Desktop::Renderer::hasOcclusionProvider(window) || feedback.code != GameWIP::IO::Types::ErrorCode::NotOpen ||
-           displayColor.status.code != GameWIP::IO::Types::ErrorCode::NotOpen)
+        if(!probesPassed || !capabilities.ok() || cursor.status().code() != GameWIP::Status::Types::Code::InvalidArgument || cursor.hasValue() ||
+           GameWIP::Desktop::Renderer::hasOcclusionProvider(window) || feedback.status().code() != GameWIP::Status::Types::Code::NotOpen ||
+           displayColor.status().code() != GameWIP::Status::Types::Code::NotOpen)
         {
             return 1;
         }
@@ -155,9 +153,10 @@ namespace
 #endif
 #elif defined(GAMEWIP_CONSUMER_TestSupport)
         GameWIP::TestSupport::Timer timer;
-        const GameWIP::TestSupport::Types::InfrastructureStatus status;
-        const GameWIP::TestSupport::Types::Process::Result childResult;
-        const std::string statusText = GameWIP::TestSupport::formatInfrastructureStatus(status);
+        const GameWIP::TestSupport::Types::Status status;
+        const GameWIP::TestSupport::Types::Process::Result childResult =
+            GameWIP::TestSupport::Types::Process::Result::success(GameWIP::TestSupport::Types::Process::Execution{});
+        const std::string statusText = GameWIP::TestSupport::formatStatus(status);
         GameWIP::TestSupport::Types::Reporting::Options reportingOptions;
         reportingOptions.writeConsole = false;
         reportingOptions.writeReport = false;
@@ -168,9 +167,9 @@ namespace
         GameWIP::TestSupport::Context context("installed", reportingOptions);
         const auto contextFinalReport = context.finalize();
 
-        const bool processDefaultsAreUsable = status.ok() && statusText == "None" && childResult.status.ok() &&
-                                              childResult.outcome == GameWIP::TestSupport::Types::Process::Outcome::NotStarted &&
-                                              childResult.outputBytes.empty();
+        const bool processDefaultsAreUsable = status.ok() && statusText == "Success" && childResult.ok() &&
+                                              childResult.value().outcome == GameWIP::TestSupport::Types::Process::Outcome::NotStarted &&
+                                              childResult.value().outputBytes.empty();
         const bool runnerReportingIsDisabled = runnerInitialReport.state == GameWIP::TestSupport::Types::Reporting::SinkState::Disabled &&
                                                runnerFinalReport.state == GameWIP::TestSupport::Types::Reporting::SinkState::Disabled &&
                                                contextFinalReport.state == GameWIP::TestSupport::Types::Reporting::SinkState::Disabled;
@@ -179,8 +178,8 @@ namespace
 #elif defined(GAMEWIP_CONSUMER_COMBINED) || defined(__INTELLISENSE__)
         GameWIP::Desktop::Window window;
         const auto feedback = GameWIP::Desktop::Renderer::attachOcclusionProvider(window);
-        return feedback.code == GameWIP::IO::Types::ErrorCode::NotOpen &&
-                       GameWIP::Desktop::Display::getColorInfo(window).status.code == GameWIP::IO::Types::ErrorCode::NotOpen
+        return feedback.status().code() == GameWIP::Status::Types::Code::NotOpen &&
+                       GameWIP::Desktop::Display::getColorInfo(window).status().code() == GameWIP::Status::Types::Code::NotOpen
                    ? 0
                    : 1;
 #endif

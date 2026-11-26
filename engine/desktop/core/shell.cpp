@@ -1,6 +1,7 @@
 /// @file shell.cpp
 /// @brief Portable shell queues, jump lists, and registration forwarding.
 
+#include "desktop/internal/results.h"
 #include "desktop/shell.h"
 
 #include "desktop/internal/shell_helpers.h"
@@ -26,12 +27,12 @@ namespace GameWIP::Desktop::Internal
 
     namespace
     {
-        using IO::Types::ErrorCode;
+        using ErrorCode = GameWIP::Status::Types::Code;
 
         /// @brief Builds a portable status from a single error code.
-        [[nodiscard]] IO::Types::Status error(ErrorCode code) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status error(ErrorCode code) noexcept
         {
-            return IO::makeStatus(code);
+            return GameWIP::Desktop::Internal::statusFor(code);
         }
 
         /// @brief Returns whether the current thread owns an open shell event queue.
@@ -72,7 +73,7 @@ namespace GameWIP::Desktop::Internal
         }
 
         /// @brief Validates launch targets and arguments before shell registration or publication.
-        [[nodiscard]] IO::Types::Status validateLaunchAction(const Types::Shell::LaunchActionView &action, bool allowPlaceholders) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status validateLaunchAction(const Types::Shell::LaunchActionView &action, bool allowPlaceholders) noexcept
         {
             if(action.executable.path.get().empty() || (!allowPlaceholders && containsPlaceholder(action)))
             {
@@ -107,11 +108,11 @@ namespace GameWIP::Desktop::Internal
                 }
             }
 
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
 
         /// @brief Validates one jump-list task shared by direct and categorized entries.
-        [[nodiscard]] IO::Types::Status validateJumpListTask(const Types::JumpLists::Task &task) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status validateJumpListTask(const Types::JumpLists::Task &task) noexcept
         {
             if(!validText(task.title, true) || !validText(task.description))
             {
@@ -122,7 +123,7 @@ namespace GameWIP::Desktop::Internal
         }
 
         /// @brief Validates shared file/URI registration fields and launch actions.
-        [[nodiscard]] IO::Types::Status validateRegistration(
+        [[nodiscard]] GameWIP::Status::Types::Status validateRegistration(
             std::string_view ownerKey,
             std::string_view identity,
             std::string_view displayName,
@@ -136,7 +137,7 @@ namespace GameWIP::Desktop::Internal
 
             if(defaultAction.has_value())
             {
-                IO::Types::Status status = validateLaunchAction(*defaultAction, true);
+                GameWIP::Status::Types::Status status = validateLaunchAction(*defaultAction, true);
 
                 if(!status.ok())
                 {
@@ -151,7 +152,7 @@ namespace GameWIP::Desktop::Internal
                     return error(ErrorCode::InvalidArgument);
                 }
 
-                IO::Types::Status status = validateLaunchAction(verb.action, true);
+                GameWIP::Status::Types::Status status = validateLaunchAction(verb.action, true);
 
                 if(!status.ok())
                 {
@@ -159,7 +160,7 @@ namespace GameWIP::Desktop::Internal
                 }
             }
 
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
     } // namespace
 
@@ -196,12 +197,12 @@ namespace GameWIP::Desktop
 {
     namespace
     {
-        using IO::Types::ErrorCode;
+        using ErrorCode = GameWIP::Status::Types::Code;
 
         /// @brief Builds a portable status from a single error code.
-        [[nodiscard]] IO::Types::Status error(ErrorCode code) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status error(ErrorCode code) noexcept
         {
-            return IO::makeStatus(code);
+            return GameWIP::Desktop::Internal::statusFor(code);
         }
     } // namespace
 
@@ -209,14 +210,14 @@ namespace GameWIP::Desktop
     /// Jump lists
     /// ------------------------------------------------------------
 
-    IO::Types::Status JumpLists::publish(const Types::JumpLists::Description &description) noexcept
+    GameWIP::Status::Types::Result<void> JumpLists::publish(const Types::JumpLists::Description &description) noexcept
     {
         try
         {
             // Validate direct tasks and category entries.
             for(const Types::JumpLists::Task &task : description.tasks)
             {
-                IO::Types::Status status = Internal::validateJumpListTask(task);
+                GameWIP::Status::Types::Status status = Internal::validateJumpListTask(task);
 
                 if(!status.ok())
                 {
@@ -233,7 +234,7 @@ namespace GameWIP::Desktop
 
                 for(const Types::JumpLists::Task &task : category.tasks)
                 {
-                    IO::Types::Status status = Internal::validateJumpListTask(task);
+                    GameWIP::Status::Types::Status status = Internal::validateJumpListTask(task);
 
                     if(!status.ok())
                     {
@@ -275,7 +276,7 @@ namespace GameWIP::Desktop
 
     Types::Registration::Result Registration::registerFileExtension(const Types::Registration::FileExtensionDescription &description) noexcept
     {
-        IO::Types::Status status = Internal::validateRegistration(
+        GameWIP::Status::Types::Status status = Internal::validateRegistration(
             description.ownerKey,
             description.extension,
             description.displayName,
@@ -289,14 +290,14 @@ namespace GameWIP::Desktop
 
         if(!status.ok())
         {
-            return {std::move(status), {}, false};
+            return Types::Registration::Result::failure(std::move(status));
         }
         return Platform::registerFileExtension(description);
     }
 
     Types::Registration::Result Registration::registerUriScheme(const Types::Registration::UriSchemeDescription &description) noexcept
     {
-        IO::Types::Status status = Internal::validateRegistration(
+        GameWIP::Status::Types::Status status = Internal::validateRegistration(
             description.ownerKey,
             description.scheme,
             description.displayName,
@@ -305,7 +306,7 @@ namespace GameWIP::Desktop
 
         if(!status.ok())
         {
-            return {std::move(status), {}, false};
+            return Types::Registration::Result::failure(std::move(status));
         }
         return Platform::registerUriScheme(description);
     }
@@ -314,7 +315,7 @@ namespace GameWIP::Desktop
     {
         if(!Internal::validText(ownerKey, true) || !Internal::validText(extension, true))
         {
-            return {error(ErrorCode::InvalidArgument), {}, false};
+            return Types::Registration::Result::failure(error(ErrorCode::InvalidArgument));
         }
         return Platform::unregisterFileExtension(ownerKey, extension);
     }
@@ -323,7 +324,7 @@ namespace GameWIP::Desktop
     {
         if(!Internal::validText(ownerKey, true) || !Internal::validText(scheme, true))
         {
-            return {error(ErrorCode::InvalidArgument), {}, false};
+            return Types::Registration::Result::failure(error(ErrorCode::InvalidArgument));
         }
         return Platform::unregisterUriScheme(ownerKey, scheme);
     }
@@ -343,12 +344,12 @@ namespace GameWIP::Desktop
         }
     }
 
-    IO::Types::Status ShellEventQueue::open() noexcept
+    GameWIP::Status::Types::Result<void> ShellEventQueue::open() noexcept
     {
         return open(Types::Shell::QueueConfiguration::owned());
     }
 
-    IO::Types::Status ShellEventQueue::open(Types::Shell::QueueConfiguration queue) noexcept
+    GameWIP::Status::Types::Result<void> ShellEventQueue::open(Types::Shell::QueueConfiguration queue) noexcept
     {
         // Validate storage configuration and reject duplicate opens.
         const auto *ownedQueue = std::get_if<Types::Shell::QueueConfiguration::Owned>(&queue.storage);
@@ -356,12 +357,12 @@ namespace GameWIP::Desktop
 
         if((ownedQueue != nullptr && ownedQueue->capacity == 0) || (borrowedQueue != nullptr && borrowedQueue->storage.empty()))
         {
-            return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::InvalidArgument);
         }
 
         if(state_ != nullptr)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::AlreadyOpen);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::AlreadyOpen);
         }
 
         try
@@ -373,7 +374,7 @@ namespace GameWIP::Desktop
             {
                 if(ownedQueue->capacity > candidate->internalEvents.max_size())
                 {
-                    return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
+                    return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::InvalidArgument);
                 }
                 candidate->internalEvents.resize(ownedQueue->capacity);
                 candidate->eventStorage = candidate->internalEvents;
@@ -389,15 +390,15 @@ namespace GameWIP::Desktop
             candidate->ownerThread = std::this_thread::get_id();
             candidate->open = true;
             state_ = std::move(candidate);
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::OutOfMemory);
         }
         catch(...)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::Unknown);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::Unknown);
         }
     }
 
@@ -411,16 +412,16 @@ namespace GameWIP::Desktop
         return state_ != nullptr && Internal::ownedByCurrentThread(*state_);
     }
 
-    IO::Types::Status ShellEventQueue::close() noexcept
+    GameWIP::Status::Types::Result<void> ShellEventQueue::close() noexcept
     {
         if(state_ == nullptr || !state_->open)
         {
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
 
         if(!ownedByCurrentThread())
         {
-            return IO::makeStatus(IO::Types::ErrorCode::ResourceBusy);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::ResourceBusy);
         }
 
         {
@@ -429,7 +430,7 @@ namespace GameWIP::Desktop
             // Keep bound resources from outliving their queue.
             if(state_->boundResourceCount != 0)
             {
-                return IO::makeStatus(IO::Types::ErrorCode::ResourceBusy);
+                return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::ResourceBusy);
             }
 
             // Clear retained events and release storage before closing the queue.
@@ -441,7 +442,7 @@ namespace GameWIP::Desktop
         }
 
         state_.reset();
-        return IO::successStatus();
+        return GameWIP::Status::Types::Status{};
     }
 
     bool ShellEventQueue::popEvent(Types::Shell::Event &outEvent) noexcept
@@ -550,7 +551,7 @@ namespace GameWIP::Desktop::Shell
     /// Capability queries
     /// ------------------------------------------------------------
 
-    Types::Result<Types::Shell::Capabilities> getCapabilities() noexcept
+    GameWIP::Status::Types::Result<Types::Shell::Capabilities> getCapabilities() noexcept
     {
         return Platform::getShellCapabilities();
     }
@@ -558,6 +559,6 @@ namespace GameWIP::Desktop::Shell
     bool supports(Types::Shell::Capability capability) noexcept
     {
         const auto result = getCapabilities();
-        return result.ok() && result->supports(capability);
+        return result.ok() && result.value().supports(capability);
     }
 } // namespace GameWIP::Desktop::Shell

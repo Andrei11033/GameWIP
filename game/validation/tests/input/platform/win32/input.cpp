@@ -116,34 +116,35 @@ namespace
 
         // Resolve the native handle and capture the initial device frame.
         const auto nativeHandle = Desktop::Native::Win32::getHandle(window);
-        if(!context.expectTrue("Win32 test window exposes a native handle", nativeHandle.ok() && nativeHandle->window != nullptr))
+        if(!context.expectTrue("Win32 test window exposes a native handle", nativeHandle.ok() && nativeHandle.value().window != nullptr))
         {
             return;
         }
 
         Input::Types::Frame frame;
-        if(!context.expectTrue("initial Win32 Input capture succeeds", input.capture(frame).status.ok()))
+        if(!context.expectTrue("initial Win32 Input capture succeeds", input.capture(frame).ok()))
         {
             return;
         }
 
         // Forward native window messages and capture their normalized values.
-        HWND windowHandle = nativeHandle->window;
+        HWND windowHandle = nativeHandle.value().window;
         static_cast<void>(SendMessageW(windowHandle, WM_MOUSEMOVE, 0, MAKELPARAM(123, 45)));
         static_cast<void>(SendMessageW(windowHandle, WM_CHAR, static_cast<WPARAM>(L'A'), 0));
 
         const auto messageCapture = input.capture(frame);
-        if(!context.expectTrue("Win32 message capture succeeds", messageCapture.status.ok()))
+        if(!context.expectTrue("Win32 message capture succeeds", messageCapture.ok()))
         {
             return;
         }
         static_cast<void>(context.expectEq("Win32 text is forwarded", std::string_view{"A"}, frame.textUtf8()));
 
-        std::span<const Input::Types::DeviceInfo> devices;
-        if(!context.expectTrue("Win32 devices are queryable", input.devices(devices).ok()))
+        const auto devicesResult = input.devices();
+        if(!context.expectTrue("Win32 devices are queryable", devicesResult.ok()))
         {
             return;
         }
+        const std::span<const Input::Types::DeviceInfo> devices = devicesResult.value();
         const auto pointer = Input::Query::findStandard(devices, Input::Standard::Pointer::Position);
         if(!pointer.has_value())
         {

@@ -30,8 +30,8 @@ namespace GameWIP::Terminal::Internal
         bool directClaimed = false;
     };
 
-    [[nodiscard]] IO::Types::Status invalidArgumentStatus() noexcept;
-    [[nodiscard]] IO::Types::Status notOpenStatus() noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Status invalidArgumentStatus() noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Status notOpenStatus() noexcept;
 } // namespace GameWIP::Terminal::Internal
 
 namespace GameWIP::Terminal

@@ -101,7 +101,7 @@ void testGeometryAndExceptionalLifetime(Context &context)
         });
     destroyer.join();
     equal(context, "wrong-thread destructor gates before native cleanup", kUnavailable, retained->GetPropertyValue(UIA_NamePropertyId, &value));
-    check(context, "owner pump drains deferred native cleanup", Desktop::Events::poll().status.ok());
+    check(context, "owner pump drains deferred native cleanup", Desktop::Events::poll().ok());
 }
 
 void testConcurrentQueries(Context &context)

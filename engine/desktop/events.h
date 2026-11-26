@@ -4,7 +4,7 @@
 #pragma once
 
 #include "filesystem/path.h"
-#include "io/status.h"
+#include "status/result.h"
 #include "desktop/display.h"
 #include "desktop/desktop_export.h"
 
@@ -186,12 +186,9 @@ namespace GameWIP::Desktop::Types::Events
         std::uint64_t droppedEvents = 0; ///< Events dropped during this open lifetime.
     };
 
-    /// @brief Result of one calling-thread event-pump operation.
-    struct PumpResult
+    /// @brief Counts and wait outcome from one calling-thread event-pump operation.
+    struct PumpInfo
     {
-        // Pump status
-        IO::Types::Status status; ///< Pump status.
-
         // Queue changes
         std::size_t eventsQueued = 0;    ///< Window-subsystem events newly queued during this pump.
         std::uint64_t eventsDropped = 0; ///< Window-subsystem events dropped during this pump.
@@ -199,6 +196,10 @@ namespace GameWIP::Desktop::Types::Events
         // Wait outcome
         bool timedOut = false; ///< Whether a finite wait expired without native work.
     };
+
+    /// @brief Shared status result for one event-pump operation.
+    /// @details Failures before dispatch have no payload; later failures retain counts already collected.
+    using PumpResult = GameWIP::Status::Types::Result<PumpInfo>;
 } // namespace GameWIP::Desktop::Types::Events
 
 namespace GameWIP::Desktop::Types

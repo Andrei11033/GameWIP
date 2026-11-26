@@ -97,7 +97,7 @@ namespace GameWIP::Input::Platform::Win32
     /// Device polling
     /// ------------------------------------------------------------
 
-    IO::Types::Status pollDirectInput(AttachmentState &attachment, SystemState &state) noexcept
+    GameWIP::Status::Types::Status pollDirectInput(AttachmentState &attachment, SystemState &state) noexcept
     {
         try
         {
@@ -256,13 +256,13 @@ namespace GameWIP::Input::Platform::Win32
                 }
             }
 
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
         catch(const std::bad_alloc &)
         {
             ++state.health.totalBackendFailures;
             state.pendingDiscontinuity = true;
-            return status(IO::Types::ErrorCode::OutOfMemory);
+            return status(GameWIP::Status::Types::Code::OutOfMemory);
         }
     }
 } // namespace GameWIP::Input::Platform::Win32

@@ -20,7 +20,6 @@ target_sources(
             TYPE HEADERS
             BASE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/.."
             FILES
-                "${CMAKE_CURRENT_SOURCE_DIR}/status.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/stream.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/memory.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/transfer.h"
@@ -36,7 +35,7 @@ add_subdirectory(core)
 target_include_directories(IO PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/..> $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 
 target_compile_features(IO PUBLIC cxx_std_23)
-target_link_libraries(IO PRIVATE Unicode)
+target_link_libraries(IO PUBLIC GameWIP::Status PRIVATE Unicode)
 
 set_target_properties(IO PROPERTIES POSITION_INDEPENDENT_CODE ON ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
 
@@ -51,7 +50,6 @@ if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
         NAME IO
         PAGE_ID io
         PUBLIC_HEADERS
-            "${CMAKE_CURRENT_SOURCE_DIR}/status.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/stream.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/memory.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/transfer.h"

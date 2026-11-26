@@ -61,8 +61,7 @@ point.
 Clipboard hooks provide one-shot failures for allocation, text/path/image preparation, helper owner creation, access, native clear/read/enumeration,
 registered-format creation, and close. `failClipboardPublicationAt()` selects a zero-based caller item, while
 `failClipboardEnumerationAfter()` forces enumeration to fail after internal
-materialization; the public `Types::Result` deliberately exposes no partial
-format value on failure. `resetFailures()` clears these thread-local controls.
+materialization; `getFormats()` retains any formats collected before the failure. `resetFailures()` clears these thread-local controls.
 Hooks preserve the real public cleanup and mutation semantics and never appear in installed headers.
 
 Dialog hooks arm one deterministic completion for each file/folder, Message, or Prompt operation. Their snapshots expose the converted native text,
@@ -113,7 +112,7 @@ D::Internal::TestHooks::resetFailures();
 D::NotificationCenter center;
 D::Internal::TestHooks::failNext(D::Internal::TestHooks::FailurePoint::ShellNativeOpen);
 const auto failed = center.open();
-// Expect failed.code == GameWIP::IO::Types::ErrorCode::NativeFailure.
+// Expect failed.status().code() == GameWIP::Status::Types::Code::NativeFailure.
 D::Internal::TestHooks::resetFailures();
 const auto retried = center.open();
 D::Internal::TestHooks::resetFailures();

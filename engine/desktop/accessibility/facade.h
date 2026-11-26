@@ -6,7 +6,7 @@
 #include "desktop/accessibility/snapshot.h"
 #include "desktop/desktop_export.h"
 #include "desktop/window.h"
-#include "io/status.h"
+#include "status/result.h"
 
 namespace GameWIP::Desktop::Accessibility
 {
@@ -32,12 +32,12 @@ namespace GameWIP::Desktop::Accessibility
         /// @brief Explicitly enables the bridge for the current open Window lifetime.
         /// @return NotOpen, ResourceBusy on the wrong thread, AlreadyOpen, Unsupported, InvalidArgument for limits,
         /// or a resource failure. Failed enablement never exposes a native semantic tree.
-        [[nodiscard]] IO::Types::Status enable(const Types::Accessibility::Options &options = {}) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> enable(const Types::Accessibility::Options &options = {}) noexcept;
 
         /// @brief Disables the bridge and clears its active snapshot and queues.
         /// @return Success when already disabled; ResourceBusy for an enabled bridge called off its owner thread.
         /// @note Retained native providers become unavailable; retained portable readers remain usable.
-        [[nodiscard]] IO::Types::Status disable() noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> disable() noexcept;
 
         /// @brief Reports whether the bridge is enabled for the current open lifetime.
         [[nodiscard]] bool enabled() const noexcept;
@@ -58,10 +58,10 @@ namespace GameWIP::Desktop::Accessibility
         /// not fail publication: it collapses diffs to a committed-generation invalidation marker.
         /// @return NotOpen for a closed gate; InvalidArgument for generation/root/semantic errors; SizeLimitExceeded
         /// for configured limits; OutOfMemory or a backend failure for preparation errors.
-        [[nodiscard]] IO::Types::Status publish(const Types::Accessibility::SnapshotView &snapshot) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> publish(const Types::Accessibility::SnapshotView &snapshot) noexcept;
 
         /// @brief Validates and copies an owning builder's current view.
-        [[nodiscard]] IO::Types::Status publish(const SnapshotBuilder &snapshot) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> publish(const SnapshotBuilder &snapshot) noexcept;
 
         /// @brief Returns metadata for the active snapshot without copying its tree.
         [[nodiscard]] Types::Accessibility::SnapshotInfo snapshotInfo() const noexcept;
@@ -71,7 +71,7 @@ namespace GameWIP::Desktop::Accessibility
 
         /// @brief Deep-copies the active snapshot into caller-owned builder storage.
         /// @return NotOpen when no active snapshot; otherwise authoring-copy status. Destination is unchanged on failure.
-        [[nodiscard]] IO::Types::Status copySnapshot(SnapshotBuilder &destination) const noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> copySnapshot(SnapshotBuilder &destination) const noexcept;
 
         /// @}
 
@@ -91,7 +91,7 @@ namespace GameWIP::Desktop::Accessibility
         /// @return NotOpen, Unsupported (including unsupported language override), InvalidArgument, EncodingFailed,
         /// SizeLimitExceeded for full queues, or OutOfMemory. Delivery requires subsequent owner event pumping;
         /// acceptance does not guarantee that an assistive client speaks it. Native redaction is enforced at delivery.
-        [[nodiscard]] IO::Types::Status announce(const Types::Accessibility::AnnouncementView &announcement) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> announce(const Types::Accessibility::AnnouncementView &announcement) noexcept;
         /// @}
 
     private:

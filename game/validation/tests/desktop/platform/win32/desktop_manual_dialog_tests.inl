@@ -61,17 +61,16 @@ void testManualDialogs(TestSupport::Context &context, const GameWIP::Test::Deskt
     prepareDialogManualCheck("open one file", "Select one existing file and choose Open.");
     context.info("The next dialog must open one existing file; select one file to continue.");
     const auto oneFile = Desktop::Dialogs::openFile(open);
-    static_cast<void>(context.expectTrue("manual open-one status succeeds", oneFile.status.ok()));
-    static_cast<void>(context.expectEq("manual open-one accepts one file", DialogTypes::Outcome::Accepted, oneFile.outcome));
+    static_cast<void>(
+        context.expectTrue("manual open-one accepts one file", oneFile.ok() && oneFile.value().outcome == DialogTypes::Outcome::Accepted));
     recordManualCheck(context, owner, "open one file", "Did the native picker show the title, ordered filters, and selected file normally?");
 
     prepareDialogManualCheck("open multiple files", "Select at least two existing files, then choose Open.");
     context.info("The next dialog must open multiple existing files; select at least two files to continue.");
     const auto manyFiles = Desktop::Dialogs::openFiles(open);
-    static_cast<void>(context.expectTrue("manual open-many status succeeds", manyFiles.status.ok()));
     static_cast<void>(context.expectTrue(
         "manual open-many accepts multiple files",
-        manyFiles.outcome == DialogTypes::Outcome::Accepted && manyFiles.paths.size() >= 2));
+        manyFiles.ok() && manyFiles.value().outcome == DialogTypes::Outcome::Accepted && manyFiles.value().paths.size() >= 2));
     recordManualCheck(context, owner, "open multiple files", "Did multi-selection preserve the selected native file order and filter behavior?");
 
     const FileDialogs::SaveDescription save{
@@ -84,16 +83,15 @@ void testManualDialogs(TestSupport::Context &context, const GameWIP::Test::Deskt
     prepareDialogManualCheck("save one file", "Choose a save path, keeping the suggested name or editing it as needed, then choose Save.");
     context.info("The next dialog must choose a save path. The file need not be created by GameWIP.");
     const auto saved = Desktop::Dialogs::saveFile(save);
-    static_cast<void>(context.expectTrue("manual save status succeeds", saved.status.ok()));
-    static_cast<void>(context.expectEq("manual save accepts a path", DialogTypes::Outcome::Accepted, saved.outcome));
+    static_cast<void>(context.expectTrue("manual save accepts a path", saved.ok() && saved.value().outcome == DialogTypes::Outcome::Accepted));
     recordManualCheck(context, owner, "save one file", "Were the suggested name, extension, selected filter, and returned path native and coherent?");
 
     FileDialogs::FolderDescription folder{.owner = &owner, .title = "Choose one folder for GameWIP validation"};
     prepareDialogManualCheck("select one folder", "Select one existing folder, then choose the confirmation button.");
     context.info("The next dialog must select one existing folder.");
     const auto oneFolder = Desktop::Dialogs::selectFolder(folder);
-    static_cast<void>(context.expectTrue("manual select-folder status succeeds", oneFolder.status.ok()));
-    static_cast<void>(context.expectEq("manual select-folder accepts", DialogTypes::Outcome::Accepted, oneFolder.outcome));
+    static_cast<void>(
+        context.expectTrue("manual select-folder accepts", oneFolder.ok() && oneFolder.value().outcome == DialogTypes::Outcome::Accepted));
     recordManualCheck(
         context,
         owner,
@@ -104,10 +102,9 @@ void testManualDialogs(TestSupport::Context &context, const GameWIP::Test::Deskt
     prepareDialogManualCheck("select multiple folders", "Select at least two existing folders, then choose the confirmation button.");
     context.info("The next dialog must select at least two existing folders.");
     const auto manyFolders = Desktop::Dialogs::selectFolders(folder);
-    static_cast<void>(context.expectTrue("manual select-folders status succeeds", manyFolders.status.ok()));
     static_cast<void>(context.expectTrue(
         "manual select-folders accepts multiple folders",
-        manyFolders.outcome == DialogTypes::Outcome::Accepted && manyFolders.paths.size() >= 2));
+        manyFolders.ok() && manyFolders.value().outcome == DialogTypes::Outcome::Accepted && manyFolders.value().paths.size() >= 2));
     recordManualCheck(context, owner, "select multiple folders", "Did native folder multi-selection work and preserve the selected order?");
 
     struct MessageCase
@@ -136,7 +133,7 @@ void testManualDialogs(TestSupport::Context &context, const GameWIP::Test::Deskt
             std::format("Choose any non-cancel button in the {} message dialog.", testCase.label));
         context.info(std::format("The next Message checks {}. Choose any non-cancel button.", testCase.label));
         const auto result = Desktop::Dialogs::showMessage(message);
-        static_cast<void>(context.expectTrue("manual Message status succeeds", result.status.ok()));
+        static_cast<void>(context.expectTrue("manual Message succeeds", result.ok()));
         recordManualCheck(
             context,
             owner,
@@ -172,7 +169,7 @@ void testManualDialogs(TestSupport::Context &context, const GameWIP::Test::Deskt
         "Choose any custom button and option. Verify the details, supplemental text, and checked checkbox are visible.");
     context.info("The next Prompt should show command-link descriptions, radio options, details, supplemental text, and a checked checkbox.");
     const auto prompted = Desktop::Dialogs::showPrompt(prompt);
-    static_cast<void>(context.expectTrue("manual Prompt status succeeds", prompted.status.ok()));
+    static_cast<void>(context.expectTrue("manual Prompt succeeds", prompted.ok()));
     recordManualCheck(
         context,
         owner,

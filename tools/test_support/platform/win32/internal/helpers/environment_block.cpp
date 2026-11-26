@@ -107,7 +107,7 @@ namespace GameWIP::TestSupport::Internal::Win32
 
             if(environmentStrings == nullptr)
             {
-                throw NativeInfrastructureFailure(Types::InfrastructureError::ProcessSetupFailed, GetLastError());
+                throw NativeInfrastructureFailure(GameWIP::Status::Types::Code::ProcessSetupFailed, GetLastError());
             }
 
             try
@@ -132,7 +132,7 @@ namespace GameWIP::TestSupport::Internal::Win32
 
             if(FreeEnvironmentStringsW(environmentStrings) == FALSE)
             {
-                throw NativeInfrastructureFailure(Types::InfrastructureError::ProcessSetupFailed, GetLastError());
+                throw NativeInfrastructureFailure(GameWIP::Status::Types::Code::ProcessSetupFailed, GetLastError());
             }
 
             return entries;

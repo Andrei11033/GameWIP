@@ -5,8 +5,8 @@ are in `test_support/process.h`.
 
 ## Status interpretation
 
-`Types::InfrastructureStatus::ok()` is true only for `Types::InfrastructureError::None`. `nativeCode` preserves a platform or standard-library
-diagnostic when available. Success and code-only failures do not allocate diagnostic strings.
+`Types::Status::ok()` is true only for `GameWIP::Status::Types::Code::Success`. Optional native details are for diagnostics; use the portable code
+for decisions. Success and code-only failures do not allocate diagnostic strings.
 
 ## Strict UTF-8 text files
 
@@ -14,14 +14,14 @@ diagnostic when available. Success and code-only failures do not allocate diagno
 
 `readTextFile()` opens in binary mode so bytes are not transformed by the runtime, then validates the bytes once before exposing them as text.
 
-- Empty file: success with empty `text`.
-- Valid UTF-8: success with the exact bytes in `text`.
+- Empty file: success with an empty value.
+- Valid UTF-8: success with the exact bytes in `value()`.
 - Malformed UTF-8 reports `EncodingFailed` and preserves the complete valid UTF-8 prefix, including when a backend failure is observed at the same
   read boundary.
 - An incomplete final UTF-8 sequence reports `EncodingFailed` only when the measured file contents were read completely. A backend failure or short read
   reports `FileOperationFailed` because more bytes may have existed.
 - A valid short read relative to the measured size reports `FileOperationFailed` rather than silently succeeding with a prefix.
-- Every returned `text` field is valid UTF-8, including on failure. No normalization, BOM handling, or newline conversion occurs.
+- Any returned text value is valid UTF-8, including a partial value on failure. No normalization, BOM handling, or newline conversion occurs.
 
 `writeTextFile()` validates the complete input before any filesystem mutation. Malformed or incomplete UTF-8 therefore returns `EncodingFailed` before
 parent-directory creation and before a truncating destination open. Existing destination content is not destroyed by malformed text input.

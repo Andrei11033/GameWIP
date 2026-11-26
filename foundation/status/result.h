@@ -124,6 +124,15 @@ namespace GameWIP::Status::Types
     {
     public:
         /// @brief Creates a successful result.
+        Result() noexcept = default;
+
+        /// @brief Wraps the outcome of an operation with no payload.
+        Result(Status status) noexcept
+            : status_(std::move(status))
+        {
+        }
+
+        /// @brief Creates a successful result.
         [[nodiscard]] static Result success() noexcept
         {
             return Result(Status(Code::Success));
@@ -154,11 +163,6 @@ namespace GameWIP::Status::Types
         }
 
     private:
-        explicit Result(Status status) noexcept
-            : status_(std::move(status))
-        {
-        }
-
         // Operation outcome
         Status status_;
     };

@@ -15,45 +15,54 @@ void testFileHelpers(TestSupport::Context &context, const std::filesystem::path 
     static_cast<void>(context.expectTrue("createDirectories handles existing directory", TestSupport::createDirectories(existingDirectory).ok()));
 
     const TestSupport::Types::BoolResult existingFile = TestSupport::fileExists(path);
-    static_cast<void>(context.expectTrue("fileExists written-file inspection succeeds", existingFile.status.ok()));
-    static_cast<void>(context.expectTrue("fileExists detects written file", existingFile.value));
+    static_cast<void>(context.expectTrue("fileExists written-file inspection succeeds", existingFile.ok()));
+    static_cast<void>(context.expectTrue("fileExists detects written file", existingFile.ok() && existingFile.value()));
 
     const std::filesystem::path missingPath = root / "files" / "missing.txt";
     const TestSupport::Types::BoolResult missingFile = TestSupport::fileExists(missingPath);
-    static_cast<void>(context.expectTrue("fileExists missing-path inspection succeeds", missingFile.status.ok()));
-    static_cast<void>(context.expectFalse("fileExists missing path false", missingFile.value));
+    static_cast<void>(context.expectTrue("fileExists missing-path inspection succeeds", missingFile.ok()));
+    static_cast<void>(context.expectFalse("fileExists missing path false", missingFile.ok() && missingFile.value()));
 
     const TestSupport::Types::BoolResult missingContains = TestSupport::fileContains(missingPath, "");
-    static_cast<void>(context.expectFalse("fileContains missing file reports failed status", missingContains.status.ok()));
-    static_cast<void>(context.expectFalse("fileContains missing file has no match", missingContains.value));
+    static_cast<void>(context.expectFalse("fileContains missing file reports failed status", missingContains.ok()));
+    static_cast<void>(context.expectFalse("fileContains missing file has no result value", missingContains.hasValue()));
 
     const TestSupport::Types::BoolResult existingDirectoryResult = TestSupport::fileExists(existingDirectory);
     static_cast<void>(context.expectTrue(
         "createDirectories produces an inspectable directory",
-        existingDirectoryResult.status.ok() && existingDirectoryResult.value));
+        existingDirectoryResult.ok() && existingDirectoryResult.value()));
 
     const TestSupport::Types::TextResult readResult = TestSupport::readTextFile(path);
-    static_cast<void>(context.expectTrue("readTextFile succeeds", readResult.status.ok()));
-    static_cast<void>(context.expectEq("readTextFile returns contents", std::string("alpha beta alpha beta"), readResult.text));
+    static_cast<void>(context.expectTrue("readTextFile succeeds", readResult.ok()));
+    if(readResult.hasValue())
+    {
+        static_cast<void>(context.expectEq("readTextFile returns contents", std::string("alpha beta alpha beta"), readResult.value()));
+    }
 
     const TestSupport::Types::BoolResult containsBeta = TestSupport::fileContains(path, "beta");
-    static_cast<void>(context.expectTrue("fileContains read succeeds", containsBeta.status.ok()));
-    static_cast<void>(context.expectTrue("fileContains finds text", containsBeta.value));
+    static_cast<void>(context.expectTrue("fileContains read succeeds", containsBeta.ok()));
+    static_cast<void>(context.expectTrue("fileContains finds text", containsBeta.ok() && containsBeta.value()));
     const TestSupport::Types::BoolResult containsGamma = TestSupport::fileContains(path, "gamma");
-    static_cast<void>(context.expectTrue("fileContains missing-text read succeeds", containsGamma.status.ok()));
-    static_cast<void>(context.expectFalse("fileContains rejects missing text", containsGamma.value));
+    static_cast<void>(context.expectTrue("fileContains missing-text read succeeds", containsGamma.ok()));
+    static_cast<void>(context.expectFalse("fileContains rejects missing text", containsGamma.ok() && containsGamma.value()));
 
     const TestSupport::Types::CountResult alphaCount = TestSupport::countFileOccurrences(path, "alpha");
-    static_cast<void>(context.expectTrue("countFileOccurrences read succeeds", alphaCount.status.ok()));
-    static_cast<void>(context.expectEq("countFileOccurrences counts non-overlapping matches", std::size_t{2}, alphaCount.count));
+    static_cast<void>(context.expectTrue("countFileOccurrences read succeeds", alphaCount.ok()));
+    if(alphaCount.ok())
+    {
+        static_cast<void>(context.expectEq("countFileOccurrences counts non-overlapping matches", std::size_t{2}, alphaCount.value()));
+    }
     const TestSupport::Types::CountResult emptyCount = TestSupport::countFileOccurrences(path, "");
-    static_cast<void>(context.expectTrue("countFileOccurrences empty-needle read succeeds", emptyCount.status.ok()));
-    static_cast<void>(context.expectEq("countFileOccurrences empty needle is zero", std::size_t{0}, emptyCount.count));
+    static_cast<void>(context.expectTrue("countFileOccurrences empty-needle read succeeds", emptyCount.ok()));
+    if(emptyCount.ok())
+    {
+        static_cast<void>(context.expectEq("countFileOccurrences empty needle is zero", std::size_t{0}, emptyCount.value()));
+    }
 
     static_cast<void>(context.expectTrue("removeIfExists succeeds", TestSupport::removeIfExists(path).ok()));
     const TestSupport::Types::BoolResult removedFile = TestSupport::fileExists(path);
-    static_cast<void>(context.expectTrue("removed-file inspection succeeds", removedFile.status.ok()));
-    static_cast<void>(context.expectFalse("removeIfExists removes file", removedFile.value));
+    static_cast<void>(context.expectTrue("removed-file inspection succeeds", removedFile.ok()));
+    static_cast<void>(context.expectFalse("removeIfExists removes file", removedFile.ok() && removedFile.value()));
 
     // Verify unique temporary directories and recursive cleanup.
     std::filesystem::path firstTemporaryPath;
@@ -70,18 +79,18 @@ void testFileHelpers(TestSupport::Context &context, const std::filesystem::path 
             TestSupport::writeTextFile(firstTemporaryPath / "nested" / "artifact.txt", "temporary").ok()));
 
         const TestSupport::Types::BoolResult firstExists = TestSupport::fileExists(firstTemporaryPath);
-        static_cast<void>(context.expectTrue("ScopedTemporaryDirectory creates its directory", firstExists.status.ok() && firstExists.value));
+        static_cast<void>(context.expectTrue("ScopedTemporaryDirectory creates its directory", firstExists.ok() && firstExists.value()));
         const TestSupport::Types::BoolResult artifactExists = TestSupport::fileExists(firstTemporaryPath / "nested" / "artifact.txt");
         static_cast<void>(
-            context.expectTrue("ScopedTemporaryDirectory supports nested artifacts", artifactExists.status.ok() && artifactExists.value));
+            context.expectTrue("ScopedTemporaryDirectory supports nested artifacts", artifactExists.ok() && artifactExists.value()));
         static_cast<void>(context.expectNe("ScopedTemporaryDirectory paths are unique", firstTemporaryPath, secondTemporaryPath));
     }
     const TestSupport::Types::BoolResult firstRemoved = TestSupport::fileExists(firstTemporaryPath);
     const TestSupport::Types::BoolResult secondRemoved = TestSupport::fileExists(secondTemporaryPath);
-    static_cast<void>(context.expectTrue("First temporary-directory cleanup is inspectable", firstRemoved.status.ok()));
-    static_cast<void>(context.expectFalse("ScopedTemporaryDirectory removes its directory tree", firstRemoved.value));
-    static_cast<void>(context.expectTrue("Second temporary-directory cleanup is inspectable", secondRemoved.status.ok()));
-    static_cast<void>(context.expectFalse("ScopedTemporaryDirectory removes each unique directory", secondRemoved.value));
+    static_cast<void>(context.expectTrue("First temporary-directory cleanup is inspectable", firstRemoved.ok()));
+    static_cast<void>(context.expectFalse("ScopedTemporaryDirectory removes its directory tree", firstRemoved.ok() && firstRemoved.value()));
+    static_cast<void>(context.expectTrue("Second temporary-directory cleanup is inspectable", secondRemoved.ok()));
+    static_cast<void>(context.expectFalse("ScopedTemporaryDirectory removes each unique directory", secondRemoved.ok() && secondRemoved.value()));
 
     // Verify current-directory restoration and conflict detection.
     const std::filesystem::path originalCurrentPath = std::filesystem::current_path();
@@ -107,8 +116,8 @@ void testFileHelpers(TestSupport::Context &context, const std::filesystem::path 
         }
         static_cast<void>(context.expectEq(
             "Destructor-only current-path restoration conflict is recorded",
-            TestSupport::Types::InfrastructureError::ProcessStateConflict,
-            conflictProcessState.restorationStatus().error));
+            GameWIP::Status::Types::Code::ProcessStateConflict,
+            conflictProcessState.restorationStatus().code()));
     }
 }
 
@@ -127,8 +136,11 @@ void testUtf8TextFileContracts(TestSupport::Context &context, const std::filesys
                                   "e \xCE\xBB";
     static_cast<void>(context.expectTrue("UTF-8 text write succeeds", TestSupport::writeTextFile(validPath, validText).ok()));
     const TestSupport::Types::TextResult validRead = TestSupport::readTextFile(validPath);
-    static_cast<void>(context.expectTrue("UTF-8 text read succeeds", validRead.status.ok()));
-    static_cast<void>(context.expectEq("UTF-8 text round trips unchanged", validText, validRead.text));
+    static_cast<void>(context.expectTrue("UTF-8 text read succeeds", validRead.ok()));
+    if(validRead.hasValue())
+    {
+        static_cast<void>(context.expectEq("UTF-8 text round trips unchanged", validText, validRead.value()));
+    }
 
     // Preserve only the complete valid prefix from malformed or incomplete input.
     const std::string malformed = std::string("prefix") + std::string("\xFF", 1);
@@ -137,9 +149,13 @@ void testUtf8TextFileContracts(TestSupport::Context &context, const std::filesys
     const TestSupport::Types::TextResult malformedRead = TestSupport::readTextFile(malformedPath);
     static_cast<void>(context.expectEq(
         "malformed text read reports encoding failure",
-        TestSupport::Types::InfrastructureError::EncodingFailed,
-        malformedRead.status.error));
-    static_cast<void>(context.expectEq("malformed text read preserves valid prefix", std::string("prefix"), malformedRead.text));
+        GameWIP::Status::Types::Code::EncodingFailed,
+        malformedRead.status().code()));
+    static_cast<void>(context.expectTrue("malformed text read preserves a partial value", malformedRead.hasValue()));
+    if(malformedRead.hasValue())
+    {
+        static_cast<void>(context.expectEq("malformed text read preserves valid prefix", std::string("prefix"), malformedRead.value()));
+    }
 
     const std::string incomplete = std::string("prefix") + std::string("\xE2\x82", 2);
     const std::filesystem::path incompletePath = root / "utf8" / "incomplete.txt";
@@ -147,50 +163,60 @@ void testUtf8TextFileContracts(TestSupport::Context &context, const std::filesys
     const TestSupport::Types::TextResult incompleteRead = TestSupport::readTextFile(incompletePath);
     static_cast<void>(context.expectEq(
         "fully read incomplete suffix reports encoding failure",
-        TestSupport::Types::InfrastructureError::EncodingFailed,
-        incompleteRead.status.error));
-    static_cast<void>(context.expectEq("incomplete text read preserves valid prefix", std::string("prefix"), incompleteRead.text));
+        GameWIP::Status::Types::Code::EncodingFailed,
+        incompleteRead.status().code()));
+    static_cast<void>(context.expectTrue("incomplete text read preserves a partial value", incompleteRead.hasValue()));
+    if(incompleteRead.hasValue())
+    {
+        static_cast<void>(context.expectEq("incomplete text read preserves valid prefix", std::string("prefix"), incompleteRead.value()));
+    }
 
     // Reject invalid writes before truncating existing files.
     const std::filesystem::path preservedPath = root / "utf8" / "preserved.txt";
     static_cast<void>(context.expectTrue("preexisting UTF-8 fixture write succeeds", TestSupport::writeTextFile(preservedPath, "sentinel").ok()));
 
-    const TestSupport::Types::InfrastructureStatus malformedWrite = TestSupport::writeTextFile(preservedPath, malformed);
+    const TestSupport::Types::Result<void> malformedWrite = TestSupport::writeTextFile(preservedPath, malformed);
     static_cast<void>(context.expectEq(
         "malformed text write reports encoding failure",
-        TestSupport::Types::InfrastructureError::EncodingFailed,
-        malformedWrite.error));
+        GameWIP::Status::Types::Code::EncodingFailed,
+        malformedWrite.status().code()));
     const TestSupport::Types::TextResult malformedPreservedRead = TestSupport::readTextFile(preservedPath);
-    static_cast<void>(context.expectTrue("malformed text write leaves destination readable", malformedPreservedRead.status.ok()));
-    static_cast<void>(context.expectEq("malformed text write preserves destination", std::string("sentinel"), malformedPreservedRead.text));
+    static_cast<void>(context.expectTrue("malformed text write leaves destination readable", malformedPreservedRead.ok()));
+    if(malformedPreservedRead.ok())
+    {
+        static_cast<void>(context.expectEq("malformed text write preserves destination", std::string("sentinel"), malformedPreservedRead.value()));
+    }
 
-    const TestSupport::Types::InfrastructureStatus incompleteWrite = TestSupport::writeTextFile(preservedPath, incomplete);
+    const TestSupport::Types::Result<void> incompleteWrite = TestSupport::writeTextFile(preservedPath, incomplete);
     static_cast<void>(context.expectEq(
         "incomplete text write reports encoding failure",
-        TestSupport::Types::InfrastructureError::EncodingFailed,
-        incompleteWrite.error));
+        GameWIP::Status::Types::Code::EncodingFailed,
+        incompleteWrite.status().code()));
     const TestSupport::Types::TextResult incompletePreservedRead = TestSupport::readTextFile(preservedPath);
-    static_cast<void>(context.expectTrue("incomplete text write leaves destination readable", incompletePreservedRead.status.ok()));
-    static_cast<void>(context.expectEq("incomplete text write preserves destination", std::string("sentinel"), incompletePreservedRead.text));
+    static_cast<void>(context.expectTrue("incomplete text write leaves destination readable", incompletePreservedRead.ok()));
+    if(incompletePreservedRead.ok())
+    {
+        static_cast<void>(context.expectEq("incomplete text write preserves destination", std::string("sentinel"), incompletePreservedRead.value()));
+    }
 
     // Reject invalid writes before creating parent directories.
     const std::filesystem::path malformedParent = root / "utf8" / "malformed-not-created";
-    const TestSupport::Types::InfrastructureStatus malformedNoSideEffect = TestSupport::writeTextFile(malformedParent / "bad.txt", malformed);
+    const TestSupport::Types::Result<void> malformedNoSideEffect = TestSupport::writeTextFile(malformedParent / "bad.txt", malformed);
     static_cast<void>(context.expectEq(
         "malformed text write rejects before filesystem side effects",
-        TestSupport::Types::InfrastructureError::EncodingFailed,
-        malformedNoSideEffect.error));
+        GameWIP::Status::Types::Code::EncodingFailed,
+        malformedNoSideEffect.status().code()));
     const TestSupport::Types::BoolResult malformedParentExists = TestSupport::fileExists(malformedParent);
-    static_cast<void>(context.expectTrue("malformed rejection parent inspection succeeds", malformedParentExists.status.ok()));
-    static_cast<void>(context.expectFalse("malformed rejection does not create parent directory", malformedParentExists.value));
+    static_cast<void>(context.expectTrue("malformed rejection parent inspection succeeds", malformedParentExists.ok()));
+    static_cast<void>(context.expectFalse("malformed rejection does not create parent directory", malformedParentExists.ok() && malformedParentExists.value()));
 
     const std::filesystem::path incompleteParent = root / "utf8" / "incomplete-not-created";
-    const TestSupport::Types::InfrastructureStatus incompleteNoSideEffect = TestSupport::writeTextFile(incompleteParent / "bad.txt", incomplete);
+    const TestSupport::Types::Result<void> incompleteNoSideEffect = TestSupport::writeTextFile(incompleteParent / "bad.txt", incomplete);
     static_cast<void>(context.expectEq(
         "incomplete text write rejects before filesystem side effects",
-        TestSupport::Types::InfrastructureError::EncodingFailed,
-        incompleteNoSideEffect.error));
+        GameWIP::Status::Types::Code::EncodingFailed,
+        incompleteNoSideEffect.status().code()));
     const TestSupport::Types::BoolResult incompleteParentExists = TestSupport::fileExists(incompleteParent);
-    static_cast<void>(context.expectTrue("incomplete rejection parent inspection succeeds", incompleteParentExists.status.ok()));
-    static_cast<void>(context.expectFalse("incomplete rejection does not create parent directory", incompleteParentExists.value));
+    static_cast<void>(context.expectTrue("incomplete rejection parent inspection succeeds", incompleteParentExists.ok()));
+    static_cast<void>(context.expectFalse("incomplete rejection does not create parent directory", incompleteParentExists.ok() && incompleteParentExists.value()));
 }

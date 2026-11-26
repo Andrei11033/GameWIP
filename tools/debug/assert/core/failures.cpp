@@ -281,7 +281,7 @@ namespace
 
             // The synchronous report attempt finishes before debugger or termination handling.
             // A queued message could remain pending when the process aborts.
-            GameWIP::Logger::report(presentation.level, presentation.source, message);
+            static_cast<void>(GameWIP::Logger::report(presentation.level, presentation.source, message));
         }
         catch(...) // NOLINT(bugprone-empty-catch) -- Failure reporting must preserve this noexcept boundary.
         {

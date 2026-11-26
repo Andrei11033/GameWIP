@@ -14,20 +14,20 @@ namespace GameWIP::FileSystem::Platform::Win32
     /// ------------------------------------------------------------
 
     /// @brief Opens a complete path using ordinary Win32 symlink-following semantics.
-    [[nodiscard]] HandleResult openFullPathFollowAll(const std::wstring &path)
+    [[nodiscard]] Result<HandleInfo> openFullPathFollowAll(const std::wstring &path)
     {
         UniqueHandle handle{CreateFileW(path.c_str(), kQueryAccess, kShareAll, nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, nullptr)};
 
         if(!handle.isValid())
         {
-            return {.status = makeLastErrorStatus(ErrorCode::StatFailed)};
+            return failure<HandleInfo>(makeLastErrorStatus(ErrorCode::StatFailed));
         }
 
-        return {.status = IO::successStatus(), .handle = std::move(handle)};
+        return Result<HandleInfo>::success(HandleInfo{.handle = std::move(handle)});
     }
 
     /// @brief Converts Windows 100-nanosecond ticks to system_clock with overflow checks.
-    [[nodiscard]] TimeResult fileTimeToSystemTimePoint(LARGE_INTEGER fileTime)
+    [[nodiscard]] Result<Types::FileTime> fileTimeToSystemTimePoint(LARGE_INTEGER fileTime)
     {
         constexpr std::int64_t nanosecondsPerTick = 100;
         constexpr std::int64_t minimumTickDelta = std::numeric_limits<std::int64_t>::min() / nanosecondsPerTick;
@@ -37,13 +37,13 @@ namespace GameWIP::FileSystem::Platform::Win32
 
         if(fileTime.QuadPart < minimumConvertibleFileTime || fileTime.QuadPart > maximumConvertibleFileTime)
         {
-            return {.status = IO::makeStatus(ErrorCode::SizeLimitExceeded)};
+            return failure<Types::FileTime>(ErrorCode::SizeLimitExceeded);
         }
 
         const std::int64_t ticksSinceUnixEpoch = fileTime.QuadPart - kUnixEpochAsWindowsFileTime;
         const std::int64_t nanoseconds = ticksSinceUnixEpoch * nanosecondsPerTick;
         const auto duration = std::chrono::duration_cast<Types::FileTime::duration>(std::chrono::nanoseconds{nanoseconds});
-        return {.status = IO::successStatus(), .time = Types::FileTime{duration}};
+        return Result<Types::FileTime>::success(Types::FileTime{duration});
     }
 
     /// @brief Detects name-surrogate reparse points, including symlinks and mount points.
@@ -53,133 +53,133 @@ namespace GameWIP::FileSystem::Platform::Win32
     }
 
     /// @brief Collects portable entry metadata from one already-stable native handle.
-    [[nodiscard]] EntryQueryResult queryHandleInfo(HANDLE handle)
+    [[nodiscard]] Result<Types::EntryInfo> queryHandleInfo(HANDLE handle)
     {
         FILE_ATTRIBUTE_TAG_INFO attributeInfo{};
 
         if(!GetFileInformationByHandleEx(handle, FileAttributeTagInfo, &attributeInfo, sizeof(attributeInfo)))
         {
-            return {.status = makeLastErrorStatus(ErrorCode::StatFailed)};
+            return failure<Types::EntryInfo>(makeLastErrorStatus(ErrorCode::StatFailed));
         }
 
         FILE_STANDARD_INFO standardInfo{};
 
         if(!GetFileInformationByHandleEx(handle, FileStandardInfo, &standardInfo, sizeof(standardInfo)))
         {
-            return {.status = makeLastErrorStatus(ErrorCode::StatFailed)};
+            return failure<Types::EntryInfo>(makeLastErrorStatus(ErrorCode::StatFailed));
         }
 
         FILE_BASIC_INFO basicInfo{};
 
         if(!GetFileInformationByHandleEx(handle, FileBasicInfo, &basicInfo, sizeof(basicInfo)))
         {
-            return {.status = makeLastErrorStatus(ErrorCode::StatFailed)};
+            return failure<Types::EntryInfo>(makeLastErrorStatus(ErrorCode::StatFailed));
         }
 
-        EntryQueryResult result{.status = IO::successStatus()};
+        Types::EntryInfo info{};
 
         if(isNameSurrogateReparsePoint(attributeInfo))
         {
-            result.info.kind = Types::EntryKind::Symlink;
+            info.kind = Types::EntryKind::Symlink;
         }
         else if(standardInfo.Directory != FALSE || (attributeInfo.FileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0)
         {
-            result.info.kind = Types::EntryKind::Directory;
+            info.kind = Types::EntryKind::Directory;
         }
         else if((attributeInfo.FileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0)
         {
-            result.info.kind = Types::EntryKind::Other;
+            info.kind = Types::EntryKind::Other;
         }
         else
         {
-            result.info.kind = Types::EntryKind::RegularFile;
+            info.kind = Types::EntryKind::RegularFile;
         }
 
-        if(result.info.kind == Types::EntryKind::RegularFile)
+        if(info.kind == Types::EntryKind::RegularFile)
         {
             if(standardInfo.EndOfFile.QuadPart < 0)
             {
-                return {.status = IO::makeStatus(ErrorCode::SizeLimitExceeded)};
+                return failure<Types::EntryInfo>(ErrorCode::SizeLimitExceeded);
             }
 
-            result.info.sizeBytes = static_cast<std::uint64_t>(standardInfo.EndOfFile.QuadPart);
-            result.info.hasSize = true;
+            info.sizeBytes = static_cast<std::uint64_t>(standardInfo.EndOfFile.QuadPart);
+            info.hasSize = true;
         }
 
-        TimeResult lastWriteTime = fileTimeToSystemTimePoint(basicInfo.LastWriteTime);
+        auto lastWriteTime = fileTimeToSystemTimePoint(basicInfo.LastWriteTime);
 
-        if(!lastWriteTime.status.ok())
+        if(!lastWriteTime.ok())
         {
-            return {.status = std::move(lastWriteTime.status)};
+            return failure<Types::EntryInfo>(lastWriteTime.status());
         }
 
-        result.info.lastWriteTime = lastWriteTime.time;
-        result.info.hasLastWriteTime = true;
-        result.info.readOnly = (basicInfo.FileAttributes & FILE_ATTRIBUTE_READONLY) != 0;
-        return result;
+        info.lastWriteTime = std::move(lastWriteTime).value();
+        info.hasLastWriteTime = true;
+        info.readOnly = (basicInfo.FileAttributes & FILE_ATTRIBUTE_READONLY) != 0;
+        return Result<Types::EntryInfo>::success(std::move(info));
     }
 
     /// @brief Traverses parsed components by handle and applies final/intermediate symlink policy.
-    [[nodiscard]] EntryQueryResult queryStrictPath(const ParsedPathResult &path, Types::SymlinkPolicy symlinkPolicy)
+    [[nodiscard]] Result<Types::EntryInfo> queryStrictPath(const ParsedPath &path, Types::SymlinkPolicy symlinkPolicy)
     {
         const bool doNotFollowRoot = !path.components.empty() || symlinkPolicy == Types::SymlinkPolicy::DoNotFollow;
-        HandleResult parent = openRootDirectory(path.root, kShareAll, kDirectoryTraversalAccess, doNotFollowRoot);
+        auto parent = openRootDirectory(path.root, kShareAll, kDirectoryTraversalAccess, doNotFollowRoot);
 
-        if(!parent.status.ok())
+        if(!parent.ok())
         {
-            return {.status = std::move(parent.status)};
+            return failure<Types::EntryInfo>(parent.status());
         }
 
         // Return root metadata when no components remain.
         if(path.components.empty())
         {
-            return queryHandleInfo(parent.handle.get());
+            return queryHandleInfo(parent.value().handle.get());
         }
 
         // Resolve parent components without following reparse points.
         for(std::size_t index = 0; index + 1 < path.components.size(); ++index)
         {
-            HandleResult child = openChild(parent.handle.get(), path.components[index], true, true);
+            auto child = openChild(parent.value().handle.get(), path.components[index], true, true);
 
-            if(!child.status.ok())
+            if(!child.ok())
             {
-                return {.status = std::move(child.status)};
+                return failure<Types::EntryInfo>(child.status());
             }
 
-            EntryQueryResult childInfo = queryHandleInfo(child.handle.get());
+            auto childInfo = queryHandleInfo(child.value().handle.get());
 
-            if(!childInfo.status.ok())
+            if(!childInfo.ok())
             {
-                return childInfo;
+                return failure<Types::EntryInfo>(childInfo.status());
             }
 
-            if(childInfo.info.kind == Types::EntryKind::Symlink)
+            if(childInfo.value().kind == Types::EntryKind::Symlink)
             {
-                return {.status = symlinkPolicyRejectedStatus()};
+                return failure<Types::EntryInfo>(symlinkPolicyRejectedStatus());
             }
 
-            if(childInfo.info.kind != Types::EntryKind::Directory)
+            if(childInfo.value().kind != Types::EntryKind::Directory)
             {
-                return {.status = IO::makeStatus(ErrorCode::NotDirectory)};
+                return failure<Types::EntryInfo>(ErrorCode::NotDirectory);
             }
 
-            parent.handle = std::move(child.handle);
+            parent.value().handle = std::move(child).value().handle;
         }
 
         // Apply the selected symlink policy to the final component.
         const bool doNotFollowFinal = symlinkPolicy == Types::SymlinkPolicy::DoNotFollow;
-        HandleResult finalHandle = openChild(parent.handle.get(), path.components.back(), doNotFollowFinal, false);
+        auto finalHandle = openChild(parent.value().handle.get(), path.components.back(), doNotFollowFinal, false);
 
-        if(!finalHandle.status.ok())
+        if(!finalHandle.ok())
         {
-            return {.status = std::move(finalHandle.status)};
+            return failure<Types::EntryInfo>(finalHandle.status());
         }
 
-        return queryHandleInfo(finalHandle.handle.get());
+        return queryHandleInfo(finalHandle.value().handle.get());
     }
 
     /// @brief Selects ordinary or strict metadata resolution for one public path query.
-    [[nodiscard]] EntryQueryResult queryEntryImpl(const Types::Path &path, Types::SymlinkPolicy symlinkPolicy)
+    [[nodiscard]] Result<Types::EntryInfo> queryEntryImpl(const Types::Path &path, Types::SymlinkPolicy symlinkPolicy)
     {
         switch(symlinkPolicy)
         {
@@ -188,36 +188,36 @@ namespace GameWIP::FileSystem::Platform::Win32
         case Types::SymlinkPolicy::FollowAll:
             break;
         default:
-            return {.status = IO::makeStatus(ErrorCode::InvalidArgument)};
+            return failure<Types::EntryInfo>(ErrorCode::InvalidArgument);
         }
 
-        WidePathResult absolutePath = absoluteNativePath(path);
+        auto absolutePath = absoluteNativePath(path);
 
-        if(!absolutePath.status.ok())
+        if(!absolutePath.ok())
         {
-            return {.status = std::move(absolutePath.status)};
+            return failure<Types::EntryInfo>(absolutePath.status());
         }
 
         if(symlinkPolicy == Types::SymlinkPolicy::FollowAll)
         {
-            HandleResult handle = openFullPathFollowAll(absolutePath.path);
+            auto handle = openFullPathFollowAll(absolutePath.value());
 
-            if(!handle.status.ok())
+            if(!handle.ok())
             {
-                return {.status = std::move(handle.status)};
+                return failure<Types::EntryInfo>(handle.status());
             }
 
-            return queryHandleInfo(handle.handle.get());
+            return queryHandleInfo(handle.value().handle.get());
         }
 
-        ParsedPathResult parsedPath = parseAbsolutePath(absolutePath.path);
+        auto parsedPath = parseAbsolutePath(absolutePath.value());
 
-        if(!parsedPath.status.ok())
+        if(!parsedPath.ok())
         {
-            return {.status = std::move(parsedPath.status)};
+            return failure<Types::EntryInfo>(parsedPath.status());
         }
 
-        return queryStrictPath(parsedPath, symlinkPolicy);
+        return queryStrictPath(parsedPath.value(), symlinkPolicy);
     }
 
     /// ------------------------------------------------------------
@@ -225,27 +225,27 @@ namespace GameWIP::FileSystem::Platform::Win32
     /// ------------------------------------------------------------
 
     /// @brief Marks an open stable handle for POSIX-style deletion when supported.
-    [[nodiscard]] IO::Types::Status markHandleForDeletion(HANDLE handle, ErrorCode fallback) noexcept
+    [[nodiscard]] Result<void> markHandleForDeletion(HANDLE handle, ErrorCode fallback) noexcept
     {
         FILE_DISPOSITION_INFO disposition{};
         disposition.DeleteFile = TRUE;
 
         if(SetFileInformationByHandle(handle, FileDispositionInfo, &disposition, sizeof(disposition)) == FALSE)
         {
-            return makeLastErrorStatus(fallback);
+            return failure<void>(makeLastErrorStatus(fallback));
         }
 
-        return IO::successStatus();
+        return success();
     }
 
     /// @brief Updates the read-only attribute through an already-stable handle.
-    [[nodiscard]] IO::Types::Status setHandleReadOnly(HANDLE handle, bool readOnly) noexcept
+    [[nodiscard]] Result<void> setHandleReadOnly(HANDLE handle, bool readOnly) noexcept
     {
         FILE_BASIC_INFO basicInfo{};
 
         if(GetFileInformationByHandleEx(handle, FileBasicInfo, &basicInfo, sizeof(basicInfo)) == FALSE)
         {
-            return makeLastErrorStatus(ErrorCode::StatFailed);
+            return failure<void>(makeLastErrorStatus(ErrorCode::StatFailed));
         }
 
         if(readOnly)
@@ -264,27 +264,27 @@ namespace GameWIP::FileSystem::Platform::Win32
 
         if(SetFileInformationByHandle(handle, FileBasicInfo, &basicInfo, sizeof(basicInfo)) == FALSE)
         {
-            return makeLastErrorStatus(ErrorCode::StatFailed);
+            return failure<void>(makeLastErrorStatus(ErrorCode::StatFailed));
         }
 
-        return IO::successStatus();
+        return success();
     }
 
     /// @brief Copies portable timestamps and read-only state between stable handles.
-    [[nodiscard]] IO::Types::Status copyHandleBasicMetadata(HANDLE source, HANDLE destination) noexcept
+    [[nodiscard]] Result<void> copyHandleBasicMetadata(HANDLE source, HANDLE destination) noexcept
     {
         FILE_BASIC_INFO sourceInfo{};
 
         if(GetFileInformationByHandleEx(source, FileBasicInfo, &sourceInfo, sizeof(sourceInfo)) == FALSE)
         {
-            return makeLastErrorStatus(ErrorCode::StatFailed);
+            return failure<void>(makeLastErrorStatus(ErrorCode::StatFailed));
         }
 
         FILE_BASIC_INFO destinationInfo{};
 
         if(GetFileInformationByHandleEx(destination, FileBasicInfo, &destinationInfo, sizeof(destinationInfo)) == FALSE)
         {
-            return makeLastErrorStatus(ErrorCode::StatFailed);
+            return failure<void>(makeLastErrorStatus(ErrorCode::StatFailed));
         }
 
         // Preserve destination attributes while copying portable source fields.
@@ -306,10 +306,10 @@ namespace GameWIP::FileSystem::Platform::Win32
 
         if(SetFileInformationByHandle(destination, FileBasicInfo, &destinationInfo, sizeof(destinationInfo)) == FALSE)
         {
-            return makeLastErrorStatus(ErrorCode::StatFailed);
+            return failure<void>(makeLastErrorStatus(ErrorCode::StatFailed));
         }
 
-        return IO::successStatus();
+        return success();
     }
 
 } // namespace GameWIP::FileSystem::Platform::Win32

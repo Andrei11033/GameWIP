@@ -21,9 +21,9 @@ void testChildProcesses(TestSupport::Context &context, const std::filesystem::pa
     const auto expectInvalidOptions = [&](std::string_view name, const TestSupport::Types::Process::Options &childOptions)
     {
         const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
-        static_cast<void>(context.expectEq(name, TestSupport::Types::InfrastructureError::InvalidArgument, result.status.error));
+        static_cast<void>(context.expectEq(name, GameWIP::Status::Types::Code::InvalidArgument, result.status().code()));
         static_cast<void>(
-            context.expectEq(std::string(name) + " leaves the child unstarted", TestSupport::Types::Process::Outcome::NotStarted, result.outcome));
+            context.expectEq(std::string(name) + " leaves the child unstarted", TestSupport::Types::Process::Outcome::NotStarted, result.value().outcome));
     };
 
     // Validate argument and environment inputs.
@@ -60,9 +60,9 @@ void testChildProcesses(TestSupport::Context &context, const std::filesystem::pa
         const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
         static_cast<void>(context.expectTrue(
             "Child process environment exits successfully",
-            result.status.ok() && result.outcome == TestSupport::Types::Process::Outcome::Exited && result.exitCode == 0));
-        static_cast<void>(context.expectContains("Child process captures stdout", result.outputBytes, "child-set=child-value"));
-        static_cast<void>(context.expectContains("Child process unsets environment", result.outputBytes, "child-unset=<unset>"));
+            result.ok() && result.value().outcome == TestSupport::Types::Process::Outcome::Exited && result.value().exitCode == 0));
+        static_cast<void>(context.expectContains("Child process captures stdout", result.value().outputBytes, "child-set=child-value"));
+        static_cast<void>(context.expectContains("Child process unsets environment", result.value().outputBytes, "child-unset=<unset>"));
     }
 
     // Confirm output capture can be disabled.
@@ -76,8 +76,8 @@ void testChildProcesses(TestSupport::Context &context, const std::filesystem::pa
         const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
         static_cast<void>(context.expectTrue(
             "Child process capture can be disabled",
-            result.status.ok() && result.outcome == TestSupport::Types::Process::Outcome::Exited && result.exitCode == 0));
-        static_cast<void>(context.expectEq("Disabled capture leaves output empty", std::string(), result.outputBytes));
+            result.ok() && result.value().outcome == TestSupport::Types::Process::Outcome::Exited && result.value().exitCode == 0));
+        static_cast<void>(context.expectEq("Disabled capture leaves output empty", std::string(), result.value().outputBytes));
     }
 
     // Keep inherited-handle checks on the native platform.
@@ -97,7 +97,7 @@ void testChildProcesses(TestSupport::Context &context, const std::filesystem::pa
         const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
         static_cast<void>(context.expectTrue(
             "Child process can disable parent environment inheritance",
-            result.status.ok() && result.outcome == TestSupport::Types::Process::Outcome::Exited && result.exitCode == 0));
+            result.ok() && result.value().outcome == TestSupport::Types::Process::Outcome::Exited && result.value().exitCode == 0));
     }
 
     // Preserve nonzero child exit codes.
@@ -108,9 +108,9 @@ void testChildProcesses(TestSupport::Context &context, const std::filesystem::pa
         childOptions.waitTimeout = normalChildTimeout;
 
         const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
-        static_cast<void>(context.expectTrue("Normal child exit has successful infrastructure", result.status.ok()));
-        static_cast<void>(context.expectEq("Nonzero child reports exited outcome", TestSupport::Types::Process::Outcome::Exited, result.outcome));
-        static_cast<void>(context.expectEq("Child process reports nonzero exit", std::uint32_t{7}, result.exitCode));
+        static_cast<void>(context.expectTrue("Normal child exit has successful infrastructure", result.ok()));
+        static_cast<void>(context.expectEq("Nonzero child reports exited outcome", TestSupport::Types::Process::Outcome::Exited, result.value().outcome));
+        static_cast<void>(context.expectEq("Child process reports nonzero exit", std::uint32_t{7}, result.value().exitCode));
     }
 
     // Validate timeout options and indefinite waits.
@@ -125,7 +125,7 @@ void testChildProcesses(TestSupport::Context &context, const std::filesystem::pa
         const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
         static_cast<void>(context.expectTrue(
             "Nullopt wait timeout waits indefinitely",
-            result.status.ok() && result.outcome == TestSupport::Types::Process::Outcome::Exited && result.exitCode == 0));
+            result.ok() && result.value().outcome == TestSupport::Types::Process::Outcome::Exited && result.value().exitCode == 0));
     }
 
     // Verify the child receives its configured working directory.
@@ -140,8 +140,8 @@ void testChildProcesses(TestSupport::Context &context, const std::filesystem::pa
         const std::string expectedDirectory = childOptions.workingDirectory->generic_string();
         static_cast<void>(context.expectTrue(
             "Child working directory succeeds",
-            result.status.ok() && result.outcome == TestSupport::Types::Process::Outcome::Exited && result.exitCode == 0));
-        static_cast<void>(context.expectContains("Child receives working directory", result.outputBytes, expectedDirectory));
+            result.ok() && result.value().outcome == TestSupport::Types::Process::Outcome::Exited && result.value().exitCode == 0));
+        static_cast<void>(context.expectContains("Child receives working directory", result.value().outputBytes, expectedDirectory));
     }
 
     // Check native exit-code boundaries separately from portable outcomes.
@@ -155,10 +155,12 @@ void testChildProcesses(TestSupport::Context &context, const std::filesystem::pa
         const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
         static_cast<void>(context.expectEq(
             "Missing child reports launch failure",
-            TestSupport::Types::InfrastructureError::ProcessLaunchFailed,
-            result.status.error));
-        static_cast<void>(context.expectEq("Missing child was not started", TestSupport::Types::Process::Outcome::NotStarted, result.outcome));
-        static_cast<void>(context.expectTrue("Missing child preserves a native diagnostic", result.status.nativeCode != 0));
+            GameWIP::Status::Types::Code::ProcessLaunchFailed,
+            result.status().code()));
+        static_cast<void>(context.expectEq("Missing child was not started", TestSupport::Types::Process::Outcome::NotStarted, result.value().outcome));
+        static_cast<void>(context.expectTrue(
+            "Missing child preserves a native diagnostic",
+            result.status().diagnostic() != nullptr && result.status().diagnostic()->nativeCode.has_value()));
     }
 
     // Distinguish a child timeout from a launch failure.
@@ -169,8 +171,8 @@ void testChildProcesses(TestSupport::Context &context, const std::filesystem::pa
         childOptions.waitTimeout = 50ms;
 
         const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
-        static_cast<void>(context.expectTrue("Child process timeout has successful infrastructure", result.status.ok()));
-        static_cast<void>(context.expectEq("Child process timeout is reported", TestSupport::Types::Process::Outcome::TimedOut, result.outcome));
+        static_cast<void>(context.expectTrue("Child process timeout has successful infrastructure", result.ok()));
+        static_cast<void>(context.expectEq("Child process timeout is reported", TestSupport::Types::Process::Outcome::TimedOut, result.value().outcome));
     }
 
     // Exercise capture limits without repeating child setup.
@@ -189,15 +191,15 @@ void testChildProcesses(TestSupport::Context &context, const std::filesystem::pa
         const TestSupport::Types::Process::Result result = runOutputChild(4, 8);
         static_cast<void>(context.expectTrue(
             "Capture below limit succeeds",
-            result.status.ok() && result.outcome == TestSupport::Types::Process::Outcome::Exited && result.exitCode == 0));
-        static_cast<void>(context.expectEq("Capture below limit retains all bytes", std::size_t{4}, result.outputBytes.size()));
-        static_cast<void>(context.expectFalse("Capture below limit is not truncated", result.outputTruncated));
+            result.ok() && result.value().outcome == TestSupport::Types::Process::Outcome::Exited && result.value().exitCode == 0));
+        static_cast<void>(context.expectEq("Capture below limit retains all bytes", std::size_t{4}, result.value().outputBytes.size()));
+        static_cast<void>(context.expectFalse("Capture below limit is not truncated", result.value().outputTruncated));
     }
 
     {
         const TestSupport::Types::Process::Result result = runOutputChild(8, 8);
-        static_cast<void>(context.expectEq("Capture at limit retains all bytes", std::size_t{8}, result.outputBytes.size()));
-        static_cast<void>(context.expectFalse("Capture at limit is not truncated", result.outputTruncated));
+        static_cast<void>(context.expectEq("Capture at limit retains all bytes", std::size_t{8}, result.value().outputBytes.size()));
+        static_cast<void>(context.expectFalse("Capture at limit is not truncated", result.value().outputTruncated));
     }
 
     // Captures above the limit retain a prefix and report truncation.
@@ -205,9 +207,9 @@ void testChildProcesses(TestSupport::Context &context, const std::filesystem::pa
         const TestSupport::Types::Process::Result result = runOutputChild(12, 8);
         static_cast<void>(context.expectTrue(
             "Capture above limit still succeeds",
-            result.status.ok() && result.outcome == TestSupport::Types::Process::Outcome::Exited && result.exitCode == 0));
-        static_cast<void>(context.expectEq("Capture above limit retains prefix", std::string(8, 'x'), result.outputBytes));
-        static_cast<void>(context.expectTrue("Capture above limit reports truncation", result.outputTruncated));
+            result.ok() && result.value().outcome == TestSupport::Types::Process::Outcome::Exited && result.value().exitCode == 0));
+        static_cast<void>(context.expectEq("Capture above limit retains prefix", std::string(8, 'x'), result.value().outputBytes));
+        static_cast<void>(context.expectTrue("Capture above limit reports truncation", result.value().outputTruncated));
     }
 
     // A zero limit still drains output to avoid blocking the child.
@@ -215,9 +217,9 @@ void testChildProcesses(TestSupport::Context &context, const std::filesystem::pa
         const TestSupport::Types::Process::Result result = runOutputChild(12, 0);
         static_cast<void>(context.expectTrue(
             "Zero capture limit still drains child",
-            result.status.ok() && result.outcome == TestSupport::Types::Process::Outcome::Exited && result.exitCode == 0));
-        static_cast<void>(context.expectTrue("Zero capture limit retains no bytes", result.outputBytes.empty()));
-        static_cast<void>(context.expectTrue("Zero capture limit reports truncation", result.outputTruncated));
+            result.ok() && result.value().outcome == TestSupport::Types::Process::Outcome::Exited && result.value().exitCode == 0));
+        static_cast<void>(context.expectTrue("Zero capture limit retains no bytes", result.value().outputBytes.empty()));
+        static_cast<void>(context.expectTrue("Zero capture limit reports truncation", result.value().outputTruncated));
     }
 
     // A timed-out child also releases its descendants.
@@ -227,7 +229,7 @@ void testChildProcesses(TestSupport::Context &context, const std::filesystem::pa
         childOptions.arguments = {std::string(kDescendantChildArgument)};
         childOptions.waitTimeout = 50ms;
         const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
-        static_cast<void>(context.expectTrue("Descendant process timeout has successful infrastructure", result.status.ok()));
-        static_cast<void>(context.expectEq("Descendant process timeout is reported", TestSupport::Types::Process::Outcome::TimedOut, result.outcome));
+        static_cast<void>(context.expectTrue("Descendant process timeout has successful infrastructure", result.ok()));
+        static_cast<void>(context.expectEq("Descendant process timeout is reported", TestSupport::Types::Process::Outcome::TimedOut, result.value().outcome));
     }
 }

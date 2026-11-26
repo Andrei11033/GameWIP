@@ -59,8 +59,8 @@ The resource remains active and the operation can be retried. Destruction perfor
 
 ## A native failure has an empty diagnostic message
 
-The portable `code` and backend `nativeCode` are the stable diagnostic fields. FileSystem constructs human-readable native messages best-effort;
-allocation failure leaves `message` empty rather than replacing the original failure or terminating a `noexcept` operation.
+Use `status().code()` for portable decisions. `status().diagnostic()` may include a native code and UTF-8 message for debugging; diagnostics are
+supplementary and can be absent if creating them fails.
 
 ## An exception occurs before a FileSystem call starts
 
@@ -78,11 +78,11 @@ changes.
 `maxBytes` is a hard accepted-data limit, not a truncation request. Increase it or stream through `FileReader`. A file exactly equal to the limit
 succeeds; additional data triggers the probe and failure.
 
-`listDirectory()` and `removeDirectoryTree()` use the same error for caller entry limits while preserving completed progress.
+`listDirectory()` and `removeDirectoryTree()` use the same error for caller entry limits while retaining completed progress in `.value()`.
 
 ## A write reports the full payload with failure
 
-The payload may have been fully accepted before a later flush or close failure. Inspect both `status` and `bytesWritten`. The destination may contain
+The payload may have been fully accepted before a later flush or close failure. Inspect `.status()` and the retained `WriteProgress`. The destination may contain
 complete or partial new content after non-atomic operations.
 
 ## Atomic write fails after replacement

@@ -24,7 +24,7 @@ find_package(TestSupport ${GAMEWIP_REQUIRED_VERSION} EXACT CONFIG REQUIRED)
 target_link_libraries(MyTests PRIVATE GameWIP::TestSupport)
 ```
 
-The package resolves its exact matching Unicode implementation dependency.
+The package resolves its exact matching Status and Unicode dependencies.
 
 ## Source-tree CMake
 
@@ -66,14 +66,14 @@ check and keeps later suites runnable.
 
 ## Failure handling
 
-TestSupport separates infrastructure status from domain outcomes. Inspect a
-returned `status` before reading its text, boolean, count, path, or child-process
-payload. A successfully launched child may still exit nonzero or time out; that
-domain outcome is not an infrastructure launch failure.
+TestSupport separates infrastructure status from domain outcomes. Inspect
+`status()` and `hasValue()` before reading a result payload. A successfully
+launched child may still exit nonzero or time out; that domain outcome is not an
+infrastructure launch failure.
 
-Text-file helpers accept and return strict UTF-8. Child `outputBytes` remains
-arbitrary captured data unless the child protocol independently guarantees an
-encoding. Filesystem, current-directory, and environment guards restore state
+Text-file helpers accept and return strict UTF-8. Child execution details are in
+`Result::value()` when present; `outputBytes` remains arbitrary captured data
+unless the child protocol independently guarantees an encoding. Filesystem, current-directory, and environment guards restore state
 on a best-effort basis. Keep a `ScopedProcessState` alive for the complete
 process-global guard lifetime and inspect explicit `restore()` results when
 cleanup must be verified.

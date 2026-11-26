@@ -57,17 +57,17 @@ class and namespace indexes contain every active helper and passive type.
 - Expectations record one pass or failure and return a boolean; they do not abort a suite.
 - `Runner` converts an uncaught suite exception into one failed check, records the completed suite, and permits later suites to run.
 - Report-file failure disables only that file sink and does not rewrite pass/fail/skip counts.
-- Text-file helpers expose only valid UTF-8; child stdout/stderr capture remains arbitrary bytes in `Types::Process::Result::outputBytes`.
-- Filesystem, current-directory, environment, and child-process helpers use TestSupport-owned infrastructure status. Process-global state still
+- Text-file helpers expose only valid UTF-8; child stdout/stderr capture remains arbitrary bytes in `Types::Process::Result::value().outputBytes`.
+- Filesystem, current-directory, environment, and child-process helpers use shared infrastructure status results. Process-global state still
   requires caller coordination.
 - Child-process and manual-input helpers can block. Child timeouts begin termination but are not strict upper bounds on total cleanup time.
 - RAII cleanup/restoration performed by destructors is best effort and non-throwing.
 
 ## Dependency boundary
 
-TestSupport is the static target `GameWIP::TestSupport`. It privately depends
-only on Unicode (UTF-8 validation and UTF-8 to UTF-16 conversion); public headers
-are standard-library only and expose no Unicode types. It must not depend on
+TestSupport is the static target `GameWIP::TestSupport`. Its public results use
+`GameWIP::Status`; it privately depends on Unicode for UTF-8 validation and
+UTF-8 to UTF-16 conversion. It exposes no Unicode types. It must not depend on
 Logger, Assert, IO, FileSystem, Desktop, Terminal, or engine libraries, and
 production code never depends on it.
 

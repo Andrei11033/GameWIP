@@ -38,7 +38,7 @@ namespace GameWIP::Logger
     /// @brief Initializes a File-only Logger using a UTF-8 directory.
     LOGGER_EXPORT Types::Init::Result initFile(std::string_view directory = {}, Types::Level minLevel = Types::Level::Info) noexcept;
     /// @brief Stops Logger, drains accepted work, flushes and closes active sinks, and returns the first real failure.
-    LOGGER_EXPORT IO::Types::Status shutdown() noexcept;
+    LOGGER_EXPORT Status::Types::Result<void> shutdown() noexcept;
     /// @brief Drains accepted async work and flushes active sinks under an optional Logger-owned deadline.
     /// @details nullopt waits indefinitely, zero polls, positive durations are bounded, and negative durations are invalid.
     LOGGER_EXPORT Types::FlushResult flush(std::optional<std::chrono::milliseconds> timeout = std::nullopt) noexcept;
@@ -98,22 +98,22 @@ namespace GameWIP::Logger
     }
 
     /// @brief Sets one registered source filter and returns direct operation status.
-    LOGGER_EXPORT IO::Types::Status setSourceFilter(Types::SourceId source, bool enabled) noexcept;
+    LOGGER_EXPORT Status::Types::Result<void> setSourceFilter(Types::SourceId source, bool enabled) noexcept;
     /// @brief Resets one registered source filter to the default enabled state.
-    LOGGER_EXPORT IO::Types::Status resetSourceFilter(Types::SourceId source) noexcept;
+    LOGGER_EXPORT Status::Types::Result<void> resetSourceFilter(Types::SourceId source) noexcept;
     /// @brief Resets every registered source filter to the default enabled state.
-    LOGGER_EXPORT IO::Types::Status resetSourceFilters() noexcept;
+    LOGGER_EXPORT Status::Types::Result<void> resetSourceFilters() noexcept;
     /// @brief Sets one exact-level filter and returns direct operation status.
-    LOGGER_EXPORT IO::Types::Status setLevelFilter(Types::Level level, bool enabled) noexcept;
+    LOGGER_EXPORT Status::Types::Result<void> setLevelFilter(Types::Level level, bool enabled) noexcept;
     /// @brief Resets one exact-level filter to the default enabled state.
-    LOGGER_EXPORT IO::Types::Status resetLevelFilter(Types::Level level) noexcept;
+    LOGGER_EXPORT Status::Types::Result<void> resetLevelFilter(Types::Level level) noexcept;
     /// @brief Resets every exact-level filter to the default enabled state.
-    LOGGER_EXPORT IO::Types::Status resetLevelFilters() noexcept;
+    LOGGER_EXPORT Status::Types::Result<void> resetLevelFilters() noexcept;
 
     /// @brief Sets one enum-source filter and returns direct operation status.
     template <typename Source>
         requires(SourceEnum<Source>)
-    IO::Types::Status setSourceFilter(Source source, bool enabled) noexcept
+    Status::Types::Result<void> setSourceFilter(Source source, bool enabled) noexcept
     {
         return setSourceFilter(Internal::Core::sourceId(source), enabled);
     }
@@ -121,7 +121,7 @@ namespace GameWIP::Logger
     /// @brief Resets one enum-source filter to the default enabled state.
     template <typename Source>
         requires(SourceEnum<Source>)
-    IO::Types::Status resetSourceFilter(Source source) noexcept
+    Status::Types::Result<void> resetSourceFilter(Source source) noexcept
     {
         return resetSourceFilter(Internal::Core::sourceId(source));
     }

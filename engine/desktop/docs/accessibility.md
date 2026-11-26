@@ -74,7 +74,8 @@ Publication validates, copies, indexes Unicode text,
 computes native metadata, and prepares providers before atomic replacement.
 Invalid UTF-8, unknown enum values/flags, dangling references, invalid geometry,
 invalid values/ranges, and resource failure leave the old tree intact.
-`ValidationResult` identifies the first semantic issue and source node.
+`ValidationResult` carries the first semantic issue and source node as its payload, including on semantic failure. Allocation failure returns status
+without a payload.
 
 ## Geometry and host state
 

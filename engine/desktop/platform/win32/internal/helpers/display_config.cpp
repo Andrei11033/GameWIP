@@ -3,6 +3,7 @@
 
 #include "desktop/platform/win32/internal/win32_display_config.h"
 #include "desktop/platform/win32/internal/win32_window_backend.h"
+#include "desktop/internal/results.h"
 
 #if DESKTOP_INTERNAL_TEST_HOOKS
 #include "desktop/internal/desktop_test_hooks.h"
@@ -35,7 +36,7 @@ namespace GameWIP::Desktop::Platform::Win32
     }
 
     /// @brief Finds the active display-config path matching a GDI device name.
-    [[nodiscard]] IO::Types::Status findActiveDisplayPath(std::wstring_view device, ActiveDisplayPath &result) noexcept
+    [[nodiscard]] GameWIP::Status::Types::Status findActiveDisplayPath(std::wstring_view device, ActiveDisplayPath &result) noexcept
     {
         try
         {
@@ -51,7 +52,7 @@ namespace GameWIP::Desktop::Platform::Win32
 
                 if(nativeResult != ERROR_SUCCESS)
                 {
-                    return statusFromWin32(IO::Types::ErrorCode::StatFailed, static_cast<DWORD>(nativeResult), "GetDisplayConfigBufferSizes");
+                    return statusFromWin32(GameWIP::Status::Types::Code::StatFailed, static_cast<DWORD>(nativeResult), "GetDisplayConfigBufferSizes");
                 }
                 std::vector<DISPLAYCONFIG_PATH_INFO> paths(pathCount);
                 std::vector<DISPLAYCONFIG_MODE_INFO> modes(modeCount);
@@ -64,7 +65,7 @@ namespace GameWIP::Desktop::Platform::Win32
 
                 if(nativeResult != ERROR_SUCCESS)
                 {
-                    return statusFromWin32(IO::Types::ErrorCode::StatFailed, static_cast<DWORD>(nativeResult), "QueryDisplayConfig");
+                    return statusFromWin32(GameWIP::Status::Types::Code::StatFailed, static_cast<DWORD>(nativeResult), "QueryDisplayConfig");
                 }
                 paths.resize(pathCount);
 
@@ -87,21 +88,21 @@ namespace GameWIP::Desktop::Platform::Win32
                     if(_wcsicmp(source.viewGdiDeviceName, deviceName.c_str()) == 0)
                     {
                         result.path = path;
-                        return IO::successStatus();
+                        return GameWIP::Status::Types::Status{};
                     }
                 }
 
-                return IO::makeStatus(IO::Types::ErrorCode::NotFound);
+                return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::NotFound);
             }
 
-            return IO::makeStatus(
-                IO::Types::ErrorCode::ResourceBusy,
+            return GameWIP::Desktop::Internal::statusFor(
+                GameWIP::Status::Types::Code::ResourceBusy,
                 ERROR_INSUFFICIENT_BUFFER,
                 "display topology changed repeatedly during QueryDisplayConfig");
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::OutOfMemory);
         }
     }
 

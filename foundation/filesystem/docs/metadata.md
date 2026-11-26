@@ -34,7 +34,7 @@ Value queries require an existing entry:
 - `getLastWriteTime()` returns `NotFound` when missing;
 - `isReadOnly()` returns `NotFound` when missing.
 
-Always inspect `BoolResult::status`; `false` is not meaningful when the status failed.
+Inspect `.ok()` before using `.value()`. A `false` value is meaningful only when the result succeeded.
 
 ## Time representation
 

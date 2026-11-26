@@ -8,6 +8,7 @@
 #include <utility>
 
 static_assert(sizeof(GameWIP::TestSupport::Types::Process::Outcome) == sizeof(std::uint8_t));
-static_assert(std::is_default_constructible_v<GameWIP::TestSupport::Types::Process::Result>);
+static_assert(!std::is_default_constructible_v<GameWIP::TestSupport::Types::Process::Result>);
+static_assert(std::is_default_constructible_v<GameWIP::Status::Types::Result<void>>);
 static_assert(noexcept(GameWIP::TestSupport::runChildProcess(std::declval<const GameWIP::TestSupport::Types::Process::Options &>())));
 static_assert(std::is_nothrow_destructible_v<GameWIP::TestSupport::Types::Process::Result>);

@@ -3,12 +3,11 @@
 
 #pragma once
 
-#include "io/status.h"
+#include "status/result.h"
 #include "desktop/description.h"
 #include "desktop/display.h"
 #include "desktop/events.h"
 #include "desktop/icon_types.h"
-#include "desktop/result.h"
 #include "desktop/types.h"
 #include "desktop/desktop_export.h"
 
@@ -123,7 +122,7 @@ namespace GameWIP::Desktop
 
     /// @brief Returns cached backend/environment capabilities.
     /// @return The query status and capability flags available in the current process environment.
-    [[nodiscard]] DESKTOP_EXPORT Types::Result<Types::Capabilities> getCapabilities() noexcept;
+    [[nodiscard]] DESKTOP_EXPORT GameWIP::Status::Types::Result<Types::Capabilities> getCapabilities() noexcept;
     /// @brief Reports whether the backend advertises the requested Window capability.
     [[nodiscard]] DESKTOP_EXPORT bool supports(Types::Capability capability) noexcept;
 
@@ -154,14 +153,14 @@ namespace GameWIP::Desktop
         /// @details Previously enabled concurrent presentation state remains at closed defaults until open commits successfully.
         /// @param description Initial Window properties and policies.
         /// @return Success, or a status explaining why no native Window was opened.
-        [[nodiscard]] IO::Types::Status open(const Types::Description &description = {}) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> open(const Types::Description &description = {}) noexcept;
         /// @brief Opens with an explicit event-queue ownership policy.
         /// @details Use Events::owned() for Window-owned storage or Events::borrowed() when the
         /// caller must retain and not move its storage through deferred finalization.
         /// @param description Initial Window properties and policies.
         /// @param queue Explicit queue storage and ownership policy.
         /// @return Success, or a status explaining why no native Window was opened.
-        [[nodiscard]] IO::Types::Status open(const Types::Description &description, Types::Events::QueueConfiguration queue) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> open(const Types::Description &description, Types::Events::QueueConfiguration queue) noexcept;
 
         /// @brief Reports whether native Window operations are available.
         [[nodiscard]] bool isOpen() const noexcept;
@@ -171,7 +170,7 @@ namespace GameWIP::Desktop
         /// @brief Closes the native lifetime on its owner thread.
         /// @details Resets enabled presentation publication to closed defaults without freeing or disabling its stable allocation.
         /// @return Success when closed or already closed; ResourceBusy on the wrong thread; otherwise the native cleanup failure.
-        [[nodiscard]] IO::Types::Status close() noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> close() noexcept;
         /// @}
 
         /// @name Identity and ownership
@@ -195,7 +194,7 @@ namespace GameWIP::Desktop
         /// @brief Changes or clears the native owner relationship.
         /// @param owner New owner identity, or std::nullopt to remove the relationship.
         /// @return Success, or the validation, ownership, thread, or native failure.
-        [[nodiscard]] IO::Types::Status setOwner(std::optional<Types::WindowId> owner) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> setOwner(std::optional<Types::WindowId> owner) noexcept;
         /// @}
 
         /// @name Close requests
@@ -206,10 +205,10 @@ namespace GameWIP::Desktop
         [[nodiscard]] bool hasCloseRequest() const noexcept;
         /// @brief Queues a programmatic close request without destroying the native Window.
         /// @return Success, or the open-state, thread, or native queueing failure.
-        [[nodiscard]] IO::Types::Status requestClose() noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> requestClose() noexcept;
         /// @brief Clears the cached close-request flag.
         /// @return Success, or the open-state or wrong-thread failure.
-        [[nodiscard]] IO::Types::Status clearCloseRequest() noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> clearCloseRequest() noexcept;
         /// @}
 
         /// @name Event queue
@@ -233,7 +232,7 @@ namespace GameWIP::Desktop
         /// @details May run on another thread while the open lifetime remains stable. Synchronize
         /// with open, close, native destruction, and C++ object destruction.
         /// @return Success, or the open-state or native wake failure.
-        [[nodiscard]] IO::Types::Status wakeEventWait() const noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> wakeEventWait() const noexcept;
         /// @}
 
         /// @name Cached state
@@ -354,51 +353,51 @@ namespace GameWIP::Desktop
         /// @brief Replaces the UTF-8 native and cached title.
         /// @param utf8Title Complete valid UTF-8 without embedded U+0000.
         /// @return Success, or the validation, open-state, thread, or native failure.
-        [[nodiscard]] IO::Types::Status setTitle(std::string_view utf8Title) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> setTitle(std::string_view utf8Title) noexcept;
         /// @brief Replaces platform icon images from call-scoped RGBA8 views.
         /// @param images Non-empty icon views copied before return.
         /// @return Success, or the validation, open-state, thread, allocation, or native failure.
-        [[nodiscard]] IO::Types::Status setIcon(std::span<const Types::IconImageView> images) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> setIcon(std::span<const Types::IconImageView> images) noexcept;
         /// @brief Restores the platform-default Window icon.
         /// @return Success, or the open-state, thread, or native failure.
-        [[nodiscard]] IO::Types::Status clearIcon() noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> clearIcon() noexcept;
         /// @brief Changes the logical client extent.
         /// @param size Requested nonzero client size in logical units.
         /// @return Success, or the validation, open-state, thread, or native failure.
-        [[nodiscard]] IO::Types::Status setClientSize(Types::LogicalSize size) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> setClientSize(Types::LogicalSize size) noexcept;
         /// @brief Changes the virtual-screen client position.
         /// @param position Requested client origin in physical virtual-screen coordinates.
         /// @return Success, or the open-state, thread, or native failure.
-        [[nodiscard]] IO::Types::Status setClientPosition(Types::ScreenPosition position) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> setClientPosition(Types::ScreenPosition position) noexcept;
         /// @brief Changes the virtual-screen client position and logical extent together.
         /// @param position Requested client origin in physical virtual-screen coordinates.
         /// @param size Requested nonzero client size in logical units.
         /// @return Success, or the validation, open-state, thread, or native failure.
-        [[nodiscard]] IO::Types::Status setClientRect(Types::ScreenPosition position, Types::LogicalSize size) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> setClientRect(Types::ScreenPosition position, Types::LogicalSize size) noexcept;
         /// @brief Centers the Window on a requested or current monitor.
         /// @param monitor Target monitor, or std::nullopt to use the current/nearest monitor.
         /// @return Success, ResourceBusy while not windowed, or the monitor, open-state, thread, or native failure.
-        [[nodiscard]] IO::Types::Status centerOn(std::optional<Types::Display::MonitorId> monitor = std::nullopt) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> centerOn(std::optional<Types::Display::MonitorId> monitor = std::nullopt) noexcept;
         /// @brief Replaces logical client-size constraints.
         /// @param limits Minimum and optional maximum client size in logical units.
         /// @return Success, or the validation, open-state, thread, or native failure.
-        [[nodiscard]] IO::Types::Status setSizeLimits(const Types::SizeLimits &limits) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> setSizeLimits(const Types::SizeLimits &limits) noexcept;
         /// @brief Replaces or clears the logical client aspect-ratio constraint.
         /// @param aspectRatio Positive ratio to enforce, or std::nullopt to clear it.
         /// @return Success, or the validation, open-state, thread, or native failure.
-        [[nodiscard]] IO::Types::Status setAspectRatio(std::optional<Types::AspectRatio> aspectRatio) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> setAspectRatio(std::optional<Types::AspectRatio> aspectRatio) noexcept;
         /// @brief Converts a client-local logical position to virtual-screen pixels.
         /// @param position Position relative to the logical client origin.
         /// @return Status and converted physical virtual-screen position.
-        [[nodiscard]] Types::Result<Types::ScreenPosition> clientToScreen(Types::LogicalPosition position) const noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<Types::ScreenPosition> clientToScreen(Types::LogicalPosition position) const noexcept;
         /// @brief Converts a virtual-screen pixel position to client-local logical units.
         /// @param position Position in physical virtual-screen coordinates.
         /// @return Status and converted logical client position.
-        [[nodiscard]] Types::Result<Types::LogicalPosition> screenToClient(Types::ScreenPosition position) const noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<Types::LogicalPosition> screenToClient(Types::ScreenPosition position) const noexcept;
         /// @brief Changes how logical and physical client size respond to DPI transitions.
         /// @param policy Logical-size or physical-pixel preservation policy.
         /// @return Success, or the validation, open-state, thread, or native failure.
-        [[nodiscard]] IO::Types::Status setDpiResizePolicy(Types::DpiResizePolicy policy) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> setDpiResizePolicy(Types::DpiResizePolicy policy) noexcept;
         /// @}
 
         /// @name Presentation and interaction
@@ -406,78 +405,78 @@ namespace GameWIP::Desktop
 
         /// @brief Shows the native Window.
         /// @return Success, or the open-state, thread, or native failure.
-        [[nodiscard]] IO::Types::Status show() noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> show() noexcept;
         /// @brief Hides the native Window.
         /// @return Success, or the open-state, thread, or native failure.
-        [[nodiscard]] IO::Types::Status hide() noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> hide() noexcept;
         /// @brief Requests keyboard focus and activation.
         /// @return Success when the request was submitted, or the open-state, thread, policy, or native failure.
-        [[nodiscard]] IO::Types::Status requestFocus() noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> requestFocus() noexcept;
         /// @brief Requests platform attention without requiring focus.
         /// @return Success when the request was submitted, or the open-state, thread, capability, or native failure.
-        [[nodiscard]] IO::Types::Status requestAttention() noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> requestAttention() noexcept;
         /// @brief Requests minimized presentation.
         /// @return Success, or the open-state, thread, capability, or native failure.
-        [[nodiscard]] IO::Types::Status minimize() noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> minimize() noexcept;
         /// @brief Requests maximized presentation.
         /// @return Success, or the open-state, thread, capability, or native failure.
-        [[nodiscard]] IO::Types::Status maximize() noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> maximize() noexcept;
         /// @brief Restores normal presentation.
         /// @return Success, or the open-state, thread, capability, or native failure.
-        [[nodiscard]] IO::Types::Status restore() noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> restore() noexcept;
         /// @brief Applies a validated top-level and optional exclusive display-mode request.
         /// @param request Use WindowModes::windowed(), borderlessFullscreen(), or exclusiveFullscreen().
         /// @return Success, or the validation, monitor, capability, open-state, thread, or native failure.
-        [[nodiscard]] IO::Types::Status setWindowMode(const Types::WindowModeRequest &request) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> setWindowMode(const Types::WindowModeRequest &request) noexcept;
         /// @brief Enables or disables user resizing.
         /// @details Disable the maximize control with setControls() before disabling resizing.
         /// @param resizable Whether the user may resize the Window.
         /// @return Success, or the open-state, thread, capability, or native failure.
-        [[nodiscard]] IO::Types::Status setResizable(bool resizable) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> setResizable(bool resizable) noexcept;
         /// @brief Changes the non-client decoration policy.
         /// @param mode System or custom decoration mode.
         /// @return Success, or the validation, open-state, thread, capability, or native failure.
-        [[nodiscard]] IO::Types::Status setDecorationMode(Types::DecorationMode mode) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> setDecorationMode(Types::DecorationMode mode) noexcept;
         /// @brief Replaces standard system-control availability.
         /// @details A maximize control requires resizable() to be true.
         /// @param controls Requested minimize, maximize, and close-control policy.
         /// @return Success, or the validation, open-state, thread, capability, or native failure.
-        [[nodiscard]] IO::Types::Status setControls(const Types::Controls &controls) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> setControls(const Types::Controls &controls) noexcept;
         /// @brief Enables or disables keyboard focus eligibility.
         /// @param focusable Whether the Window may receive keyboard focus.
         /// @return Success, or the open-state, thread, capability, or native failure.
-        [[nodiscard]] IO::Types::Status setFocusable(bool focusable) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> setFocusable(bool focusable) noexcept;
         /// @brief Enables or disables user interaction.
         /// @param enabled Whether native user interaction is enabled.
         /// @return Success, or the open-state, thread, capability, or native failure.
-        [[nodiscard]] IO::Types::Status setUserInteractionEnabled(bool enabled) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> setUserInteractionEnabled(bool enabled) noexcept;
         /// @brief Enables or disables topmost ordering.
         /// @param alwaysOnTop Whether to request topmost ordering.
         /// @return Success, or the open-state, thread, capability, or native failure.
-        [[nodiscard]] IO::Types::Status setAlwaysOnTop(bool alwaysOnTop) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> setAlwaysOnTop(bool alwaysOnTop) noexcept;
         /// @brief Changes opacity in [0, 1].
         /// @param opacity Fully transparent 0 through fully opaque 1.
         /// @return Success, or the validation, open-state, thread, capability, or native failure.
-        [[nodiscard]] IO::Types::Status setOpacity(float opacity) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> setOpacity(float opacity) noexcept;
         /// @brief Changes the optional platform backdrop treatment.
         /// @param effect Requested backdrop effect, including None.
         /// @return Success, or the validation, open-state, thread, capability, or native failure.
-        [[nodiscard]] IO::Types::Status setBackdropEffect(Types::BackdropEffect effect) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> setBackdropEffect(Types::BackdropEffect effect) noexcept;
         /// @brief Enables or disables portable file-drop events.
         /// @param enabled Whether accepted native drops become portable events.
         /// @return Success, or the open-state, thread, capability, or native failure.
-        [[nodiscard]] IO::Types::Status setFileDropEnabled(bool enabled) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> setFileDropEnabled(bool enabled) noexcept;
         /// @brief Copies a declarative custom-chrome layout into Window-owned state.
         /// @param layout Drag and caption-control regions in logical client coordinates.
         /// @return Success, or the validation, allocation, open-state, thread, capability, or native failure.
-        [[nodiscard]] IO::Types::Status setCustomChromeLayout(const Types::CustomChromeLayout &layout) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> setCustomChromeLayout(const Types::CustomChromeLayout &layout) noexcept;
         /// @brief Clears all custom-chrome regions while retaining custom decoration mode.
         /// @return Success, or the open-state, thread, capability, or native failure.
-        [[nodiscard]] IO::Types::Status clearCustomChromeLayout() noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> clearCustomChromeLayout() noexcept;
         /// @brief Copies a declarative pointer-input layout into Window-owned state.
         /// @param layout Pointer policy and logical client regions to copy.
         /// @return Success, or the validation, allocation, open-state, thread, capability, or native failure.
-        [[nodiscard]] IO::Types::Status setPointerInputLayout(const Types::PointerInputLayout &layout) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> setPointerInputLayout(const Types::PointerInputLayout &layout) noexcept;
         /// @}
 
         /// @name Cursor controls
@@ -486,18 +485,18 @@ namespace GameWIP::Desktop
         /// @brief Changes cursor visibility, confinement, or relative behavior.
         /// @param mode Requested cursor mode.
         /// @return Success, or the validation, open-state, focus, thread, capability, or native failure.
-        [[nodiscard]] IO::Types::Status setCursorMode(Types::CursorMode mode) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> setCursorMode(Types::CursorMode mode) noexcept;
         /// @brief Changes the standard system cursor shape.
         /// @param shape Requested standard cursor shape.
         /// @return Success, or the validation, open-state, thread, capability, or native failure.
-        [[nodiscard]] IO::Types::Status setCursorShape(Types::CursorShape shape) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> setCursorShape(Types::CursorShape shape) noexcept;
         /// @brief Warps the cursor to a client-local logical position.
         /// @param clientPosition Destination in logical client coordinates.
         /// @return Success, or the validation, open-state, thread, capability, or native failure.
-        [[nodiscard]] IO::Types::Status setCursorPosition(Types::LogicalPosition clientPosition) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> setCursorPosition(Types::LogicalPosition clientPosition) noexcept;
         /// @brief Queries the current cursor position in client-local logical units.
         /// @return Status and current logical client position.
-        [[nodiscard]] Types::Result<Types::LogicalPosition> cursorPosition() const noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<Types::LogicalPosition> cursorPosition() const noexcept;
         /// @}
 
     private:

@@ -25,8 +25,8 @@ void testReportModes(TestSupport::Context &context, const std::filesystem::path 
         TestSupport::Types::Reporting::SinkState::Disabled,
         noReport.finalize().state));
     const TestSupport::Types::BoolResult noReportExists = TestSupport::fileExists(noReportPath);
-    static_cast<void>(context.expectTrue("Report-disabled path inspection succeeds", noReportExists.status.ok()));
-    static_cast<void>(context.expectFalse("Report disabled writes no file", noReportExists.value));
+    static_cast<void>(context.expectTrue("Report-disabled path inspection succeeds", noReportExists.ok()));
+    static_cast<void>(context.expectFalse("Report disabled writes no file", noReportExists.ok() && noReportExists.value()));
 
     const std::filesystem::path consoleOnlyPath = root / "console_only_report.txt";
     TestSupport::Types::Reporting::Options consoleOnlyOptions;
@@ -42,8 +42,8 @@ void testReportModes(TestSupport::Context &context, const std::filesystem::path 
     }
     static_cast<void>(context.expectContains("Console-only report writes to stdout", consoleOnlyOutput, "console only line"));
     const TestSupport::Types::BoolResult consoleOnlyExists = TestSupport::fileExists(consoleOnlyPath);
-    static_cast<void>(context.expectTrue("Console-only path inspection succeeds", consoleOnlyExists.status.ok()));
-    static_cast<void>(context.expectFalse("Console-only report writes no file", consoleOnlyExists.value));
+    static_cast<void>(context.expectTrue("Console-only path inspection succeeds", consoleOnlyExists.ok()));
+    static_cast<void>(context.expectFalse("Console-only report writes no file", consoleOnlyExists.ok() && consoleOnlyExists.value()));
 
     // Verify custom console writers and their failure report.
     const std::filesystem::path customConsolePath = root / "custom_console_report.txt";
@@ -63,9 +63,12 @@ void testReportModes(TestSupport::Context &context, const std::filesystem::path 
         std::string("[PASS] [ConsoleWriter] custom output"),
         g_consoleWriterLine));
     const TestSupport::Types::TextResult customConsoleReport = TestSupport::readTextFile(customConsolePath);
-    static_cast<void>(context.expectTrue("Custom console report file read succeeds", customConsoleReport.status.ok()));
-    static_cast<void>(context.expectContains("Report file remains unstyled", customConsoleReport.text, "[PASS] [ConsoleWriter] custom output"));
-    static_cast<void>(context.expectFalse("Report file contains no terminal escape", customConsoleReport.text.contains('\x1b')));
+    static_cast<void>(context.expectTrue("Custom console report file read succeeds", customConsoleReport.ok()));
+    if(customConsoleReport.ok())
+    {
+        static_cast<void>(context.expectContains("Report file remains unstyled", customConsoleReport.value(), "[PASS] [ConsoleWriter] custom output"));
+        static_cast<void>(context.expectFalse("Report file contains no terminal escape", customConsoleReport.value().contains('\x1b')));
+    }
 
     TestSupport::Types::Reporting::Options failedConsoleOptions;
     failedConsoleOptions.writeReport = false;
@@ -99,10 +102,13 @@ void testReportModes(TestSupport::Context &context, const std::filesystem::path 
         context.expectEq("Append report second sink finalizes", TestSupport::Types::Reporting::SinkState::Finalized, second.finalize().state));
 
     const TestSupport::Types::TextResult appendedResult = TestSupport::readTextFile(appendPath);
-    static_cast<void>(context.expectTrue("Appended report read succeeds", appendedResult.status.ok()));
-    const std::string &appended = appendedResult.text;
-    static_cast<void>(context.expectContains("Report append preserves first line", appended, "first line"));
-    static_cast<void>(context.expectContains("Report append writes second line", appended, "second line"));
+    static_cast<void>(context.expectTrue("Appended report read succeeds", appendedResult.ok()));
+    if(appendedResult.ok())
+    {
+        const std::string &appended = appendedResult.value();
+        static_cast<void>(context.expectContains("Report append preserves first line", appended, "first line"));
+        static_cast<void>(context.expectContains("Report append writes second line", appended, "second line"));
+    }
 
     TestSupport::Types::Reporting::Options truncateOptions = quietReport(appendPath);
     truncateOptions.appendReport = false;
@@ -112,10 +118,13 @@ void testReportModes(TestSupport::Context &context, const std::filesystem::path 
         context.expectEq("Truncated report sink finalizes", TestSupport::Types::Reporting::SinkState::Finalized, truncated.finalize().state));
 
     const TestSupport::Types::TextResult truncatedResult = TestSupport::readTextFile(appendPath);
-    static_cast<void>(context.expectTrue("Truncated report read succeeds", truncatedResult.status.ok()));
-    const std::string &truncatedText = truncatedResult.text;
-    static_cast<void>(context.expectContains("Report truncate writes new line", truncatedText, "third line"));
-    static_cast<void>(context.expectFalse("Report truncate removes old line", truncatedText.contains("first line")));
+    static_cast<void>(context.expectTrue("Truncated report read succeeds", truncatedResult.ok()));
+    if(truncatedResult.ok())
+    {
+        const std::string &truncatedText = truncatedResult.value();
+        static_cast<void>(context.expectContains("Report truncate writes new line", truncatedText, "third line"));
+        static_cast<void>(context.expectFalse("Report truncate removes old line", truncatedText.contains("first line")));
+    }
 
     const std::filesystem::path destructionFlushPath = root / "destruction_flush_report.txt";
     {
@@ -128,9 +137,12 @@ void testReportModes(TestSupport::Context &context, const std::filesystem::path 
         buffered.pass("flushed at destruction");
     }
     const TestSupport::Types::TextResult destructionFlushResult = TestSupport::readTextFile(destructionFlushPath);
-    static_cast<void>(context.expectTrue("Destructor-flushed report read succeeds", destructionFlushResult.status.ok()));
-    static_cast<void>(
-        context.expectContains("Report sink destruction flushes buffered output", destructionFlushResult.text, "flushed at destruction"));
+    static_cast<void>(context.expectTrue("Destructor-flushed report read succeeds", destructionFlushResult.ok()));
+    if(destructionFlushResult.ok())
+    {
+        static_cast<void>(
+            context.expectContains("Report sink destruction flushes buffered output", destructionFlushResult.value(), "flushed at destruction"));
+    }
 
     const std::filesystem::path invalidParent = root / "invalid_report_parent";
     static_cast<void>(context.expectTrue("Invalid report parent fixture writes", TestSupport::writeTextFile(invalidParent, "not a directory").ok()));

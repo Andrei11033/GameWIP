@@ -12,11 +12,11 @@
     {
         const auto shellCapabilityResult = Desktop::Shell::getCapabilities();
 
-        if(!requireManualStatus(context, "shell capability query", shellCapabilityResult.status))
+        if(!requireManualStatus(context, "shell capability query", shellCapabilityResult))
         {
             return false;
         }
-        const auto &shellCapabilities = *shellCapabilityResult;
+        const auto &shellCapabilities = shellCapabilityResult.value();
         Desktop::ShellEventQueue shellQueue;
 
         if(requireManualStatus(context, "shell event queue setup", shellQueue.open(Desktop::Types::Shell::QueueConfiguration::owned(64))))
@@ -69,7 +69,7 @@
                 taskbarDescription.progress = Desktop::Types::Shell::Progress{Desktop::Types::Shell::ProgressState::Normal, 0.35};
                 taskbarDescription.thumbnailButtons = std::span{&thumbnailButton, 1};
                 Desktop::TaskbarItem taskbar;
-                const IO::Types::Status taskbarStatus = taskbar.open(window, taskbarDescription, shellQueue);
+                const GameWIP::Status::Types::Result<void> taskbarStatus = taskbar.open(window, taskbarDescription, shellQueue);
 
                 if(taskbarStatus.ok())
                 {
@@ -133,7 +133,7 @@
             // Check tray publication and menu callbacks.
             if(shellCapabilities.supports(Desktop::Types::Shell::Capability::TrayMenu))
             {
-                const IO::Types::Status trayStatus = tray.open(trayDescription, shellQueue);
+                const GameWIP::Status::Types::Result<void> trayStatus = tray.open(trayDescription, shellQueue);
 
                 if(trayStatus.ok())
                 {
@@ -166,7 +166,7 @@
 
             if(shellCapabilities.supports(Desktop::Types::Shell::Capability::Notifications))
             {
-                const IO::Types::Status notificationOpenStatus = notificationCenter.open(shellQueue);
+                const GameWIP::Status::Types::Result<void> notificationOpenStatus = notificationCenter.open(shellQueue);
 
                 if(notificationOpenStatus.ok())
                 {
@@ -175,7 +175,7 @@
                     notificationDescription.body = "Verify the notification appearance and dismissal.";
                     const auto published = notificationCenter.publish(notificationDescription);
 
-                    if(published.status.ok())
+                    if(published.ok())
                     {
                         recordManualCheck(
                             context,
@@ -184,11 +184,11 @@
                             "Verify the title/body and sound policy, then dismiss the notification. Answer yes only if the notification appeared and "
                             "disappeared normally.",
                             drainShellEvents);
-                        static_cast<void>(notificationCenter.dismiss(*published));
+                        static_cast<void>(notificationCenter.dismiss(published.value()));
                     }
                     else
                     {
-                        static_cast<void>(requireManualStatus(context, "notification publication", published.status));
+                        static_cast<void>(requireManualStatus(context, "notification publication", published));
                     }
                     static_cast<void>(notificationCenter.close());
                 }
@@ -242,7 +242,7 @@
             {
                 const auto receipt = TestSupport::readTextFile(launchReceipt);
 
-                if(receipt.status.ok() && receipt.text == launchToken)
+                if(receipt.ok() && receipt.value() == launchToken)
                 {
                     return true;
                 }
@@ -253,7 +253,7 @@
                 }
                 const auto genericReceipt = TestSupport::readTextFile(genericLaunchReceipt);
 
-                if(genericReceipt.status.ok() && !genericReceipt.text.empty())
+                if(genericReceipt.ok() && !genericReceipt.value().empty())
                 {
                     return true;
                 }
@@ -293,7 +293,7 @@
 
             if(shellCapabilities.supports(Desktop::Types::Shell::Capability::JumpLists))
             {
-                const IO::Types::Status jumpListStatus = Desktop::JumpLists::publish(jumpListDescription);
+                const GameWIP::Status::Types::Result<void> jumpListStatus = Desktop::JumpLists::publish(jumpListDescription);
 
                 if(jumpListStatus.ok())
                 {
@@ -387,7 +387,7 @@
             {
                 const auto registration = Desktop::Registration::registerFileExtension(fileRegistration);
 
-                if(registration.status.ok())
+                if(registration.ok())
                 {
                     const auto answer = recordManualCheck(
                         context,
@@ -419,8 +419,8 @@
                                 std::format(
                                     "generic receipt was not observed at '{}' (status={}, bytes={})",
                                     genericLaunchReceiptText,
-                                    static_cast<int>(receipt.status.error),
-                                    receipt.text.size()));
+                                    static_cast<int>(receipt.status().code()),
+                                    receipt.hasValue() ? receipt.value().size() : 0));
                         }
                         else
                         {
@@ -430,12 +430,12 @@
                 }
                 else
                 {
-                    static_cast<void>(requireManualStatus(context, "current-user file registration setup", registration.status));
+                    static_cast<void>(requireManualStatus(context, "current-user file registration setup", registration.status()));
                 }
                 static_cast<void>(requireManualStatus(
                     context,
                     "file registration cleanup",
-                    Desktop::Registration::unregisterFileExtension(ownerKey, extension).status));
+                    Desktop::Registration::unregisterFileExtension(ownerKey, extension).status()));
                 static_cast<void>(TestSupport::removeIfExists(genericLaunchReceipt));
             }
             else
@@ -456,7 +456,7 @@
             {
                 const auto registration = Desktop::Registration::registerUriScheme(uriRegistration);
 
-                if(registration.status.ok())
+                if(registration.ok())
                 {
                     const auto answer = recordManualCheck(
                         context,
@@ -480,10 +480,10 @@
                 }
                 else
                 {
-                    static_cast<void>(requireManualStatus(context, "current-user URI registration setup", registration.status));
+                    static_cast<void>(requireManualStatus(context, "current-user URI registration setup", registration.status()));
                 }
                 static_cast<void>(
-                    requireManualStatus(context, "URI registration cleanup", Desktop::Registration::unregisterUriScheme(ownerKey, scheme).status));
+                    requireManualStatus(context, "URI registration cleanup", Desktop::Registration::unregisterUriScheme(ownerKey, scheme).status()));
             }
             else
             {

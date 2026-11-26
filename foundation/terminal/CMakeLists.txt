@@ -72,7 +72,7 @@ target_compile_definitions(
     INTERFACE $<BUILD_INTERFACE:TERMINAL_INTERNAL_TEST_HOOKS=$<BOOL:${TERMINAL_ENABLE_TEST_HOOKS}>>
 )
 
-target_link_libraries(Terminal PUBLIC IO PRIVATE Unicode $<BUILD_INTERFACE:GameWIPBase>)
+target_link_libraries(Terminal PUBLIC IO GameWIP::Status PRIVATE Unicode $<BUILD_INTERFACE:GameWIPBase>)
 
 set_target_properties(
     Terminal

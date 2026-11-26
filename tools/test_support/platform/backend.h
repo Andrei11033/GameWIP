@@ -16,18 +16,14 @@ namespace GameWIP::TestSupport::Platform
     /// ------------------------------------------------------------
 
     /// @brief Result of one platform environment read.
-    struct EnvironmentReadResult
-    {
-        Types::InfrastructureStatus status; ///< Read status; success with no value means the variable is absent.
-        std::optional<std::string> value;   ///< UTF-8 variable value when present.
-    };
+    using EnvironmentReadResult = GameWIP::Status::Types::Result<std::optional<std::string>>;
 
     /// @brief Reads one process environment variable as UTF-8 text.
     [[nodiscard]] EnvironmentReadResult readEnvironmentVariable(std::string_view name) noexcept;
 
     /// @brief Sets one process environment variable from UTF-8 name and value text.
-    [[nodiscard]] Types::InfrastructureStatus setEnvironmentVariableValue(std::string_view name, std::string_view value) noexcept;
+    [[nodiscard]] Types::Result<void> setEnvironmentVariableValue(std::string_view name, std::string_view value) noexcept;
 
     /// @brief Removes one process environment variable by UTF-8 name.
-    [[nodiscard]] Types::InfrastructureStatus unsetEnvironmentVariableValue(std::string_view name) noexcept;
+    [[nodiscard]] Types::Result<void> unsetEnvironmentVariableValue(std::string_view name) noexcept;
 } // namespace GameWIP::TestSupport::Platform

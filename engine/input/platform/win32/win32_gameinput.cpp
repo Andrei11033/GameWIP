@@ -414,13 +414,13 @@ namespace GameWIP::Input::Platform::Win32
     /// Provider lifecycle
     /// ------------------------------------------------------------
 
-    IO::Types::Status initializeGameInput(AttachmentState &attachment, SystemState &state) noexcept
+    GameWIP::Status::Types::Status initializeGameInput(AttachmentState &attachment, SystemState &state) noexcept
     {
         // Load GameInput from the system directory and resolve a supported entry point.
         HMODULE module = LoadLibraryExW(L"GameInput.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
         if(module == nullptr)
         {
-            return status(IO::Types::ErrorCode::Unsupported);
+            return status(GameWIP::Status::Types::Code::Unsupported);
         }
         ModuleReference moduleReference(module);
 
@@ -439,7 +439,7 @@ namespace GameWIP::Input::Platform::Win32
             const GameInputCreateFunction create = std::bit_cast<GameInputCreateFunction>(GetProcAddress(module, "GameInputCreate"));
             if(create == nullptr)
             {
-                return status(IO::Types::ErrorCode::Unsupported);
+                return status(GameWIP::Status::Types::Code::Unsupported);
             }
 
             IUnknown *nativeLegacy = nullptr;
@@ -458,7 +458,9 @@ namespace GameWIP::Input::Platform::Win32
         InterfaceReference<GameInputApi::IGameInput> gameInput(nativeGameInput);
         if(FAILED(result) || gameInput == nullptr)
         {
-            return nativeStatus(static_cast<std::uint32_t>(FAILED(result) ? result : E_FAIL));
+            return nativeStatus(
+                static_cast<std::uint32_t>(FAILED(result) ? result : E_FAIL),
+                GameWIP::Status::Types::NativeCodeDomain::HResult);
         }
 
         // Register controller-capable devices, then consume the initial notifications.
@@ -478,7 +480,9 @@ namespace GameWIP::Input::Platform::Win32
             &attachment.gameInputCallbackToken);
         if(FAILED(result))
         {
-            return nativeStatus(static_cast<std::uint32_t>(result));
+            return nativeStatus(
+                static_cast<std::uint32_t>(result),
+                GameWIP::Status::Types::NativeCodeDomain::HResult);
         }
 
         attachment.gameInputModule = moduleReference.release();
@@ -542,11 +546,11 @@ namespace GameWIP::Input::Platform::Win32
         attachment.gameInputCallbackToken = 0;
     }
 
-    IO::Types::Status pollGameInput(AttachmentState &attachment, SystemState &state) noexcept
+    GameWIP::Status::Types::Status pollGameInput(AttachmentState &attachment, SystemState &state) noexcept
     {
         if(attachment.gameInput == nullptr || attachment.system == nullptr)
         {
-            return status(IO::Types::ErrorCode::Unsupported);
+            return status(GameWIP::Status::Types::Code::Unsupported);
         }
 
         try
@@ -633,13 +637,13 @@ namespace GameWIP::Input::Platform::Win32
                 publishGameInputController(state, binding, *reading);
             }
 
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
         catch(const std::bad_alloc &)
         {
             ++state.health.totalBackendFailures;
             state.pendingDiscontinuity = true;
-            return status(IO::Types::ErrorCode::OutOfMemory);
+            return status(GameWIP::Status::Types::Code::OutOfMemory);
         }
     }
 } // namespace GameWIP::Input::Platform::Win32

@@ -16,7 +16,7 @@ namespace GameWIP::FileSystem::Platform
     /// Entry queries
     /// ------------------------------------------------------------
 
-    EntryQueryResult queryEntry(const Types::Path &path, Types::SymlinkPolicy symlinkPolicy) noexcept
+    GameWIP::Status::Types::Result<Types::EntryInfo> queryEntry(const Types::Path &path, Types::SymlinkPolicy symlinkPolicy) noexcept
     {
         try
         {
@@ -24,11 +24,11 @@ namespace GameWIP::FileSystem::Platform
         }
         catch(const std::bad_alloc &)
         {
-            return {.status = IO::makeStatus(ErrorCode::OutOfMemory)};
+            return failure<Types::EntryInfo>(ErrorCode::OutOfMemory);
         }
         catch(...)
         {
-            return {.status = IO::makeStatus(ErrorCode::Unknown)};
+            return failure<Types::EntryInfo>(ErrorCode::Unknown);
         }
     }
 
@@ -36,57 +36,57 @@ namespace GameWIP::FileSystem::Platform
     /// Entry metadata
     /// ------------------------------------------------------------
 
-    IO::Types::Status setReadOnly(const Types::Path &path, bool readOnly, Types::SymlinkPolicy symlinkPolicy) noexcept
+    GameWIP::Status::Types::Result<void> setReadOnly(const Types::Path &path, bool readOnly, Types::SymlinkPolicy symlinkPolicy) noexcept
     {
         try
         {
             if(path.empty() || !isValidSymlinkPolicy(symlinkPolicy))
             {
-                return IO::makeStatus(ErrorCode::InvalidArgument);
+                return failure<void>(ErrorCode::InvalidArgument);
             }
 
-            OpenPathResult opened =
+            auto opened =
                 openExistingPath(path, symlinkPolicy, FILE_READ_ATTRIBUTES | FILE_WRITE_ATTRIBUTES, kShareAll, true, ErrorCode::StatFailed);
 
-            if(!opened.status.ok())
+            if(!opened.ok())
             {
-                return std::move(opened.status);
+                return failure<void>(opened.status());
             }
 
-            return setHandleReadOnly(opened.handle.get(), readOnly);
+            return setHandleReadOnly(opened.value().handle.get(), readOnly);
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(ErrorCode::OutOfMemory);
+            return failure<void>(ErrorCode::OutOfMemory);
         }
         catch(...)
         {
-            return IO::makeStatus(ErrorCode::Unknown);
+            return failure<void>(ErrorCode::Unknown);
         }
     }
 
-    IO::Types::Status copyBasicMetadata(const Types::Path &from, const Types::Path &to, Types::SymlinkPolicy symlinkPolicy) noexcept
+    GameWIP::Status::Types::Result<void> copyBasicMetadata(const Types::Path &from, const Types::Path &to, Types::SymlinkPolicy symlinkPolicy) noexcept
     {
         try
         {
             if(from.empty() || to.empty() || !isValidSymlinkPolicy(symlinkPolicy))
             {
-                return IO::makeStatus(ErrorCode::InvalidArgument);
+                return failure<void>(ErrorCode::InvalidArgument);
             }
 
-            OpenPathResult source = openExistingPath(from, symlinkPolicy, FILE_READ_ATTRIBUTES, kShareAll, false, ErrorCode::StatFailed);
+            auto source = openExistingPath(from, symlinkPolicy, FILE_READ_ATTRIBUTES, kShareAll, false, ErrorCode::StatFailed);
 
-            if(!source.status.ok())
+            if(!source.ok())
             {
-                return std::move(source.status);
+                return failure<void>(source.status());
             }
 
-            if(source.info.kind != Types::EntryKind::RegularFile)
+            if(source.value().info.kind != Types::EntryKind::RegularFile)
             {
-                return IO::makeStatus(ErrorCode::InvalidArgument);
+                return failure<void>(ErrorCode::InvalidArgument);
             }
 
-            OpenPathResult destination = openExistingPath(
+            auto destination = openExistingPath(
                 to,
                 Types::SymlinkPolicy::DoNotFollow,
                 FILE_READ_ATTRIBUTES | FILE_WRITE_ATTRIBUTES,
@@ -94,25 +94,25 @@ namespace GameWIP::FileSystem::Platform
                 false,
                 ErrorCode::StatFailed);
 
-            if(!destination.status.ok())
+            if(!destination.ok())
             {
-                return std::move(destination.status);
+                return failure<void>(destination.status());
             }
 
-            if(destination.info.kind != Types::EntryKind::RegularFile)
+            if(destination.value().info.kind != Types::EntryKind::RegularFile)
             {
-                return IO::makeStatus(ErrorCode::InvalidArgument);
+                return failure<void>(ErrorCode::InvalidArgument);
             }
 
-            return copyHandleBasicMetadata(source.handle.get(), destination.handle.get());
+            return copyHandleBasicMetadata(source.value().handle.get(), destination.value().handle.get());
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(ErrorCode::OutOfMemory);
+            return failure<void>(ErrorCode::OutOfMemory);
         }
         catch(...)
         {
-            return IO::makeStatus(ErrorCode::Unknown);
+            return failure<void>(ErrorCode::Unknown);
         }
     }
 
@@ -120,83 +120,83 @@ namespace GameWIP::FileSystem::Platform
     /// Entry mutations
     /// ------------------------------------------------------------
 
-    IO::Types::Status removeFile(const Types::Path &path, const Types::RemoveOptions &options) noexcept
+    GameWIP::Status::Types::Result<void> removeFile(const Types::Path &path, const Types::RemoveOptions &options) noexcept
     {
         try
         {
             if(path.empty() || !isValidSymlinkPolicy(options.symlinkPolicy))
             {
-                return IO::makeStatus(ErrorCode::InvalidArgument);
+                return failure<void>(ErrorCode::InvalidArgument);
             }
 
-            OpenPathResult opened =
+            auto opened =
                 openExistingPath(path, options.symlinkPolicy, DELETE | FILE_READ_ATTRIBUTES, kShareAll, true, ErrorCode::RemoveFailed);
 
-            if(!opened.status.ok())
+            if(!opened.ok())
             {
-                if(opened.status.code == ErrorCode::NotFound && options.succeedIfMissing)
+                if(opened.status().code() == ErrorCode::NotFound && options.succeedIfMissing)
                 {
-                    return IO::successStatus();
+                    return success();
                 }
-                return std::move(opened.status);
+                return failure<void>(opened.status());
             }
 
-            if(opened.info.kind == Types::EntryKind::Directory)
+            if(opened.value().info.kind == Types::EntryKind::Directory)
             {
-                return IO::makeStatus(ErrorCode::IsDirectory);
+                return failure<void>(ErrorCode::IsDirectory);
             }
 
-            return markHandleForDeletion(opened.handle.get(), ErrorCode::RemoveFailed);
+            return markHandleForDeletion(opened.value().handle.get(), ErrorCode::RemoveFailed);
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(ErrorCode::OutOfMemory);
+            return failure<void>(ErrorCode::OutOfMemory);
         }
         catch(...)
         {
-            return IO::makeStatus(ErrorCode::Unknown);
+            return failure<void>(ErrorCode::Unknown);
         }
     }
 
-    IO::Types::Status removeEmptyDirectory(const Types::Path &path, const Types::RemoveOptions &options) noexcept
+    GameWIP::Status::Types::Result<void> removeEmptyDirectory(const Types::Path &path, const Types::RemoveOptions &options) noexcept
     {
         try
         {
             if(path.empty() || !isValidSymlinkPolicy(options.symlinkPolicy))
             {
-                return IO::makeStatus(ErrorCode::InvalidArgument);
+                return failure<void>(ErrorCode::InvalidArgument);
             }
 
-            OpenPathResult opened =
+            auto opened =
                 openExistingPath(path, options.symlinkPolicy, DELETE | FILE_READ_ATTRIBUTES, kShareAll, true, ErrorCode::RemoveFailed);
 
-            if(!opened.status.ok())
+            if(!opened.ok())
             {
-                if(opened.status.code == ErrorCode::NotFound && options.succeedIfMissing)
+                if(opened.status().code() == ErrorCode::NotFound && options.succeedIfMissing)
                 {
-                    return IO::successStatus();
+                    return success();
                 }
-                return std::move(opened.status);
+                return failure<void>(opened.status());
             }
 
-            if(opened.info.kind != Types::EntryKind::Directory)
+            if(opened.value().info.kind != Types::EntryKind::Directory)
             {
-                return IO::makeStatus(ErrorCode::NotDirectory);
+                return failure<void>(ErrorCode::NotDirectory);
             }
 
-            return markHandleForDeletion(opened.handle.get(), ErrorCode::RemoveFailed);
+            return markHandleForDeletion(opened.value().handle.get(), ErrorCode::RemoveFailed);
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(ErrorCode::OutOfMemory);
+            return failure<void>(ErrorCode::OutOfMemory);
         }
         catch(...)
         {
-            return IO::makeStatus(ErrorCode::Unknown);
+            return failure<void>(ErrorCode::Unknown);
         }
     }
 
-    IO::Types::Status movePath(
+    GameWIP::Status::Types::Result<void> movePath(
         const Types::Path &from,
         const Types::Path &to,
         Types::ReplaceMode replaceMode,
@@ -207,7 +207,7 @@ namespace GameWIP::FileSystem::Platform
             // Validate paths and symlink policy before selecting the move path.
             if(from.empty() || to.empty() || !isValidSymlinkPolicy(symlinkPolicy))
             {
-                return IO::makeStatus(ErrorCode::InvalidArgument);
+                return failure<void>(ErrorCode::InvalidArgument);
             }
 
             DWORD flags = MOVEFILE_WRITE_THROUGH;
@@ -221,44 +221,44 @@ namespace GameWIP::FileSystem::Platform
                 flags |= MOVEFILE_REPLACE_EXISTING;
                 break;
             default:
-                return IO::makeStatus(ErrorCode::InvalidArgument);
+                return failure<void>(ErrorCode::InvalidArgument);
             }
 
             // Use handle-relative rename when traversal cannot follow every symlink.
             if(symlinkPolicy != Types::SymlinkPolicy::FollowAll)
             {
-                OpenPathResult source = openExistingPath(from, symlinkPolicy, DELETE | FILE_READ_ATTRIBUTES, kShareAll, true, ErrorCode::MoveFailed);
+                auto source = openExistingPath(from, symlinkPolicy, DELETE | FILE_READ_ATTRIBUTES, kShareAll, true, ErrorCode::MoveFailed);
 
-                if(!source.status.ok())
+                if(!source.ok())
                 {
-                    return std::move(source.status);
+                    return failure<void>(source.status());
                 }
 
                 // Resolve the destination and keep its parent open through commit.
-                WidePathResult nativeTo = absoluteNativePath(to);
+                auto nativeTo = absoluteNativePath(to);
 
-                if(!nativeTo.status.ok())
+                if(!nativeTo.ok())
                 {
-                    return std::move(nativeTo.status);
+                    return failure<void>(nativeTo.status());
                 }
 
-                ParsedPathResult parsedTo = parseAbsolutePath(nativeTo.path);
+                auto parsedTo = parseAbsolutePath(nativeTo.value());
 
-                if(!parsedTo.status.ok())
+                if(!parsedTo.ok())
                 {
-                    return std::move(parsedTo.status);
+                    return failure<void>(parsedTo.status());
                 }
 
-                if(parsedTo.components.empty())
+                if(parsedTo.value().components.empty())
                 {
-                    return IO::makeStatus(ErrorCode::InvalidArgument);
+                    return failure<void>(ErrorCode::InvalidArgument);
                 }
 
-                HandleResult destinationParent = openParentStrict(parsedTo);
+                auto destinationParent = openParentStrict(parsedTo.value());
 
-                if(!destinationParent.status.ok())
+                if(!destinationParent.ok())
                 {
-                    return std::move(destinationParent.status);
+                    return failure<void>(destinationParent.status());
                 }
 
 #if FILESYSTEM_INTERNAL_TEST_HOOKS
@@ -267,7 +267,7 @@ namespace GameWIP::FileSystem::Platform
 
                 // Keep the validated parent handle authoritative through commit. An absolute name
                 // would re-resolve every ancestor and reopen the validation-to-rename race.
-                const std::wstring &fileName = parsedTo.components.back();
+                const std::wstring &fileName = parsedTo.value().components.back();
                 const DWORD fileNameBytes = static_cast<DWORD>(fileName.size() * sizeof(wchar_t));
                 std::vector<std::byte> renameBuffer(sizeof(FILE_RENAME_INFO) + fileNameBytes + sizeof(wchar_t));
                 // renameBuffer owns the complete fixed header, variable file name, and terminator passed to NtSetInformationFile.
@@ -279,7 +279,7 @@ namespace GameWIP::FileSystem::Platform
 #pragma clang unsafe_buffer_usage end
 #endif
                 renameInfo->ReplaceIfExists = replaceMode == Types::ReplaceMode::ReplaceExisting;
-                renameInfo->RootDirectory = destinationParent.handle.get();
+                renameInfo->RootDirectory = destinationParent.value().handle.get();
                 renameInfo->FileNameLength = fileNameBytes;
                 std::copy(fileName.begin(), fileName.end(), renameInfo->FileName);
 
@@ -287,12 +287,12 @@ namespace GameWIP::FileSystem::Platform
 
                 if(api.setInformationFile == nullptr)
                 {
-                    return IO::makeStatus(ErrorCode::Unsupported, 0, "NtSetInformationFile is unavailable");
+                    return failure<void>(Status::withDiagnostic(ErrorCode::Unsupported, "NtSetInformationFile is unavailable"));
                 }
 
                 IO_STATUS_BLOCK renameStatus{};
                 const NTSTATUS status = api.setInformationFile(
-                    source.handle.get(),
+                    source.value().handle.get(),
                     &renameStatus,
                     renameInfo,
                     static_cast<ULONG>(renameBuffer.size()),
@@ -300,45 +300,45 @@ namespace GameWIP::FileSystem::Platform
 
                 if(!NT_SUCCESS(status))
                 {
-                    return makeNtStatus(status, ErrorCode::MoveFailed);
+                    return failure<void>(makeNtStatus(status, ErrorCode::MoveFailed));
                 }
 
 #if FILESYSTEM_INTERNAL_TEST_HOOKS
                 pauseMoveIfArmed(true);
 #endif
 
-                return IO::successStatus();
+                return success();
             }
 
             // Use ordinary Win32 path resolution when all symlinks may be followed.
-            WidePathResult nativeFrom = absoluteNativePath(from);
+            auto nativeFrom = absoluteNativePath(from);
 
-            if(!nativeFrom.status.ok())
+            if(!nativeFrom.ok())
             {
-                return std::move(nativeFrom.status);
+                return failure<void>(nativeFrom.status());
             }
 
-            WidePathResult nativeTo = absoluteNativePath(to);
+            auto nativeTo = absoluteNativePath(to);
 
-            if(!nativeTo.status.ok())
+            if(!nativeTo.ok())
             {
-                return std::move(nativeTo.status);
+                return failure<void>(nativeTo.status());
             }
 
-            if(MoveFileExW(nativeFrom.path.c_str(), nativeTo.path.c_str(), flags) == FALSE)
+            if(MoveFileExW(nativeFrom.value().c_str(), nativeTo.value().c_str(), flags) == FALSE)
             {
-                return makeLastErrorStatus(ErrorCode::MoveFailed);
+                return failure<void>(makeLastErrorStatus(ErrorCode::MoveFailed));
             }
 
-            return IO::successStatus();
+            return success();
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(ErrorCode::OutOfMemory);
+            return failure<void>(ErrorCode::OutOfMemory);
         }
         catch(...)
         {
-            return IO::makeStatus(ErrorCode::Unknown);
+            return failure<void>(ErrorCode::Unknown);
         }
     }
 
@@ -346,16 +346,16 @@ namespace GameWIP::FileSystem::Platform
     /// Directory durability
     /// ------------------------------------------------------------
 
-    IO::Types::Status flushDirectory(const Types::Path &path) noexcept
+    GameWIP::Status::Types::Result<void> flushDirectory(const Types::Path &path) noexcept
     {
         try
         {
             if(path.empty())
             {
-                return IO::makeStatus(ErrorCode::InvalidArgument);
+                return failure<void>(ErrorCode::InvalidArgument);
             }
 
-            OpenPathResult opened = openExistingPath(
+            auto opened = openExistingPath(
                 path,
                 Types::SymlinkPolicy::FollowAll,
                 FILE_GENERIC_READ | FILE_GENERIC_WRITE,
@@ -363,30 +363,30 @@ namespace GameWIP::FileSystem::Platform
                 true,
                 ErrorCode::FlushFailed);
 
-            if(!opened.status.ok())
+            if(!opened.ok())
             {
-                return std::move(opened.status);
+                return failure<void>(opened.status());
             }
 
-            if(opened.info.kind != Types::EntryKind::Directory)
+            if(opened.value().info.kind != Types::EntryKind::Directory)
             {
-                return IO::makeStatus(ErrorCode::NotDirectory);
+                return failure<void>(ErrorCode::NotDirectory);
             }
 
-            if(FlushFileBuffers(opened.handle.get()) == FALSE)
+            if(FlushFileBuffers(opened.value().handle.get()) == FALSE)
             {
-                return makeLastErrorStatus(ErrorCode::FlushFailed);
+                return failure<void>(makeLastErrorStatus(ErrorCode::FlushFailed));
             }
 
-            return IO::successStatus();
+            return success();
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(ErrorCode::OutOfMemory);
+            return failure<void>(ErrorCode::OutOfMemory);
         }
         catch(...)
         {
-            return IO::makeStatus(ErrorCode::Unknown);
+            return failure<void>(ErrorCode::Unknown);
         }
     }
 
@@ -394,33 +394,33 @@ namespace GameWIP::FileSystem::Platform
     /// Hidden-entry query
     /// ------------------------------------------------------------
 
-    Types::BoolResult isHidden(const Types::Path &path) noexcept
+    GameWIP::Status::Types::Result<bool> isHidden(const Types::Path &path) noexcept
     {
         try
         {
-            WidePathResult nativePath = absoluteNativePath(path);
+            auto nativePath = absoluteNativePath(path);
 
-            if(!nativePath.status.ok())
+            if(!nativePath.ok())
             {
-                return {.status = std::move(nativePath.status), .value = false};
+                return failure<bool>(nativePath.status());
             }
 
-            const DWORD attributes = GetFileAttributesW(nativePath.path.c_str());
+            const DWORD attributes = GetFileAttributesW(nativePath.value().c_str());
 
             if(attributes == INVALID_FILE_ATTRIBUTES)
             {
-                return {.status = makeLastErrorStatus(ErrorCode::StatFailed), .value = false};
+                return failure<bool>(makeLastErrorStatus(ErrorCode::StatFailed));
             }
 
-            return {.status = IO::successStatus(), .value = (attributes & FILE_ATTRIBUTE_HIDDEN) != 0};
+            return GameWIP::Status::Types::Result<bool>::success((attributes & FILE_ATTRIBUTE_HIDDEN) != 0);
         }
         catch(const std::bad_alloc &)
         {
-            return {.status = IO::makeStatus(ErrorCode::OutOfMemory), .value = false};
+            return failure<bool>(ErrorCode::OutOfMemory);
         }
         catch(...)
         {
-            return {.status = IO::makeStatus(ErrorCode::Unknown), .value = false};
+            return failure<bool>(ErrorCode::Unknown);
         }
     }
 

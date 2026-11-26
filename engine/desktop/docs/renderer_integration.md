@@ -48,7 +48,7 @@ Passive mask values are grouped under `Desktop::Types::Renderer`:
 
 - `PointerHitMaskWord`
 - `PointerHitMaskTarget`
-- `Types::Result<PointerHitMaskTarget>`
+- `GameWIP::Status::Types::Result<PointerHitMaskTarget>`
 
 `Renderer::requiredPointerHitMaskWords()` computes the packed storage requirement for a framebuffer extent. `beginPointerHitMaskUpdate()` returns the
 current generation/extent target. `publishPointerHitMask()` copies a complete

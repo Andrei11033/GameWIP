@@ -42,7 +42,7 @@ namespace GameWIP::Desktop::Platform
     };
 
     /// @brief Creates one native cursor for each portable DPI variant.
-    [[nodiscard]] IO::Types::Status createNativeCursorVariants(
+    [[nodiscard]] GameWIP::Status::Types::Status createNativeCursorVariants(
         std::span<const Types::Cursor::ImageView> images,
         std::vector<NativeCursorVariant> &variants) noexcept;
     /// @brief Destroys native cursor handles after the owning cursor state expires.
@@ -53,7 +53,7 @@ namespace GameWIP::Desktop::Platform
     /// ------------------------------------------------------------
 
     /// @brief Binds a shared cursor state to a native Window.
-    [[nodiscard]] IO::Types::Status setCustomCursor(WindowState &window, std::shared_ptr<const CursorState> cursor) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Status setCustomCursor(WindowState &window, std::shared_ptr<const CursorState> cursor) noexcept;
     /// @brief Tests whether a Window currently has a custom cursor binding.
     [[nodiscard]] bool hasCustomCursor(const WindowState &window) noexcept;
     /// @brief Returns the intended DPI of the Window's selected cursor variant.

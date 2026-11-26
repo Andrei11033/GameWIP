@@ -44,7 +44,6 @@ set(DESKTOP_PUBLIC_HEADERS
     "${CMAKE_CURRENT_SOURCE_DIR}/events.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/icon_types.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/renderer_bridge.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/result.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/shell.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/shell_jump_lists.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/shell_notifications.h"
@@ -98,7 +97,7 @@ target_compile_definitions(
     INTERFACE $<BUILD_INTERFACE:DESKTOP_INTERNAL_TEST_HOOKS=$<BOOL:${DESKTOP_ENABLE_TEST_HOOKS}>>
 )
 
-target_link_libraries(Desktop PUBLIC IO FileSystem PRIVATE Unicode $<BUILD_INTERFACE:GameWIPBase>)
+target_link_libraries(Desktop PUBLIC Status FileSystem PRIVATE Unicode $<BUILD_INTERFACE:GameWIPBase>)
 
 set_target_properties(
     Desktop

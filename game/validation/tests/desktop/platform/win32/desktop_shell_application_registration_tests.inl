@@ -116,21 +116,25 @@ void testShellRegistrationApplicationOwnership(TestSupport::Context &context, co
     }
 
     const auto foreignCollision = registerDescription();
-    static_cast<void>(context.expectEq("foreign application ownership blocks registration", ErrorCode::AlreadyExists, foreignCollision.status.code));
-    static_cast<void>(context.expectEq("foreign application conflict is reported", std::size_t{1}, foreignCollision.conflicts.size()));
+    static_cast<void>(context.expectEq("foreign application ownership blocks registration", ErrorCode::AlreadyExists, foreignCollision.status().code()));
+    static_cast<void>(context.expectTrue("foreign application conflict details are retained", foreignCollision.hasValue()));
+    static_cast<void>(context.expectEq(
+        "foreign application conflict is reported",
+        std::size_t{1},
+        foreignCollision.hasValue() ? foreignCollision.value().conflicts.size() : 0));
 
-    if(foreignCollision.conflicts.size() == 1)
+    if(foreignCollision.hasValue() && foreignCollision.value().conflicts.size() == 1)
     {
         static_cast<void>(context.expectEq(
             "foreign application conflict has the application kind",
             RegistrationTypes::TargetKind::ApplicationRecord,
-            foreignCollision.conflicts.front().kind));
+            foreignCollision.value().conflicts.front().kind));
         static_cast<void>(context.expectEq(
             "foreign application conflict names the executable",
             applicationExecutable.filename().string(),
-            foreignCollision.conflicts.front().target));
+            foreignCollision.value().conflicts.front().target));
         static_cast<void>(
-            context.expectEq("foreign application conflict reports its owner", foreignOwner, foreignCollision.conflicts.front().ownerKey));
+            context.expectEq("foreign application conflict reports its owner", foreignOwner, foreignCollision.value().conflicts.front().ownerKey));
     }
     HKEY targetKey = nullptr;
     const LONG targetStatus = RegOpenKeyExW(HKEY_CURRENT_USER, targetPath.c_str(), 0, KEY_READ, &targetKey);
@@ -174,12 +178,17 @@ void testShellRegistrationApplicationOwnership(TestSupport::Context &context, co
     }
 
     const auto unownedCollision = registerDescription();
-    static_cast<void>(context.expectEq("unowned application record blocks registration", ErrorCode::AlreadyExists, unownedCollision.status.code));
-    static_cast<void>(context.expectEq("unowned application conflict is reported", std::size_t{1}, unownedCollision.conflicts.size()));
+    static_cast<void>(context.expectEq("unowned application record blocks registration", ErrorCode::AlreadyExists, unownedCollision.status().code()));
+    static_cast<void>(context.expectTrue("unowned application conflict details are retained", unownedCollision.hasValue()));
+    static_cast<void>(context.expectEq(
+        "unowned application conflict is reported",
+        std::size_t{1},
+        unownedCollision.hasValue() ? unownedCollision.value().conflicts.size() : 0));
 
-    if(unownedCollision.conflicts.size() == 1)
+    if(unownedCollision.hasValue() && unownedCollision.value().conflicts.size() == 1)
     {
-        static_cast<void>(context.expectTrue("unowned application conflict has no owner", unownedCollision.conflicts.front().ownerKey.empty()));
+        static_cast<void>(context.expectTrue(
+            "unowned application conflict has no owner", unownedCollision.value().conflicts.front().ownerKey.empty()));
     }
     if(!context.expectTrue("unowned application fixture removes", removeApplicationFixture()))
     {
@@ -189,14 +198,14 @@ void testShellRegistrationApplicationOwnership(TestSupport::Context &context, co
     // Verify cleanup failure retains enough state for a retry.
     const auto created = registerDescription();
 
-    if(!context.expectTrue("application registration succeeds after conflict removal", created.status.ok()))
+    if(!context.expectTrue("application registration succeeds after conflict removal", created.ok()))
     {
         return;
     }
 
     Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::ShellRegistryDelete);
     const auto failedCleanup = Desktop::Registration::unregisterFileExtension(owner, target);
-    static_cast<void>(context.expectEq("registry deletion failure is propagated", ErrorCode::PermissionDenied, failedCleanup.status.code));
+    static_cast<void>(context.expectEq("registry deletion failure is propagated", ErrorCode::PermissionDenied, failedCleanup.status().code()));
     Desktop::Internal::TestHooks::resetFailures();
     HKEY retained = nullptr;
     const LONG retainedStatus = RegOpenKeyExW(HKEY_CURRENT_USER, applicationPath.c_str(), 0, KEY_READ, &retained);
@@ -227,7 +236,7 @@ void testShellRegistrationApplicationOwnership(TestSupport::Context &context, co
             nullptr,
             value.data(),
             &bytes)));
-    static_cast<void>(context.expectTrue("cleanup retry succeeds", Desktop::Registration::unregisterFileExtension(owner, target).status.ok()));
+    static_cast<void>(context.expectTrue("cleanup retry succeeds", Desktop::Registration::unregisterFileExtension(owner, target).ok()));
     HKEY removed = nullptr;
     const LONG removedStatus = RegOpenKeyExW(HKEY_CURRENT_USER, applicationPath.c_str(), 0, KEY_READ, &removed);
 

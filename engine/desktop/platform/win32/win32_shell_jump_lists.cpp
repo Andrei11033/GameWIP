@@ -1,6 +1,7 @@
 /// @file win32_shell_jump_lists.cpp
 /// @brief Win32 Jump List backend.
 
+#include "desktop/internal/results.h"
 #include "desktop/platform/shell.h"
 
 #include "desktop/platform/win32/internal/test_hooks.h"
@@ -24,7 +25,7 @@
 
 namespace GameWIP::Desktop::Platform
 {
-    using IO::Types::ErrorCode;
+    using ErrorCode = GameWIP::Status::Types::Code;
 
     namespace
     {
@@ -32,7 +33,7 @@ namespace GameWIP::Desktop::Platform
         /// Jump List entries
         /// ------------------------------------------------------------
 
-        [[nodiscard]] IO::Types::Status createJumpLink(const Types::JumpLists::Task &task, ComPtr<IShellLinkW> &out)
+        [[nodiscard]] GameWIP::Status::Types::Status createJumpLink(const Types::JumpLists::Task &task, ComPtr<IShellLinkW> &out)
         {
             // Create the native link and convert its launch action.
             HRESULT result = CoCreateInstance(CLSID_ShellLink, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(out.put()));
@@ -44,7 +45,7 @@ namespace GameWIP::Desktop::Platform
 
             std::wstring executable;
             std::wstring arguments;
-            IO::Types::Status status = makeLaunchCommand(task.action, false, executable, arguments);
+            GameWIP::Status::Types::Status status = makeLaunchCommand(task.action, false, executable, arguments);
 
             if(!status.ok())
             {
@@ -53,7 +54,7 @@ namespace GameWIP::Desktop::Platform
 
             if(arguments.empty())
             {
-                return IO::makeStatus(ErrorCode::InvalidArgument);
+                return GameWIP::Desktop::Internal::statusFor(ErrorCode::InvalidArgument);
             }
 
             // Set the launch target and command-line arguments.
@@ -77,7 +78,7 @@ namespace GameWIP::Desktop::Platform
 
             if(!utf8ToUtf16(task.title, title, nativeCode))
             {
-                return IO::makeStatus(ErrorCode::EncodingFailed, nativeCode);
+                return GameWIP::Desktop::Internal::statusFor(ErrorCode::EncodingFailed, nativeCode, GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
             }
 
             ComPtr<IPropertyStore> properties;
@@ -109,7 +110,7 @@ namespace GameWIP::Desktop::Platform
 
             if(!utf8ToUtf16(task.description, description, nativeCode))
             {
-                return IO::makeStatus(ErrorCode::EncodingFailed, nativeCode);
+                return GameWIP::Desktop::Internal::statusFor(ErrorCode::EncodingFailed, nativeCode, GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
             }
 
             result = out->SetDescription(description.c_str());
@@ -120,10 +121,10 @@ namespace GameWIP::Desktop::Platform
             }
 
             result = out->SetIconLocation(executable.c_str(), 0);
-            return FAILED(result) ? statusFromHResult(result) : IO::successStatus();
+            return FAILED(result) ? statusFromHResult(result) : GameWIP::Status::Types::Status{};
         }
 
-        [[nodiscard]] IO::Types::Status createJumpTaskArray(std::span<const Types::JumpLists::Task> tasks, ComPtr<IObjectArray> &out)
+        [[nodiscard]] GameWIP::Status::Types::Status createJumpTaskArray(std::span<const Types::JumpLists::Task> tasks, ComPtr<IObjectArray> &out)
         {
             ComPtr<IObjectCollection> collection;
             HRESULT result = CoCreateInstance(CLSID_EnumerableObjectCollection, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(collection.put()));
@@ -137,7 +138,7 @@ namespace GameWIP::Desktop::Platform
             for(const Types::JumpLists::Task &task : tasks)
             {
                 ComPtr<IShellLinkW> link;
-                IO::Types::Status status = createJumpLink(task, link);
+                GameWIP::Status::Types::Status status = createJumpLink(task, link);
 
                 if(!status.ok())
                 {
@@ -160,16 +161,16 @@ namespace GameWIP::Desktop::Platform
                 return statusFromHResult(result);
             }
 
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
 
-        [[nodiscard]] IO::Types::Status appendJumpTasks(
+        [[nodiscard]] GameWIP::Status::Types::Status appendJumpTasks(
             ICustomDestinationList *list,
             std::wstring_view category,
             std::span<const Types::JumpLists::Task> tasks)
         {
             ComPtr<IObjectArray> objects;
-            const IO::Types::Status status = createJumpTaskArray(tasks, objects);
+            const GameWIP::Status::Types::Status status = createJumpTaskArray(tasks, objects);
 
             if(!status.ok())
             {
@@ -179,7 +180,7 @@ namespace GameWIP::Desktop::Platform
             // Append the completed task array under its category label.
             std::wstring label(category);
             const HRESULT result = list->AppendCategory(label.c_str(), objects.get());
-            return FAILED(result) ? statusFromHResult(result) : IO::successStatus();
+            return FAILED(result) ? statusFromHResult(result) : GameWIP::Status::Types::Status{};
         }
 
         /// @brief Commits or cancels one ICustomDestinationList transaction safely.
@@ -226,14 +227,14 @@ namespace GameWIP::Desktop::Internal::Win32
 {
     using namespace GameWIP::Desktop::Platform;
 
-    IO::Types::Status testShellApartment() noexcept
+    GameWIP::Status::Types::Status testShellApartment() noexcept
     {
         ApartmentLease apartment;
-        const IO::Types::Status &status = apartment.status();
-        return status.ok() ? IO::successStatus() : IO::makeStatus(status.code, status.nativeCode);
+        const GameWIP::Status::Types::Status &status = apartment.status();
+        return status.ok() ? GameWIP::Status::Types::Status{} : status;
     }
 
-    IO::Types::Status createJumpLinkForTests(const Types::JumpLists::Task &task, void *&out) noexcept
+    GameWIP::Status::Types::Status createJumpLinkForTests(const Types::JumpLists::Task &task, void *&out) noexcept
     {
         out = nullptr;
         ApartmentLease apartment;
@@ -246,7 +247,7 @@ namespace GameWIP::Desktop::Internal::Win32
         try
         {
             ComPtr<IShellLinkW> link;
-            const IO::Types::Status status = createJumpLink(task, link);
+            const GameWIP::Status::Types::Status status = createJumpLink(task, link);
 
             if(status.ok())
             {
@@ -258,11 +259,11 @@ namespace GameWIP::Desktop::Internal::Win32
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(ErrorCode::OutOfMemory);
+            return GameWIP::Desktop::Internal::statusFor(ErrorCode::OutOfMemory);
         }
         catch(...)
         {
-            return IO::makeStatus(ErrorCode::Unknown);
+            return GameWIP::Desktop::Internal::statusFor(ErrorCode::Unknown);
         }
     }
 } // namespace GameWIP::Desktop::Internal::Win32
@@ -271,7 +272,7 @@ namespace GameWIP::Desktop::Internal::Win32
 namespace GameWIP::Desktop::Platform
 {
 
-    IO::Types::Status publishJumpLists(const Types::JumpLists::Description &description) noexcept
+    GameWIP::Status::Types::Status publishJumpLists(const Types::JumpLists::Description &description) noexcept
     {
         ApartmentLease apartment;
 
@@ -299,12 +300,12 @@ namespace GameWIP::Desktop::Platform
                 {
                     if(!utf8ToUtf16(uri->uri, recent, nativeCode))
                     {
-                        return IO::makeStatus(ErrorCode::EncodingFailed, nativeCode);
+                        return GameWIP::Desktop::Internal::statusFor(ErrorCode::EncodingFailed, nativeCode, GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
                     }
                 }
                 else
                 {
-                    return IO::makeStatus(ErrorCode::InvalidArgument);
+                    return GameWIP::Desktop::Internal::statusFor(ErrorCode::InvalidArgument);
                 }
 
                 recentItems.push_back(std::move(recent));
@@ -334,7 +335,7 @@ namespace GameWIP::Desktop::Platform
             if(!description.tasks.empty())
             {
                 ComPtr<IObjectArray> taskArray;
-                IO::Types::Status status = createJumpTaskArray(description.tasks, taskArray);
+                GameWIP::Status::Types::Status status = createJumpTaskArray(description.tasks, taskArray);
 
                 if(!status.ok())
                 {
@@ -357,10 +358,10 @@ namespace GameWIP::Desktop::Platform
 
                 if(!utf8ToUtf16(category.label, label, nativeCode))
                 {
-                    return IO::makeStatus(ErrorCode::EncodingFailed, nativeCode);
+                    return GameWIP::Desktop::Internal::statusFor(ErrorCode::EncodingFailed, nativeCode, GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
                 }
 
-                IO::Types::Status status = appendJumpTasks(list.get(), label, category.tasks);
+                GameWIP::Status::Types::Status status = appendJumpTasks(list.get(), label, category.tasks);
 
                 if(!status.ok())
                 {
@@ -382,15 +383,15 @@ namespace GameWIP::Desktop::Platform
                 SHAddToRecentDocs(SHARD_PATHW, recent.c_str());
             }
 
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(ErrorCode::OutOfMemory);
+            return GameWIP::Desktop::Internal::statusFor(ErrorCode::OutOfMemory);
         }
         catch(...)
         {
-            return IO::makeStatus(ErrorCode::Unknown);
+            return GameWIP::Desktop::Internal::statusFor(ErrorCode::Unknown);
         }
     }
 

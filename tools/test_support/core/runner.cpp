@@ -75,7 +75,7 @@ namespace GameWIP::TestSupport
         {
             Types::Reporting::SinkStatus status = reportSink_->status();
             status.state = Types::Reporting::SinkState::Failed;
-            status.failureStatus = {.error = Types::InfrastructureError::FileOperationFailed};
+            status.failureStatus = GameWIP::Status::Types::Status(GameWIP::Status::Types::Code::FileOperationFailed);
             return status;
         }
     }

@@ -7,6 +7,7 @@
 #include "terminal/style.h"
 #include "terminal/terminal_export.h"
 #include "terminal/types.h"
+#include "status/result.h"
 
 #include <chrono>
 #include <concepts>
@@ -148,14 +149,7 @@ namespace GameWIP::Terminal
             };
 
             /// @brief Result returned by output capability queries.
-            struct CapabilitiesResult
-            {
-                /// @brief Operation status.
-                IO::Types::Status status;
-
-                /// @brief Reported output capabilities.
-                Types::Output::Capabilities capabilities;
-            };
+            using CapabilitiesResult = GameWIP::Status::Types::Result<Capabilities>;
 
             /// @brief Screen or line region targeted by clear().
             enum class ClearTarget
@@ -322,14 +316,7 @@ namespace GameWIP::Terminal
         } // namespace Output
 
         /// @brief Result returned by terminal size queries.
-        struct SizeResult
-        {
-            /// @brief Operation status.
-            IO::Types::Status status;
-
-            /// @brief Reported terminal size.
-            Types::Size size;
-        };
+        using SizeResult = GameWIP::Status::Types::Result<Types::Size>;
 
         namespace Cursor
         {
@@ -344,14 +331,7 @@ namespace GameWIP::Terminal
             };
 
             /// @brief Result returned by cursor position queries.
-            struct PositionResult
-            {
-                /// @brief Operation status.
-                IO::Types::Status status;
-
-                /// @brief Reported cursor position.
-                Types::Cursor::Position position;
-            };
+            using PositionResult = GameWIP::Status::Types::Result<Position>;
 
             /// @brief Relative cursor movement direction.
             enum class MoveDirection

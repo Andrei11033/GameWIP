@@ -1,6 +1,7 @@
 /// @file win32_window_dispatch.cpp
 /// @brief Win32 event pumping and wait dispatch.
 
+#include "desktop/internal/results.h"
 #include "desktop/platform/win32/internal/win32_window_backend.h"
 #include "desktop/internal/accessibility_state.h"
 #include "desktop/platform/shell.h"
@@ -22,7 +23,8 @@ namespace GameWIP::Desktop::Platform
 
             ~ActivePumpScope() noexcept
             {
-                dispatcher_.activeResult = nullptr;
+                dispatcher_.activePumpInfo = nullptr;
+                dispatcher_.activePumpStatus = nullptr;
                 dispatcher_.pumping = false;
             }
 
@@ -38,44 +40,44 @@ namespace GameWIP::Desktop::Platform
     Types::Events::PumpResult pumpEvents(std::chrono::milliseconds timeout, bool wait) noexcept
     {
         Dispatcher &current = dispatcher();
-        Types::Events::PumpResult result;
+        Types::Events::PumpInfo info;
+        GameWIP::Status::Types::Status status;
 
         // Reject reentrant pumps and injected failures before publishing active state.
         if(current.pumping)
         {
-            result.status = IO::makeStatus(IO::Types::ErrorCode::ResourceBusy);
-            return result;
+            return Types::Events::PumpResult::failure(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::ResourceBusy));
         }
 
         if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::EventPump))
         {
-            result.status = IO::makeStatus(IO::Types::ErrorCode::NativeFailure);
-            return result;
+            return Types::Events::PumpResult::failure(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::NativeFailure));
         }
 
         current.pumping = true;
-        current.activeResult = &result;
+        current.activePumpInfo = &info;
+        current.activePumpStatus = &status;
         const ActivePumpScope activePump(current);
 
         // Surface deferred cleanup failures before considering a blocking wait.
         if(current.deferredPumpFailure)
         {
-            result.status = std::move(*current.deferredPumpFailure);
+            status = std::move(*current.deferredPumpFailure);
             current.deferredPumpFailure.reset();
         }
         pruneAbandonedStates(current);
         // Callback/deferred cleanup failures are already the result of this pump; never
         // enter a blocking wait after an error is ready to return.
-        if(!result.status.ok())
+        if(!status.ok())
         {
-            return result;
+            return GameWIP::Desktop::Internal::result(std::move(status), std::move(info));
         }
 
         // Avoid waiting when no native message source is active.
         if(current.windows.empty() && current.childSurfaces.empty() && (!current.progressDialogs || current.progressDialogs->empty()) &&
            !hasShellEventSources())
         {
-            return result;
+            return GameWIP::Status::Types::Result<Types::Events::PumpInfo>::success(std::move(info));
         }
 
         // Pending UI Automation actions must be drained without blocking.
@@ -108,14 +110,14 @@ namespace GameWIP::Desktop::Platform
 
             if(waitResult == WAIT_TIMEOUT)
             {
-                result.timedOut = true;
-                return result;
+                info.timedOut = true;
+                return GameWIP::Status::Types::Result<Types::Events::PumpInfo>::success(std::move(info));
             }
 
             if(waitResult == WAIT_FAILED)
             {
-                result.status = statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "MsgWaitForMultipleObjectsEx");
-                return result;
+                status = statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, GetLastError(), "MsgWaitForMultipleObjectsEx");
+                return GameWIP::Desktop::Internal::result(std::move(status), std::move(info));
             }
         }
 
@@ -176,14 +178,14 @@ namespace GameWIP::Desktop::Platform
 
             if(state != nullptr && state->platform && state->cursorMode == Types::CursorMode::Relative && state->focused)
             {
-                IO::Types::Status cursorStatus = applyCursorState(*state);
+                GameWIP::Status::Types::Status cursorStatus = applyCursorState(*state);
 
-                if(!cursorStatus.ok() && result.status.ok())
+                if(!cursorStatus.ok() && status.ok())
                 {
-                    result.status = std::move(cursorStatus);
+                    status = std::move(cursorStatus);
                 }
             }
         }
-        return result;
+        return GameWIP::Desktop::Internal::result(std::move(status), std::move(info));
     }
 } // namespace GameWIP::Desktop::Platform

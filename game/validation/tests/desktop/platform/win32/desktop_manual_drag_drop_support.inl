@@ -125,14 +125,14 @@ struct ManualDragDropCapture
 [[nodiscard]] bool manualPointerInside(const Desktop::Window &window) noexcept
 {
     const auto native = Desktop::Native::Win32::getHandle(window);
-    if(!native.status.ok() || native->window == nullptr)
+    if(!native.ok() || native.value().window == nullptr)
     {
         return false;
     }
 
     POINT pointer{};
     RECT client{};
-    return GetCursorPos(&pointer) != FALSE && ScreenToClient(native->window, &pointer) != FALSE && GetClientRect(native->window, &client) != FALSE &&
+    return GetCursorPos(&pointer) != FALSE && ScreenToClient(native.value().window, &pointer) != FALSE && GetClientRect(native.value().window, &client) != FALSE &&
            PtInRect(&client, pointer) != FALSE;
 }
 
@@ -144,7 +144,7 @@ struct ManualDragDropRun
     std::size_t attempts = 0;
 
     // Last native result
-    Desktop::Types::DragDrop::Result result;
+    Desktop::Types::DragDrop::Result result = Desktop::Types::DragDrop::Result::success({});
 };
 
 ManualDragDropRun runManualDragDropSource(
@@ -218,16 +218,16 @@ ManualDragDropRun runManualDragDropSource(
         {
             manualStatusWindow->setObservation(
                 std::format(
-                    "Attempt {}: {} | effect={} ({}) | status={} native={}\r\n{}\r\nRelease the button, then drag again to retry. The last attempt "
+                    "Attempt {}: {} | effect={} ({}) | {}\r\n{}\r\nRelease the button, then drag again to retry. The last attempt "
                     "is checked.",
                     run.attempts,
-                    !run.attempted                                                     ? "Waiting"
-                    : run.result.outcome == Desktop::Types::DragDrop::Outcome::Dropped ? "Dropped"
-                                                                                       : "Cancelled",
-                    effectName(run.result.effect),
-                    static_cast<int>(run.result.effect),
-                    IO::errorCodeName(run.result.status.code),
-                    run.result.status.nativeCode,
+                    !run.attempted                   ? "Waiting"
+                    : !run.result.ok()               ? "Failed"
+                    : run.result.value().outcome == Desktop::Types::DragDrop::Outcome::Dropped ? "Dropped"
+                                                                                               : "Cancelled",
+                    effectName(run.result.hasValue() ? run.result.value().effect : Desktop::Types::DragDrop::Effect::None),
+                    static_cast<int>(run.result.hasValue() ? run.result.value().effect : Desktop::Types::DragDrop::Effect::None),
+                    manualStatusDetails(run.result.status()),
                     target != nullptr && capture != nullptr ? capture->observation(context, *target) : std::string{}));
         }
     };
@@ -245,7 +245,7 @@ ManualDragDropRun runManualDragDropSource(
 
         if(run.attempted)
         {
-            static_cast<void>(context.expectTrue(std::format("{} completes without a native error", name), run.result.status.ok()));
+            static_cast<void>(context.expectTrue(std::format("{} completes without a native error", name), run.result.ok()));
         }
     }
 

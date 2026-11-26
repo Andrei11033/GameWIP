@@ -7,14 +7,12 @@
 #include "input/frame.h"
 #include "input/native/desktop_win32.h"
 #include "input/system.h"
-#include "io/status.h"
 #include "runtime/diagnostics/runtime_diagnostics.h"
 #include "runtime/options/runtime_options.h"
 
 namespace GameWIP::Game::Runtime
 {
     namespace Desktop = GameWIP::Desktop;
-    namespace IO = GameWIP::IO;
     namespace Input = GameWIP::Input;
     namespace RuntimeDiagnostics = GameWIP::Game::RuntimeDiagnostics;
 
@@ -39,7 +37,7 @@ namespace GameWIP::Game::Runtime
         {
             return true;
         }
-        [[nodiscard]] IO::Types::Status attachToWindow(Desktop::Window &window) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> attachToWindow(Desktop::Window &window) noexcept;
         void logBackends();
 
         // Session cleanup

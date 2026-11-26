@@ -5,6 +5,8 @@
 
 namespace GameWIP::IO
 {
+    namespace ResultTypes = GameWIP::Status::Types;
+
     /// ------------------------------------------------------------
     /// Default stream behavior
     /// ------------------------------------------------------------
@@ -19,24 +21,24 @@ namespace GameWIP::IO
         return false;
     }
 
-    Types::Status Reader::close() noexcept
+    ResultTypes::Result<void> Reader::close() noexcept
     {
-        return successStatus();
+        return ResultTypes::Result<void>::success();
     }
 
-    Types::PositionResult Reader::position() const noexcept
+    ResultTypes::Result<std::uint64_t> Reader::position() const noexcept
     {
-        return {.status = makeStatus(Types::ErrorCode::NotSeekable), .position = 0};
+        return ResultTypes::Result<std::uint64_t>::failure(ResultTypes::Status(ResultTypes::Code::NotSeekable));
     }
 
-    Types::SizeResult Reader::size() const noexcept
+    ResultTypes::Result<std::uint64_t> Reader::size() const noexcept
     {
-        return {.status = makeStatus(Types::ErrorCode::NotSeekable), .sizeBytes = 0};
+        return ResultTypes::Result<std::uint64_t>::failure(ResultTypes::Status(ResultTypes::Code::NotSeekable));
     }
 
-    Types::Status Reader::seek([[maybe_unused]] std::int64_t offset, [[maybe_unused]] Types::SeekOrigin origin) noexcept
+    ResultTypes::Result<void> Reader::seek([[maybe_unused]] std::int64_t offset, [[maybe_unused]] Types::SeekOrigin origin) noexcept
     {
-        return makeStatus(Types::ErrorCode::NotSeekable);
+        return ResultTypes::Result<void>::failure(ResultTypes::Status(ResultTypes::Code::NotSeekable));
     }
 
     bool Writer::isOpen() const noexcept
@@ -49,29 +51,29 @@ namespace GameWIP::IO
         return false;
     }
 
-    Types::Status Writer::flush(Types::FlushMode mode) noexcept
+    ResultTypes::Result<void> Writer::flush(Types::FlushMode mode) noexcept
     {
         if(!isValidFlushMode(mode))
         {
-            return makeStatus(Types::ErrorCode::InvalidArgument);
+            return ResultTypes::Result<void>::failure(ResultTypes::Status(ResultTypes::Code::InvalidArgument));
         }
 
-        return successStatus();
+        return ResultTypes::Result<void>::success();
     }
 
-    Types::Status Writer::close() noexcept
+    ResultTypes::Result<void> Writer::close() noexcept
     {
-        return successStatus();
+        return ResultTypes::Result<void>::success();
     }
 
-    Types::PositionResult Writer::position() const noexcept
+    ResultTypes::Result<std::uint64_t> Writer::position() const noexcept
     {
-        return {.status = makeStatus(Types::ErrorCode::NotSeekable), .position = 0};
+        return ResultTypes::Result<std::uint64_t>::failure(ResultTypes::Status(ResultTypes::Code::NotSeekable));
     }
 
-    Types::Status Writer::seek([[maybe_unused]] std::int64_t offset, [[maybe_unused]] Types::SeekOrigin origin) noexcept
+    ResultTypes::Result<void> Writer::seek([[maybe_unused]] std::int64_t offset, [[maybe_unused]] Types::SeekOrigin origin) noexcept
     {
-        return makeStatus(Types::ErrorCode::NotSeekable);
+        return ResultTypes::Result<void>::failure(ResultTypes::Status(ResultTypes::Code::NotSeekable));
     }
 
 } // namespace GameWIP::IO

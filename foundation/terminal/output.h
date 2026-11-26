@@ -6,6 +6,7 @@
 #include "io/stream.h"
 #include "terminal/output_types.h"
 #include "terminal/terminal_export.h"
+#include "status/result.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -56,10 +57,10 @@ namespace GameWIP::Terminal
         [[nodiscard]] bool active() const noexcept;
 
         /// @brief Returns the last setup or leave status tracked by this scope.
-        [[nodiscard]] const IO::Types::Status &status() const noexcept;
+        [[nodiscard]] const GameWIP::Status::Types::Status &status() const noexcept;
 
         /// @brief Leaves alternate screen mode and reports leave failure.
-        [[nodiscard]] IO::Types::Status leave() noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> leave() noexcept;
 
     private:
         friend class Session;
@@ -68,7 +69,7 @@ namespace GameWIP::Terminal
 
         Types::Output::Stream stream_ = Types::Output::Stream::Stdout;
         Types::Output::ControlOptions options_{};
-        IO::Types::Status status_{};
+        GameWIP::Status::Types::Status status_{};
         bool active_ = false;
         bool restorationEmitted_ = false;
         bool restoreOnDestruction_ = true;
@@ -103,10 +104,10 @@ namespace GameWIP::Terminal
         [[nodiscard]] bool active() const noexcept;
 
         /// @brief Returns the last setup or restoration status tracked by this scope.
-        [[nodiscard]] const IO::Types::Status &status() const noexcept;
+        [[nodiscard]] const GameWIP::Status::Types::Status &status() const noexcept;
 
         /// @brief Restores cursor visibility and reports restoration failure.
-        [[nodiscard]] IO::Types::Status restore() noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> restore() noexcept;
 
     private:
         friend class Session;
@@ -115,7 +116,7 @@ namespace GameWIP::Terminal
 
         Types::Output::Stream stream_ = Types::Output::Stream::Stdout;
         Types::Output::ControlOptions options_{};
-        IO::Types::Status status_{};
+        GameWIP::Status::Types::Status status_{};
         bool active_ = false;
         bool restorationEmitted_ = false;
         bool restoreOnDestruction_ = true;
@@ -140,11 +141,11 @@ namespace GameWIP::Terminal
 
         /// @brief Changes the line ending used by future line appends.
         /// @return InvalidArgument for an unknown enum value; the previous setting is preserved on failure.
-        [[nodiscard]] IO::Types::Status setLineEnding(Types::Output::LineEnding lineEnding) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> setLineEnding(Types::Output::LineEnding lineEnding) noexcept;
 
         /// @brief Reserves text storage for future appends.
         /// @return OutOfMemory or SizeLimitExceeded instead of propagating allocation/length failures.
-        [[nodiscard]] IO::Types::Status reserve(std::size_t bytes) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> reserve(std::size_t bytes) noexcept;
 
         /// @brief Clears buffered text while retaining capacity.
         void clear() noexcept;
@@ -161,35 +162,35 @@ namespace GameWIP::Terminal
 
         /// @brief Appends UTF-8 text.
         /// @return InvalidArgument for invalid UTF-8, or an allocation/size status. Failure preserves the buffer.
-        [[nodiscard]] IO::Types::Status appendText(std::string_view utf8Text) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> appendText(std::string_view utf8Text) noexcept;
 
         /// @brief Appends UTF-8 text followed by the configured line ending.
         /// @return As appendText(); failure rolls back the whole line.
-        [[nodiscard]] IO::Types::Status appendLine(std::string_view utf8Text = {}) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> appendLine(std::string_view utf8Text = {}) noexcept;
 
         /// @brief Formats text and appends it atomically to the buffer.
         /// @return InvalidArgument for formatting failure, OutOfMemory/SizeLimitExceeded for storage failure, or Unknown.
-        template <class... Args> [[nodiscard]] IO::Types::Status print(std::format_string<Args...> format, Args &&...args) noexcept;
+        template <class... Args> [[nodiscard]] GameWIP::Status::Types::Result<void> print(std::format_string<Args...> format, Args &&...args) noexcept;
 
         /// @brief Formats text and appends it plus the configured line ending atomically.
-        template <class... Args> [[nodiscard]] IO::Types::Status println(std::format_string<Args...> format, Args &&...args) noexcept;
+        template <class... Args> [[nodiscard]] GameWIP::Status::Types::Result<void> println(std::format_string<Args...> format, Args &&...args) noexcept;
 
         /// @brief Writes buffered text to stdout without clearing the buffer.
-        [[nodiscard]] IO::Types::Status writeTo(const Types::Output::TextOptions &options = {}) const noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> writeTo(const Types::Output::TextOptions &options = {}) const noexcept;
 
         /// @brief Writes buffered text to an output stream without clearing the buffer.
-        [[nodiscard]] IO::Types::Status writeTo(Types::Output::Stream stream, const Types::Output::TextOptions &options = {}) const noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> writeTo(Types::Output::Stream stream, const Types::Output::TextOptions &options = {}) const noexcept;
 
         /// @brief Writes buffered text to stdout and clears it only when the write succeeds.
         /// @note The name describes buffer clearing; a backend flush is requested only when options.flushMode is not None.
-        [[nodiscard]] IO::Types::Status flushTo(const Types::Output::TextOptions &options = {}) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> flushTo(const Types::Output::TextOptions &options = {}) noexcept;
 
         /// @brief Writes buffered text to an output stream and clears it only when the write succeeds.
         /// @note The name describes buffer clearing; a backend flush is requested only when options.flushMode is not None.
-        [[nodiscard]] IO::Types::Status flushTo(Types::Output::Stream stream, const Types::Output::TextOptions &options = {}) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> flushTo(Types::Output::Stream stream, const Types::Output::TextOptions &options = {}) noexcept;
 
     private:
-        [[nodiscard]] IO::Types::Status vprint(std::string_view format, std::format_args arguments, bool appendLineEnding) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> vprint(std::string_view format, std::format_args arguments, bool appendLineEnding) noexcept;
 
         std::string text_;
         Types::Output::LineEnding lineEnding_ = Types::Output::LineEnding::Native;
@@ -222,93 +223,93 @@ namespace GameWIP::Terminal
     /// @{
 
     /// @brief Writes UTF-8 text to stdout.
-    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status writeText(std::string_view utf8Text, const Types::Output::TextOptions &options = {}) noexcept;
+    [[nodiscard]] TERMINAL_EXPORT GameWIP::Status::Types::Result<void> writeText(std::string_view utf8Text, const Types::Output::TextOptions &options = {}) noexcept;
 
     /// @brief Writes UTF-8 text to an output stream.
-    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status writeText(
+    [[nodiscard]] TERMINAL_EXPORT GameWIP::Status::Types::Result<void> writeText(
         Types::Output::Stream stream,
         std::string_view utf8Text,
         const Types::Output::TextOptions &options = {}) noexcept;
 
     /// @brief Writes UTF-8 text followed by a line ending to stdout.
-    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status writeLine(
+    [[nodiscard]] TERMINAL_EXPORT GameWIP::Status::Types::Result<void> writeLine(
         std::string_view utf8Text = {},
         const Types::Output::LineOptions &options = {}) noexcept;
 
     /// @brief Writes UTF-8 text followed by a line ending to an output stream.
-    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status writeLine(
+    [[nodiscard]] TERMINAL_EXPORT GameWIP::Status::Types::Result<void> writeLine(
         Types::Output::Stream stream,
         std::string_view utf8Text = {},
         const Types::Output::LineOptions &options = {}) noexcept;
 
     /// @brief Writes bytes to stdout where the endpoint supports raw byte output.
     /// @return Accepted-byte count and status. A requested flush can fail after the full byte count was accepted.
-    [[nodiscard]] TERMINAL_EXPORT IO::Types::WriteResult writeBytes(
+    [[nodiscard]] TERMINAL_EXPORT GameWIP::Status::Types::Result<IO::Types::WriteProgress> writeBytes(
         std::span<const std::byte> bytes,
         const Types::Output::ByteOptions &options = {}) noexcept;
 
     /// @brief Writes bytes to an output stream.
-    [[nodiscard]] TERMINAL_EXPORT IO::Types::WriteResult writeBytes(
+    [[nodiscard]] TERMINAL_EXPORT GameWIP::Status::Types::Result<IO::Types::WriteProgress> writeBytes(
         Types::Output::Stream stream,
         std::span<const std::byte> bytes,
         const Types::Output::ByteOptions &options = {}) noexcept;
 
     /// @brief Writes text, styled text, and byte segments to stdout.
-    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status writeSegments(
+    [[nodiscard]] TERMINAL_EXPORT GameWIP::Status::Types::Result<void> writeSegments(
         std::span<const Types::Output::Segment> segments,
         const Types::Output::SegmentOptions &options = {}) noexcept;
 
     /// @brief Writes text, styled text, and byte segments to an output stream.
-    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status writeSegments(
+    [[nodiscard]] TERMINAL_EXPORT GameWIP::Status::Types::Result<void> writeSegments(
         Types::Output::Stream stream,
         std::span<const Types::Output::Segment> segments,
         const Types::Output::SegmentOptions &options = {}) noexcept;
 
     /// @brief Formats text and writes it to stdout.
-    /// @details Formatting occurs before final stdout serialization. Formatting-stage failures are converted to IO statuses.
-    template <class... Args> [[nodiscard]] IO::Types::Status print(std::format_string<Args...> format, Args &&...args) noexcept;
+    /// @details Formatting occurs before final stdout serialization. Formatting-stage failures use shared status results.
+    template <class... Args> [[nodiscard]] GameWIP::Status::Types::Result<void> print(std::format_string<Args...> format, Args &&...args) noexcept;
 
     /// @brief Formats text and writes it to an output stream.
     template <class... Args>
-    [[nodiscard]] IO::Types::Status print(Types::Output::Stream stream, std::format_string<Args...> format, Args &&...args) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<void> print(Types::Output::Stream stream, std::format_string<Args...> format, Args &&...args) noexcept;
 
     /// @brief Formats text and writes it to stdout.
     template <class... Args>
-    [[nodiscard]] IO::Types::Status print(const Types::Output::TextOptions &options, std::format_string<Args...> format, Args &&...args) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<void> print(const Types::Output::TextOptions &options, std::format_string<Args...> format, Args &&...args) noexcept;
 
     /// @brief Formats text and writes it to an output stream.
     template <class... Args>
-    [[nodiscard]] IO::Types::Status print(
+    [[nodiscard]] GameWIP::Status::Types::Result<void> print(
         Types::Output::Stream stream,
         const Types::Output::TextOptions &options,
         std::format_string<Args...> format,
         Args &&...args) noexcept;
 
     /// @brief Formats text and writes it followed by a line ending to stdout.
-    /// @details Formatting occurs before final stdout serialization. Formatting-stage failures are converted to IO statuses.
-    template <class... Args> [[nodiscard]] IO::Types::Status println(std::format_string<Args...> format, Args &&...args) noexcept;
+    /// @details Formatting occurs before final stdout serialization. Formatting-stage failures use shared status results.
+    template <class... Args> [[nodiscard]] GameWIP::Status::Types::Result<void> println(std::format_string<Args...> format, Args &&...args) noexcept;
 
     /// @brief Formats text and writes it followed by a line ending to an output stream.
     template <class... Args>
-    [[nodiscard]] IO::Types::Status println(Types::Output::Stream stream, std::format_string<Args...> format, Args &&...args) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<void> println(Types::Output::Stream stream, std::format_string<Args...> format, Args &&...args) noexcept;
 
     /// @brief Formats text and writes it followed by a line ending to stdout.
     template <class... Args>
-    [[nodiscard]] IO::Types::Status println(const Types::Output::LineOptions &options, std::format_string<Args...> format, Args &&...args) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<void> println(const Types::Output::LineOptions &options, std::format_string<Args...> format, Args &&...args) noexcept;
 
     /// @brief Formats text and writes it followed by a line ending to an output stream.
     template <class... Args>
-    [[nodiscard]] IO::Types::Status println(
+    [[nodiscard]] GameWIP::Status::Types::Result<void> println(
         Types::Output::Stream stream,
         const Types::Output::LineOptions &options,
         std::format_string<Args...> format,
         Args &&...args) noexcept;
 
     /// @brief Flushes stdout.
-    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status flush(IO::Types::FlushMode mode = IO::Types::FlushMode::Data) noexcept;
+    [[nodiscard]] TERMINAL_EXPORT GameWIP::Status::Types::Result<void> flush(IO::Types::FlushMode mode = IO::Types::FlushMode::Data) noexcept;
 
     /// @brief Flushes an output stream.
-    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status flush(
+    [[nodiscard]] TERMINAL_EXPORT GameWIP::Status::Types::Result<void> flush(
         Types::Output::Stream stream,
         IO::Types::FlushMode mode = IO::Types::FlushMode::Data) noexcept;
 
@@ -318,34 +319,34 @@ namespace GameWIP::Terminal
     /// @{
 
     /// @brief Resets style on stdout.
-    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status resetStyle(const Types::Output::ControlOptions &options = {}) noexcept;
+    [[nodiscard]] TERMINAL_EXPORT GameWIP::Status::Types::Result<void> resetStyle(const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Resets style on an output stream.
-    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status resetStyle(
+    [[nodiscard]] TERMINAL_EXPORT GameWIP::Status::Types::Result<void> resetStyle(
         Types::Output::Stream stream,
         const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Moves the cursor on stdout.
     /// @note A zero amount emits no control sequence but can still honor options.flushMode.
-    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status moveCursor(
+    [[nodiscard]] TERMINAL_EXPORT GameWIP::Status::Types::Result<void> moveCursor(
         Types::Cursor::MoveDirection direction,
         std::uint32_t amount = 1,
         const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Moves the cursor on an output stream.
-    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status moveCursor(
+    [[nodiscard]] TERMINAL_EXPORT GameWIP::Status::Types::Result<void> moveCursor(
         Types::Output::Stream stream,
         Types::Cursor::MoveDirection direction,
         std::uint32_t amount = 1,
         const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Sets cursor position on stdout.
-    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status setCursorPosition(
+    [[nodiscard]] TERMINAL_EXPORT GameWIP::Status::Types::Result<void> setCursorPosition(
         Types::Cursor::Position position,
         const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Sets cursor position on an output stream.
-    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status setCursorPosition(
+    [[nodiscard]] TERMINAL_EXPORT GameWIP::Status::Types::Result<void> setCursorPosition(
         Types::Output::Stream stream,
         Types::Cursor::Position position,
         const Types::Output::ControlOptions &options = {}) noexcept;
@@ -361,28 +362,28 @@ namespace GameWIP::Terminal
 
     /// @brief Saves cursor position on stdout.
     /// @note Saved position is backend state, not a guaranteed stack; a later save can replace it.
-    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status saveCursorPosition(const Types::Output::ControlOptions &options = {}) noexcept;
+    [[nodiscard]] TERMINAL_EXPORT GameWIP::Status::Types::Result<void> saveCursorPosition(const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Saves cursor position on an output stream.
-    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status saveCursorPosition(
+    [[nodiscard]] TERMINAL_EXPORT GameWIP::Status::Types::Result<void> saveCursorPosition(
         Types::Output::Stream stream,
         const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Restores cursor position on stdout.
-    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status restoreCursorPosition(const Types::Output::ControlOptions &options = {}) noexcept;
+    [[nodiscard]] TERMINAL_EXPORT GameWIP::Status::Types::Result<void> restoreCursorPosition(const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Restores cursor position on an output stream.
-    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status restoreCursorPosition(
+    [[nodiscard]] TERMINAL_EXPORT GameWIP::Status::Types::Result<void> restoreCursorPosition(
         Types::Output::Stream stream,
         const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Sets cursor visibility on stdout.
     /// @warning Do not mix manual visibility changes with active CursorHiddenScope objects for stdout.
-    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status setCursorVisible(bool visible, const Types::Output::ControlOptions &options = {}) noexcept;
+    [[nodiscard]] TERMINAL_EXPORT GameWIP::Status::Types::Result<void> setCursorVisible(bool visible, const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Sets cursor visibility on an output stream.
     /// @warning Do not mix manual visibility changes with active CursorHiddenScope objects for the same stream.
-    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status setCursorVisible(
+    [[nodiscard]] TERMINAL_EXPORT GameWIP::Status::Types::Result<void> setCursorVisible(
         Types::Output::Stream stream,
         bool visible,
         const Types::Output::ControlOptions &options = {}) noexcept;
@@ -397,25 +398,25 @@ namespace GameWIP::Terminal
     scopedCursorHidden(Types::Output::Stream stream, const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Clears a screen or line region on stdout.
-    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status clear(
+    [[nodiscard]] TERMINAL_EXPORT GameWIP::Status::Types::Result<void> clear(
         Types::Output::ClearTarget target = Types::Output::ClearTarget::EntireScreen,
         const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Clears a screen or line region on an output stream.
-    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status clear(
+    [[nodiscard]] TERMINAL_EXPORT GameWIP::Status::Types::Result<void> clear(
         Types::Output::Stream stream,
         Types::Output::ClearTarget target = Types::Output::ClearTarget::EntireScreen,
         const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Scrolls stdout.
     /// @note A zero line count emits no control sequence but can still honor options.flushMode.
-    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status scroll(
+    [[nodiscard]] TERMINAL_EXPORT GameWIP::Status::Types::Result<void> scroll(
         Types::Output::ScrollDirection direction,
         std::uint32_t lines = 1,
         const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Scrolls an output stream.
-    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status scroll(
+    [[nodiscard]] TERMINAL_EXPORT GameWIP::Status::Types::Result<void> scroll(
         Types::Output::Stream stream,
         Types::Output::ScrollDirection direction,
         std::uint32_t lines = 1,
@@ -423,21 +424,21 @@ namespace GameWIP::Terminal
 
     /// @brief Enters alternate screen mode on stdout.
     /// @warning Do not mix manual transitions with active AlternateScreenScope objects for stdout.
-    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status enterAlternateScreen(const Types::Output::ControlOptions &options = {}) noexcept;
+    [[nodiscard]] TERMINAL_EXPORT GameWIP::Status::Types::Result<void> enterAlternateScreen(const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Enters alternate screen mode on an output stream.
     /// @warning Do not mix manual transitions with active AlternateScreenScope objects for the same stream.
-    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status enterAlternateScreen(
+    [[nodiscard]] TERMINAL_EXPORT GameWIP::Status::Types::Result<void> enterAlternateScreen(
         Types::Output::Stream stream,
         const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Leaves alternate screen mode on stdout.
     /// @warning Do not mix manual transitions with active AlternateScreenScope objects for stdout.
-    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status leaveAlternateScreen(const Types::Output::ControlOptions &options = {}) noexcept;
+    [[nodiscard]] TERMINAL_EXPORT GameWIP::Status::Types::Result<void> leaveAlternateScreen(const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Leaves alternate screen mode on an output stream.
     /// @warning Do not mix manual transitions with active AlternateScreenScope objects for the same stream.
-    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status leaveAlternateScreen(
+    [[nodiscard]] TERMINAL_EXPORT GameWIP::Status::Types::Result<void> leaveAlternateScreen(
         Types::Output::Stream stream,
         const Types::Output::ControlOptions &options = {}) noexcept;
 
@@ -452,20 +453,20 @@ namespace GameWIP::Terminal
 
     /// @brief Sets the terminal title through stdout.
     /// @details Backend limits and sanitization apply; the current Win32 backend replaces C0 controls and DEL with spaces.
-    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status setTitle(std::string_view utf8Title, const Types::Output::ControlOptions &options = {}) noexcept;
+    [[nodiscard]] TERMINAL_EXPORT GameWIP::Status::Types::Result<void> setTitle(std::string_view utf8Title, const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Sets the terminal title through an output stream.
-    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status setTitle(
+    [[nodiscard]] TERMINAL_EXPORT GameWIP::Status::Types::Result<void> setTitle(
         Types::Output::Stream stream,
         std::string_view utf8Title,
         const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Emits the terminal bell control through stdout.
     /// @note Terminal or user settings decide whether the control produces an audible sound.
-    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status ringBell(const Types::Output::ControlOptions &options = {}) noexcept;
+    [[nodiscard]] TERMINAL_EXPORT GameWIP::Status::Types::Result<void> ringBell(const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Rings the terminal bell through an output stream.
-    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status ringBell(
+    [[nodiscard]] TERMINAL_EXPORT GameWIP::Status::Types::Result<void> ringBell(
         Types::Output::Stream stream,
         const Types::Output::ControlOptions &options = {}) noexcept;
 
@@ -475,7 +476,7 @@ namespace GameWIP::Terminal
     {
         /// @brief Exported ABI bridge used by the public print() templates.
         /// @warning Internal support symbol; consumers must call print() instead.
-        [[nodiscard]] TERMINAL_EXPORT IO::Types::Status vprint(
+        [[nodiscard]] TERMINAL_EXPORT GameWIP::Status::Types::Result<void> vprint(
             Types::Output::Stream stream,
             const Types::Output::TextOptions &options,
             std::string_view format,
@@ -483,7 +484,7 @@ namespace GameWIP::Terminal
 
         /// @brief Exported ABI bridge used by the public println() templates.
         /// @warning Internal support symbol; consumers must call println() instead.
-        [[nodiscard]] TERMINAL_EXPORT IO::Types::Status vprintln(
+        [[nodiscard]] TERMINAL_EXPORT GameWIP::Status::Types::Result<void> vprintln(
             Types::Output::Stream stream,
             const Types::Output::LineOptions &options,
             std::string_view format,
@@ -491,34 +492,34 @@ namespace GameWIP::Terminal
     } // namespace Internal
     /// @endcond
 
-    template <class... Args> IO::Types::Status OutputBuffer::print(std::format_string<Args...> format, Args &&...args) noexcept
+    template <class... Args> GameWIP::Status::Types::Result<void> OutputBuffer::print(std::format_string<Args...> format, Args &&...args) noexcept
     {
         return vprint(format.get(), std::make_format_args(args...), false);
     }
 
-    template <class... Args> IO::Types::Status OutputBuffer::println(std::format_string<Args...> format, Args &&...args) noexcept
+    template <class... Args> GameWIP::Status::Types::Result<void> OutputBuffer::println(std::format_string<Args...> format, Args &&...args) noexcept
     {
         return vprint(format.get(), std::make_format_args(args...), true);
     }
 
-    template <class... Args> IO::Types::Status print(std::format_string<Args...> format, Args &&...args) noexcept
+    template <class... Args> GameWIP::Status::Types::Result<void> print(std::format_string<Args...> format, Args &&...args) noexcept
     {
         return print(Types::Output::Stream::Stdout, format, std::forward<Args>(args)...);
     }
 
-    template <class... Args> IO::Types::Status print(Types::Output::Stream stream, std::format_string<Args...> format, Args &&...args) noexcept
+    template <class... Args> GameWIP::Status::Types::Result<void> print(Types::Output::Stream stream, std::format_string<Args...> format, Args &&...args) noexcept
     {
         return print(stream, Types::Output::TextOptions{}, format, std::forward<Args>(args)...);
     }
 
     template <class... Args>
-    IO::Types::Status print(const Types::Output::TextOptions &options, std::format_string<Args...> format, Args &&...args) noexcept
+    GameWIP::Status::Types::Result<void> print(const Types::Output::TextOptions &options, std::format_string<Args...> format, Args &&...args) noexcept
     {
         return print(Types::Output::Stream::Stdout, options, format, std::forward<Args>(args)...);
     }
 
     template <class... Args>
-    IO::Types::Status print(
+    GameWIP::Status::Types::Result<void> print(
         Types::Output::Stream stream,
         const Types::Output::TextOptions &options,
         std::format_string<Args...> format,
@@ -527,24 +528,24 @@ namespace GameWIP::Terminal
         return Internal::vprint(stream, options, format.get(), std::make_format_args(args...));
     }
 
-    template <class... Args> IO::Types::Status println(std::format_string<Args...> format, Args &&...args) noexcept
+    template <class... Args> GameWIP::Status::Types::Result<void> println(std::format_string<Args...> format, Args &&...args) noexcept
     {
         return println(Types::Output::Stream::Stdout, format, std::forward<Args>(args)...);
     }
 
-    template <class... Args> IO::Types::Status println(Types::Output::Stream stream, std::format_string<Args...> format, Args &&...args) noexcept
+    template <class... Args> GameWIP::Status::Types::Result<void> println(Types::Output::Stream stream, std::format_string<Args...> format, Args &&...args) noexcept
     {
         return println(stream, Types::Output::LineOptions{}, format, std::forward<Args>(args)...);
     }
 
     template <class... Args>
-    IO::Types::Status println(const Types::Output::LineOptions &options, std::format_string<Args...> format, Args &&...args) noexcept
+    GameWIP::Status::Types::Result<void> println(const Types::Output::LineOptions &options, std::format_string<Args...> format, Args &&...args) noexcept
     {
         return println(Types::Output::Stream::Stdout, options, format, std::forward<Args>(args)...);
     }
 
     template <class... Args>
-    IO::Types::Status println(
+    GameWIP::Status::Types::Result<void> println(
         Types::Output::Stream stream,
         const Types::Output::LineOptions &options,
         std::format_string<Args...> format,

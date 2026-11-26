@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "io/status.h"
+#include "status/result.h"
 
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -16,7 +16,7 @@
 namespace GameWIP::Desktop::Platform
 {
     /// @brief Maps a native text-conversion code to the portable encoding failure vocabulary.
-    [[nodiscard]] IO::Types::ErrorCode unicodeConversionError(DWORD nativeCode, IO::Types::ErrorCode malformedEncodingFallback) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Code unicodeConversionError(DWORD nativeCode, GameWIP::Status::Types::Code malformedEncodingFallback) noexcept;
 
     /// @brief Converts strict UTF-8 to UTF-16 while returning the native conversion code.
     [[nodiscard]] bool utf8ToUtf16(std::string_view text, std::wstring &output, DWORD &nativeCode);

@@ -5,9 +5,8 @@
 
 #include "desktop/desktop_export.h"
 #include "desktop/events.h"
-#include "desktop/result.h"
+#include "status/result.h"
 #include "desktop/shell_types.h"
-#include "io/status.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -96,12 +95,12 @@ namespace GameWIP::Desktop
 
         /// @brief Opens with Events::kDefaultQueueCapacity internally owned event slots.
         /// @return Success, or a status explaining why the queue was not opened.
-        [[nodiscard]] IO::Types::Status open() noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> open() noexcept;
 
         /// @brief Opens with an explicit owned-or-borrowed storage policy.
         /// @param queue Explicit event storage ownership and capacity policy.
         /// @return Success, or a status explaining why the queue was not opened.
-        [[nodiscard]] IO::Types::Status open(Types::Shell::QueueConfiguration queue) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> open(Types::Shell::QueueConfiguration queue) noexcept;
 
         /// @brief Reports whether the queue is open for event publication and consumption.
         [[nodiscard]] bool isOpen() const noexcept;
@@ -111,7 +110,7 @@ namespace GameWIP::Desktop
 
         /// @brief Closes the queue and releases or stops borrowing its event storage.
         /// @return Success when closed; ResourceBusy for wrong-thread calls or bound resources.
-        [[nodiscard]] IO::Types::Status close() noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> close() noexcept;
 
         /// @}
 
@@ -150,7 +149,7 @@ namespace GameWIP::Desktop
 namespace GameWIP::Desktop::Shell
 {
     /// @brief Returns cached backend and environment shell capabilities.
-    [[nodiscard]] DESKTOP_EXPORT Types::Result<Types::Shell::Capabilities> getCapabilities() noexcept;
+    [[nodiscard]] DESKTOP_EXPORT GameWIP::Status::Types::Result<Types::Shell::Capabilities> getCapabilities() noexcept;
 
     /// @brief Reports whether the backend advertises the requested shell capability.
     [[nodiscard]] DESKTOP_EXPORT bool supports(Types::Shell::Capability capability) noexcept;

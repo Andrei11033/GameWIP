@@ -36,8 +36,8 @@ void testManualChildSurface(TestSupport::Context &context, const GameWIP::Test::
     // Add a real native child control to verify HWND embedding.
     const auto native = Desktop::Native::Win32::getHandle(surface);
 
-    if(!requireManualStatus(context, "ChildSurface native handle is available", native.status) ||
-       !context.expectTrue("ChildSurface exposes a native window", native->window != nullptr))
+    if(!requireManualStatus(context, "ChildSurface native handle is available", native) ||
+       !context.expectTrue("ChildSurface exposes a native window", native.value().window != nullptr))
     {
         static_cast<void>(surface.close());
         static_cast<void>(parent.close());
@@ -54,9 +54,9 @@ void testManualChildSurface(TestSupport::Context &context, const GameWIP::Test::
         80,
         480,
         80,
-        native->window,
+        native.value().window,
         nullptr,
-        native->instance,
+        native.value().instance,
         nullptr);
     static_cast<void>(context.expectTrue("manual native descendant is created", button != nullptr));
 

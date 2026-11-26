@@ -20,7 +20,7 @@ namespace GameWIP::Terminal::Internal
 {
     namespace
     {
-        using IO::Types::ErrorCode;
+        using ErrorCode = GameWIP::Status::Types::Code;
         /// @brief Returns whether a color requests the terminal default.
         [[nodiscard]] bool isDefaultColor(const Types::Style::Color &color) noexcept
         {
@@ -248,7 +248,7 @@ namespace GameWIP::Terminal::Internal
 
         if(styleSupported(resolvedStyle, capabilities))
         {
-            return {.status = IO::successStatus(), .emitStyle = true, .style = resolvedStyle};
+            return {.status = GameWIP::Status::Types::Status{}, .emitStyle = true, .style = resolvedStyle};
         }
 
         if(mode == Types::Style::Mode::Required)
@@ -284,16 +284,16 @@ namespace GameWIP::Terminal::Internal
         }
         Types::Output::CapabilitiesResult capabilities = Platform::getOutputCapabilities(stream);
 
-        if(capabilities.status.ok())
+        if(capabilities.ok())
         {
-            StylePlan plan = stylePlanForCapabilities(mode, style, capabilities.capabilities.style);
+            StylePlan plan = stylePlanForCapabilities(mode, style, capabilities.value().style);
 
             if(plan.status.ok() && plan.emitStyle)
             {
                 return plan;
             }
 
-            if(capabilities.capabilities.kind == Types::StreamKind::Redirected)
+            if(capabilities.value().kind == Types::StreamKind::Redirected)
             {
                 return plan;
             }
@@ -301,9 +301,9 @@ namespace GameWIP::Terminal::Internal
 
         capabilities = Platform::prepareOutput(stream);
 
-        if(capabilities.status.ok())
+        if(capabilities.ok())
         {
-            StylePlan plan = stylePlanForCapabilities(mode, style, capabilities.capabilities.style);
+            StylePlan plan = stylePlanForCapabilities(mode, style, capabilities.value().style);
 
             if(plan.status.ok() && plan.emitStyle)
             {
@@ -316,9 +316,9 @@ namespace GameWIP::Terminal::Internal
             return {};
         }
 
-        if(!capabilities.status.ok())
+        if(!capabilities.ok())
         {
-            return {.status = capabilities.status};
+            return {.status = capabilities.status()};
         }
 
         return {.status = statusWithMessage(ErrorCode::Unsupported, "Terminal output stream does not support the requested style.")};

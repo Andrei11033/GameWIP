@@ -52,7 +52,7 @@ target_compile_definitions(
     INTERFACE $<BUILD_INTERFACE:FILESYSTEM_INTERNAL_TEST_HOOKS=$<BOOL:${FILESYSTEM_ENABLE_TEST_HOOKS}>>
 )
 
-target_link_libraries(FileSystem PUBLIC IO PRIVATE Unicode $<BUILD_INTERFACE:GameWIPBase>)
+target_link_libraries(FileSystem PUBLIC Status IO PRIVATE Unicode $<BUILD_INTERFACE:GameWIPBase>)
 
 set_target_properties(FileSystem PROPERTIES POSITION_INDEPENDENT_CODE ON ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
 

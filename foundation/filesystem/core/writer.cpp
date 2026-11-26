@@ -50,21 +50,21 @@ namespace GameWIP::FileSystem
         static_cast<void>(close());
     }
 
-    IO::Types::Status FileWriter::open(const Types::Path &path, const Types::File::WriterOpenOptions &options) noexcept
+    GameWIP::Status::Types::Result<void> FileWriter::open(const Types::Path &path, const Types::File::WriterOpenOptions &options) noexcept
     {
         if(isOpen())
         {
-            return IO::makeStatus(ErrorCode::AlreadyOpen);
+            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::AlreadyOpen));
         }
 
         if(!isValidFileWriterMode(options.mode) || !isValidFileShare(options.share) || !isValidSymlinkPolicy(options.symlinkPolicy) ||
            !IO::isValidFlushMode(options.flushOnClose))
         {
-            return IO::makeStatus(ErrorCode::InvalidArgument);
+            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::InvalidArgument));
         }
 
         // Validate or create the parent before opening the writer.
-        IO::Types::Status parentStatus = validateParentDirectory(path, options.createParentDirectories, options.symlinkPolicy);
+        auto parentStatus = validateParentDirectory(path, options.createParentDirectories, options.symlinkPolicy);
 
         if(!parentStatus.ok())
         {
@@ -72,14 +72,14 @@ namespace GameWIP::FileSystem
         }
 
         std::unique_ptr<Internal::FileState> newState;
-        IO::Types::Status status = Platform::openWriter(newState, path, options);
+        auto result = Platform::openWriter(newState, path, options);
 
-        if(status.ok())
+        if(result.ok())
         {
             state_ = std::move(newState);
         }
 
-        return status;
+        return result;
     }
 
     bool FileWriter::isOpen() const noexcept
@@ -92,7 +92,7 @@ namespace GameWIP::FileSystem
         return isOpen() && !state_->appendMode;
     }
 
-    IO::Types::WriteResult FileWriter::write(std::span<const std::byte> bytes) noexcept
+    GameWIP::Status::Types::Result<IO::Types::WriteProgress> FileWriter::write(std::span<const std::byte> bytes) noexcept
     {
         if(!isOpen())
         {
@@ -102,32 +102,32 @@ namespace GameWIP::FileSystem
         return Platform::writeFile(*state_, bytes);
     }
 
-    IO::Types::Status FileWriter::flush(IO::Types::FlushMode mode) noexcept
+    GameWIP::Status::Types::Result<void> FileWriter::flush(IO::Types::FlushMode mode) noexcept
     {
         if(!isOpen())
         {
-            return IO::makeStatus(ErrorCode::NotOpen);
+            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::NotOpen));
         }
 
         return Platform::flushFile(*state_, mode);
     }
 
-    IO::Types::Status FileWriter::close() noexcept
+    GameWIP::Status::Types::Result<void> FileWriter::close() noexcept
     {
         return closeFileState(state_);
     }
 
-    IO::Types::PositionResult FileWriter::position() const noexcept
+    GameWIP::Status::Types::Result<std::uint64_t> FileWriter::position() const noexcept
     {
         if(!isOpen())
         {
-            return {.status = IO::makeStatus(ErrorCode::NotOpen)};
+            return GameWIP::Status::Types::Result<std::uint64_t>::failure(GameWIP::Status::Types::Status(ErrorCode::NotOpen));
         }
 
         return Platform::filePosition(*state_);
     }
 
-    IO::Types::SizeResult FileWriter::size() const noexcept
+    GameWIP::Status::Types::Result<std::uint64_t> FileWriter::size() const noexcept
     {
         if(!isOpen())
         {
@@ -137,17 +137,17 @@ namespace GameWIP::FileSystem
         return Platform::fileSize(*state_);
     }
 
-    IO::Types::Status FileWriter::seek(std::int64_t offset, IO::Types::SeekOrigin origin) noexcept
+    GameWIP::Status::Types::Result<void> FileWriter::seek(std::int64_t offset, IO::Types::SeekOrigin origin) noexcept
     {
         if(!isOpen())
         {
-            return IO::makeStatus(ErrorCode::NotOpen);
+            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::NotOpen));
         }
 
         return Platform::seekFile(*state_, offset, origin);
     }
 
-    Types::Lock::Result FileWriter::tryLockExclusive() noexcept
+    GameWIP::Status::Types::Result<FileLock> FileWriter::tryLockExclusive() noexcept
     {
         return tryLockFileState(
             state_,

@@ -83,10 +83,11 @@ void testProviders(Context &context)
     }
 
     const auto handles = Desktop::Native::Win32::getHandle(window);
+    check(context, "UIA message fixture has a native handle", handles.ok());
 
-    if(handles.status.ok())
+    if(handles.ok())
     {
-        check(context, "WM_GETOBJECT publishes UIA provider", SendMessageW(handles->window, WM_GETOBJECT, 0, UiaRootObjectId) != 0);
+        check(context, "WM_GETOBJECT publishes UIA provider", SendMessageW(handles.value().window, WM_GETOBJECT, 0, UiaRootObjectId) != 0);
     }
 
     // Redact password values and reject stale node providers.

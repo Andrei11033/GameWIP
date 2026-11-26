@@ -45,9 +45,13 @@ void testDialogApartmentContracts(TestSupport::Context &context, const std::file
     cold.arguments = {"--desktop-test-child=cold-com-apartment"};
     cold.waitTimeout = std::chrono::seconds{30};
     const auto coldResult = TestSupport::runChildProcess(cold);
-    static_cast<void>(context.expectTrue("isolated COM probe starts", coldResult.status.ok()));
-    static_cast<void>(context.expectEq("isolated COM probe exits", TestSupport::Types::Process::Outcome::Exited, coldResult.outcome));
-    static_cast<void>(context.expectEq("uninitialized leases balance in a clean process", std::uint32_t{0}, coldResult.exitCode));
+    static_cast<void>(context.expectTrue("isolated COM probe starts", coldResult.ok()));
+    if(coldResult.hasValue())
+    {
+        const TestSupport::Types::Process::Execution &execution = coldResult.value();
+        static_cast<void>(context.expectEq("isolated COM probe exits", TestSupport::Types::Process::Outcome::Exited, execution.outcome));
+        static_cast<void>(context.expectEq("uninitialized leases balance in a clean process", std::uint32_t{0}, execution.exitCode));
+    }
 
     struct MtaUsage
     {
@@ -68,7 +72,7 @@ void testDialogApartmentContracts(TestSupport::Context &context, const std::file
     }
 
     // Compare implicit MTA, caller-owned STA, and explicit MTA behavior.
-    using Probe = IO::Types::Status (*)() noexcept;
+    using Probe = GameWIP::Status::Types::Status (*)() noexcept;
     const std::array probes{
         std::pair<std::string_view, Probe>{"dialogs", &Win32TestHooks::testDialogApartment},
         std::pair<std::string_view, Probe>{"shell", &Win32TestHooks::testShellApartment}};
@@ -77,7 +81,7 @@ void testDialogApartmentContracts(TestSupport::Context &context, const std::file
     {
         ApartmentObservation before;
         ApartmentObservation after;
-        IO::Types::Status leaseStatus;
+        GameWIP::Status::Types::Status leaseStatus;
         std::thread implicit(
             [&]
             {
@@ -140,7 +144,7 @@ void testDialogApartmentContracts(TestSupport::Context &context, const std::file
             });
         mta.join();
         static_cast<void>(context.expectTrue(std::format("{} caller MTA initializes", name), SUCCEEDED(initialized)));
-        static_cast<void>(context.expectEq(std::format("{} explicit MTA is rejected", name), ErrorCode::ResourceBusy, leaseStatus.code));
+        static_cast<void>(context.expectEq(std::format("{} explicit MTA is rejected", name), ErrorCode::ResourceBusy, leaseStatus.code()));
         static_cast<void>(context.expectEq(std::format("{} preserves caller MTA initialization", name), S_OK, after.result));
         static_cast<void>(context.expectEq(std::format("{} preserves caller MTA type", name), APTTYPE_MTA, after.type));
         static_cast<void>(context.expectEq(std::format("{} preserves explicit MTA qualifier", name), APTTYPEQUALIFIER_NONE, after.qualifier));

@@ -2,6 +2,7 @@
 /// @brief Allocation-free Win32 KEY_EVENT_RECORD normalization for Terminal.
 
 #include "terminal/platform/win32/internal/events.h"
+#include "terminal/internal/status.h"
 
 #include "unicode/unicode.h"
 
@@ -349,7 +350,7 @@ namespace GameWIP::Terminal::Platform::Win32::Internal::Events
         [[nodiscard]] KeyDecodeResult makeEvent(Key key, const KEY_EVENT_RECORD &record, DecoderState &state) noexcept
         {
             KeyDecodeResult result;
-            result.status = IO::successStatus();
+            result.status = GameWIP::Status::Types::Status{};
             result.disposition = KeyDecodeDisposition::Produced;
 
             const KeyLocation location = keyLocation(record);
@@ -437,7 +438,7 @@ namespace GameWIP::Terminal::Platform::Win32::Internal::Events
                     state.pendingHighSurrogate = u'\0';
                     state.pendingHighSurrogateRecord = {};
                     return {
-                        .status = IO::makeStatus(IO::Types::ErrorCode::EncodingFailed),
+                        .status = GameWIP::Terminal::Internal::backendStatus(GameWIP::Status::Types::Code::EncodingFailed),
                         .disposition = KeyDecodeDisposition::Failed,
                         .event = std::nullopt};
                 }
@@ -452,7 +453,7 @@ namespace GameWIP::Terminal::Platform::Win32::Internal::Events
                 if(decoded.outcome != Unicode::Types::DecodeOutcome::Decoded)
                 {
                     return {
-                        .status = IO::makeStatus(IO::Types::ErrorCode::EncodingFailed),
+                        .status = GameWIP::Terminal::Internal::backendStatus(GameWIP::Status::Types::Code::EncodingFailed),
                         .disposition = KeyDecodeDisposition::Failed,
                         .event = std::nullopt};
                 }
@@ -465,13 +466,13 @@ namespace GameWIP::Terminal::Platform::Win32::Internal::Events
             {
                 state.pendingHighSurrogate = unit;
                 state.pendingHighSurrogateRecord = record;
-                return {.status = IO::successStatus(), .disposition = KeyDecodeDisposition::Pending, .event = std::nullopt};
+                return {.status = GameWIP::Status::Types::Status{}, .disposition = KeyDecodeDisposition::Pending, .event = std::nullopt};
             }
 
             if(Unicode::Utf16::isLowSurrogate(unit))
             {
                 return {
-                    .status = IO::makeStatus(IO::Types::ErrorCode::EncodingFailed),
+                    .status = GameWIP::Terminal::Internal::backendStatus(GameWIP::Status::Types::Code::EncodingFailed),
                     .disposition = KeyDecodeDisposition::Failed,
                     .event = std::nullopt};
             }
@@ -493,7 +494,7 @@ namespace GameWIP::Terminal::Platform::Win32::Internal::Events
                 if(decoded.outcome != Unicode::Types::DecodeOutcome::Decoded)
                 {
                     return {
-                        .status = IO::makeStatus(IO::Types::ErrorCode::EncodingFailed),
+                        .status = GameWIP::Terminal::Internal::backendStatus(GameWIP::Status::Types::Code::EncodingFailed),
                         .disposition = KeyDecodeDisposition::Failed,
                         .event = std::nullopt};
                 }
@@ -506,7 +507,7 @@ namespace GameWIP::Terminal::Platform::Win32::Internal::Events
                 return makeEvent(*character, record, state);
             }
 
-            return {.status = IO::successStatus(), .disposition = KeyDecodeDisposition::Ignored, .event = std::nullopt};
+            return {.status = GameWIP::Status::Types::Status{}, .disposition = KeyDecodeDisposition::Ignored, .event = std::nullopt};
         }
     } // namespace
 

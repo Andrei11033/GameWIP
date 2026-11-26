@@ -11,7 +11,7 @@ namespace ProgressTypes = Desktop::Types::Dialogs::Progress;
 [[nodiscard]] bool nativeInteractionEnabled(const Desktop::Window &window)
 {
     const auto handle = Desktop::Native::Win32::getHandle(window);
-    return handle.status.ok() && handle->window != nullptr && IsWindowEnabled(static_cast<HWND>(handle->window)) != FALSE;
+    return handle.ok() && handle.value().window != nullptr && IsWindowEnabled(static_cast<HWND>(handle.value().window)) != FALSE;
 }
 
 ProgressTypes::Description progressDescription()

@@ -12,7 +12,7 @@ namespace GameWIP::Terminal::Internal
 {
     struct StylePlan
     {
-        IO::Types::Status status = IO::successStatus();
+        GameWIP::Status::Types::Status status = GameWIP::Status::Types::Status{};
         bool emitStyle = false;
         Types::Style::Request style{};
     };

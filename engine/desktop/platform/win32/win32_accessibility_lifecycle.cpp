@@ -1,6 +1,7 @@
 /// @file win32_accessibility_lifecycle.cpp
 /// @brief Publishes UI Automation snapshots and delivers native accessibility events.
 
+#include "desktop/internal/results.h"
 #include "desktop/platform/win32/internal/win32_accessibility_helpers.h"
 #include "desktop/platform/win32/internal/win32_accessibility_provider.h"
 #include "base/platform/win32/dynamic_library.h"
@@ -90,7 +91,7 @@ namespace GameWIP::Desktop::Platform
     /// Backend activation and transactional provider preparation
     /// ------------------------------------------------------------
 
-    IO::Types::Status enableAccessibility(WindowState &window, const std::shared_ptr<AccessibilityRuntime> &runtime) noexcept
+    GameWIP::Status::Types::Status enableAccessibility(WindowState &window, const std::shared_ptr<AccessibilityRuntime> &runtime) noexcept
     {
         try
         {
@@ -98,7 +99,7 @@ namespace GameWIP::Desktop::Platform
 
             if(!data || !data->handle)
             {
-                return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
+                return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::NotOpen);
             }
 
             // Allocate the native state and bounded text-range pool.
@@ -133,15 +134,15 @@ namespace GameWIP::Desktop::Platform
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::OutOfMemory);
         }
         catch(...)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::SizeLimitExceeded);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::SizeLimitExceeded);
         }
     }
 
-    IO::Types::Status prepareAccessibilitySnapshot(const std::shared_ptr<AccessibilityRuntime> &runtime, PublishedSnapshot &snapshot) noexcept
+    GameWIP::Status::Types::Status prepareAccessibilitySnapshot(const std::shared_ptr<AccessibilityRuntime> &runtime, PublishedSnapshot &snapshot) noexcept
     {
         auto &native = *static_cast<UiaState *>(runtime->native.get());
         try
@@ -159,7 +160,7 @@ namespace GameWIP::Desktop::Platform
             // Enforce the provider limit before allocating snapshot state.
             if(missing > runtime->limits.maximumNativeProviders - native.providers.size())
             {
-                return IO::makeStatus(IO::Types::ErrorCode::SizeLimitExceeded);
+                return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::SizeLimitExceeded);
             }
 
             auto result = std::make_shared<UiaSnapshot>();
@@ -293,11 +294,11 @@ namespace GameWIP::Desktop::Platform
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::OutOfMemory);
         }
         catch(...)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::SizeLimitExceeded);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::SizeLimitExceeded);
         }
     }
 

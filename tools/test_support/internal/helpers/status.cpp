@@ -3,19 +3,51 @@
 
 #include "test_support/internal/status.h"
 
+#include <optional>
+#include <system_error>
+
 namespace GameWIP::TestSupport::Internal
 {
     /// ------------------------------------------------------------
     /// Infrastructure status construction
     /// ------------------------------------------------------------
 
-    Types::InfrastructureStatus failureStatus(Types::InfrastructureError error, std::uint64_t code) noexcept
+    using GameWIP::Status::Types::Code;
+    using GameWIP::Status::Types::NativeCode;
+    using GameWIP::Status::Types::NativeCodeDomain;
+    using GameWIP::Status::Types::Status;
+
+    Status failureStatus(Code code, std::optional<NativeCode> nativeCode) noexcept
     {
-        return Types::InfrastructureStatus{.error = error, .nativeCode = code};
+        return nativeCode.has_value() ? Status::withDiagnostic(code, *nativeCode) : Status(code);
     }
 
-    std::uint64_t nativeCode(const std::error_code &error) noexcept
+    std::optional<NativeCode> nativeCode(const std::error_code &error) noexcept
     {
-        return static_cast<std::uint64_t>(static_cast<std::uint32_t>(error.value()));
+        if(!error)
+        {
+            return std::nullopt;
+        }
+
+        NativeCodeDomain domain = NativeCodeDomain::Other;
+        if(&error.category() == &std::system_category())
+        {
+#if defined(_WIN32)
+            domain = NativeCodeDomain::Win32Error;
+#else
+            domain = NativeCodeDomain::Errno;
+#endif
+        }
+        else if(&error.category() == &std::generic_category())
+        {
+            domain = NativeCodeDomain::Errno;
+        }
+
+        return NativeCode{domain, error.value()};
+    }
+
+    std::optional<NativeCode> errnoCode(int value) noexcept
+    {
+        return value == 0 ? std::nullopt : std::optional<NativeCode>(NativeCode{NativeCodeDomain::Errno, value});
     }
 } // namespace GameWIP::TestSupport::Internal

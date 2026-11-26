@@ -5,7 +5,7 @@
 
 #include "desktop/accessibility/types.h"
 #include "desktop/desktop_export.h"
-#include "io/status.h"
+#include "status/result.h"
 
 #include <memory>
 
@@ -24,7 +24,7 @@ namespace GameWIP::Desktop::Accessibility
     /// @brief Validates all portable tree, text, geometry, relation, and limit invariants.
     /// @param snapshot Borrowed complete tree; all nested views must remain readable during the call.
     /// @param limits Positive capacities, all at most INT32_MAX; extension depth is at most 32.
-    /// @return First semantic issue, or OutOfMemory/SizeLimitExceeded when validation resources fail.
+    /// @return Validation details, retained on semantic failures; allocation failures have no payload.
     /// @note May allocate bounded temporary indexes; never calls a native backend or application callback.
     [[nodiscard]] DESKTOP_EXPORT Types::Accessibility::ValidationResult validate(
         const Types::Accessibility::SnapshotView &snapshot,
@@ -67,15 +67,15 @@ namespace GameWIP::Desktop::Accessibility
         [[nodiscard]] const Types::Accessibility::Limits &limits() const noexcept;
 
         /// @brief Sets the nonzero generation copied into the next view.
-        [[nodiscard]] IO::Types::Status setGeneration(Types::Accessibility::Generation generation) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> setGeneration(Types::Accessibility::Generation generation) noexcept;
 
         /// @brief Sets the application root node identity.
-        [[nodiscard]] IO::Types::Status setRoot(Types::Accessibility::NodeId root) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> setRoot(Types::Accessibility::NodeId root) noexcept;
 
         /// @brief Deep-copies one borrowed node and all of its referenced data.
         /// @return InvalidArgument for invalid limits/zero or duplicate IDs; SizeLimitExceeded for copy-budget pressure;
         /// OutOfMemory for allocation failure. No node is appended on failure.
-        [[nodiscard]] IO::Types::Status addNode(const Types::Accessibility::Node &node) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> addNode(const Types::Accessibility::Node &node) noexcept;
         /// @}
 
         /// @name Inspection

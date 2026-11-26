@@ -12,6 +12,7 @@ target_sources(
         drag_drop_state.h
         presentation_publication_state.h
         progress_dialog_state.h
+        results.h
         renderer_integration_state.h
         shell_helpers.h
         shell_state.h

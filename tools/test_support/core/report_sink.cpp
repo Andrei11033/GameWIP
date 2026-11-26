@@ -3,6 +3,7 @@
 
 #include "test_support/internal/path_text.h"
 #include "test_support/internal/report_sink.h"
+#include "test_support/internal/status.h"
 
 #include <cstdint>
 #include <filesystem>
@@ -34,8 +35,7 @@ namespace GameWIP::TestSupport::Internal
                 {
                     disableReport(
                         std::string("could not create the report directory: ") + error.message(),
-                        {.error = Types::InfrastructureError::FileOperationFailed,
-                         .nativeCode = static_cast<std::uint64_t>(static_cast<std::uint32_t>(error.value()))});
+                        failureStatus(GameWIP::Status::Types::Code::FileOperationFailed, nativeCode(error)));
                     return;
                 }
             }
@@ -45,7 +45,7 @@ namespace GameWIP::TestSupport::Internal
 
             if(!report_.is_open())
             {
-                disableReport("could not open the report file", {.error = Types::InfrastructureError::FileOperationFailed});
+                disableReport("could not open the report file", GameWIP::Status::Types::Status(GameWIP::Status::Types::Code::FileOperationFailed));
                 return;
             }
 
@@ -114,7 +114,7 @@ namespace GameWIP::TestSupport::Internal
 
             if(!report_ || !report_.is_open())
             {
-                disableReport("report output failed while writing", {.error = Types::InfrastructureError::FileOperationFailed});
+                disableReport("report output failed while writing", GameWIP::Status::Types::Status(GameWIP::Status::Types::Code::FileOperationFailed));
             }
         }
     }
@@ -149,7 +149,7 @@ namespace GameWIP::TestSupport::Internal
 
         if(!report_)
         {
-            disableReport("report output failed while closing", {.error = Types::InfrastructureError::FileOperationFailed});
+            disableReport("report output failed while closing", GameWIP::Status::Types::Status(GameWIP::Status::Types::Code::FileOperationFailed));
             return status_;
         }
 
@@ -190,14 +190,14 @@ namespace GameWIP::TestSupport::Internal
 
         if(!report_)
         {
-            disableReport("report output failed while flushing", {.error = Types::InfrastructureError::FileOperationFailed});
+            disableReport("report output failed while flushing", GameWIP::Status::Types::Status(GameWIP::Status::Types::Code::FileOperationFailed));
             return false;
         }
 
         return true;
     }
 
-    void ReportSink::disableReport(std::string_view reason, Types::InfrastructureStatus failure)
+    void ReportSink::disableReport(std::string_view reason, Types::Status failure)
     {
         status_.state = Types::Reporting::SinkState::Failed;
         status_.failureStatus = failure;

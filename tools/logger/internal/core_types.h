@@ -6,7 +6,7 @@
 #include "logger/config.h"
 #include "filesystem/directory.h"
 #include "filesystem/file.h"
-#include "io/status.h"
+#include "status/status.h"
 
 #include <chrono>
 #include <cstddef>
@@ -35,9 +35,37 @@ namespace GameWIP::Logger::Internal::Core
     using LoggerStats = Types::Stats;
     using LoggerMemoryStats = Types::MemoryStats;
     using FileSystem::FileWriter;
-    using IO::Types::ErrorCode;
-    using IO::Types::Status;
+    using ErrorCode = GameWIP::Status::Types::Code;
+    using Status = GameWIP::Status::Types::Status;
     using FilePath = FileSystem::Types::Path;
+
+    /// @brief Creates a code-only Logger status without allocating diagnostics.
+    [[nodiscard]] inline Status makeStatus(ErrorCode code) noexcept
+    {
+        return Status(code);
+    }
+
+    /// @brief Adds an unclassified backend code as optional diagnostic detail.
+    [[nodiscard]] inline Status makeStatus(ErrorCode code, std::int64_t nativeCode) noexcept
+    {
+        if(nativeCode == 0)
+        {
+            return Status(code);
+        }
+
+        return Status::withDiagnostic(code, {GameWIP::Status::Types::NativeCodeDomain::Other, nativeCode});
+    }
+
+    /// @brief Converts an internal operation status to Logger's public result shape.
+    [[nodiscard]] inline GameWIP::Status::Types::Result<void> resultFromStatus(Status status) noexcept
+    {
+        if(status.ok())
+        {
+            return GameWIP::Status::Types::Result<void>::success();
+        }
+
+        return GameWIP::Status::Types::Result<void>::failure(std::move(status));
+    }
 
     // Retained text and worker batch defaults
     constexpr std::size_t kInlineSourceCapacity = 64;

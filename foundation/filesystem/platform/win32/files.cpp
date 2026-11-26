@@ -16,7 +16,7 @@ namespace GameWIP::FileSystem::Platform
     /// File handles and transfers
     /// ------------------------------------------------------------
 
-    IO::Types::Status openReader(
+    Result<void> openReader(
         std::unique_ptr<Internal::FileState> &state,
         const Types::Path &path,
         const Types::File::ReaderOpenOptions &options) noexcept
@@ -39,15 +39,15 @@ namespace GameWIP::FileSystem::Platform
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(ErrorCode::OutOfMemory);
+            return failure<void>(ErrorCode::OutOfMemory);
         }
         catch(...)
         {
-            return IO::makeStatus(ErrorCode::Unknown);
+            return failure<void>(ErrorCode::Unknown);
         }
     }
 
-    IO::Types::Status openWriter(
+    Result<void> openWriter(
         std::unique_ptr<Internal::FileState> &state,
         const Types::Path &path,
         const Types::File::WriterOpenOptions &options) noexcept
@@ -83,7 +83,7 @@ namespace GameWIP::FileSystem::Platform
                 appendMode = true;
                 break;
             default:
-                return IO::makeStatus(ErrorCode::InvalidArgument);
+                return failure<void>(ErrorCode::InvalidArgument);
             }
 
             const NativeOpenRequest request{
@@ -103,15 +103,15 @@ namespace GameWIP::FileSystem::Platform
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(ErrorCode::OutOfMemory);
+            return failure<void>(ErrorCode::OutOfMemory);
         }
         catch(...)
         {
-            return IO::makeStatus(ErrorCode::Unknown);
+            return failure<void>(ErrorCode::Unknown);
         }
     }
 
-    IO::Types::Status openFile(std::unique_ptr<Internal::FileState> &state, const Types::Path &path, const Types::File::OpenOptions &options) noexcept
+    Result<void> openFile(std::unique_ptr<Internal::FileState> &state, const Types::Path &path, const Types::File::OpenOptions &options) noexcept
     {
         try
         {
@@ -139,7 +139,7 @@ namespace GameWIP::FileSystem::Platform
                 existingRule = ExistingEntryRule::MayCreateRegularFile;
                 break;
             default:
-                return IO::makeStatus(ErrorCode::InvalidArgument);
+                return failure<void>(ErrorCode::InvalidArgument);
             }
 
             DWORD desiredAccess = 0;
@@ -162,7 +162,7 @@ namespace GameWIP::FileSystem::Platform
                 writable = true;
                 break;
             default:
-                return IO::makeStatus(ErrorCode::InvalidArgument);
+                return failure<void>(ErrorCode::InvalidArgument);
             }
 
             const NativeOpenRequest request{
@@ -177,57 +177,69 @@ namespace GameWIP::FileSystem::Platform
                 .readable = readable,
                 .writable = writable,
                 .appendMode = false};
-            IO::Types::Status openStatus = openNativeFile(state, path, request);
+            auto openResult = openNativeFile(state, path, request);
 
-            if(!openStatus.ok())
+            if(!openResult.ok())
             {
-                return openStatus;
+                return openResult;
             }
 
             if(options.initialPosition == Types::File::InitialPosition::End)
             {
-                IO::Types::Status seekStatus = seekFile(*state, 0, IO::Types::SeekOrigin::End);
+                auto seekResult = seekFile(*state, 0, IO::Types::SeekOrigin::End);
 
-                if(!seekStatus.ok())
+                if(!seekResult.ok())
                 {
                     static_cast<void>(closeFile(*state));
                     state.reset();
-                    return seekStatus;
+                    return seekResult;
                 }
             }
             else if(options.initialPosition != Types::File::InitialPosition::Beginning)
             {
                 static_cast<void>(closeFile(*state));
                 state.reset();
-                return IO::makeStatus(ErrorCode::InvalidArgument);
+                return failure<void>(ErrorCode::InvalidArgument);
             }
-            return IO::successStatus();
+            return success();
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(ErrorCode::OutOfMemory);
+            return failure<void>(ErrorCode::OutOfMemory);
         }
         catch(...)
         {
-            return IO::makeStatus(ErrorCode::Unknown);
+            return failure<void>(ErrorCode::Unknown);
         }
     }
 
-    IO::Types::ReadResult readFile(Internal::FileState &state, std::span<std::byte> destination) noexcept
+    Result<IO::Types::ReadProgress> readFile(Internal::FileState &state, std::span<std::byte> destination) noexcept
     {
         if(!state.readable)
         {
-            return {.status = IO::makeStatus(ErrorCode::PermissionDenied)};
+            return failure<IO::Types::ReadProgress>(ErrorCode::PermissionDenied);
         }
 
         try
         {
             if(destination.empty())
             {
-                IO::Types::PositionResult position = filePosition(state);
-                IO::Types::SizeResult size = fileSize(state);
-                const bool atEnd = position.status.ok() && size.status.ok() && position.position >= size.sizeBytes;
-                return {.status = position.status.ok() ? std::move(size.status) : std::move(position.status), .bytesRead = 0, .endOfStream = atEnd};
+                auto position = filePosition(state);
+
+                if(!position.ok())
+                {
+                    return Result<IO::Types::ReadProgress>::failure(position.status(), IO::Types::ReadProgress{});
+                }
+
+                auto size = fileSize(state);
+
+                if(!size.ok())
+                {
+                    return Result<IO::Types::ReadProgress>::failure(size.status(), IO::Types::ReadProgress{});
+                }
+
+                return Result<IO::Types::ReadProgress>::success(
+                    IO::Types::ReadProgress{.bytesRead = 0, .endOfStream = position.value() >= size.value()});
             }
 
             const auto requestSize =
@@ -236,33 +248,35 @@ namespace GameWIP::FileSystem::Platform
 
             if(ReadFile(nativeHandle(state), destination.data(), requestSize, &bytesRead, nullptr) == FALSE)
             {
-                return {.status = makeLastErrorStatus(ErrorCode::ReadFailed)};
+                return Result<IO::Types::ReadProgress>::failure(
+                    makeLastErrorStatus(ErrorCode::ReadFailed), IO::Types::ReadProgress{.bytesRead = bytesRead});
             }
 
-            return {.status = IO::successStatus(), .bytesRead = bytesRead, .endOfStream = bytesRead < requestSize};
+            return Result<IO::Types::ReadProgress>::success(
+                IO::Types::ReadProgress{.bytesRead = bytesRead, .endOfStream = bytesRead < requestSize});
         }
         catch(const std::bad_alloc &)
         {
-            return {.status = IO::makeStatus(ErrorCode::OutOfMemory)};
+            return failure<IO::Types::ReadProgress>(ErrorCode::OutOfMemory);
         }
         catch(...)
         {
-            return {.status = IO::makeStatus(ErrorCode::Unknown)};
+            return failure<IO::Types::ReadProgress>(ErrorCode::Unknown);
         }
     }
 
-    IO::Types::WriteResult writeFile(Internal::FileState &state, std::span<const std::byte> bytes) noexcept
+    Result<IO::Types::WriteProgress> writeFile(Internal::FileState &state, std::span<const std::byte> bytes) noexcept
     {
         if(!state.writable)
         {
-            return {.status = IO::makeStatus(ErrorCode::PermissionDenied)};
+            return failure<IO::Types::WriteProgress>(ErrorCode::PermissionDenied);
         }
 
         try
         {
             if(bytes.empty())
             {
-                return {.status = IO::successStatus(), .bytesWritten = 0};
+                return Result<IO::Types::WriteProgress>::success(IO::Types::WriteProgress{});
             }
 
             const auto requestSize =
@@ -271,112 +285,113 @@ namespace GameWIP::FileSystem::Platform
 
             if(WriteFile(nativeHandle(state), bytes.data(), requestSize, &bytesWritten, nullptr) == FALSE)
             {
-                return {.status = makeLastErrorStatus(ErrorCode::WriteFailed), .bytesWritten = bytesWritten};
+                return Result<IO::Types::WriteProgress>::failure(
+                    makeLastErrorStatus(ErrorCode::WriteFailed), IO::Types::WriteProgress{.bytesWritten = bytesWritten});
             }
 
-            return {.status = IO::successStatus(), .bytesWritten = bytesWritten};
+            return Result<IO::Types::WriteProgress>::success(IO::Types::WriteProgress{.bytesWritten = bytesWritten});
         }
         catch(const std::bad_alloc &)
         {
-            return {.status = IO::makeStatus(ErrorCode::OutOfMemory)};
+            return failure<IO::Types::WriteProgress>(ErrorCode::OutOfMemory);
         }
         catch(...)
         {
-            return {.status = IO::makeStatus(ErrorCode::Unknown)};
+            return failure<IO::Types::WriteProgress>(ErrorCode::Unknown);
         }
     }
 
-    IO::Types::Status flushFile(Internal::FileState &state, IO::Types::FlushMode mode) noexcept
+    Result<void> flushFile(Internal::FileState &state, IO::Types::FlushMode mode) noexcept
     {
         try
         {
             if(!IO::isValidFlushMode(mode))
             {
-                return IO::makeStatus(ErrorCode::InvalidArgument);
+                return failure<void>(ErrorCode::InvalidArgument);
             }
 
             if(mode == IO::Types::FlushMode::None)
             {
-                return IO::successStatus();
+                return success();
             }
 
             if(FlushFileBuffers(nativeHandle(state)) == FALSE)
             {
-                return makeLastErrorStatus(ErrorCode::FlushFailed);
+                return failure<void>(makeLastErrorStatus(ErrorCode::FlushFailed));
             }
 
-            return IO::successStatus();
+            return success();
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(ErrorCode::OutOfMemory);
+            return failure<void>(ErrorCode::OutOfMemory);
         }
         catch(...)
         {
-            return IO::makeStatus(ErrorCode::Unknown);
+            return failure<void>(ErrorCode::Unknown);
         }
     }
 
-    IO::Types::Status closeFile(Internal::FileState &state) noexcept
+    Result<void> closeFile(Internal::FileState &state) noexcept
     {
         try
         {
             if(state.activeLocks && *state.activeLocks > 0)
             {
-                return IO::makeStatus(ErrorCode::ResourceBusy);
+                return failure<void>(ErrorCode::ResourceBusy);
             }
 
             if(state.writable)
             {
-                IO::Types::Status flushStatus = flushFile(state, state.flushOnClose);
+                auto flushResult = flushFile(state, state.flushOnClose);
 
-                if(!flushStatus.ok())
+                if(!flushResult.ok())
                 {
-                    return flushStatus;
+                    return flushResult;
                 }
             }
 
-            IO::Types::Status closeStatus = closeNativeHandle(state.nativeHandle);
+            auto closeResult = closeNativeHandle(state.nativeHandle);
 
-            if(closeStatus.ok())
+            if(closeResult.ok())
             {
                 clearNativeHandle(state);
             }
 
-            return closeStatus;
+            return closeResult;
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(ErrorCode::OutOfMemory);
+            return failure<void>(ErrorCode::OutOfMemory);
         }
         catch(...)
         {
-            return IO::makeStatus(ErrorCode::Unknown);
+            return failure<void>(ErrorCode::Unknown);
         }
     }
 
-    IO::Types::PositionResult filePosition(const Internal::FileState &state) noexcept
+    Result<std::uint64_t> filePosition(const Internal::FileState &state) noexcept
     {
         try
         {
             if(state.appendMode)
             {
-                return {.status = IO::makeStatus(ErrorCode::NotSeekable)};
+                return failure<std::uint64_t>(ErrorCode::NotSeekable);
             }
 
             return nativePosition(nativeHandle(state));
         }
         catch(const std::bad_alloc &)
         {
-            return {.status = IO::makeStatus(ErrorCode::OutOfMemory)};
+            return failure<std::uint64_t>(ErrorCode::OutOfMemory);
         }
         catch(...)
         {
-            return {.status = IO::makeStatus(ErrorCode::Unknown)};
+            return failure<std::uint64_t>(ErrorCode::Unknown);
         }
     }
 
-    IO::Types::SizeResult fileSize(const Internal::FileState &state) noexcept
+    Result<std::uint64_t> fileSize(const Internal::FileState &state) noexcept
     {
         try
         {
@@ -384,56 +399,55 @@ namespace GameWIP::FileSystem::Platform
         }
         catch(const std::bad_alloc &)
         {
-            return {.status = IO::makeStatus(ErrorCode::OutOfMemory)};
+            return failure<std::uint64_t>(ErrorCode::OutOfMemory);
         }
         catch(...)
         {
-            return {.status = IO::makeStatus(ErrorCode::Unknown)};
+            return failure<std::uint64_t>(ErrorCode::Unknown);
         }
     }
 
-    IO::Types::Status seekFile(Internal::FileState &state, std::int64_t offset, IO::Types::SeekOrigin origin) noexcept
+    Result<void> seekFile(Internal::FileState &state, std::int64_t offset, IO::Types::SeekOrigin origin) noexcept
     {
         try
         {
             if(state.appendMode)
             {
-                return IO::makeStatus(ErrorCode::NotSeekable);
+                return failure<void>(ErrorCode::NotSeekable);
             }
 
             return seekNativeHandle(nativeHandle(state), offset, origin);
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(ErrorCode::OutOfMemory);
+            return failure<void>(ErrorCode::OutOfMemory);
         }
         catch(...)
         {
-            return IO::makeStatus(ErrorCode::Unknown);
+            return failure<void>(ErrorCode::Unknown);
         }
     }
 
-    IO::Types::Status resizeFile(Internal::FileState &state, std::uint64_t sizeBytes, bool restorePosition) noexcept
+    Result<void> resizeFile(Internal::FileState &state, std::uint64_t sizeBytes, bool restorePosition) noexcept
     {
         try
         {
             if(!state.writable)
             {
-                return IO::makeStatus(ErrorCode::PermissionDenied);
+                return failure<void>(ErrorCode::PermissionDenied);
             }
 
             if(sizeBytes > static_cast<std::uint64_t>(std::numeric_limits<std::int64_t>::max()))
             {
-                return IO::makeStatus(ErrorCode::SizeLimitExceeded);
+                return failure<void>(ErrorCode::SizeLimitExceeded);
             }
 
             // Report a failed position restore even though the new length has already been committed.
-            const IO::Types::PositionResult originalPosition =
-                restorePosition && !state.appendMode ? filePosition(state) : IO::Types::PositionResult{};
+            auto originalPosition = restorePosition && !state.appendMode ? filePosition(state) : Result<std::uint64_t>::success(0);
 
-            if(restorePosition && !state.appendMode && !originalPosition.status.ok())
+            if(restorePosition && !state.appendMode && !originalPosition.ok())
             {
-                return originalPosition.status;
+                return failure<void>(originalPosition.status());
             }
 
             LARGE_INTEGER target{};
@@ -441,28 +455,28 @@ namespace GameWIP::FileSystem::Platform
 
             if(SetFilePointerEx(nativeHandle(state), target, nullptr, FILE_BEGIN) == FALSE)
             {
-                return makeLastErrorStatus(ErrorCode::ResizeFailed);
+                return failure<void>(makeLastErrorStatus(ErrorCode::ResizeFailed));
             }
 
             if(SetEndOfFile(nativeHandle(state)) == FALSE)
             {
-                return makeLastErrorStatus(ErrorCode::ResizeFailed);
+                return failure<void>(makeLastErrorStatus(ErrorCode::ResizeFailed));
             }
 
-            if(restorePosition && !state.appendMode && originalPosition.position <= sizeBytes)
+            if(restorePosition && !state.appendMode && originalPosition.value() <= sizeBytes)
             {
-                return seekNativeHandle(nativeHandle(state), static_cast<std::int64_t>(originalPosition.position), IO::Types::SeekOrigin::Begin);
+                return seekNativeHandle(nativeHandle(state), static_cast<std::int64_t>(originalPosition.value()), IO::Types::SeekOrigin::Begin);
             }
 
-            return IO::successStatus();
+            return success();
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(ErrorCode::OutOfMemory);
+            return failure<void>(ErrorCode::OutOfMemory);
         }
         catch(...)
         {
-            return IO::makeStatus(ErrorCode::Unknown);
+            return failure<void>(ErrorCode::Unknown);
         }
     }
 
@@ -470,7 +484,7 @@ namespace GameWIP::FileSystem::Platform
     /// File locks
     /// ------------------------------------------------------------
 
-    NativeLockResult tryLockFile(Internal::FileState &state, Types::Lock::Mode mode) noexcept
+    Result<std::unique_ptr<Internal::FileLockState>> tryLockFile(Internal::FileState &state, Types::Lock::Mode mode) noexcept
     {
         try
         {
@@ -484,7 +498,7 @@ namespace GameWIP::FileSystem::Platform
                 flags |= LOCKFILE_EXCLUSIVE_LOCK;
                 break;
             default:
-                return {.status = IO::makeStatus(ErrorCode::InvalidArgument)};
+                return failure<std::unique_ptr<Internal::FileLockState>>(ErrorCode::InvalidArgument);
             }
 
             if(!state.activeLocks)
@@ -507,7 +521,7 @@ namespace GameWIP::FileSystem::Platform
                    FALSE,
                    DUPLICATE_SAME_ACCESS) == FALSE)
             {
-                return {.status = makeLastErrorStatus(ErrorCode::LockFailed)};
+                return failure<std::unique_ptr<Internal::FileLockState>>(makeLastErrorStatus(ErrorCode::LockFailed));
             }
 
             UniqueHandle duplicatedHandle{duplicatedHandleRaw};
@@ -520,10 +534,10 @@ namespace GameWIP::FileSystem::Platform
 
                 if(error == ERROR_LOCK_VIOLATION || error == ERROR_SHARING_VIOLATION)
                 {
-                    return {.status = IO::successStatus(), .outcome = Types::Lock::Outcome::WouldBlock};
+                    return failure<std::unique_ptr<Internal::FileLockState>>(ErrorCode::WouldBlock);
                 }
 
-                return {.status = makeWin32Status(error, ErrorCode::LockFailed)};
+                return failure<std::unique_ptr<Internal::FileLockState>>(makeWin32Status(error, ErrorCode::LockFailed));
             }
 
             lockState->nativeHandle = duplicatedHandle.release();
@@ -532,19 +546,19 @@ namespace GameWIP::FileSystem::Platform
             lockState->exclusive = mode == Types::Lock::Mode::Exclusive;
             ++(*lockState->activeLocks);
 
-            return {.status = IO::successStatus(), .outcome = Types::Lock::Outcome::Acquired, .state = std::move(lockState)};
+            return Result<std::unique_ptr<Internal::FileLockState>>::success(std::move(lockState));
         }
         catch(const std::bad_alloc &)
         {
-            return {.status = IO::makeStatus(ErrorCode::OutOfMemory)};
+            return failure<std::unique_ptr<Internal::FileLockState>>(ErrorCode::OutOfMemory);
         }
         catch(...)
         {
-            return {.status = IO::makeStatus(ErrorCode::Unknown)};
+            return failure<std::unique_ptr<Internal::FileLockState>>(ErrorCode::Unknown);
         }
     }
 
-    IO::Types::Status unlockFile(Internal::FileLockState &state) noexcept
+    Result<void> unlockFile(Internal::FileLockState &state) noexcept
     {
         return unlockNativeFile(state);
     }

@@ -1,6 +1,7 @@
 /// @file test_hooks.cpp
 /// @brief Source-tree-only deterministic Desktop hooks.
 
+#include "desktop/internal/results.h"
 #include "desktop/internal/desktop_test_hooks.h"
 
 #include "desktop/internal/child_surface_state.h"
@@ -136,16 +137,16 @@ namespace GameWIP::Desktop::Internal::TestHooks
         return Internal::negotiateDragDropEffect(source, target, preferred);
     }
 
-    IO::Types::Status enqueueDragDrop(DragDropTarget &target, Types::DragDrop::Events::Payload data, bool terminal) noexcept
+    GameWIP::Status::Types::Status enqueueDragDrop(DragDropTarget &target, Types::DragDrop::Events::Payload data, bool terminal) noexcept
     {
         Internal::DragDropState *state = Internal::DragDropAccess::state(target);
 
         if(!state)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::NotOpen);
         }
-        return Internal::enqueueDragDropEvent(*state, std::move(data), terminal) ? IO::successStatus()
-                                                                                 : IO::makeStatus(IO::Types::ErrorCode::StorageFull);
+        return Internal::enqueueDragDropEvent(*state, std::move(data), terminal) ? GameWIP::Status::Types::Status{}
+                                                                                 : GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::StorageFull);
     }
 
     Types::DragDrop::SessionId nextDragDropSessionId(DragDropTarget &target, std::uint64_t nextValue) noexcept
@@ -280,17 +281,17 @@ namespace GameWIP::Desktop::Internal::TestHooks
     /// Portable lifecycle and events
     /// ------------------------------------------------------------
 
-    IO::Types::Status openPortable(Window &window, std::span<Types::Event> storage) noexcept
+    GameWIP::Status::Types::Status openPortable(Window &window, std::span<Types::Event> storage) noexcept
     {
         // Validate the wrapper and caller-owned event storage.
         if(Internal::WindowAccess::state(window) != nullptr)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::AlreadyOpen);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::AlreadyOpen);
         }
 
         if(storage.empty())
         {
-            return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::InvalidArgument);
         }
 
         try
@@ -310,52 +311,52 @@ namespace GameWIP::Desktop::Internal::TestHooks
             }
 
             Internal::WindowAccess::stateOwner(window) = std::move(state);
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::OutOfMemory);
         }
         catch(...)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::Unknown);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::Unknown);
         }
     }
 
-    IO::Types::Status enqueue(Window &window, Types::Events::Payload data) noexcept
+    GameWIP::Status::Types::Status enqueue(Window &window, Types::Events::Payload data) noexcept
     {
         Internal::WindowState *state = Internal::WindowAccess::state(window);
 
         if(state == nullptr)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::NotOpen);
         }
         static_cast<void>(Internal::enqueueEvent(*state, std::move(data)));
-        return IO::successStatus();
+        return GameWIP::Status::Types::Status{};
     }
 
-    IO::Types::Status enqueue(ChildSurface &surface, Types::ChildSurface::Events::Payload data) noexcept
+    GameWIP::Status::Types::Status enqueue(ChildSurface &surface, Types::ChildSurface::Events::Payload data) noexcept
     {
         Internal::ChildSurfaceState *state = Internal::ChildSurfaceAccess::state(surface);
 
         if(state == nullptr)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::NotOpen);
         }
         static_cast<void>(Internal::enqueueChildSurfaceEvent(*state, std::move(data)));
-        return IO::successStatus();
+        return GameWIP::Status::Types::Status{};
     }
 
-    IO::Types::Status requestClose(Window &window, Types::Events::CloseRequestSource source) noexcept
+    GameWIP::Status::Types::Status requestClose(Window &window, Types::Events::CloseRequestSource source) noexcept
     {
         Internal::WindowState *state = Internal::WindowAccess::state(window);
 
         if(state == nullptr)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::NotOpen);
         }
         static_cast<void>(Internal::requestClose(*state, source));
-        return IO::successStatus();
+        return GameWIP::Status::Types::Status{};
     }
 
     void applyPresentationPublicationSnapshot(Window &window, const PresentationPublicationSnapshot &snapshot) noexcept

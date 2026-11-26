@@ -27,7 +27,7 @@ int runAssertFailureChild()
 {
     initializeChildLogger();
     ASSERT_MSG(false, kAssertFailureChildMessage);
-    Logger::shutdown();
+    static_cast<void>(Logger::shutdown());
     return 0;
 }
 
@@ -36,7 +36,7 @@ int runInteractiveAbortChild()
 {
     initializeChildLogger();
     ASSERT_INTERACTIVE_MSG(false, "interactive abort child");
-    Logger::shutdown();
+    static_cast<void>(Logger::shutdown());
     return 0;
 }
 
@@ -45,7 +45,7 @@ int runInteractiveBreakChild()
 {
     initializeChildLogger();
     ASSERT_INTERACTIVE_MSG(false, "interactive break child");
-    Logger::shutdown();
+    static_cast<void>(Logger::shutdown());
     return 0;
 }
 
@@ -71,15 +71,17 @@ void expectAbnormalChildExit(TestContext &context, std::string_view argument, st
     std::cout.flush();
     std::cerr.flush();
     const TestSupport::Types::Process::Result result = runChildProcessResult(context.executablePath, argument, timeout);
+    const bool hasExecution = result.hasValue();
+    const TestSupport::Types::Process::Execution *execution = hasExecution ? &result.value() : nullptr;
     context.expectTrue(
         testName,
-        result.status.ok() && result.outcome == TestSupport::Types::Process::Outcome::Exited && result.exitCode != 0,
+        result.ok() && execution != nullptr && execution->outcome == TestSupport::Types::Process::Outcome::Exited && execution->exitCode != 0,
         std::format(
             "{} outcome={} exit={}\n{}",
-            TestSupport::formatInfrastructureStatus(result.status),
-            static_cast<int>(result.outcome),
-            result.exitCode,
-            result.outputBytes));
+            TestSupport::formatStatus(result.status()),
+            execution == nullptr ? -1 : static_cast<int>(execution->outcome),
+            execution == nullptr ? 0u : execution->exitCode,
+            execution == nullptr ? std::string{} : execution->outputBytes));
 }
 
 /// @brief Verifies a failed ASSERT triggers an abnormal child-process exit when assertions are enabled.

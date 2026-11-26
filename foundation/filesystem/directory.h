@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <vector>
 
 namespace GameWIP::FileSystem
@@ -75,30 +76,6 @@ namespace GameWIP::FileSystem
                 EntryInfo info{};
             };
 
-            /// @brief Result returned by listDirectory().
-            /// @details Owns all accepted entries. On SizeLimitExceeded the entries within the limit are preserved; see
-            /// ListOptions::maxEntries.
-            struct ListResult
-            {
-                /// @brief Operation status.
-                IO::Types::Status status;
-                /// @brief Direct children collected before completion or failure.
-                std::vector<Entry> entries;
-            };
-
-            /// @brief Result returned by one DirectoryCursor step.
-            /// @details Exhaustion is hasEntry=false with a successful status. The limit is probed one entry past N;
-            /// SizeLimitExceeded is sticky (see ListOptions::maxEntries). A failed result has no entry.
-            struct CursorNextResult
-            {
-                /// @brief Operation status.
-                IO::Types::Status status;
-                /// @brief Direct child returned when available.
-                Entry entry;
-                /// @brief Whether this step returned one accepted child.
-                bool hasEntry = false;
-            };
-
             // Tree removal
             /// @brief Options used by removeDirectoryTree().
             struct RemoveTreeOptions
@@ -118,15 +95,6 @@ namespace GameWIP::FileSystem
                 std::uint64_t maxEntries = kNoEntryLimit;
             };
 
-            /// @brief Result returned by removeDirectoryTree().
-            /// @details SizeLimitExceeded preserves the count already removed.
-            struct RemoveTreeResult
-            {
-                /// @brief Operation status.
-                IO::Types::Status status;
-                /// @brief Number of entries removed before completion or failure.
-                std::uint64_t removedEntries = 0;
-            };
         } // namespace Directory
     } // namespace Types
 
@@ -154,14 +122,14 @@ namespace GameWIP::FileSystem
         /// @param path Directory path to enumerate.
         /// @param options Filtering, symlink, hidden-entry, and entry-limit behavior.
         /// @return Success, AlreadyOpen, or a validation/open failure status.
-        [[nodiscard]] IO::Types::Status open(const Types::Path &path, const Types::Directory::ListOptions &options = {}) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> open(const Types::Path &path, const Types::Directory::ListOptions &options = {}) noexcept;
         /// @brief Reports whether this cursor owns an active backend enumeration.
         [[nodiscard]] bool isOpen() const noexcept;
         /// @brief Returns the next accepted child or successful exhaustion.
         /// @return One entry, successful exhaustion, NotOpen, SizeLimitExceeded, or an enumeration failure.
-        [[nodiscard]] Types::Directory::CursorNextResult next() noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<std::optional<Types::Directory::Entry>> next() noexcept;
         /// @brief Closes the enumeration. Repeated close calls succeed.
-        [[nodiscard]] IO::Types::Status close() noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> close() noexcept;
 
     private:
         // Backend enumeration
@@ -182,33 +150,34 @@ namespace GameWIP::FileSystem
     /// @param path Directory path.
     /// @param options Existing-directory and symlink traversal behavior.
     /// @return Success or a validation, conflict, permission, or directory-creation failure status.
-    [[nodiscard]] IO::Types::Status createDirectory(const Types::Path &path, const Types::Directory::CreateOptions &options = {}) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<void> createDirectory(const Types::Path &path, const Types::Directory::CreateOptions &options = {}) noexcept;
 
     /// @brief Creates a directory and any missing parent directories.
     /// @param path Directory path.
     /// @param options Existing-directory and symlink traversal behavior.
     /// @return Success or a validation, conflict, permission, or directory-creation failure status.
-    [[nodiscard]] IO::Types::Status createDirectories(const Types::Path &path, const Types::Directory::CreateOptions &options = {}) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<void> createDirectories(const Types::Path &path, const Types::Directory::CreateOptions &options = {}) noexcept;
 
     /// @brief Lists direct children of a directory in backend/native order.
     /// @param path Directory path.
     /// @param options Filtering, symlink, hidden-entry, and entry-limit behavior.
     /// @return Collected accepted child entries and final status. Filtering precedes maxEntries counting; an additional
     /// matching child beyond the accepted limit returns SizeLimitExceeded with the partial entries retained.
-    [[nodiscard]] Types::Directory::ListResult listDirectory(const Types::Path &path, const Types::Directory::ListOptions &options = {}) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<std::vector<Types::Directory::Entry>>
+    listDirectory(const Types::Path &path, const Types::Directory::ListOptions &options = {}) noexcept;
 
     /// @brief Removes one empty directory.
     /// @param path Directory path.
     /// @param options Missing-target and symlink behavior.
     /// @return Success, DirectoryNotEmpty, or another validation, lookup, type, permission, or removal failure status.
-    [[nodiscard]] IO::Types::Status removeEmptyDirectory(const Types::Path &path, const Types::RemoveOptions &options = {}) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<void> removeEmptyDirectory(const Types::Path &path, const Types::RemoveOptions &options = {}) noexcept;
 
     /// @brief Recursively removes a directory tree without following discovered symlinked directories.
     /// @details Drive and UNC share roots are containers: their contents are removed, but the root remains.
     /// @param path Root directory path.
     /// @param options Missing-target, initial symlink, and entry-limit behavior.
     /// @return Final status and number of entries removed before completion or failure.
-    [[nodiscard]] Types::Directory::RemoveTreeResult removeDirectoryTree(
+    [[nodiscard]] GameWIP::Status::Types::Result<std::uint64_t> removeDirectoryTree(
         const Types::Path &path,
         const Types::Directory::RemoveTreeOptions &options = {}) noexcept;
 

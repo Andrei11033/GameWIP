@@ -25,7 +25,7 @@ inline constexpr std::string_view kManualInteropText =
     return image;
 }
 
-[[nodiscard]] IO::Types::Status writeManualInteropBitmap(const std::filesystem::path &path, const Desktop::Types::DataTransfer::Image &image)
+[[nodiscard]] GameWIP::Status::Types::Status writeManualInteropBitmap(const std::filesystem::path &path, const Desktop::Types::DataTransfer::Image &image)
 {
     BITMAPFILEHEADER file{};
     file.bfType = 0x4D42;
@@ -51,7 +51,7 @@ inline constexpr std::string_view kManualInteropText =
         bytes[destination + 3] = image.rgba8[offset + 3];
     }
 
-    return GameWIP::FileSystem::writeAllBytes(path, bytes).status;
+    return GameWIP::FileSystem::writeAllBytes(path, bytes).status();
 }
 
 /// @brief Shows channel order, row order, and alpha against a checkerboard in the target.
@@ -63,7 +63,7 @@ void paintManualImagePreview(const Desktop::Window &window, const Desktop::Types
     }
 
     const auto native = Desktop::Native::Win32::getHandle(window);
-    if(!native.status.ok())
+    if(!native.ok())
     {
         return;
     }
@@ -97,7 +97,7 @@ void paintManualImagePreview(const Desktop::Window &window, const Desktop::Types
     bitmap.bmiHeader.biHeight = -128;
     bitmap.bmiHeader.biPlanes = 1;
     bitmap.bmiHeader.biBitCount = 32;
-    const HDC dc = GetDC(native->window);
+    const HDC dc = GetDC(native.value().window);
 
     if(dc == nullptr)
     {
@@ -105,5 +105,5 @@ void paintManualImagePreview(const Desktop::Window &window, const Desktop::Types
     }
 
     StretchDIBits(dc, 18, 170, 128, 128, 0, 0, 128, 128, preview.data(), &bitmap, DIB_RGB_COLORS, SRCCOPY);
-    ReleaseDC(native->window, dc);
+    ReleaseDC(native.value().window, dc);
 }

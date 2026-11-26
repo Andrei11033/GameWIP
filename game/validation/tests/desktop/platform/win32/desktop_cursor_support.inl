@@ -39,7 +39,7 @@ namespace CursorTest
         return {{2, 2}, hotspot, dpi, stride, bytes};
     }
 
-    [[nodiscard]] Desktop::Types::Result<Desktop::Cursor> create(std::span<const std::byte> bytes, std::uint32_t dpi = 96)
+    [[nodiscard]] GameWIP::Status::Types::Result<Desktop::Cursor> create(std::span<const std::byte> bytes, std::uint32_t dpi = 96)
     {
         const Desktop::Types::Cursor::ImageView variant = image(bytes, dpi);
         return Desktop::createCursor(variant);

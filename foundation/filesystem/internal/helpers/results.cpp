@@ -11,37 +11,39 @@ namespace GameWIP::FileSystem::Internal
     /// Predicate and size failures
     /// ------------------------------------------------------------
 
-    Types::BoolResult boolFailure(IO::Types::Status status) noexcept
+    GameWIP::Status::Types::Result<bool> boolFailure(GameWIP::Status::Types::Status status) noexcept
     {
-        return {.status = std::move(status), .value = false};
+        return GameWIP::Status::Types::Result<bool>::failure(std::move(status));
     }
 
-    Types::BoolResult boolFailure(ErrorCode code) noexcept
+    GameWIP::Status::Types::Result<bool> boolFailure(ErrorCode code) noexcept
     {
-        return {.status = IO::makeStatus(code), .value = false};
+        return boolFailure(GameWIP::Status::Types::Status(code));
     }
 
-    IO::Types::SizeResult sizeFailure(IO::Types::Status status) noexcept
+    GameWIP::Status::Types::Result<std::uint64_t> sizeFailure(GameWIP::Status::Types::Status status) noexcept
     {
-        return {.status = std::move(status), .sizeBytes = 0};
+        return GameWIP::Status::Types::Result<std::uint64_t>::failure(std::move(status));
     }
 
-    IO::Types::SizeResult sizeFailure(ErrorCode code) noexcept
+    GameWIP::Status::Types::Result<std::uint64_t> sizeFailure(ErrorCode code) noexcept
     {
-        return {.status = IO::makeStatus(code), .sizeBytes = 0};
+        return sizeFailure(GameWIP::Status::Types::Status(code));
     }
 
     /// ------------------------------------------------------------
     /// Write failures
     /// ------------------------------------------------------------
 
-    IO::Types::WriteResult writeFailure(IO::Types::Status status, std::size_t bytesWritten) noexcept
+    GameWIP::Status::Types::Result<IO::Types::WriteProgress>
+    writeFailure(GameWIP::Status::Types::Status status, std::size_t bytesWritten) noexcept
     {
-        return {.status = std::move(status), .bytesWritten = bytesWritten};
+        return GameWIP::Status::Types::Result<IO::Types::WriteProgress>::failure(
+            std::move(status), IO::Types::WriteProgress{.bytesWritten = bytesWritten});
     }
 
-    IO::Types::WriteResult writeFailure(ErrorCode code, std::size_t bytesWritten) noexcept
+    GameWIP::Status::Types::Result<IO::Types::WriteProgress> writeFailure(ErrorCode code, std::size_t bytesWritten) noexcept
     {
-        return {.status = IO::makeStatus(code), .bytesWritten = bytesWritten};
+        return writeFailure(GameWIP::Status::Types::Status(code), bytesWritten);
     }
 } // namespace GameWIP::FileSystem::Internal

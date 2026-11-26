@@ -7,6 +7,7 @@
 #include "filesystem/internal/platform.h"
 
 #include <memory>
+#include <type_traits>
 #include <utility>
 
 namespace GameWIP::FileSystem::Internal
@@ -14,28 +15,31 @@ namespace GameWIP::FileSystem::Internal
     // Shared handle lifecycle
 
     [[nodiscard]] bool stateIsOpen(const std::unique_ptr<FileState> &state) noexcept;
-    [[nodiscard]] IO::Types::Status closeFileState(std::unique_ptr<FileState> &state) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<void> closeFileState(std::unique_ptr<FileState> &state) noexcept;
 
     // Shared lock acquisition
 
     template <typename LockFactory>
-    [[nodiscard]] Types::Lock::Result tryLockFileState(
+    [[nodiscard]] auto tryLockFileState(
         const std::unique_ptr<FileState> &state,
         Types::Lock::Mode mode,
         LockFactory &&makeLock) noexcept
     {
+        using Lock = std::invoke_result_t<LockFactory, std::unique_ptr<FileLockState>, Types::Lock::Mode>;
+        using Result = GameWIP::Status::Types::Result<Lock>;
+
         if(!stateIsOpen(state))
         {
-            return {.status = IO::makeStatus(ErrorCode::NotOpen)};
+            return Result::failure(GameWIP::Status::Types::Status(ErrorCode::NotOpen));
         }
 
-        Platform::NativeLockResult result = Platform::tryLockFile(*state, mode);
+        auto result = Platform::tryLockFile(*state, mode);
 
-        if(!result.status.ok() || result.outcome == Types::Lock::Outcome::WouldBlock)
+        if(!result.ok())
         {
-            return {.status = std::move(result.status), .outcome = result.outcome};
+            return Result::failure(result.status());
         }
 
-        return {.status = IO::successStatus(), .outcome = Types::Lock::Outcome::Acquired, .lock = makeLock(std::move(result.state), mode)};
+        return Result::success(makeLock(std::move(result).value(), mode));
     }
 } // namespace GameWIP::FileSystem::Internal

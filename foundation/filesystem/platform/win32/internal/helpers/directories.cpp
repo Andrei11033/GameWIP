@@ -33,114 +33,121 @@ namespace GameWIP::FileSystem::Platform::Win32
     /// ------------------------------------------------------------
 
     /// @brief Creates one final directory through a stable parent handle.
-    [[nodiscard]] IO::Types::Status createDirectoryStrict(const Types::Path &path, const Types::Directory::CreateOptions &options)
+    [[nodiscard]] Result<void> createDirectoryStrict(const Types::Path &path, const Types::Directory::CreateOptions &options)
     {
         // Resolve and validate the target path.
-        WidePathResult absolutePath = absoluteNativePath(path);
+        auto absolutePath = absoluteNativePath(path);
 
-        if(!absolutePath.status.ok())
+        if(!absolutePath.ok())
         {
-            return std::move(absolutePath.status);
+            return failure<void>(absolutePath.status());
         }
 
-        ParsedPathResult parsedPath = parseAbsolutePath(absolutePath.path);
+        auto parsedPath = parseAbsolutePath(absolutePath.value());
 
-        if(!parsedPath.status.ok())
+        if(!parsedPath.ok())
         {
-            return std::move(parsedPath.status);
+            return failure<void>(parsedPath.status());
         }
 
-        if(parsedPath.components.empty())
+        if(parsedPath.value().components.empty())
         {
-            return options.succeedIfAlreadyExists ? IO::successStatus() : IO::makeStatus(ErrorCode::AlreadyExists);
+            return options.succeedIfAlreadyExists ? success() : failure<void>(ErrorCode::AlreadyExists);
         }
 
         // Reuse an existing directory or propagate a non-missing error.
-        EntryQueryResult existing = queryStrictPath(parsedPath, options.symlinkPolicy);
+        auto existing = queryStrictPath(parsedPath.value(), options.symlinkPolicy);
 
-        if(existing.status.ok())
+        if(existing.ok())
         {
-            if(existing.info.kind == Types::EntryKind::Directory)
+            if(existing.value().kind == Types::EntryKind::Directory)
             {
-                return options.succeedIfAlreadyExists ? IO::successStatus() : IO::makeStatus(ErrorCode::AlreadyExists);
+                return options.succeedIfAlreadyExists ? success() : failure<void>(ErrorCode::AlreadyExists);
             }
 
-            return IO::makeStatus(ErrorCode::AlreadyExists);
+            return failure<void>(ErrorCode::AlreadyExists);
         }
 
-        if(existing.status.code != ErrorCode::NotFound)
+        if(existing.status().code() != ErrorCode::NotFound)
         {
-            return std::move(existing.status);
+            return failure<void>(existing.status());
         }
 
         // Create the target relative to its stable parent.
-        HandleResult parent = openParentStrict(parsedPath);
+        auto parent = openParentStrict(parsedPath.value());
 
-        if(!parent.status.ok())
+        if(!parent.ok())
         {
-            return std::move(parent.status);
+            return failure<void>(parent.status());
         }
 
-        HandleResult created = openChildNative(
-            parent.handle.get(),
-            parsedPath.components.back(),
+        auto created = openChildNative(
+            parent.value().handle.get(),
+            parsedPath.value().components.back(),
             kDirectoryTraversalAccess,
             kShareAll,
             FILE_CREATE,
             kOpenOptionsBase | FILE_DIRECTORY_FILE,
             FILE_ATTRIBUTE_DIRECTORY,
             ErrorCode::DirectoryCreateFailed);
-        return std::move(created.status);
+
+        if(!created.ok())
+        {
+            return failure<void>(created.status());
+        }
+
+        return success();
     }
 
     /// @brief Creates missing components one at a time while retaining strict traversal handles.
-    [[nodiscard]] IO::Types::Status createDirectoriesStrict(const Types::Path &path, const Types::Directory::CreateOptions &options)
+    [[nodiscard]] Result<void> createDirectoriesStrict(const Types::Path &path, const Types::Directory::CreateOptions &options)
     {
         // Resolve the target path.
-        WidePathResult absolutePath = absoluteNativePath(path);
+        auto absolutePath = absoluteNativePath(path);
 
-        if(!absolutePath.status.ok())
+        if(!absolutePath.ok())
         {
-            return std::move(absolutePath.status);
+            return failure<void>(absolutePath.status());
         }
 
-        ParsedPathResult parsedPath = parseAbsolutePath(absolutePath.path);
+        auto parsedPath = parseAbsolutePath(absolutePath.value());
 
-        if(!parsedPath.status.ok())
+        if(!parsedPath.ok())
         {
-            return std::move(parsedPath.status);
+            return failure<void>(parsedPath.status());
         }
 
-        if(parsedPath.components.empty())
+        if(parsedPath.value().components.empty())
         {
-            return options.succeedIfAlreadyExists ? IO::successStatus() : IO::makeStatus(ErrorCode::AlreadyExists);
+            return options.succeedIfAlreadyExists ? success() : failure<void>(ErrorCode::AlreadyExists);
         }
 
         // Start traversal from the root and create missing components.
-        HandleResult current = openRootDirectory(parsedPath.root);
+        auto current = openRootDirectory(parsedPath.value().root);
 
-        if(!current.status.ok())
+        if(!current.ok())
         {
-            return std::move(current.status);
+            return failure<void>(current.status());
         }
 
         bool createdAny = false;
 
-        for(std::size_t index = 0; index < parsedPath.components.size(); ++index)
+        for(std::size_t index = 0; index < parsedPath.value().components.size(); ++index)
         {
-            const bool finalComponent = index + 1 == parsedPath.components.size();
+            const bool finalComponent = index + 1 == parsedPath.value().components.size();
             const bool followThisComponent = finalComponent && options.symlinkPolicy == Types::SymlinkPolicy::FollowFinal;
-            HandleResult child = openChild(current.handle.get(), parsedPath.components[index], !followThisComponent, true);
+            auto child = openChild(current.value().handle.get(), parsedPath.value().components[index], !followThisComponent, true);
 
-            if(!child.status.ok())
+            if(!child.ok())
             {
-                if(child.status.code != ErrorCode::NotFound)
+                if(child.status().code() != ErrorCode::NotFound)
                 {
-                    return std::move(child.status);
+                    return failure<void>(child.status());
                 }
+
                 child = openChildNative(
-                    current.handle.get(),
-                    parsedPath.components[index],
+                    current.value().handle.get(),
+                    parsedPath.value().components[index],
                     kDirectoryTraversalAccess,
                     kShareAll,
                     FILE_CREATE,
@@ -148,35 +155,35 @@ namespace GameWIP::FileSystem::Platform::Win32
                     FILE_ATTRIBUTE_DIRECTORY,
                     ErrorCode::DirectoryCreateFailed);
 
-                if(!child.status.ok())
+                if(!child.ok())
                 {
-                    return std::move(child.status);
+                    return failure<void>(child.status());
                 }
 
                 createdAny = true;
             }
 
-            EntryQueryResult childInfo = queryHandleInfo(child.handle.get());
+            auto childInfo = queryHandleInfo(child.value().handle.get());
 
-            if(!childInfo.status.ok())
+            if(!childInfo.ok())
             {
-                return std::move(childInfo.status);
+                return failure<void>(childInfo.status());
             }
 
-            if(childInfo.info.kind == Types::EntryKind::Symlink && !followThisComponent)
+            if(childInfo.value().kind == Types::EntryKind::Symlink && !followThisComponent)
             {
-                return symlinkPolicyRejectedStatus();
+                return failure<void>(symlinkPolicyRejectedStatus());
             }
 
-            if(childInfo.info.kind != Types::EntryKind::Directory)
+            if(childInfo.value().kind != Types::EntryKind::Directory)
             {
-                return IO::makeStatus(ErrorCode::AlreadyExists);
+                return failure<void>(ErrorCode::AlreadyExists);
             }
 
-            current.handle = std::move(child.handle);
+            current.value().handle = std::move(child).value().handle;
         }
 
-        return (createdAny || options.succeedIfAlreadyExists) ? IO::successStatus() : IO::makeStatus(ErrorCode::AlreadyExists);
+        return (createdAny || options.succeedIfAlreadyExists) ? success() : failure<void>(ErrorCode::AlreadyExists);
     }
 
     /// ------------------------------------------------------------
@@ -184,52 +191,55 @@ namespace GameWIP::FileSystem::Platform::Win32
     /// ------------------------------------------------------------
 
     /// Converts one native enumeration record into a platform-neutral directory entry.
-    [[nodiscard]] DirectoryCursorNextResult directoryCursorEntry(Internal::DirectoryCursorState &state, const WIN32_FIND_DATAW &findData)
+    [[nodiscard]] Result<Platform::DirectoryCursorEntry> directoryCursorEntry(
+        Internal::DirectoryCursorState &state,
+        const WIN32_FIND_DATAW &findData)
     {
         const std::wstring childName{findData.cFileName};
         const Types::Path childPath = state.directoryPath / std::filesystem::path{childName};
 
         if(state.stableHandles.empty())
         {
-            return {.status = IO::makeStatus(ErrorCode::DirectoryListFailed)};
+            return failure<Platform::DirectoryCursorEntry>(ErrorCode::DirectoryListFailed);
         }
 
         // Query relative to the retained directory handle. This preserves strict traversal and
         // avoids reopening the complete ancestry once per child.
         const HANDLE parentHandle = static_cast<HANDLE>(state.stableHandles.back());
-        HandleResult childHandle = openChild(parentHandle, childName, state.symlinkPolicy == Types::SymlinkPolicy::DoNotFollow, false);
+        auto childHandle = openChild(parentHandle, childName, state.symlinkPolicy == Types::SymlinkPolicy::DoNotFollow, false);
 
-        if(!childHandle.status.ok())
+        if(!childHandle.ok())
         {
-            return {.status = std::move(childHandle.status)};
-        }
-        EntryQueryResult child = queryHandleInfo(childHandle.handle.get());
-
-        if(!child.status.ok())
-        {
-            return {.status = std::move(child.status)};
+            return failure<Platform::DirectoryCursorEntry>(childHandle.status());
         }
 
-        return {
-            .status = IO::successStatus(),
-            .entry = Types::Directory::Entry{.path = childPath, .info = child.info},
-            .hidden = (findData.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) != 0,
-            .hasEntry = true};
+        auto child = queryHandleInfo(childHandle.value().handle.get());
+
+        if(!child.ok())
+        {
+            return failure<Platform::DirectoryCursorEntry>(child.status());
+        }
+
+        Platform::DirectoryCursorEntry entry{
+            .entry = Types::Directory::Entry{.path = childPath, .info = std::move(child).value()},
+            .hidden = (findData.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) != 0};
+        return Result<Platform::DirectoryCursorEntry>::success(std::move(entry));
     }
 
     /// Starts native enumeration after the caller has stabilized the directory path.
-    [[nodiscard]] DirectoryCursorOpenResult startDirectoryCursor(std::unique_ptr<Internal::DirectoryCursorState> state)
+    [[nodiscard]] Result<std::unique_ptr<Internal::DirectoryCursorState>>
+    startDirectoryCursor(std::unique_ptr<Internal::DirectoryCursorState> state)
     {
-        WidePathResult absolutePath = absoluteNativePath(state->directoryPath);
+        auto absolutePath = absoluteNativePath(state->directoryPath);
 
-        if(!absolutePath.status.ok())
+        if(!absolutePath.ok())
         {
-            return {.status = std::move(absolutePath.status)};
+            return failure<std::unique_ptr<Internal::DirectoryCursorState>>(absolutePath.status());
         }
 
         // Start native enumeration and skip synthetic dot entries.
         WIN32_FIND_DATAW findData{};
-        UniqueFindHandle findHandle{FindFirstFileW(searchWildcardPath(absolutePath.path).c_str(), &findData)};
+        UniqueFindHandle findHandle{FindFirstFileW(searchWildcardPath(absolutePath.value()).c_str(), &findData)};
 
         if(!findHandle.isValid())
         {
@@ -241,7 +251,8 @@ namespace GameWIP::FileSystem::Platform::Win32
             }
             else
             {
-                return {.status = makeWin32Status(error, ErrorCode::DirectoryListFailed)};
+                return failure<std::unique_ptr<Internal::DirectoryCursorState>>(
+                    makeWin32Status(error, ErrorCode::DirectoryListFailed));
             }
         }
         else
@@ -257,7 +268,8 @@ namespace GameWIP::FileSystem::Platform::Win32
 
                 if(error != ERROR_NO_MORE_FILES)
                 {
-                    return {.status = makeWin32Status(error, ErrorCode::DirectoryListFailed)};
+                    return failure<std::unique_ptr<Internal::DirectoryCursorState>>(
+                        makeWin32Status(error, ErrorCode::DirectoryListFailed));
                 }
                 state->finished = true;
                 break;
@@ -265,14 +277,16 @@ namespace GameWIP::FileSystem::Platform::Win32
 
             if(!state->finished)
             {
-                DirectoryCursorNextResult first = directoryCursorEntry(*state, findData);
+                auto first = directoryCursorEntry(*state, findData);
 
-                if(!first.status.ok())
+                if(!first.ok())
                 {
-                    return {.status = std::move(first.status)};
+                    return failure<std::unique_ptr<Internal::DirectoryCursorState>>(first.status());
                 }
-                state->bufferedEntry = std::move(first.entry);
-                state->bufferedEntryHidden = first.hidden;
+
+                Platform::DirectoryCursorEntry entry = std::move(first).value();
+                state->bufferedEntry = std::move(entry.entry);
+                state->bufferedEntryHidden = entry.hidden;
                 state->hasBufferedEntry = true;
             }
         }
@@ -283,26 +297,28 @@ namespace GameWIP::FileSystem::Platform::Win32
             state->nativeFindHandle = findHandle.release();
         }
 
-        return {.status = IO::successStatus(), .state = std::move(state)};
+        return Result<std::unique_ptr<Internal::DirectoryCursorState>>::success(std::move(state));
     }
 
     /// Opens a root cursor while retaining the complete path traversal chain.
-    [[nodiscard]] DirectoryCursorOpenResult openDirectoryCursorImpl(const Types::Path &path, Types::SymlinkPolicy symlinkPolicy)
+    [[nodiscard]] Result<std::unique_ptr<Internal::DirectoryCursorState>>
+    openDirectoryCursorImpl(const Types::Path &path, Types::SymlinkPolicy symlinkPolicy)
     {
         // Stabilize the requested directory before creating cursor state.
-        StablePathResult stablePath = stabilizeExistingPath(path, symlinkPolicy, true);
+        auto stablePath = stabilizeExistingPath(path, symlinkPolicy, true);
 
-        if(!stablePath.status.ok())
+        if(!stablePath.ok())
         {
-            return {.status = std::move(stablePath.status)};
+            return failure<std::unique_ptr<Internal::DirectoryCursorState>>(stablePath.status());
         }
 
+        StablePath stableValue = std::move(stablePath).value();
         auto state = std::make_unique<Internal::DirectoryCursorState>();
         state->directoryPath = path;
         state->symlinkPolicy = symlinkPolicy;
-        state->stableHandles.reserve(stablePath.handles.size());
+        state->stableHandles.reserve(stableValue.handles.size());
 
-        for(UniqueHandle &handle : stablePath.handles)
+        for(UniqueHandle &handle : stableValue.handles)
         {
             state->stableHandles.push_back(handle.release());
         }
@@ -311,14 +327,14 @@ namespace GameWIP::FileSystem::Platform::Win32
     }
 
     /// Opens a child from its stabilized parent so active nested cursors retain one new handle per level.
-    [[nodiscard]] DirectoryCursorOpenResult openChildDirectoryCursorImpl(
+    [[nodiscard]] Result<std::unique_ptr<Internal::DirectoryCursorState>> openChildDirectoryCursorImpl(
         const Internal::DirectoryCursorState &parent,
         const Types::Path &path,
         Types::SymlinkPolicy symlinkPolicy)
     {
         if(symlinkPolicy != Types::SymlinkPolicy::DoNotFollow || parent.stableHandles.empty())
         {
-            return {.status = IO::makeStatus(ErrorCode::InvalidArgument)};
+            return failure<std::unique_ptr<Internal::DirectoryCursorState>>(ErrorCode::InvalidArgument);
         }
 
         // Open the child relative to the parent's retained directory handle.
@@ -326,36 +342,39 @@ namespace GameWIP::FileSystem::Platform::Win32
 
         if(childName.empty())
         {
-            return {.status = IO::makeStatus(ErrorCode::InvalidArgument)};
+            return failure<std::unique_ptr<Internal::DirectoryCursorState>>(ErrorCode::InvalidArgument);
         }
 
         const HANDLE parentHandle = static_cast<HANDLE>(parent.stableHandles.back());
-        HandleResult childHandle = openChild(parentHandle, childName, true, true, kShareWithoutDelete);
+        auto childHandle = openChild(parentHandle, childName, true, true, kShareWithoutDelete);
 
-        if(!childHandle.status.ok())
+        if(!childHandle.ok())
         {
-            return {.status = std::move(childHandle.status)};
+            return failure<std::unique_ptr<Internal::DirectoryCursorState>>(childHandle.status());
         }
 
         auto state = std::make_unique<Internal::DirectoryCursorState>();
         state->directoryPath = path;
         state->symlinkPolicy = symlinkPolicy;
-        state->stableHandles.push_back(childHandle.handle.release());
+        state->stableHandles.push_back(std::move(childHandle).value().handle.release());
         return startDirectoryCursor(std::move(state));
     }
 
     /// Advances one cursor without collecting sibling entries.
-    [[nodiscard]] DirectoryCursorNextResult readDirectoryCursorImpl(Internal::DirectoryCursorState &state)
+    [[nodiscard]] Result<std::optional<Platform::DirectoryCursorEntry>> readDirectoryCursorImpl(Internal::DirectoryCursorState &state)
     {
         if(state.hasBufferedEntry)
         {
             state.hasBufferedEntry = false;
-            return {.status = IO::successStatus(), .entry = std::move(state.bufferedEntry), .hidden = state.bufferedEntryHidden, .hasEntry = true};
+            Platform::DirectoryCursorEntry entry{
+                .entry = std::move(state.bufferedEntry),
+                .hidden = state.bufferedEntryHidden};
+            return Result<std::optional<Platform::DirectoryCursorEntry>>::success(std::move(entry));
         }
 
         if(state.finished)
         {
-            return {.status = IO::successStatus()};
+            return Result<std::optional<Platform::DirectoryCursorEntry>>::success(std::nullopt);
         }
 
         const HANDLE findHandle = static_cast<HANDLE>(state.nativeFindHandle);
@@ -365,7 +384,14 @@ namespace GameWIP::FileSystem::Platform::Win32
         {
             if(!isDotDirectoryEntry(findData.cFileName))
             {
-                return directoryCursorEntry(state, findData);
+                auto entry = directoryCursorEntry(state, findData);
+
+                if(!entry.ok())
+                {
+                    return failure<std::optional<Platform::DirectoryCursorEntry>>(entry.status());
+                }
+
+                return Result<std::optional<Platform::DirectoryCursorEntry>>::success(std::move(entry).value());
             }
         }
 
@@ -374,51 +400,55 @@ namespace GameWIP::FileSystem::Platform::Win32
         if(error == ERROR_NO_MORE_FILES)
         {
             state.finished = true;
-            return {.status = IO::successStatus()};
+            return Result<std::optional<Platform::DirectoryCursorEntry>>::success(std::nullopt);
         }
 
-        return {.status = makeWin32Status(error, ErrorCode::DirectoryListFailed)};
+        return failure<std::optional<Platform::DirectoryCursorEntry>>(makeWin32Status(error, ErrorCode::DirectoryListFailed));
     }
 
     /// Enumerates direct children and applies public filtering and count policy.
-    [[nodiscard]] Types::Directory::ListResult listDirectoryImpl(const Types::Path &path, const Types::Directory::ListOptions &options)
+    [[nodiscard]] Result<std::vector<Types::Directory::Entry>>
+    listDirectoryImpl(const Types::Path &path, const Types::Directory::ListOptions &options)
     {
         // Reuse cursor traversal and apply filters as entries arrive.
-        DirectoryCursorOpenResult opened = openDirectoryCursorImpl(path, options.symlinkPolicy);
+        auto opened = openDirectoryCursorImpl(path, options.symlinkPolicy);
 
-        if(!opened.status.ok())
+        if(!opened.ok())
         {
-            return {.status = std::move(opened.status)};
+            return failure<std::vector<Types::Directory::Entry>>(opened.status());
         }
 
-        Types::Directory::ListResult result{.status = IO::successStatus()};
+        std::vector<Types::Directory::Entry> entries;
 
         while(true)
         {
-            DirectoryCursorNextResult next = readDirectoryCursorImpl(*opened.state);
+            auto next = readDirectoryCursorImpl(*opened.value());
 
-            if(!next.status.ok())
+            if(!next.ok())
             {
-                result.status = std::move(next.status);
-                return result;
+                return Result<std::vector<Types::Directory::Entry>>::failure(next.status(), std::move(entries));
             }
 
-            if(!next.hasEntry)
+            if(!next.value())
             {
-                return result;
+                return Result<std::vector<Types::Directory::Entry>>::success(std::move(entries));
             }
 
-            if((!options.includeHidden && next.hidden) || !includeEntryKind(next.entry.info.kind, options))
+            auto nextValue = std::move(next).value();
+            Platform::DirectoryCursorEntry entry = std::move(*nextValue);
+
+            if((!options.includeHidden && entry.hidden) || !includeEntryKind(entry.entry.info.kind, options))
             {
                 continue;
             }
 
-            if(result.entries.size() >= options.maxEntries)
+            if(entries.size() >= options.maxEntries)
             {
-                result.status = IO::makeStatus(ErrorCode::SizeLimitExceeded);
-                return result;
+                return Result<std::vector<Types::Directory::Entry>>::failure(
+                    Status(ErrorCode::SizeLimitExceeded), std::move(entries));
             }
-            result.entries.push_back(std::move(next.entry));
+
+            entries.push_back(std::move(entry.entry));
         }
     }
 

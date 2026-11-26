@@ -82,13 +82,13 @@ void testPassiveHelpers(TestSupport::Context &context)
     static_cast<void>(context.expectEq("byte segment size", byteText.size(), bytes.bytes().size()));
 
     static_cast<void>(
-        context.expectEq("formatted print failure returns status", ErrorCode::InvalidArgument, Terminal::print("{}", TerminalThrowingFormat{}).code));
+        context.expectEq("formatted print failure returns status", ErrorCode::InvalidArgument, Terminal::print("{}", TerminalThrowingFormat{}).status().code()));
     Terminal::Types::Output::LineOptions lineOptions;
     lineOptions.lineEnding = Terminal::Types::Output::LineEnding::Lf;
     static_cast<void>(context.expectEq(
         "formatted println failure returns status",
         ErrorCode::InvalidArgument,
-        Terminal::println(lineOptions, "{}", TerminalThrowingFormat{}).code));
+        Terminal::println(lineOptions, "{}", TerminalThrowingFormat{}).status().code()));
 }
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
@@ -100,48 +100,69 @@ void testCapabilitiesAndQueries(TestSupport::Context &context)
     // Observe input capabilities and validate input queries.
     Hooks::setInputCapabilitiesOverride(Terminal::Types::Input::Stream::Stdin, terminalInputCapabilities());
     const Terminal::Types::Input::CapabilitiesResult inputCapabilities = Terminal::getInputCapabilities();
-    static_cast<void>(context.expectTrue("input capabilities status", inputCapabilities.status.ok()));
-    static_cast<void>(context.expectEq("input capability kind", Terminal::Types::StreamKind::Terminal, inputCapabilities.capabilities.kind));
-    static_cast<void>(context.expectTrue("input capability event support", inputCapabilities.capabilities.supportsEventInput));
-    static_cast<void>(context.expectTrue("input capability cancellation support", inputCapabilities.capabilities.supportsCancellation));
+    static_cast<void>(context.expectTrue("input capabilities status", inputCapabilities.ok()));
+    if(inputCapabilities.hasValue())
+    {
+        static_cast<void>(context.expectEq("input capability kind", Terminal::Types::StreamKind::Terminal, inputCapabilities.value().kind));
+        static_cast<void>(context.expectTrue("input capability event support", inputCapabilities.value().supportsEventInput));
+        static_cast<void>(context.expectTrue("input capability cancellation support", inputCapabilities.value().supportsCancellation));
+    }
 
-    Hooks::forceNextInputCapabilityFailure(ErrorCode::PermissionDenied);
-    static_cast<void>(context.expectEq("input capability forced failure", ErrorCode::PermissionDenied, Terminal::getInputCapabilities().status.code));
+    Hooks::forceNextInputCapabilityFailure(IOErrorCode::PermissionDenied);
+    static_cast<void>(
+        context.expectEq("input capability forced failure", ErrorCode::PermissionDenied, Terminal::getInputCapabilities().status().code()));
 
     const auto invalidInputStream = static_cast<Terminal::Types::Input::Stream>(99);
     static_cast<void>(context.expectEq(
         "invalid input capability stream is rejected",
         ErrorCode::InvalidArgument,
-        Terminal::getInputCapabilities(invalidInputStream).status.code));
+        Terminal::getInputCapabilities(invalidInputStream).status().code()));
     static_cast<void>(
-        context.expectEq("invalid input read stream is rejected", ErrorCode::InvalidArgument, Terminal::readText(invalidInputStream).status.code));
+        context.expectEq("invalid input read stream is rejected", ErrorCode::InvalidArgument, Terminal::readText(invalidInputStream).status().code()));
 
     // Prepare output capabilities and reject unavailable streams.
     setupCapturedOutput(Terminal::Types::Output::Stream::Stdout);
     const Terminal::Types::Output::CapabilitiesResult outputCapabilities = Terminal::getOutputCapabilities();
-    static_cast<void>(context.expectTrue("output capabilities status", outputCapabilities.status.ok()));
-    static_cast<void>(context.expectTrue("output style capability", outputCapabilities.capabilities.style.rgbColor));
-    static_cast<void>(context.expectTrue("output cursor capability", outputCapabilities.capabilities.supportsCursorMovement));
-    Hooks::forceNextOutputCapabilityFailure(ErrorCode::StatFailed);
-    static_cast<void>(context.expectEq("output capability forced failure", ErrorCode::StatFailed, Terminal::getOutputCapabilities().status.code));
+    static_cast<void>(context.expectTrue("output capabilities status", outputCapabilities.ok()));
+    if(outputCapabilities.hasValue())
+    {
+        static_cast<void>(context.expectTrue("output style capability", outputCapabilities.value().style.rgbColor));
+        static_cast<void>(context.expectTrue("output cursor capability", outputCapabilities.value().supportsCursorMovement));
+    }
+    Hooks::forceNextOutputCapabilityFailure(IOErrorCode::StatFailed);
+    static_cast<void>(context.expectEq("output capability forced failure", ErrorCode::StatFailed, Terminal::getOutputCapabilities().status().code()));
 
     Hooks::setOutputCapabilitiesOverride(Terminal::Types::Output::Stream::Stdout, unpreparedTerminalOutputCapabilities());
     Hooks::setPreparedOutputCapabilitiesOverride(Terminal::Types::Output::Stream::Stdout, terminalOutputCapabilities());
     const Terminal::Types::Output::CapabilitiesResult prepared = Terminal::prepareOutput();
-    static_cast<void>(context.expectTrue("explicit output preparation succeeds", prepared.status.ok()));
-    static_cast<void>(context.expectTrue("explicit output preparation enables styling", prepared.capabilities.style.rgbColor));
-    static_cast<void>(context.expectTrue("prepared capabilities remain active", Terminal::getOutputCapabilities().capabilities.style.bold));
+    static_cast<void>(context.expectTrue("explicit output preparation succeeds", prepared.ok()));
+    if(prepared.hasValue())
+    {
+        static_cast<void>(context.expectTrue("explicit output preparation enables styling", prepared.value().style.rgbColor));
+    }
+    const auto preparedCapabilities = Terminal::getOutputCapabilities();
+    static_cast<void>(context.expectTrue("prepared capabilities query succeeds", preparedCapabilities.ok()));
+    if(preparedCapabilities.hasValue())
+    {
+        static_cast<void>(context.expectTrue("prepared capabilities remain active", preparedCapabilities.value().style.bold));
+    }
     const Terminal::Types::Output::CapabilitiesResult preparedAgain = Terminal::prepareOutput();
-    static_cast<void>(context.expectTrue("repeated output preparation succeeds", preparedAgain.status.ok()));
-    static_cast<void>(context.expectTrue("repeated output preparation preserves capabilities", preparedAgain.capabilities.style.bold));
+    static_cast<void>(context.expectTrue("repeated output preparation succeeds", preparedAgain.ok()));
+    if(preparedAgain.hasValue())
+    {
+        static_cast<void>(context.expectTrue("repeated output preparation preserves capabilities", preparedAgain.value().style.bold));
+    }
 
     Hooks::setOutputCapabilitiesOverride(Terminal::Types::Output::Stream::Stderr, redirectedOutputCapabilities());
     const Terminal::Types::Output::CapabilitiesResult redirectedPrepared = Terminal::prepareOutput(Terminal::Types::Output::Stream::Stderr);
-    static_cast<void>(context.expectTrue("redirected output preparation succeeds", redirectedPrepared.status.ok()));
-    static_cast<void>(context.expectEq(
-        "redirected output preparation preserves stream kind",
-        Terminal::Types::StreamKind::Redirected,
-        redirectedPrepared.capabilities.kind));
+    static_cast<void>(context.expectTrue("redirected output preparation succeeds", redirectedPrepared.ok()));
+    if(redirectedPrepared.hasValue())
+    {
+        static_cast<void>(context.expectEq(
+            "redirected output preparation preserves stream kind",
+            Terminal::Types::StreamKind::Redirected,
+            redirectedPrepared.value().kind));
+    }
 
     Terminal::Types::Output::Capabilities detachedCapabilities;
     detachedCapabilities.kind = Terminal::Types::StreamKind::Detached;
@@ -149,35 +170,44 @@ void testCapabilitiesAndQueries(TestSupport::Context &context)
     static_cast<void>(context.expectEq(
         "detached output preparation reports not open",
         ErrorCode::NotOpen,
-        Terminal::prepareOutput(Terminal::Types::Output::Stream::Stderr).status.code));
+        Terminal::prepareOutput(Terminal::Types::Output::Stream::Stderr).status().code()));
 
     // Query terminal size and cursor position.
     Hooks::setTerminalSizeOverride(Terminal::Types::Output::Stream::Stdout, {.columns = 120, .rows = 40});
     const Terminal::Types::SizeResult size = Terminal::getTerminalSize();
-    static_cast<void>(context.expectTrue("terminal size status", size.status.ok()));
-    static_cast<void>(context.expectEq("terminal size columns", std::uint32_t{120}, size.size.columns));
-    static_cast<void>(context.expectEq("terminal size rows", std::uint32_t{40}, size.size.rows));
+    static_cast<void>(context.expectTrue("terminal size status", size.ok()));
+    if(size.hasValue())
+    {
+        static_cast<void>(context.expectEq("terminal size columns", std::uint32_t{120}, size.value().columns));
+        static_cast<void>(context.expectEq("terminal size rows", std::uint32_t{40}, size.value().rows));
+    }
 
     Hooks::setCursorPositionOverride(Terminal::Types::Output::Stream::Stdout, {.column = 7, .row = 9});
     const Terminal::Types::Cursor::PositionResult position = Terminal::getCursorPosition();
-    static_cast<void>(context.expectTrue("cursor position status", position.status.ok()));
-    static_cast<void>(context.expectEq("cursor position column", std::uint32_t{7}, position.position.column));
-    static_cast<void>(context.expectEq("cursor position row", std::uint32_t{9}, position.position.row));
+    static_cast<void>(context.expectTrue("cursor position status", position.ok()));
+    if(position.hasValue())
+    {
+        static_cast<void>(context.expectEq("cursor position column", std::uint32_t{7}, position.value().column));
+        static_cast<void>(context.expectEq("cursor position row", std::uint32_t{9}, position.value().row));
+    }
 
     const Terminal::Types::Cursor::PositionResult explicitPosition = Terminal::getCursorPosition(
         Terminal::Types::Output::Stream::Stdout,
         Terminal::Types::Input::Stream::Stdin,
         {.timeout = Terminal::kNoWait, .flushMode = IO::Types::FlushMode::None});
-    static_cast<void>(context.expectTrue("explicit cursor position status", explicitPosition.status.ok()));
-    static_cast<void>(context.expectEq("explicit cursor position column", std::uint32_t{7}, explicitPosition.position.column));
-    static_cast<void>(context.expectEq("explicit cursor position row", std::uint32_t{9}, explicitPosition.position.row));
+    static_cast<void>(context.expectTrue("explicit cursor position status", explicitPosition.ok()));
+    if(explicitPosition.hasValue())
+    {
+        static_cast<void>(context.expectEq("explicit cursor position column", std::uint32_t{7}, explicitPosition.value().column));
+        static_cast<void>(context.expectEq("explicit cursor position row", std::uint32_t{9}, explicitPosition.value().row));
+    }
 
     // Preserve native failures as status results.
-    Hooks::forceNextTerminalSizeFailure(ErrorCode::StatFailed);
-    static_cast<void>(context.expectEq("terminal size forced failure", ErrorCode::StatFailed, Terminal::getTerminalSize().status.code));
+    Hooks::forceNextTerminalSizeFailure(IOErrorCode::StatFailed);
+    static_cast<void>(context.expectEq("terminal size forced failure", ErrorCode::StatFailed, Terminal::getTerminalSize().status().code()));
 
-    Hooks::forceNextCursorPositionFailure(ErrorCode::StatFailed);
-    static_cast<void>(context.expectEq("cursor position forced failure", ErrorCode::StatFailed, Terminal::getCursorPosition().status.code));
+    Hooks::forceNextCursorPositionFailure(IOErrorCode::StatFailed);
+    static_cast<void>(context.expectEq("cursor position forced failure", ErrorCode::StatFailed, Terminal::getCursorPosition().status().code()));
 
     Hooks::reset();
 }

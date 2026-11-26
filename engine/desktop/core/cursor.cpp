@@ -7,6 +7,7 @@
 #include "desktop/internal/desktop_test_hooks.h"
 #include "desktop/internal/cursor_selection.h"
 #include "desktop/internal/cursor_state.h"
+#include "desktop/internal/results.h"
 #include "desktop/internal/window_state.h"
 #include "desktop/platform/cursor.h"
 #include "desktop/platform/window.h"
@@ -28,16 +29,16 @@ namespace GameWIP::Desktop
 
     namespace
     {
-        using IO::Types::ErrorCode;
+        using ErrorCode = GameWIP::Status::Types::Code;
 
         /// @brief Builds a portable status from a single error code.
-        [[nodiscard]] IO::Types::Status error(ErrorCode code) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status error(ErrorCode code) noexcept
         {
-            return IO::makeStatus(code);
+            return GameWIP::Desktop::Internal::statusFor(code);
         }
 
         /// @brief Validates cursor dimensions, pixel storage, DPI uniqueness, and hotspot bounds.
-        [[nodiscard]] IO::Types::Status validateVariants(std::span<const Types::Cursor::ImageView> variants) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status validateVariants(std::span<const Types::Cursor::ImageView> variants) noexcept
         {
             if(variants.empty())
             {
@@ -93,7 +94,7 @@ namespace GameWIP::Desktop
                 }
             }
 
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
     } // namespace
 
@@ -161,18 +162,18 @@ namespace GameWIP::Desktop
     /// Cursor creation and Window binding
     /// ------------------------------------------------------------
 
-    Types::Result<Cursor> createCursor(const Types::Cursor::ImageView &image) noexcept
+    GameWIP::Status::Types::Result<Cursor> createCursor(const Types::Cursor::ImageView &image) noexcept
     {
         return createCursor(std::span{&image, std::size_t{1}});
     }
 
-    Types::Result<Cursor> createCursor(std::span<const Types::Cursor::ImageView> variants) noexcept
+    GameWIP::Status::Types::Result<Cursor> createCursor(std::span<const Types::Cursor::ImageView> variants) noexcept
     {
         // Validate every image before creating native resources.
-        IO::Types::Status status = validateVariants(variants);
+        GameWIP::Status::Types::Status status = validateVariants(variants);
         if(!status.ok())
         {
-            return {.status = std::move(status)};
+            return GameWIP::Status::Types::Result<Cursor>::failure(status);
         }
 
         std::vector<Internal::NativeCursorVariant> nativeVariants;
@@ -190,7 +191,7 @@ namespace GameWIP::Desktop
             if(!status.ok())
             {
                 Platform::destroyNativeCursorVariants(nativeVariants);
-                return {.status = std::move(status)};
+                return GameWIP::Status::Types::Result<Cursor>::failure(status);
             }
 
             if(Internal::consumeFailure(Internal::TestHooks::FailurePoint::CursorStateAllocation))
@@ -200,39 +201,39 @@ namespace GameWIP::Desktop
 
             // Publish the immutable resource state to the public Cursor wrapper.
             auto state = std::make_shared<Internal::CursorState>(std::move(nativeVariants));
-            return {.status = IO::successStatus(), .value = Internal::CursorAccess::make(std::move(state))};
+            return GameWIP::Status::Types::Result<Cursor>::success(Internal::CursorAccess::make(std::move(state)));
         }
         catch(const std::bad_alloc &)
         {
             Platform::destroyNativeCursorVariants(nativeVariants);
-            return {.status = error(ErrorCode::OutOfMemory)};
+            return GameWIP::Status::Types::Result<Cursor>::failure(error(ErrorCode::OutOfMemory));
         }
         catch(...)
         {
             Platform::destroyNativeCursorVariants(nativeVariants);
-            return {.status = error(ErrorCode::Unknown)};
+            return GameWIP::Status::Types::Result<Cursor>::failure(error(ErrorCode::Unknown));
         }
     }
 
-    IO::Types::Status setCursor(Window &window, const Cursor &cursor) noexcept
+    GameWIP::Status::Types::Result<void> setCursor(Window &window, const Cursor &cursor) noexcept
     {
         Internal::WindowState *state = Internal::WindowAccess::state(window);
 
         if(state == nullptr || !state->platform || !Platform::hasLiveNativeWindow(*state))
         {
-            return error(ErrorCode::NotOpen);
+            return Internal::result(error(ErrorCode::NotOpen));
         }
 
         if(!Platform::ownedByCurrentThread(*state))
         {
-            return error(ErrorCode::ResourceBusy);
+            return Internal::result(error(ErrorCode::ResourceBusy));
         }
 
         if(!cursor.isValid())
         {
-            return error(ErrorCode::InvalidArgument);
+            return Internal::result(error(ErrorCode::InvalidArgument));
         }
-        return Platform::setCustomCursor(*state, Internal::CursorAccess::state(cursor));
+        return Internal::result(Platform::setCustomCursor(*state, Internal::CursorAccess::state(cursor)));
     }
 
     bool hasCustomCursor(const Window &window) noexcept

@@ -1,6 +1,7 @@
 /// @file events.cpp
 /// @brief Fixed-capacity Window event routing and calling-thread event pumping.
 
+#include "desktop/internal/results.h"
 #include "desktop/events.h"
 
 #include "desktop/platform/window.h"
@@ -192,7 +193,7 @@ namespace GameWIP::Desktop::Events
     {
         if(timeout < kWaitForever)
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::InvalidArgument)};
+            return Types::Events::PumpResult::failure(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::InvalidArgument));
         }
         return Platform::pumpEvents(timeout, true);
     }

@@ -5,6 +5,42 @@
 /// Fixture values
 /// ------------------------------------------------------------
 
+namespace StatusTypes = GameWIP::Status::Types;
+using ErrorCode = StatusTypes::Code;
+using ReadResult = StatusTypes::Result<IO::Types::ReadProgress>;
+using ScalarResult = StatusTypes::Result<std::uint64_t>;
+using WriteResult = StatusTypes::Result<IO::Types::WriteProgress>;
+
+[[nodiscard]] ReadResult readSuccess(std::size_t bytesRead, bool endOfStream)
+{
+    return ReadResult::success({.bytesRead = bytesRead, .endOfStream = endOfStream});
+}
+
+[[nodiscard]] ReadResult readFailure(ErrorCode code, std::size_t bytesRead = 0, bool endOfStream = false)
+{
+    return ReadResult::failure(StatusTypes::Status(code), {.bytesRead = bytesRead, .endOfStream = endOfStream});
+}
+
+[[nodiscard]] ScalarResult scalarSuccess(std::uint64_t value)
+{
+    return ScalarResult::success(value);
+}
+
+[[nodiscard]] ScalarResult scalarFailure(ErrorCode code)
+{
+    return ScalarResult::failure(StatusTypes::Status(code));
+}
+
+[[nodiscard]] WriteResult writeSuccess(std::size_t bytesWritten)
+{
+    return WriteResult::success({.bytesWritten = bytesWritten});
+}
+
+[[nodiscard]] WriteResult writeFailure(ErrorCode code, std::size_t bytesWritten = 0)
+{
+    return WriteResult::failure(StatusTypes::Status(code), {.bytesWritten = bytesWritten});
+}
+
 /// @brief Converts integer literals into a byte vector for readable fixtures.
 [[nodiscard]] std::vector<std::byte> makeBytes(std::initializer_list<unsigned int> values)
 {
@@ -60,9 +96,9 @@ class MinimalReader final : public IO::Reader
 {
 public:
     /// @brief Returns a successful empty read while leaving optional operations inherited.
-    [[nodiscard]] IO::Types::ReadResult read([[maybe_unused]] std::span<std::byte> destination) noexcept override
+    [[nodiscard]] ReadResult read([[maybe_unused]] std::span<std::byte> destination) noexcept override
     {
-        return {.status = {}, .bytesRead = 0, .endOfStream = true};
+        return readSuccess(0, true);
     }
 };
 
@@ -78,23 +114,23 @@ public:
     }
 
     /// @brief Copies at most maxChunkSize_ bytes and applies configured final-read EOF reporting.
-    [[nodiscard]] IO::Types::ReadResult read(std::span<std::byte> destination) noexcept override
+    [[nodiscard]] ReadResult read(std::span<std::byte> destination) noexcept override
     {
         if(destination.empty())
         {
-            return {.status = {}, .bytesRead = 0, .endOfStream = position_ >= bytes_.size()};
+            return readSuccess(0, position_ >= bytes_.size());
         }
 
         if(position_ >= bytes_.size())
         {
-            return {.status = {}, .bytesRead = 0, .endOfStream = true};
+            return readSuccess(0, true);
         }
         const std::size_t remaining = bytes_.size() - position_;
         const std::size_t count = std::min(destination.size(), std::min(maxChunkSize_, remaining));
         std::ranges::copy(bytes_.subspan(position_, count), destination.begin());
         position_ += count;
 
-        return {.status = {}, .bytesRead = count, .endOfStream = reportEndWithLastRead_ && position_ == bytes_.size()};
+        return readSuccess(count, reportEndWithLastRead_ && position_ == bytes_.size());
     }
 
 private:
@@ -115,22 +151,22 @@ public:
     }
 
     /// @brief Reads remaining backing bytes from the internal position.
-    [[nodiscard]] IO::Types::ReadResult read(std::span<std::byte> destination) noexcept override
+    [[nodiscard]] ReadResult read(std::span<std::byte> destination) noexcept override
     {
         if(position_ >= bytes_.size())
         {
-            return {.status = {}, .bytesRead = 0, .endOfStream = true};
+            return readSuccess(0, true);
         }
         const std::size_t count = std::min(destination.size(), bytes_.size() - position_);
         std::ranges::copy(bytes_.subspan(position_, count), destination.begin());
         position_ += count;
-        return {.status = {}, .bytesRead = count, .endOfStream = position_ == bytes_.size()};
+        return readSuccess(count, position_ == bytes_.size());
     }
 
     /// @brief Reports the complete backing size while position() remains inherited/unsupported.
-    [[nodiscard]] IO::Types::SizeResult size() const noexcept override
+    [[nodiscard]] ScalarResult size() const noexcept override
     {
-        return {.status = {}, .sizeBytes = static_cast<std::uint64_t>(bytes_.size())};
+        return scalarSuccess(static_cast<std::uint64_t>(bytes_.size()));
     }
 
 private:
@@ -149,28 +185,28 @@ public:
     }
 
     /// @brief Reads available backing bytes independently from the configured reported size.
-    [[nodiscard]] IO::Types::ReadResult read(std::span<std::byte> destination) noexcept override
+    [[nodiscard]] ReadResult read(std::span<std::byte> destination) noexcept override
     {
         if(position_ >= bytes_.size())
         {
-            return {.status = {}, .bytesRead = 0, .endOfStream = true};
+            return readSuccess(0, true);
         }
         const std::size_t count = std::min(destination.size(), bytes_.size() - position_);
         std::ranges::copy(bytes_.subspan(position_, count), destination.begin());
         position_ += count;
-        return {.status = {}, .bytesRead = count, .endOfStream = position_ == bytes_.size()};
+        return readSuccess(count, position_ == bytes_.size());
     }
 
     /// @brief Reports the current backing-data read position.
-    [[nodiscard]] IO::Types::PositionResult position() const noexcept override
+    [[nodiscard]] ScalarResult position() const noexcept override
     {
-        return {.status = {}, .position = static_cast<std::uint64_t>(position_)};
+        return scalarSuccess(static_cast<std::uint64_t>(position_));
     }
 
     /// @brief Returns the deliberately configurable logical size.
-    [[nodiscard]] IO::Types::SizeResult size() const noexcept override
+    [[nodiscard]] ScalarResult size() const noexcept override
     {
-        return {.status = {}, .sizeBytes = reportedSize_};
+        return scalarSuccess(reportedSize_);
     }
 
 private:
@@ -184,16 +220,16 @@ class SizeQueryFailureReader final : public IO::Reader
 {
 public:
     /// @brief Records an unexpected payload read after the size-query failure.
-    [[nodiscard]] IO::Types::ReadResult read([[maybe_unused]] std::span<std::byte> destination) noexcept override
+    [[nodiscard]] ReadResult read([[maybe_unused]] std::span<std::byte> destination) noexcept override
     {
         readCalled_ = true;
-        return {.status = {}, .bytesRead = 0, .endOfStream = true};
+        return readSuccess(0, true);
     }
 
     /// @brief Returns the configured size-query failure.
-    [[nodiscard]] IO::Types::SizeResult size() const noexcept override
+    [[nodiscard]] ScalarResult size() const noexcept override
     {
-        return {.status = IO::makeStatus(ErrorCode::PermissionDenied), .sizeBytes = 0};
+        return scalarFailure(ErrorCode::PermissionDenied);
     }
 
     /// @brief Returns whether a whole-stream helper incorrectly attempted payload reading.
@@ -211,22 +247,22 @@ class PositionQueryFailureReader final : public IO::Reader
 {
 public:
     /// @brief Records an unexpected payload read after the position-query failure.
-    [[nodiscard]] IO::Types::ReadResult read([[maybe_unused]] std::span<std::byte> destination) noexcept override
+    [[nodiscard]] ReadResult read([[maybe_unused]] std::span<std::byte> destination) noexcept override
     {
         readCalled_ = true;
-        return {.status = {}, .bytesRead = 0, .endOfStream = true};
+        return readSuccess(0, true);
     }
 
     /// @brief Returns the configured position-query failure.
-    [[nodiscard]] IO::Types::PositionResult position() const noexcept override
+    [[nodiscard]] ScalarResult position() const noexcept override
     {
-        return {.status = IO::makeStatus(ErrorCode::PermissionDenied), .position = 0};
+        return scalarFailure(ErrorCode::PermissionDenied);
     }
 
     /// @brief Reports a known logical size so position is queried next.
-    [[nodiscard]] IO::Types::SizeResult size() const noexcept override
+    [[nodiscard]] ScalarResult size() const noexcept override
     {
-        return {.status = {}, .sizeBytes = 1};
+        return scalarSuccess(1);
     }
 
     /// @brief Returns whether a whole-stream helper incorrectly attempted payload reading.
@@ -244,22 +280,22 @@ class ImpossiblePositionReader final : public IO::Reader
 {
 public:
     /// @brief Records an unexpected payload read after impossible metadata is detected.
-    [[nodiscard]] IO::Types::ReadResult read([[maybe_unused]] std::span<std::byte> destination) noexcept override
+    [[nodiscard]] ReadResult read([[maybe_unused]] std::span<std::byte> destination) noexcept override
     {
         readCalled_ = true;
-        return {.status = {}, .bytesRead = 0, .endOfStream = true};
+        return readSuccess(0, true);
     }
 
     /// @brief Reports a position greater than size().
-    [[nodiscard]] IO::Types::PositionResult position() const noexcept override
+    [[nodiscard]] ScalarResult position() const noexcept override
     {
-        return {.status = {}, .position = 2};
+        return scalarSuccess(2);
     }
 
     /// @brief Reports the smaller logical size used by the invariant test.
-    [[nodiscard]] IO::Types::SizeResult size() const noexcept override
+    [[nodiscard]] ScalarResult size() const noexcept override
     {
-        return {.status = {}, .sizeBytes = 1};
+        return scalarSuccess(1);
     }
 
     /// @brief Returns whether a whole-stream helper incorrectly attempted payload reading.
@@ -277,21 +313,21 @@ class ZeroProgressKnownSizeReader final : public IO::Reader
 {
 public:
     /// @brief Returns success with zero bytes and no EOF to simulate a stalled backend.
-    [[nodiscard]] IO::Types::ReadResult read([[maybe_unused]] std::span<std::byte> destination) noexcept override
+    [[nodiscard]] ReadResult read([[maybe_unused]] std::span<std::byte> destination) noexcept override
     {
-        return {.status = {}, .bytesRead = 0, .endOfStream = false};
+        return readSuccess(0, false);
     }
 
     /// @brief Reports the beginning of the logical stream.
-    [[nodiscard]] IO::Types::PositionResult position() const noexcept override
+    [[nodiscard]] ScalarResult position() const noexcept override
     {
-        return {.status = {}, .position = 0};
+        return scalarSuccess(0);
     }
 
     /// @brief Reports one remaining byte so zero progress is invalid.
-    [[nodiscard]] IO::Types::SizeResult size() const noexcept override
+    [[nodiscard]] ScalarResult size() const noexcept override
     {
-        return {.status = {}, .sizeBytes = 1};
+        return scalarSuccess(1);
     }
 };
 
@@ -306,22 +342,22 @@ public:
     }
 
     /// @brief Reads all available backing bytes and reports EOF when exhausted.
-    [[nodiscard]] IO::Types::ReadResult read(std::span<std::byte> destination) noexcept override
+    [[nodiscard]] ReadResult read(std::span<std::byte> destination) noexcept override
     {
         if(position_ >= bytes_.size())
         {
-            return {.status = {}, .bytesRead = 0, .endOfStream = true};
+            return readSuccess(0, true);
         }
         const std::size_t count = std::min(destination.size(), bytes_.size() - position_);
         std::ranges::copy(bytes_.subspan(position_, count), destination.begin());
         position_ += count;
-        return {.status = {}, .bytesRead = count, .endOfStream = position_ == bytes_.size()};
+        return readSuccess(count, position_ == bytes_.size());
     }
 
     /// @brief Explicitly reports Unsupported so helpers take the unknown-size path.
-    [[nodiscard]] IO::Types::SizeResult size() const noexcept override
+    [[nodiscard]] ScalarResult size() const noexcept override
     {
-        return {.status = IO::makeStatus(ErrorCode::Unsupported), .sizeBytes = 0};
+        return scalarFailure(ErrorCode::Unsupported);
     }
 
 private:
@@ -340,16 +376,16 @@ public:
     }
 
     /// @brief Returns backing bytes, then fails the next probe read.
-    [[nodiscard]] IO::Types::ReadResult read(std::span<std::byte> destination) noexcept override
+    [[nodiscard]] ReadResult read(std::span<std::byte> destination) noexcept override
     {
         if(position_ >= bytes_.size())
         {
-            return {.status = IO::makeStatus(ErrorCode::PermissionDenied), .bytesRead = 0, .endOfStream = false};
+            return readFailure(ErrorCode::PermissionDenied);
         }
         const std::size_t count = std::min(destination.size(), bytes_.size() - position_);
         std::ranges::copy(bytes_.subspan(position_, count), destination.begin());
         position_ += count;
-        return {.status = {}, .bytesRead = count, .endOfStream = false};
+        return readSuccess(count, false);
     }
 
 private:
@@ -362,9 +398,9 @@ class InvalidReadCountReader final : public IO::Reader
 {
 public:
     /// @brief Deliberately reports one byte beyond destination capacity.
-    [[nodiscard]] IO::Types::ReadResult read(std::span<std::byte> destination) noexcept override
+    [[nodiscard]] ReadResult read(std::span<std::byte> destination) noexcept override
     {
-        return {.status = {}, .bytesRead = destination.size() + 1, .endOfStream = false};
+        return readSuccess(destination.size() + 1, false);
     }
 };
 
@@ -380,16 +416,16 @@ public:
     }
 
     /// @brief Returns configured prefix progress, then the configured read failure.
-    [[nodiscard]] IO::Types::ReadResult read(std::span<std::byte> destination) noexcept override
+    [[nodiscard]] ReadResult read(std::span<std::byte> destination) noexcept override
     {
         if(destination.empty())
         {
-            return {.status = {}, .bytesRead = 0, .endOfStream = position_ >= bytes_.size()};
+            return readSuccess(0, position_ >= bytes_.size());
         }
 
         if(position_ >= bytes_.size())
         {
-            return {.status = {}, .bytesRead = 0, .endOfStream = true};
+            return readSuccess(0, true);
         }
 
         if(position_ >= failAfterBytes_)
@@ -397,25 +433,25 @@ public:
             const std::size_t count = std::min<std::size_t>(destination.size(), 1);
             std::ranges::copy(bytes_.subspan(position_, count), destination.begin());
             position_ += count;
-            return {.status = IO::makeStatus(failureCode_), .bytesRead = count, .endOfStream = false};
+            return readFailure(failureCode_, count, false);
         }
         const std::size_t remainingBeforeFailure = failAfterBytes_ - position_;
         const std::size_t count = std::min(destination.size(), remainingBeforeFailure);
         std::ranges::copy(bytes_.subspan(position_, count), destination.begin());
         position_ += count;
-        return {.status = {}, .bytesRead = count, .endOfStream = position_ == bytes_.size()};
+        return readSuccess(count, position_ == bytes_.size());
     }
 
     /// @brief Reports current progress through the configured backing bytes.
-    [[nodiscard]] IO::Types::PositionResult position() const noexcept override
+    [[nodiscard]] ScalarResult position() const noexcept override
     {
-        return {.status = {}, .position = static_cast<std::uint64_t>(position_)};
+        return scalarSuccess(static_cast<std::uint64_t>(position_));
     }
 
     /// @brief Reports the full backing size to select the known-size helper path.
-    [[nodiscard]] IO::Types::SizeResult size() const noexcept override
+    [[nodiscard]] ScalarResult size() const noexcept override
     {
-        return {.status = {}, .sizeBytes = static_cast<std::uint64_t>(bytes_.size())};
+        return scalarSuccess(static_cast<std::uint64_t>(bytes_.size()));
     }
 
 private:
@@ -440,23 +476,23 @@ public:
     }
 
     /// @brief Accepts one bounded chunk and appends it to retained fixture bytes.
-    [[nodiscard]] IO::Types::WriteResult write(std::span<const std::byte> bytes) noexcept override
+    [[nodiscard]] WriteResult write(std::span<const std::byte> bytes) noexcept override
     {
         ++writeCalls_;
 
         if(bytes.empty())
         {
-            return {.status = {}, .bytesWritten = 0};
+            return writeSuccess(0);
         }
 
         if(maxChunkSize_ == 0)
         {
-            return {.status = {}, .bytesWritten = 0};
+            return writeSuccess(0);
         }
         const std::size_t count = std::min(maxChunkSize_, bytes.size());
         const std::span<const std::byte> accepted = bytes.first(count);
         bytes_.insert(bytes_.end(), accepted.begin(), accepted.end());
-        return {.status = {}, .bytesWritten = count};
+        return writeSuccess(count);
     }
 
     /// @brief Returns all bytes accepted across write calls.
@@ -488,9 +524,9 @@ public:
     }
 
     /// @brief Rejects every transfer with no accepted progress.
-    [[nodiscard]] IO::Types::WriteResult write([[maybe_unused]] std::span<const std::byte> bytes) noexcept override
+    [[nodiscard]] WriteResult write([[maybe_unused]] std::span<const std::byte> bytes) noexcept override
     {
-        return {.status = IO::makeStatus(code_), .bytesWritten = 0};
+        return writeFailure(code_);
     }
 
 private:
@@ -508,10 +544,10 @@ public:
     }
 
     /// @brief Accepts a configured prefix and returns failure in the same transfer.
-    [[nodiscard]] IO::Types::WriteResult write(std::span<const std::byte> bytes) noexcept override
+    [[nodiscard]] WriteResult write(std::span<const std::byte> bytes) noexcept override
     {
         const std::size_t count = std::min(acceptedBytes_, bytes.size());
-        return {.status = IO::makeStatus(code_), .bytesWritten = count};
+        return writeFailure(code_, count);
     }
 
 private:
@@ -524,8 +560,8 @@ class InvalidWriteCountWriter final : public IO::Writer
 {
 public:
     /// @brief Deliberately reports one accepted byte beyond the input span.
-    [[nodiscard]] IO::Types::WriteResult write(std::span<const std::byte> bytes) noexcept override
+    [[nodiscard]] WriteResult write(std::span<const std::byte> bytes) noexcept override
     {
-        return {.status = {}, .bytesWritten = bytes.size() + 1};
+        return writeSuccess(bytes.size() + 1);
     }
 };

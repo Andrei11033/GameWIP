@@ -288,7 +288,7 @@ namespace GameWIP::Logger::Internal::Core
 
         const std::span<const Segment> segments =
             usesDynamicSegments ? std::span<const Segment>(dynamicSegments) : std::span<const Segment>(fixedSegments).first(fixedCount);
-        return Terminal::writeSegments(stream, segments, options);
+        return Terminal::writeSegments(stream, segments, options).status();
     }
 
 } // namespace GameWIP::Logger::Internal::Core

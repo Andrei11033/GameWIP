@@ -6,31 +6,32 @@
 /// ------------------------------------------------------------
 
 /// @brief Reports a failed setup operation and returns whether the manual scenario may continue.
-[[nodiscard]] bool requireManualStatus(TestSupport::Context &context, std::string_view name, const IO::Types::Status &status)
+[[nodiscard]] bool requireManualStatus(TestSupport::Context &context, std::string_view name, const GameWIP::Status::Types::Status &status)
 {
     if(status.ok())
     {
         return true;
     }
 
+    const std::string details = manualStatusDetails(status);
+
     if(manualStatusWindow != nullptr)
     {
-        manualStatusWindow->setObservation(
-            std::format(
-                "Operation '{}' failed: portableCode={} nativeCode={} message={}",
-                name,
-                static_cast<int>(status.code),
-                status.nativeCode,
-                status.message));
+        manualStatusWindow->setObservation(std::format("Operation '{}' failed: {}", name, details));
     }
-    context.fail(
-        name,
-        std::format(
-            "portableCode={} nativeCode={} message={}",
-            static_cast<int>(status.code),
-            status.nativeCode,
-            status.message.empty() ? "<none>" : status.message));
+    context.fail(name, details);
     return false;
+}
+
+[[nodiscard]] bool requireManualStatus(TestSupport::Context &context, std::string_view name, const GameWIP::Status::Types::Result<void> &result)
+{
+    return requireManualStatus(context, name, result.status());
+}
+
+template <typename Value>
+[[nodiscard]] bool requireManualStatus(TestSupport::Context &context, std::string_view name, const GameWIP::Status::Types::Result<Value> &result)
+{
+    return requireManualStatus(context, name, result.status());
 }
 
 /// @brief Keeps owner-thread native messages flowing for a bounded manual preparation interval.
@@ -69,7 +70,7 @@ void pumpManualPreparation(std::chrono::milliseconds duration)
 
     // Verify the window after its first event pump.
     const Desktop::Types::Events::PumpResult pump = Desktop::Events::poll();
-    if(!requireManualStatus(context, "manual Window event pump", pump.status))
+    if(!requireManualStatus(context, "manual Window event pump", pump.status()))
     {
         return false;
     }

@@ -14,8 +14,8 @@ The package installs `logger/types.h`, `logger/config.h`, the `logger/logger.h` 
 `logger/logger_macros.h`, required detail headers, the generated `logger/logger_export.h`, and `GameWIP::Logger`.
 The detail headers contain template definitions required by the installed API; they are not independent API entry points.
 
-`logger.h` exposes `IO::Types::Status`, so IO is the public dependency and `LoggerConfig.cmake` resolves its exact-version package. Terminal,
-FileSystem, and Unicode are private implementation dependencies.
+`logger.h` exposes `Status::Types::Result`, so Status is the public dependency and `LoggerConfig.cmake` resolves its exact-version package. IO,
+Terminal, FileSystem, and Unicode are private implementation dependencies.
 
 ## Shared-library exports
 
@@ -37,10 +37,10 @@ compatible compiler/runtime settings.
 Compatibility-relevant changes include public enum/structure layout, signatures, export sets, template requirements, macro behavior, and dependency
 requirements. Internal queue layout, worker implementation, timestamp cache, and private dependency wiring are not ABI promises.
 
-The status-bearing `Types::LogFilePathResult` is part of the public ABI. Its
-status must be inspected before consuming the UTF-8 path, and changes to its
-layout or the `getLogFilePath()` signature require the normal exact-version
-package and validation review.
+`Types::LogFilePathResult` is `Status::Types::Result<std::string>`. Check
+`ok()` before consuming the UTF-8 path. Changes to the result payload or the
+`getLogFilePath()` signature require the normal exact-version package and
+validation review.
 
 Logger unregisters its MinGW formatting scratch FLS callback during module teardown. Consumers must stop Logger calls, join worker threads,
 and ensure no retained Logger objects remain in use before unloading.

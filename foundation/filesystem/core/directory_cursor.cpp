@@ -23,42 +23,42 @@ namespace GameWIP::FileSystem
 
     DirectoryCursor::~DirectoryCursor() noexcept = default;
 
-    IO::Types::Status DirectoryCursor::open(const Types::Path &path, const Types::Directory::ListOptions &options) noexcept
+    GameWIP::Status::Types::Result<void> DirectoryCursor::open(const Types::Path &path, const Types::Directory::ListOptions &options) noexcept
     {
         try
         {
             // Validate the cursor state and request before opening the native cursor.
             if(state_)
             {
-                return IO::makeStatus(ErrorCode::AlreadyOpen);
+                return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::AlreadyOpen));
             }
 
             if(path.empty() || !isValidSymlinkPolicy(options.symlinkPolicy))
             {
-                return IO::makeStatus(ErrorCode::InvalidArgument);
+                return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::InvalidArgument));
             }
 
-            Platform::DirectoryCursorOpenResult opened = Platform::openDirectoryCursor(path, options.symlinkPolicy);
+            auto opened = Platform::openDirectoryCursor(path, options.symlinkPolicy);
 
-            if(!opened.status.ok())
+            if(!opened.ok())
             {
-                return std::move(opened.status);
+                return GameWIP::Status::Types::Result<void>::failure(opened.status());
             }
 
             // Publish the cursor state only after the platform open succeeds.
             options_ = options;
             emittedEntries_ = 0;
             limitReached_ = false;
-            state_ = std::move(opened.state);
-            return IO::successStatus();
+            state_ = std::move(opened).value();
+            return GameWIP::Status::Types::Result<void>::success();
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(ErrorCode::OutOfMemory);
+            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::OutOfMemory));
         }
         catch(...)
         {
-            return IO::makeStatus(ErrorCode::Unknown);
+            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::Unknown));
         }
     }
 
@@ -67,37 +67,40 @@ namespace GameWIP::FileSystem
         return state_ != nullptr;
     }
 
-    Types::Directory::CursorNextResult DirectoryCursor::next() noexcept
+    GameWIP::Status::Types::Result<std::optional<Types::Directory::Entry>> DirectoryCursor::next() noexcept
     {
         try
         {
             // Reject closed cursors and repeated calls after the entry limit.
             if(!state_)
             {
-                return {.status = IO::makeStatus(ErrorCode::NotOpen)};
+                return GameWIP::Status::Types::Result<std::optional<Types::Directory::Entry>>::failure(
+                    GameWIP::Status::Types::Status(ErrorCode::NotOpen));
             }
 
             if(limitReached_)
             {
-                return {.status = IO::makeStatus(ErrorCode::SizeLimitExceeded)};
+                return GameWIP::Status::Types::Result<std::optional<Types::Directory::Entry>>::failure(
+                    GameWIP::Status::Types::Status(ErrorCode::SizeLimitExceeded));
             }
 
             // Skip entries excluded by the caller's listing options.
             while(true)
             {
-                Platform::DirectoryCursorNextResult next = Platform::readDirectoryCursor(*state_);
+                auto next = Platform::readDirectoryCursor(*state_);
 
-                if(!next.status.ok())
+                if(!next.ok())
                 {
-                    return {.status = next.status};
+                    return GameWIP::Status::Types::Result<std::optional<Types::Directory::Entry>>::failure(next.status());
                 }
 
-                if(!next.hasEntry)
+                if(!next.value())
                 {
-                    return {.status = IO::successStatus()};
+                    return GameWIP::Status::Types::Result<std::optional<Types::Directory::Entry>>::success(std::nullopt);
                 }
 
-                if((!options_.includeHidden && next.hidden) || !includeEntryKind(next.entry.info.kind, options_))
+                Platform::DirectoryCursorEntry &candidate = *next.value();
+                if((!options_.includeHidden && candidate.hidden) || !includeEntryKind(candidate.entry.info.kind, options_))
                 {
                     continue;
                 }
@@ -106,29 +109,33 @@ namespace GameWIP::FileSystem
                 if(emittedEntries_ >= options_.maxEntries)
                 {
                     limitReached_ = true;
-                    return {.status = IO::makeStatus(ErrorCode::SizeLimitExceeded)};
+                    return GameWIP::Status::Types::Result<std::optional<Types::Directory::Entry>>::failure(
+                        GameWIP::Status::Types::Status(ErrorCode::SizeLimitExceeded));
                 }
 
                 ++emittedEntries_;
-                return {.status = IO::successStatus(), .entry = std::move(next.entry), .hasEntry = true};
+                return GameWIP::Status::Types::Result<std::optional<Types::Directory::Entry>>::success(
+                    std::move(candidate.entry));
             }
         }
         catch(const std::bad_alloc &)
         {
-            return {.status = IO::makeStatus(ErrorCode::OutOfMemory)};
+            return GameWIP::Status::Types::Result<std::optional<Types::Directory::Entry>>::failure(
+                GameWIP::Status::Types::Status(ErrorCode::OutOfMemory));
         }
         catch(...)
         {
-            return {.status = IO::makeStatus(ErrorCode::Unknown)};
+            return GameWIP::Status::Types::Result<std::optional<Types::Directory::Entry>>::failure(
+                GameWIP::Status::Types::Status(ErrorCode::Unknown));
         }
     }
 
-    IO::Types::Status DirectoryCursor::close() noexcept
+    GameWIP::Status::Types::Result<void> DirectoryCursor::close() noexcept
     {
         state_.reset();
         emittedEntries_ = 0;
         limitReached_ = false;
-        return IO::successStatus();
+        return GameWIP::Status::Types::Result<void>::success();
     }
 
 } // namespace GameWIP::FileSystem

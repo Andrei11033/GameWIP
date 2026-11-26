@@ -3,9 +3,10 @@
 
 #pragma once
 
-#include "test_support/types.h"
+#include "status/status.h"
 
 #include <cstdint>
+#include <optional>
 #include <system_error>
 
 namespace GameWIP::TestSupport::Internal
@@ -14,6 +15,9 @@ namespace GameWIP::TestSupport::Internal
     /// Infrastructure status construction
     /// ------------------------------------------------------------
 
-    [[nodiscard]] Types::InfrastructureStatus failureStatus(Types::InfrastructureError error, std::uint64_t code = 0) noexcept;
-    [[nodiscard]] std::uint64_t nativeCode(const std::error_code &error) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Status failureStatus(
+        GameWIP::Status::Types::Code code,
+        std::optional<GameWIP::Status::Types::NativeCode> nativeCode = std::nullopt) noexcept;
+    [[nodiscard]] std::optional<GameWIP::Status::Types::NativeCode> nativeCode(const std::error_code &error) noexcept;
+    [[nodiscard]] std::optional<GameWIP::Status::Types::NativeCode> errnoCode(int value) noexcept;
 } // namespace GameWIP::TestSupport::Internal

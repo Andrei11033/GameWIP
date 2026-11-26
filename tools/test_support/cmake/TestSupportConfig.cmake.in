@@ -1,7 +1,8 @@
 @PACKAGE_INIT@
 
-# Unicode owns the text semantics used internally by TestSupport's installed target.
+# Status defines TestSupport's public results; Unicode owns its text semantics.
 include(CMakeFindDependencyMacro)
+find_dependency(Status @PROJECT_VERSION@ EXACT CONFIG)
 find_dependency(Unicode @PROJECT_VERSION@ EXACT CONFIG)
 
 # The exported target contains the complete public package interface.

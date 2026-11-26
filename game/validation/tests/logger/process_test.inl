@@ -52,14 +52,15 @@ void testFatalTerminateChild(TestContext &context, const LoggerTestOptions &opti
 
     if(!environment.status().ok())
     {
-        context.fail("set fatalTerminate child directory", TestSupport::formatInfrastructureStatus(environment.status()));
+        context.fail("set fatalTerminate child directory", TestSupport::formatStatus(environment.status()));
         return;
     }
 
     const TestSupport::Types::Process::Result child = runChild(context.executablePath, kFatalTerminateChildArgument);
+    const TestSupport::Types::Process::Execution *execution = child.hasValue() ? &child.value() : nullptr;
     context.expectTrue(
         "fatalTerminate child exits nonzero",
-        child.status.ok() && child.outcome == TestSupport::Types::Process::Outcome::Exited && child.exitCode != 0);
+        child.ok() && execution != nullptr && execution->outcome == TestSupport::Types::Process::Outcome::Exited && execution->exitCode != 0);
 
     // Collect the child log and verify its synchronous report.
     std::string contents;
@@ -89,15 +90,20 @@ void testManualFatalPopup(TestContext &context, const LoggerTestOptions &options
     const auto initialized = Logger::init(config);
     expectStarted(context, "manual fatal popup init", initialized);
 
-    if(!initialized.status.ok() || initialized.outcome != Logger::Types::Init::Outcome::Started)
+    if(!initialized.ok() || initialized.value().outcome != Logger::Types::Init::Outcome::Started)
     {
         return;
     }
     const auto report = Logger::reportFatal(kTestSource, "Manual Logger fatal popup test. Close this popup to continue.");
+    const GameWIP::Status::Types::Status &reportStatus = report.status();
+    const GameWIP::Status::Types::Diagnostic *diagnostic = reportStatus.diagnostic();
+    const std::string nativeCode =
+        diagnostic != nullptr && diagnostic->nativeCode.has_value() ? std::to_string(diagnostic->nativeCode->value) : "<none>";
+    const std::string message = diagnostic != nullptr && !diagnostic->message.empty() ? diagnostic->message : "<none>";
     context.expectTrue(
         "manual fatal popup report delivered",
         reportDelivered(report),
-        std::format("code={} native={} message={}", IO::errorCodeName(report.status.code), report.status.nativeCode, report.status.message));
+        std::format("code={} native={} message={}", GameWIP::Status::Types::codeName(reportStatus.code()), nativeCode, message));
 
     if(!reportDelivered(report))
     {

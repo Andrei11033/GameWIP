@@ -97,32 +97,32 @@ namespace GameWIP::FileSystem
         static_cast<void>(close());
     }
 
-    IO::Types::Status File::open(const Types::Path &path, const Types::File::OpenOptions &options) noexcept
+    GameWIP::Status::Types::Result<void> File::open(const Types::Path &path, const Types::File::OpenOptions &options) noexcept
     {
         // Validate the requested options and their access-mode dependencies.
         if(isOpen())
         {
-            return IO::makeStatus(ErrorCode::AlreadyOpen);
+            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::AlreadyOpen));
         }
 
         if(!isValidFileAccess(options.access) || !isValidFileOpenMode(options.mode) || !isValidInitialPosition(options.initialPosition) ||
            !isValidFileShare(options.share) || !isValidSymlinkPolicy(options.symlinkPolicy) || !IO::isValidFlushMode(options.flushOnClose))
         {
-            return IO::makeStatus(ErrorCode::InvalidArgument);
+            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::InvalidArgument));
         }
 
         if(modeRequiresWrite(options.mode) && !opensForWrite(options.access))
         {
-            return IO::makeStatus(ErrorCode::InvalidArgument);
+            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::InvalidArgument));
         }
 
         if(options.flushOnClose != IO::Types::FlushMode::None && !opensForWrite(options.access))
         {
-            return IO::makeStatus(ErrorCode::InvalidArgument);
+            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::InvalidArgument));
         }
 
         // Validate or create the parent before opening the file.
-        IO::Types::Status parentStatus = validateParentDirectory(path, options.createParentDirectories, options.symlinkPolicy);
+        auto parentStatus = validateParentDirectory(path, options.createParentDirectories, options.symlinkPolicy);
 
         if(!parentStatus.ok())
         {
@@ -130,14 +130,14 @@ namespace GameWIP::FileSystem
         }
 
         std::unique_ptr<Internal::FileState> newState;
-        IO::Types::Status status = Platform::openFile(newState, path, options);
+        auto result = Platform::openFile(newState, path, options);
 
-        if(status.ok())
+        if(result.ok())
         {
             state_ = std::move(newState);
         }
 
-        return status;
+        return result;
     }
 
     bool File::isOpen() const noexcept
@@ -155,17 +155,18 @@ namespace GameWIP::FileSystem
         return isOpen() ? state_->access : Types::File::Access::ReadWrite;
     }
 
-    IO::Types::ReadResult File::read(std::span<std::byte> destination) noexcept
+    GameWIP::Status::Types::Result<IO::Types::ReadProgress> File::read(std::span<std::byte> destination) noexcept
     {
         if(!isOpen())
         {
-            return {.status = IO::makeStatus(ErrorCode::NotOpen)};
+            return GameWIP::Status::Types::Result<IO::Types::ReadProgress>::failure(
+                GameWIP::Status::Types::Status(ErrorCode::NotOpen));
         }
 
         return Platform::readFile(*state_, destination);
     }
 
-    IO::Types::WriteResult File::write(std::span<const std::byte> bytes) noexcept
+    GameWIP::Status::Types::Result<IO::Types::WriteProgress> File::write(std::span<const std::byte> bytes) noexcept
     {
         if(!isOpen())
         {
@@ -175,32 +176,32 @@ namespace GameWIP::FileSystem
         return Platform::writeFile(*state_, bytes);
     }
 
-    IO::Types::Status File::flush(IO::Types::FlushMode mode) noexcept
+    GameWIP::Status::Types::Result<void> File::flush(IO::Types::FlushMode mode) noexcept
     {
         if(!isOpen())
         {
-            return IO::makeStatus(ErrorCode::NotOpen);
+            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::NotOpen));
         }
 
         return Platform::flushFile(*state_, mode);
     }
 
-    IO::Types::Status File::close() noexcept
+    GameWIP::Status::Types::Result<void> File::close() noexcept
     {
         return closeFileState(state_);
     }
 
-    IO::Types::PositionResult File::position() const noexcept
+    GameWIP::Status::Types::Result<std::uint64_t> File::position() const noexcept
     {
         if(!isOpen())
         {
-            return {.status = IO::makeStatus(ErrorCode::NotOpen)};
+            return GameWIP::Status::Types::Result<std::uint64_t>::failure(GameWIP::Status::Types::Status(ErrorCode::NotOpen));
         }
 
         return Platform::filePosition(*state_);
     }
 
-    IO::Types::SizeResult File::size() const noexcept
+    GameWIP::Status::Types::Result<std::uint64_t> File::size() const noexcept
     {
         if(!isOpen())
         {
@@ -210,37 +211,37 @@ namespace GameWIP::FileSystem
         return Platform::fileSize(*state_);
     }
 
-    IO::Types::Status File::seek(std::int64_t offset, IO::Types::SeekOrigin origin) noexcept
+    GameWIP::Status::Types::Result<void> File::seek(std::int64_t offset, IO::Types::SeekOrigin origin) noexcept
     {
         if(!isOpen())
         {
-            return IO::makeStatus(ErrorCode::NotOpen);
+            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::NotOpen));
         }
 
         return Platform::seekFile(*state_, offset, origin);
     }
 
-    IO::Types::Status File::resize(std::uint64_t sizeBytes) noexcept
+    GameWIP::Status::Types::Result<void> File::resize(std::uint64_t sizeBytes) noexcept
     {
         if(!isOpen())
         {
-            return IO::makeStatus(ErrorCode::NotOpen);
+            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::NotOpen));
         }
 
         return Platform::resizeFile(*state_, sizeBytes, true);
     }
 
-    IO::Types::Status File::resizeWithoutPositionRestore(std::uint64_t sizeBytes) noexcept
+    GameWIP::Status::Types::Result<void> File::resizeWithoutPositionRestore(std::uint64_t sizeBytes) noexcept
     {
         if(!isOpen())
         {
-            return IO::makeStatus(ErrorCode::NotOpen);
+            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(ErrorCode::NotOpen));
         }
 
         return Platform::resizeFile(*state_, sizeBytes, false);
     }
 
-    Types::Lock::Result File::tryLockShared() noexcept
+    GameWIP::Status::Types::Result<FileLock> File::tryLockShared() noexcept
     {
         return tryLockFileState(
             state_,
@@ -251,7 +252,7 @@ namespace GameWIP::FileSystem
             });
     }
 
-    Types::Lock::Result File::tryLockExclusive() noexcept
+    GameWIP::Status::Types::Result<FileLock> File::tryLockExclusive() noexcept
     {
         return tryLockFileState(
             state_,

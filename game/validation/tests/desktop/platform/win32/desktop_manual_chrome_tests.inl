@@ -15,7 +15,12 @@ void testManualCustomChrome(TestSupport::Context &context, const GameWIP::Test::
 
     // Require the native capability and open a visible Window.
     const auto capabilitiesResult = Desktop::getCapabilities();
-    const Desktop::Types::Capabilities capabilities = capabilitiesResult.value_or({});
+    if(!capabilitiesResult.ok())
+    {
+        context.fail("Window custom chrome capabilities", manualStatusDetails(capabilitiesResult.status()));
+        return;
+    }
+    const Desktop::Types::Capabilities &capabilities = capabilitiesResult.value();
 
     if(!capabilities.supports(Desktop::Types::Capability::CustomChrome))
     {
@@ -94,7 +99,12 @@ void testManualLayeredAndPointer(TestSupport::Context &context, const GameWIP::T
 
     // Open the host Window and test opacity when supported.
     const auto capabilitiesResult = Desktop::getCapabilities();
-    const Desktop::Types::Capabilities capabilities = capabilitiesResult.value_or({});
+    if(!capabilitiesResult.ok())
+    {
+        context.fail("Window layered and pointer capabilities", manualStatusDetails(capabilitiesResult.status()));
+        return;
+    }
+    const Desktop::Types::Capabilities &capabilities = capabilitiesResult.value();
     Desktop::Window window;
 
     if(!openManualWindow(context, window, "GameWIP opacity and pointer validation"))
@@ -157,7 +167,7 @@ void testManualLayeredAndPointer(TestSupport::Context &context, const GameWIP::T
         {Desktop::Types::PointerInputMode::AcceptRegions, Desktop::Types::PointerInputMode::IgnoreRegions})
     {
         const Desktop::Types::PointerInputLayout regionLayout{.mode = mode, .regions = region};
-        const IO::Types::Status status = window.setPointerInputLayout(regionLayout);
+        const GameWIP::Status::Types::Result<void> status = window.setPointerInputLayout(regionLayout);
 
         if(capabilities.supports(Desktop::Types::Capability::PointerRegions))
         {
@@ -170,7 +180,7 @@ void testManualLayeredAndPointer(TestSupport::Context &context, const GameWIP::T
         }
         else
         {
-            static_cast<void>(context.expectEq("unsupported pointer-region layout is rejected", ErrorCode::Unsupported, status.code));
+            static_cast<void>(context.expectEq("unsupported pointer-region layout is rejected", ErrorCode::Unsupported, status.status().code()));
         }
     }
     static_cast<void>(window.setPointerInputLayout({}));
@@ -182,7 +192,7 @@ void testManualLayeredAndPointer(TestSupport::Context &context, const GameWIP::T
     Desktop::Types::Description alphaDescription;
     alphaDescription.transparentFramebuffer = true;
     Desktop::Window alpha;
-    const IO::Types::Status alphaStatus = alpha.open(alphaDescription);
+    const GameWIP::Status::Types::Result<void> alphaStatus = alpha.open(alphaDescription);
 
     if(capabilities.supports(Desktop::Types::Capability::TransparentFramebuffer))
     {
@@ -199,6 +209,7 @@ void testManualLayeredAndPointer(TestSupport::Context &context, const GameWIP::T
     }
     else
     {
-        static_cast<void>(context.expectEq("unsupported transparent framebuffer is rejected", ErrorCode::Unsupported, alphaStatus.code));
+        static_cast<void>(
+            context.expectEq("unsupported transparent framebuffer is rejected", ErrorCode::Unsupported, alphaStatus.status().code()));
     }
 }

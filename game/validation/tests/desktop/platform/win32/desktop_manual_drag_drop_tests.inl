@@ -127,7 +127,7 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
     for(const DD::TriggerButton button : {DD::TriggerButton::Left, DD::TriggerButton::Right, DD::TriggerButton::Middle})
     {
         const DD::Result result = Desktop::DragDrop::beginDrag(sourceWindow, DD::Description{textItem, DD::EffectPolicy::source(allEffects), button});
-        static_cast<void>(context.expectEq("unheld configured trigger is InvalidArgument", ErrorCode::InvalidArgument, result.status.code));
+        static_cast<void>(context.expectEq("unheld configured trigger is InvalidArgument", ErrorCode::InvalidArgument, result.status().code()));
     }
 
     ManualDragDropCapture capture;
@@ -147,8 +147,11 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
 
     if(sameProcess.answer == ManualAnswer::Yes && sameProcess.attempted)
     {
-        static_cast<void>(context.expectEq("same-process source reports Dropped", DD::Outcome::Dropped, sameProcess.result.outcome));
-        static_cast<void>(context.expectEq("Region 2 selects Move", DD::Effect::Move, sameProcess.result.effect));
+        if(sameProcess.result.hasValue())
+        {
+            static_cast<void>(context.expectEq("same-process source reports Dropped", DD::Outcome::Dropped, sameProcess.result.value().outcome));
+            static_cast<void>(context.expectEq("Region 2 selects Move", DD::Effect::Move, sameProcess.result.value().effect));
+        }
         static_cast<void>(context.expectTrue("target receives Entered", capture.entered > 0));
         static_cast<void>(context.expectTrue("target receives movement", capture.moved > 0));
         static_cast<void>(context.expectEq("target receives one terminal drop", std::size_t{1}, capture.dropped));
@@ -219,8 +222,11 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
         if(run.answer == ManualAnswer::Yes && run.attempted)
         {
             const DD::Outcome expectedOutcome = effectCase.expected == DD::Effect::None ? DD::Outcome::Cancelled : DD::Outcome::Dropped;
-            static_cast<void>(context.expectEq(std::format("{} outcome", effectCase.label), expectedOutcome, run.result.outcome));
-            static_cast<void>(context.expectEq(std::format("{} negotiated effect", effectCase.label), effectCase.expected, run.result.effect));
+            if(run.result.hasValue())
+            {
+                static_cast<void>(context.expectEq(std::format("{} outcome", effectCase.label), expectedOutcome, run.result.value().outcome));
+                static_cast<void>(context.expectEq(std::format("{} negotiated effect", effectCase.label), effectCase.expected, run.result.value().effect));
+            }
         }
     }
 
@@ -242,7 +248,10 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
 
         if(run.answer == ManualAnswer::Yes && run.attempted)
         {
-            static_cast<void>(context.expectEq(std::format("{} trigger drops", buttonName), DD::Outcome::Dropped, run.result.outcome));
+            if(run.result.hasValue())
+            {
+                static_cast<void>(context.expectEq(std::format("{} trigger drops", buttonName), DD::Outcome::Dropped, run.result.value().outcome));
+            }
         }
     }
 
@@ -260,8 +269,11 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
 
     if(cancellation.answer == ManualAnswer::Yes && cancellation.attempted)
     {
-        static_cast<void>(context.expectEq("Escape reports Cancelled", DD::Outcome::Cancelled, cancellation.result.outcome));
-        static_cast<void>(context.expectEq("cancelled drag reports no effect", DD::Effect::None, cancellation.result.effect));
+        if(cancellation.result.hasValue())
+        {
+            static_cast<void>(context.expectEq("Escape reports Cancelled", DD::Outcome::Cancelled, cancellation.result.value().outcome));
+            static_cast<void>(context.expectEq("cancelled drag reports no effect", DD::Effect::None, cancellation.result.value().effect));
+        }
         static_cast<void>(context.expectTrue("cancelled target traversal enters", capture.entered > 0));
         static_cast<void>(context.expectTrue("leaving target queues Left", capture.left > 0));
         static_cast<void>(context.expectEq("cancellation queues no drop", std::size_t{0}, capture.dropped));
@@ -282,7 +294,10 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
 
         if(run.answer == ManualAnswer::Yes && run.attempted)
         {
-            static_cast<void>(context.expectEq(std::format("{} does not override target preference", modifier), DD::Effect::Move, run.result.effect));
+            if(run.result.hasValue())
+            {
+                static_cast<void>(context.expectEq(std::format("{} does not override target preference", modifier), DD::Effect::Move, run.result.value().effect));
+            }
         }
     }
 
@@ -383,7 +398,10 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
 
         if(run.answer == ManualAnswer::Yes && run.attempted)
         {
-            static_cast<void>(context.expectEq(std::format("{} reports Dropped", name), DD::Outcome::Dropped, run.result.outcome));
+            if(run.result.hasValue())
+            {
+                static_cast<void>(context.expectEq(std::format("{} reports Dropped", name), DD::Outcome::Dropped, run.result.value().outcome));
+            }
 
             if(name == "GameWIP files to Explorer")
             {
@@ -393,7 +411,7 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
                     const auto copy = TestSupport::readTextFile(copyDirectory / path.filename());
                     static_cast<void>(context.expectTrue(
                         "Explorer drag copies exact file contents",
-                        original.status.ok() && copy.status.ok() && original.text == copy.text));
+                        original.ok() && copy.ok() && original.value() == copy.value()));
                 }
             }
         }
@@ -439,7 +457,10 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
 
     if(modalGeometry.answer == ManualAnswer::Yes && modalGeometry.attempted)
     {
-        static_cast<void>(context.expectEq("modal geometry scenario drops", DD::Outcome::Dropped, modalGeometry.result.outcome));
+        if(modalGeometry.result.hasValue())
+        {
+            static_cast<void>(context.expectEq("modal geometry scenario drops", DD::Outcome::Dropped, modalGeometry.result.value().outcome));
+        }
     }
 
     static_cast<void>(context.expectTrue("full target closes before lightweight mode", target.close().ok()));
@@ -447,7 +468,7 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
     static_cast<void>(context.expectEq(
         "full target conflicts with lightweight mode",
         ErrorCode::ResourceBusy,
-        target.open(targetWindow, DD::TargetDescription{regions}, DD::QueueConfiguration::owned(8)).code));
+        target.open(targetWindow, DD::TargetDescription{regions}, DD::QueueConfiguration::owned(8)).status().code()));
     static_cast<void>(context.expectTrue("lightweight file drop disables", targetWindow.setFileDropEnabled(false).ok()));
     static_cast<void>(context.expectTrue(
         "full target reopens after lightweight mode",

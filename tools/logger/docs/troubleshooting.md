@@ -6,8 +6,8 @@ Inspect those values first, then use the matching case below.
 
 ## Init succeeded but File is unavailable
 
-Inspect `Types::Init::Result::requestedOutput`, `effectiveOutput`, and `outputSetupStatus`. Successful Console fallback keeps overall `status`
-successful while preserving the File/setup failure directly. If File remains effective but `outputSetupStatus` failed, inspect `getHealth()` for a
+Inspect the initialization result's `value().requestedOutput`, `value().effectiveOutput`, and `value().outputSetupStatus`. Successful Console fallback
+keeps `ok()` true while preserving the File/setup failure directly. If File remains effective but setup reported a failure, inspect `getHealth()` for a
 degraded setup such as timestamp conversion failure.
 
 ## Logger became degraded
@@ -17,7 +17,7 @@ Surviving sinks continue.
 
 ## A timed flush/report did not complete
 
-Check the result's `outcome`. `TimedOut` with successful IO status means the deadline was respected before completion. A failed status means a real
+Check `value().outcome`. `TimedOut` with a successful status means the deadline was respected before completion. A failed `status()` means a real
 sink/platform operation failed. Native IO already started may outlast the deadline.
 
 ## Reports appear but normal logs do not

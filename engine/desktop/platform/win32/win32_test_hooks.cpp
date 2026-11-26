@@ -1,6 +1,7 @@
 /// @file win32_test_hooks.cpp
 /// @brief Source-tree-only test adapter for Win32-specific Desktop hooks.
 
+#include "desktop/internal/results.h"
 #include "desktop/platform/win32/internal/test_hooks.h"
 
 #include "desktop/internal/child_surface_state.h"
@@ -135,17 +136,17 @@ namespace GameWIP::Desktop::Internal::TestHooks::Win32
         return promptDialogSnapshot;
     }
 
-    IO::Types::Status testDialogApartment() noexcept
+    GameWIP::Status::Types::Status testDialogApartment() noexcept
     {
         return Win32Backend::testDialogApartment();
     }
 
-    IO::Types::Status testShellApartment() noexcept
+    GameWIP::Status::Types::Status testShellApartment() noexcept
     {
         return Win32Backend::testShellApartment();
     }
 
-    IO::Types::Status createJumpLink(const Types::JumpLists::Task &task, void *&out) noexcept
+    GameWIP::Status::Types::Status createJumpLink(const Types::JumpLists::Task &task, void *&out) noexcept
     {
         return Win32Backend::createJumpLinkForTests(task, out);
     }
@@ -159,22 +160,22 @@ namespace GameWIP::Desktop::Internal::TestHooks::Win32
         return Win32Backend::inspectProgressDialog(Internal::ProgressDialogAccess::state(dialog));
     }
 
-    IO::Types::Status requestProgressDialogCancel(ProgressDialog &dialog) noexcept
+    GameWIP::Status::Types::Status requestProgressDialogCancel(ProgressDialog &dialog) noexcept
     {
         return Win32Backend::requestProgressDialogCancel(Internal::ProgressDialogAccess::state(dialog));
     }
 
-    IO::Types::Status requestProgressDialogClose(ProgressDialog &dialog) noexcept
+    GameWIP::Status::Types::Status requestProgressDialogClose(ProgressDialog &dialog) noexcept
     {
         return Win32Backend::requestProgressDialogClose(Internal::ProgressDialogAccess::state(dialog));
     }
 
-    IO::Types::Status destroyNativeProgressDialog(ProgressDialog &dialog) noexcept
+    GameWIP::Status::Types::Status destroyNativeProgressDialog(ProgressDialog &dialog) noexcept
     {
         return Win32Backend::destroyNativeProgressDialog(Internal::ProgressDialogAccess::state(dialog));
     }
 
-    IO::Types::Status simulateProgressDialogDpiChange(ProgressDialog &dialog, NativePixelRect suggestedBounds, std::uint32_t dpi) noexcept
+    GameWIP::Status::Types::Status simulateProgressDialogDpiChange(ProgressDialog &dialog, NativePixelRect suggestedBounds, std::uint32_t dpi) noexcept
     {
         return Win32Backend::simulateProgressDialogDpiChange(Internal::ProgressDialogAccess::state(dialog), suggestedBounds, dpi);
     }
@@ -203,17 +204,17 @@ namespace GameWIP::Desktop::Internal::TestHooks::Win32
     /// Drag/drop controls and inspection
     /// ------------------------------------------------------------
 
-    IO::Types::Status prepareDragDropSource(const Types::DragDrop::Description &description) noexcept
+    GameWIP::Status::Types::Status prepareDragDropSource(const Types::DragDrop::Description &description) noexcept
     {
         return Win32Backend::prepareDragDropSource(description);
     }
 
-    IO::Types::Status testDragDropOleInitialization() noexcept
+    GameWIP::Status::Types::Status testDragDropOleInitialization() noexcept
     {
         return Win32Backend::testDragDropOleInitialization();
     }
 
-    IO::Types::Status testDragDropMaterialization() noexcept
+    GameWIP::Status::Types::Status testDragDropMaterialization() noexcept
     {
         return Win32Backend::testDragDropMaterialization();
     }
@@ -230,13 +231,11 @@ namespace GameWIP::Desktop::Internal::TestHooks::Win32
 
     Types::Events::PumpResult routeDragDropDuringPump(DragDropTarget &target, Types::DragDrop::Events::Payload data, bool terminal) noexcept
     {
-        Types::Events::PumpResult result;
         Internal::DragDropState *state = Internal::DragDropAccess::state(target);
 
         if(state == nullptr)
         {
-            result.status = IO::makeStatus(IO::Types::ErrorCode::NotOpen);
-            return result;
+            return Types::Events::PumpResult::failure(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::NotOpen));
         }
         return Win32Backend::testRouteDragDropDuringPump(*state, std::move(data), terminal);
     }

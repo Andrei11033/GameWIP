@@ -100,9 +100,9 @@ modules.
 
 ## Dependency boundary
 
-Desktop is installed as the shared target `GameWIP::Desktop`. IO and FileSystem
-are public package dependencies because Desktop headers expose their contracts;
-Unicode is a private native-text conversion dependency.
+Desktop is installed as the shared target `GameWIP::Desktop`. Status and
+FileSystem are public package dependencies; Unicode is a private native-text
+conversion dependency. FileSystem supplies Desktop's transitive IO dependency.
 
 Desktop owns top-level native state, cached geometry, event translation, queried
 display/color facts, and the persistent packed pointer mask published through
