@@ -14,6 +14,7 @@ if(NOT DEFINED GAMEWIP_PACKAGE_VERSION)
 endif()
 
 set(supported_packages
+    Status
     Unicode
     IO
     FileSystem

@@ -78,6 +78,8 @@ set(expected_gamewip_headers
     io/status.h
     io/stream.h
     io/transfer.h
+    status/result.h
+    status/status.h
     logger/config.h
     logger/detail/log_templates.h
     logger/detail/report_templates.h
@@ -264,7 +266,7 @@ run_installed_consumer("${CONSUMER_SOURCE_DIR}" "${CONSUMER_BUILD_DIR}/combined"
 foreach(
     package_name
     IN
-    ITEMS Unicode IO FileSystem Terminal Desktop Input Logger Assert TestSupport
+    ITEMS Status Unicode IO FileSystem Terminal Desktop Input Logger Assert TestSupport
 )
     string(TOLOWER "${package_name}" package_directory)
     run_installed_consumer(

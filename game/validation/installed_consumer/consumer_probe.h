@@ -8,7 +8,10 @@
 #error "Installed GameWIP targets must not expose internal test-hook compile definitions."
 #endif
 
-#if defined(GAMEWIP_CONSUMER_Unicode)
+#if defined(GAMEWIP_CONSUMER_Status)
+#include "status/result.h"
+#include "status/status.h"
+#elif defined(GAMEWIP_CONSUMER_Unicode)
 #include "unicode/unicode.h"
 #elif defined(GAMEWIP_CONSUMER_IO)
 #include "io/io.h"
@@ -56,7 +59,14 @@ namespace
 {
     int runConsumer()
     {
-#if defined(GAMEWIP_CONSUMER_Unicode)
+#if defined(GAMEWIP_CONSUMER_Status)
+        using GameWIP::Status::Types::Code;
+        using GameWIP::Status::Types::Result;
+
+        const auto status = GameWIP::Status::Types::Status(Code::Success);
+        const auto result = Result<int>::success(7);
+        return status.ok() && result.ok() && result.value() == 7 ? 0 : 1;
+#elif defined(GAMEWIP_CONSUMER_Unicode)
         const GameWIP::Unicode::Types::Version version = GameWIP::Unicode::getStandardVersion();
         const GameWIP::Unicode::Types::Utf8::EncodeResult encoded = GameWIP::Unicode::Utf8::encodeScalar(static_cast<char32_t>(0x1F600));
         const bool expectedVersion = version.major == 17 && version.minor == 0 && version.patch == 0;

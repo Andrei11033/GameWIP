@@ -1,5 +1,6 @@
 # Foundation libraries are layered from portable primitives to platform-facing
 # services. Keep this order aligned with their link dependencies.
+add_subdirectory(status)
 add_subdirectory(base)
 add_subdirectory(unicode)
 

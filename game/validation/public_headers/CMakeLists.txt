@@ -14,6 +14,8 @@ endfunction()
 # ------------------------------------------------------------
 
 gamewip_add_public_header_check(BaseCheckedArithmetic base_checked_arithmetic_header.cpp GameWIP::Base)
+gamewip_add_public_header_check(Status status_status_header.cpp GameWIP::Status)
+gamewip_add_public_header_check(StatusResult status_result_header.cpp GameWIP::Status)
 
 # ------------------------------------------------------------
 # Unicode and IO

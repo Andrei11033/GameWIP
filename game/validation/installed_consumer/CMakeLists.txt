@@ -17,6 +17,7 @@ endif()
 # ------------------------------------------------------------
 
 find_package(Unicode ${GAMEWIP_PACKAGE_VERSION} EXACT CONFIG REQUIRED)
+find_package(Status ${GAMEWIP_PACKAGE_VERSION} EXACT CONFIG REQUIRED)
 find_package(IO ${GAMEWIP_PACKAGE_VERSION} EXACT CONFIG REQUIRED)
 find_package(FileSystem ${GAMEWIP_PACKAGE_VERSION} EXACT CONFIG REQUIRED)
 find_package(Terminal ${GAMEWIP_PACKAGE_VERSION} EXACT CONFIG REQUIRED)
@@ -37,6 +38,7 @@ target_link_libraries(
     GameWIPInstalledConsumer
     PRIVATE
         GameWIP::Unicode
+        GameWIP::Status
         GameWIP::IO
         GameWIP::FileSystem
         GameWIP::Terminal
