@@ -33,11 +33,11 @@ namespace GameWIP::Terminal::Internal
     /// @brief Queries the backend-stable cursor coordinate used by managed line rendering.
     /// @details Unlike the public viewport-relative query, this coordinate remains stable when the visible Win32
     /// console window scrolls. The call shares the normal input/output serialization domain.
-    [[nodiscard]] PositionResult getLineRenderingCursorPosition(
-        Types::Output::Stream outputStream,
-        Types::Input::Stream inputStream) noexcept;
+    [[nodiscard]] PositionResult getLineRenderingCursorPosition(Types::Output::Stream outputStream, Types::Input::Stream inputStream) noexcept;
 
     /// @brief Positions the cursor using the backend-stable coordinate used by managed line rendering.
     /// @details The call shares the normal output serialization domain.
-    [[nodiscard]] GameWIP::Status::Types::Status setLineRenderingCursorPosition(Types::Output::Stream outputStream, Types::Cursor::Position position) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Status setLineRenderingCursorPosition(
+        Types::Output::Stream outputStream,
+        Types::Cursor::Position position) noexcept;
 } // namespace GameWIP::Terminal::Internal

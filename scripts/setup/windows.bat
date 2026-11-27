@@ -6,7 +6,8 @@ set "launch_token=%RANDOM%-%RANDOM%-%RANDOM%"
 set "GAMEWIP_SETUP_LAUNCH_TOKEN=%launch_token%"
 
 powershell.exe -NoProfile -ExecutionPolicy Bypass ^
-    -File "%~dp0Setup.ps1" %*
+    -File "%~dp0..\platform\windows\PowerShellBootstrap.ps1" ^
+    "%~dp0Setup.ps1" %*
 set "setup_exit_code=%errorlevel%"
 
 powershell.exe -NoProfile -ExecutionPolicy Bypass ^

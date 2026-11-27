@@ -145,8 +145,9 @@ namespace GameWIP::Desktop::Internal::TestHooks
         {
             return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::NotOpen);
         }
-        return Internal::enqueueDragDropEvent(*state, std::move(data), terminal) ? GameWIP::Status::Types::Status{}
-                                                                                 : GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::StorageFull);
+        return Internal::enqueueDragDropEvent(*state, std::move(data), terminal)
+                   ? GameWIP::Status::Types::Status{}
+                   : GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::StorageFull);
     }
 
     Types::DragDrop::SessionId nextDragDropSessionId(DragDropTarget &target, std::uint64_t nextValue) noexcept

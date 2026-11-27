@@ -432,7 +432,10 @@ namespace GameWIP::Desktop::Platform
         }
 
         /// @brief Materializes one native clipboard handle through the shared transfer decoder.
-        [[nodiscard]] GameWIP::Status::Types::Status materializeClipboardItem(UINT nativeFormat, const Transfer::Format &format, Transfer::Item &item) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status materializeClipboardItem(
+            UINT nativeFormat,
+            const Transfer::Format &format,
+            Transfer::Item &item) noexcept
         {
             SetLastError(ERROR_SUCCESS);
             HGLOBAL memory = static_cast<HGLOBAL>(GetClipboardData(nativeFormat));
@@ -445,7 +448,9 @@ namespace GameWIP::Desktop::Platform
         }
 
         /// @brief Closes Clipboard access without hiding an earlier read/write failure.
-        [[nodiscard]] GameWIP::Status::Types::Status closePreservingPrimary(ClipboardSession &session, GameWIP::Status::Types::Status primary) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status closePreservingPrimary(
+            ClipboardSession &session,
+            GameWIP::Status::Types::Status primary) noexcept
         {
             GameWIP::Status::Types::Status cleanup = session.close();
             return primary.ok() ? std::move(cleanup) : std::move(primary);
@@ -470,7 +475,10 @@ namespace GameWIP::Desktop::Platform
         }
 
         /// @brief Reads one Clipboard payload after applying the shared read-failure hook.
-        [[nodiscard]] GameWIP::Status::Types::Status readClipboardItem(UINT nativeFormat, const Transfer::Format &format, Transfer::Item &item) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status readClipboardItem(
+            UINT nativeFormat,
+            const Transfer::Format &format,
+            Transfer::Item &item) noexcept
         {
             if(clipboardReadShouldFail())
             {
@@ -755,7 +763,9 @@ namespace GameWIP::Desktop::Platform
             });
     }
 
-    GameWIP::Status::Types::Result<std::vector<std::byte>> clipboardReadCustomData(std::string_view formatName, std::chrono::milliseconds timeout) noexcept
+    GameWIP::Status::Types::Result<std::vector<std::byte>> clipboardReadCustomData(
+        std::string_view formatName,
+        std::chrono::milliseconds timeout) noexcept
     {
         if(!validTimeout(timeout))
         {
@@ -776,7 +786,9 @@ namespace GameWIP::Desktop::Platform
 
             if(!utf8ToUtf16(formatName, wide, nativeCode))
             {
-                return failure<GameWIP::Status::Types::Result<std::vector<std::byte>>>(unicodeConversionError(nativeCode, ErrorCode::InvalidArgument), nativeCode);
+                return failure<GameWIP::Status::Types::Result<std::vector<std::byte>>>(
+                    unicodeConversionError(nativeCode, ErrorCode::InvalidArgument),
+                    nativeCode);
             }
             return readClipboardWithSession<std::vector<std::byte>>(
                 timeout,
@@ -795,7 +807,8 @@ namespace GameWIP::Desktop::Platform
                     }
 
                     Transfer::Item item;
-                    GameWIP::Status::Types::Status result = materializeClipboardItem(format, {Transfer::FormatKind::Custom, std::string(formatName)}, item);
+                    GameWIP::Status::Types::Status result =
+                        materializeClipboardItem(format, {Transfer::FormatKind::Custom, std::string(formatName)}, item);
 
                     if(result.ok())
                     {
@@ -892,8 +905,8 @@ namespace GameWIP::Desktop::Platform
                 if(Internal::consumeClipboardPublicationFailure(index) || SetClipboardData(item.format, item.memory.get()) == nullptr)
                 {
                     operationStatus = status(ErrorCode::WriteFailed, GetLastError());
-                    progress.commitState = progress.formatsPublished == 0 ? ClipboardTypes::CommitState::Cleared
-                                                                          : ClipboardTypes::CommitState::PartiallyPublished;
+                    progress.commitState =
+                        progress.formatsPublished == 0 ? ClipboardTypes::CommitState::Cleared : ClipboardTypes::CommitState::PartiallyPublished;
                     operationStatus = closePreservingPrimary(session, std::move(operationStatus));
                     return Internal::result(std::move(operationStatus), progress);
                 }

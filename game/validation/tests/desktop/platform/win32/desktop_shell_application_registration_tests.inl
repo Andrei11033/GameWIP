@@ -116,7 +116,8 @@ void testShellRegistrationApplicationOwnership(TestSupport::Context &context, co
     }
 
     const auto foreignCollision = registerDescription();
-    static_cast<void>(context.expectEq("foreign application ownership blocks registration", ErrorCode::AlreadyExists, foreignCollision.status().code()));
+    static_cast<void>(
+        context.expectEq("foreign application ownership blocks registration", ErrorCode::AlreadyExists, foreignCollision.status().code()));
     static_cast<void>(context.expectTrue("foreign application conflict details are retained", foreignCollision.hasValue()));
     static_cast<void>(context.expectEq(
         "foreign application conflict is reported",
@@ -187,8 +188,8 @@ void testShellRegistrationApplicationOwnership(TestSupport::Context &context, co
 
     if(unownedCollision.hasValue() && unownedCollision.value().conflicts.size() == 1)
     {
-        static_cast<void>(context.expectTrue(
-            "unowned application conflict has no owner", unownedCollision.value().conflicts.front().ownerKey.empty()));
+        static_cast<void>(
+            context.expectTrue("unowned application conflict has no owner", unownedCollision.value().conflicts.front().ownerKey.empty()));
     }
     if(!context.expectTrue("unowned application fixture removes", removeApplicationFixture()))
     {

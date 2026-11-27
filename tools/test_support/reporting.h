@@ -46,7 +46,7 @@ namespace GameWIP::TestSupport
         {
             SinkState state = SinkState::Disabled; ///< Current report-sink lifecycle state.
             std::filesystem::path reportPath;      ///< Requested report destination, when supplied.
-            Status failureStatus;                    ///< First report-sink infrastructure failure, if any.
+            Status failureStatus;                  ///< First report-sink infrastructure failure, if any.
         };
 
         /// @brief Receives a category and formatted line without a line ending; return true when written successfully.

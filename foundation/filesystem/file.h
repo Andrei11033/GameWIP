@@ -270,14 +270,16 @@ namespace GameWIP::FileSystem
         [[nodiscard]] GameWIP::Status::Types::Result<FileLock> tryLockExclusive() noexcept;
 
     private:
-        friend GameWIP::Status::Types::Result<void> resizeFile(const Types::Path &path, std::uint64_t sizeBytes, const Types::File::ResizeOptions &options) noexcept;
+        friend GameWIP::Status::Types::Result<void> resizeFile(
+            const Types::Path &path,
+            std::uint64_t sizeBytes,
+            const Types::File::ResizeOptions &options) noexcept;
 
         /// @brief Resizes a private path-helper handle without preserving its unobservable position.
         [[nodiscard]] GameWIP::Status::Types::Result<void> resizeWithoutPositionRestore(std::uint64_t sizeBytes) noexcept;
 
         std::unique_ptr<Internal::FileState> state_;
     };
-
 
     /// @}
 
@@ -287,12 +289,16 @@ namespace GameWIP::FileSystem
     /// @brief Reads an entire file as bytes.
     /// @return Collected bytes and final status; partial data may accompany a failure.
     /// @see @ref filesystem_whole_file_io
-    [[nodiscard]] GameWIP::Status::Types::Result<std::vector<std::byte>> readAllBytes(const Types::Path &path, const Types::File::ReadOptions &options = {}) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<std::vector<std::byte>> readAllBytes(
+        const Types::Path &path,
+        const Types::File::ReadOptions &options = {}) noexcept;
 
     /// @brief Reads an entire file as strict UTF-8 text.
     /// @return Validated text and final status; a failed read may keep the valid prefix.
     /// @see @ref io_utf8_policy
-    [[nodiscard]] GameWIP::Status::Types::Result<std::string> readAllText(const Types::Path &path, const Types::File::ReadOptions &options = {}) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<std::string> readAllText(
+        const Types::Path &path,
+        const Types::File::ReadOptions &options = {}) noexcept;
 
     /// @brief Writes exact contents non-atomically.
     /// @details Empty input still performs create/truncate, flush, and close.
@@ -405,7 +411,10 @@ namespace GameWIP::FileSystem
     /// @param options Replacement, symlink, parent, metadata, and flush behavior.
     /// @return Success or a validation, lookup, permission, copy, metadata, or flush failure status.
     /// @note Copying is non-atomic: a failure after destination creation can leave destination content changed.
-    [[nodiscard]] GameWIP::Status::Types::Result<void> copyFile(const Types::Path &from, const Types::Path &to, const Types::File::CopyOptions &options = {}) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<void> copyFile(
+        const Types::Path &from,
+        const Types::Path &to,
+        const Types::File::CopyOptions &options = {}) noexcept;
 
     /// @brief Removes one regular file or symlink-to-file entry.
     /// @param path Path to remove.

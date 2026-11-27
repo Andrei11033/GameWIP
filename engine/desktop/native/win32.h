@@ -21,12 +21,7 @@ namespace GameWIP::Desktop::Native::Win32
     /// @details The sink observes the message; it does not replace Desktop's
     /// window procedure or choose the returned native result. A failed result
     /// is reported by the active or next message pump.
-    using MessageSink = GameWIP::Status::Types::Result<void> (*)(
-        void *context,
-        HWND window,
-        UINT message,
-        WPARAM wParam,
-        LPARAM lParam) noexcept;
+    using MessageSink = GameWIP::Status::Types::Result<void> (*)(void *context, HWND window, UINT message, WPARAM wParam, LPARAM lParam) noexcept;
 
     /// @brief Non-owning native handle pair.
     /// @warning Valid only until the Window closes or reopens. Consumers must not destroy either

@@ -7,9 +7,9 @@ environment should use the generated
 details below are for maintainers changing what setup installs or how it
 verifies the machine.
 
-Linux setup supports Ubuntu, Debian, and CachyOS. If PowerShell 7 is missing,
-`setup.sh` offers to install its verified, project-managed runtime before it
-dispatches to the shared setup flow.
+Windows and Linux setup require PowerShell 7.7 or newer. If no compatible
+version is found, the entry point asks before installing the verified,
+project-managed runtime.
 
 ## Layout
 

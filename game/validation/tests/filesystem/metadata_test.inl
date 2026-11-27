@@ -83,7 +83,8 @@ void testMetadataDirectoriesAndListing(TestSupport::Context &context, const std:
         static_cast<void>(context.expectEq("listDirectory returns one entry", std::size_t{1}, listing.value().size()));
         if(!listing.value().empty())
         {
-            static_cast<void>(context.expectEq("listDirectory entry is file", FileSystem::Types::EntryKind::RegularFile, listing.value()[0].info.kind));
+            static_cast<void>(
+                context.expectEq("listDirectory entry is file", FileSystem::Types::EntryKind::RegularFile, listing.value()[0].info.kind));
         }
     }
 
@@ -94,9 +95,8 @@ void testMetadataDirectoriesAndListing(TestSupport::Context &context, const std:
 
     const std::filesystem::path listingLimitDirectory = root / "directories" / "listing-limit";
     static_cast<void>(context.expectTrue("listing-limit directory creation succeeds", FileSystem::createDirectories(listingLimitDirectory).ok()));
-    static_cast<void>(context.expectTrue(
-        "listing-limit first file write succeeds",
-        FileSystem::writeAllText(listingLimitDirectory / "first.txt", "first").ok()));
+    static_cast<void>(
+        context.expectTrue("listing-limit first file write succeeds", FileSystem::writeAllText(listingLimitDirectory / "first.txt", "first").ok()));
     const auto exactListing = FileSystem::listDirectory(listingLimitDirectory, FileSystem::Types::Directory::ListOptions{.maxEntries = 1});
     static_cast<void>(context.expectTrue("exact listing limit succeeds", exactListing.ok()));
     if(exactListing.hasValue())
@@ -162,6 +162,7 @@ void testMetadataDirectoriesAndListing(TestSupport::Context &context, const std:
         "cursor with an additional matching entry reports SizeLimitExceeded",
         ErrorCode::SizeLimitExceeded,
         limitedCursorEnd.status().code()));
-    static_cast<void>(context.expectFalse("cursor limit result contains no extra entry", limitedCursorEnd.hasValue() && limitedCursorEnd.value().has_value()));
+    static_cast<void>(
+        context.expectFalse("cursor limit result contains no extra entry", limitedCursorEnd.hasValue() && limitedCursorEnd.value().has_value()));
     static_cast<void>(context.expectEq("cursor limit status remains terminal", ErrorCode::SizeLimitExceeded, exactCursor.next().status().code()));
 }

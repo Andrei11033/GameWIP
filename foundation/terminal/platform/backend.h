@@ -62,7 +62,9 @@ namespace GameWIP::Terminal::Platform
     [[nodiscard]] GameWIP::Status::Types::Status validateCursorMovement(Terminal::Types::Output::Stream stream, std::uint32_t amount);
 
     /// @brief Validates a cursor position for the selected backend.
-    [[nodiscard]] GameWIP::Status::Types::Status validateCursorPosition(Terminal::Types::Output::Stream stream, Terminal::Types::Cursor::Position position);
+    [[nodiscard]] GameWIP::Status::Types::Status validateCursorPosition(
+        Terminal::Types::Output::Stream stream,
+        Terminal::Types::Cursor::Position position);
 
     /// @brief Validates a scroll amount for the selected backend.
     [[nodiscard]] GameWIP::Status::Types::Status validateScroll(Terminal::Types::Output::Stream stream, std::uint32_t lines);

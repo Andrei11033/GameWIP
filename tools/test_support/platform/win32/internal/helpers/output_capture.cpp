@@ -27,11 +27,10 @@ namespace GameWIP::TestSupport::Internal::Win32
         {
             if(outputStatus.ok())
             {
-                const auto native = nativeCode == 0
-                                        ? std::nullopt
-                                        : std::optional<GameWIP::Status::Types::NativeCode>(
-                                              GameWIP::Status::Types::NativeCode{GameWIP::Status::Types::NativeCodeDomain::Win32Error,
-                                                                               static_cast<std::int64_t>(nativeCode)});
+                const auto native = nativeCode == 0 ? std::nullopt
+                                                    : std::optional<GameWIP::Status::Types::NativeCode>(GameWIP::Status::Types::NativeCode{
+                                                          GameWIP::Status::Types::NativeCodeDomain::Win32Error,
+                                                          static_cast<std::int64_t>(nativeCode)});
                 outputStatus = Internal::failureStatus(code, native);
             }
         };

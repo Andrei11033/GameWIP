@@ -51,7 +51,10 @@ namespace GameWIP::Desktop::Platform
         /// @brief Converts a failed cursor API call into the library status convention.
         [[nodiscard]] GameWIP::Status::Types::Status nativeCursorFailure(DWORD nativeCode, const char *operation) noexcept
         {
-            return statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, nativeCode == ERROR_SUCCESS ? ERROR_GEN_FAILURE : nativeCode, operation);
+            return statusFromWin32(
+                GameWIP::Status::Types::Code::NativeFailure,
+                nativeCode == ERROR_SUCCESS ? ERROR_GEN_FAILURE : nativeCode,
+                operation);
         }
 
         /// @brief Materializes one RGBA cursor image as a Win32 color/mask icon.

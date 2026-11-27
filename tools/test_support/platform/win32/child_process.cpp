@@ -231,11 +231,7 @@ namespace GameWIP::TestSupport
             static_cast<void>(WaitForSingleObject(processHandle, INFINITE));
         }
 
-        void finishOutputReader(
-            std::thread &outputReader,
-            HANDLE outputDoneHandle,
-            UniqueHandle &outputRead,
-            Types::Status &outputStatus) noexcept
+        void finishOutputReader(std::thread &outputReader, HANDLE outputDoneHandle, UniqueHandle &outputRead, Types::Status &outputStatus) noexcept
         {
             if(!outputReader.joinable())
             {
@@ -292,11 +288,10 @@ namespace GameWIP::TestSupport
 
         const auto setFailure = [&state](GameWIP::Status::Types::Code code, std::uint64_t nativeCode = 0) noexcept
         {
-            const auto diagnostic = nativeCode == 0
-                                        ? std::nullopt
-                                        : std::optional<GameWIP::Status::Types::NativeCode>(
-                                              GameWIP::Status::Types::NativeCode{GameWIP::Status::Types::NativeCodeDomain::Win32Error,
-                                                                               static_cast<std::int64_t>(nativeCode)});
+            const auto diagnostic = nativeCode == 0 ? std::nullopt
+                                                    : std::optional<GameWIP::Status::Types::NativeCode>(GameWIP::Status::Types::NativeCode{
+                                                          GameWIP::Status::Types::NativeCodeDomain::Win32Error,
+                                                          static_cast<std::int64_t>(nativeCode)});
             state.status = Internal::failureStatus(code, diagnostic);
         };
         const auto setFailureStatus = [&state](Types::Status status) noexcept
@@ -541,9 +536,7 @@ namespace GameWIP::TestSupport
                 catch(const std::system_error &error)
                 {
                     terminateJobAndWait(jobHandle.get(), processHandle.get(), kTestTerminationCode);
-                    setFailureStatus(Internal::failureStatus(
-                        GameWIP::Status::Types::Code::ProcessCaptureFailed,
-                        Internal::nativeCode(error.code())));
+                    setFailureStatus(Internal::failureStatus(GameWIP::Status::Types::Code::ProcessCaptureFailed, Internal::nativeCode(error.code())));
                     state.execution.outcome = Types::Process::Outcome::TerminatedDuringCleanup;
                     return complete();
                 }
@@ -653,8 +646,7 @@ namespace GameWIP::TestSupport
         }
         catch(const std::system_error &error)
         {
-            setFailureStatus(
-                Internal::failureStatus(GameWIP::Status::Types::Code::NativeFailure, Internal::nativeCode(error.code())));
+            setFailureStatus(Internal::failureStatus(GameWIP::Status::Types::Code::NativeFailure, Internal::nativeCode(error.code())));
             return complete();
         }
         catch(...)

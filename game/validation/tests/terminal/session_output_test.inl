@@ -57,8 +57,10 @@ void testSessionOutputStateRestoration(
         "failed top restoration does not run older obligations",
         std::string{"\x1b[?25l\x1b[?1049h"},
         Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout)));
-    static_cast<void>(
-        context.expectEq("output restoration failure retains input ownership", ErrorCode::ResourceBusy, competing.open(streamOptions).status().code()));
+    static_cast<void>(context.expectEq(
+        "output restoration failure retains input ownership",
+        ErrorCode::ResourceBusy,
+        competing.open(streamOptions).status().code()));
     static_cast<void>(context.expectTrue("output restoration close retry succeeds", outputRestoreFailure.close().ok()));
     static_cast<void>(context.expectEq(
         "output restoration retry preserves reverse order",
@@ -73,7 +75,8 @@ void testSessionOutputStateRestoration(
     const Terminal::Types::Output::ControlOptions flushedControl{.flushMode = IO::Types::FlushMode::Data};
     static_cast<void>(context.expectTrue("restoration flush fixture hides cursor", flushRestoreFailure.setCursorVisible(false, flushedControl).ok()));
     Hooks::forceNextFlushFailure(IOErrorCode::FlushFailed);
-    static_cast<void>(context.expectEq("close restoration flush failure propagates", ErrorCode::FlushFailed, flushRestoreFailure.close().status().code()));
+    static_cast<void>(
+        context.expectEq("close restoration flush failure propagates", ErrorCode::FlushFailed, flushRestoreFailure.close().status().code()));
     static_cast<void>(context.expectTrue("restoration flush failure leaves session open", flushRestoreFailure.isOpen()));
     static_cast<void>(context.expectEq(
         "restoration transition was emitted before flush failure",

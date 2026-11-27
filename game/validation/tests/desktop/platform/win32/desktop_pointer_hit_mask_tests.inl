@@ -85,7 +85,8 @@ void testPointerHitMask(TestSupport::Context &context)
     static_cast<void>(
         context.expectEq("failed first publication keeps no mask", std::size_t{0}, Desktop::Internal::TestHooks::pointerHitMaskWordCount(window)));
 
-    static_cast<void>(context.expectTrue("first mask publication succeeds", Feedback::publishPointerHitMask(window, first.value().generation, words).ok()));
+    static_cast<void>(
+        context.expectTrue("first mask publication succeeds", Feedback::publishPointerHitMask(window, first.value().generation, words).ok()));
     static_cast<void>(context.expectTrue("active mask is reported", Feedback::hasPointerHitMask(window)));
     static_cast<void>(context.expectEq("mask stores exact word count", wordCount, Desktop::Internal::TestHooks::pointerHitMaskWordCount(window)));
     static_cast<void>(
@@ -119,10 +120,13 @@ void testPointerHitMask(TestSupport::Context &context)
         "superseded outstanding update is interrupted",
         ErrorCode::Interrupted,
         Feedback::publishPointerHitMask(window, stale.value().generation, words).status().code()));
-    static_cast<void>(context.expectTrue("newer same-size mask succeeds", Feedback::publishPointerHitMask(window, newer.value().generation, words).ok()));
-    static_cast<void>(context.expectEq("same-size publication reuses storage", storage, Desktop::Internal::TestHooks::pointerHitMaskStorage(window)));
     static_cast<void>(
-        context.expectEq("newer publication updates revision", newer.value().generation, Desktop::Internal::TestHooks::pointerHitMaskGeneration(window)));
+        context.expectTrue("newer same-size mask succeeds", Feedback::publishPointerHitMask(window, newer.value().generation, words).ok()));
+    static_cast<void>(context.expectEq("same-size publication reuses storage", storage, Desktop::Internal::TestHooks::pointerHitMaskStorage(window)));
+    static_cast<void>(context.expectEq(
+        "newer publication updates revision",
+        newer.value().generation,
+        Desktop::Internal::TestHooks::pointerHitMaskGeneration(window)));
     static_cast<void>(context.expectEq(
         "stale publication is rejected",
         ErrorCode::Interrupted,
@@ -209,8 +213,10 @@ void testPointerHitMask(TestSupport::Context &context)
             "last representable generation is deterministic",
             std::numeric_limits<std::uint64_t>::max(),
             lastGeneration.value().generation));
-        static_cast<void>(
-            context.expectEq("generation overflow never wraps", ErrorCode::ResourceBusy, Feedback::beginPointerHitMaskUpdate(window).status().code()));
+        static_cast<void>(context.expectEq(
+            "generation overflow never wraps",
+            ErrorCode::ResourceBusy,
+            Feedback::beginPointerHitMaskUpdate(window).status().code()));
         static_cast<void>(window.close());
     }
 }

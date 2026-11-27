@@ -33,16 +33,14 @@ namespace GameWIP::FileSystem
 
             if(!flushResult.ok())
             {
-                return GameWIP::Status::Types::Result<IO::Types::WriteProgress>::failure(
-                    flushResult.status(), std::move(result).value());
+                return GameWIP::Status::Types::Result<IO::Types::WriteProgress>::failure(flushResult.status(), std::move(result).value());
             }
 
             auto closeResult = writer.close();
 
             if(!closeResult.ok())
             {
-                return GameWIP::Status::Types::Result<IO::Types::WriteProgress>::failure(
-                    closeResult.status(), std::move(result).value());
+                return GameWIP::Status::Types::Result<IO::Types::WriteProgress>::failure(closeResult.status(), std::move(result).value());
             }
 
             return GameWIP::Status::Types::Result<IO::Types::WriteProgress>::success(std::move(result).value());
@@ -59,8 +57,7 @@ namespace GameWIP::FileSystem
         {
             if(options.bufferSize == 0)
             {
-                return GameWIP::Status::Types::Result<std::vector<std::byte>>::failure(
-                    GameWIP::Status::Types::Status(ErrorCode::InvalidArgument));
+                return GameWIP::Status::Types::Result<std::vector<std::byte>>::failure(GameWIP::Status::Types::Status(ErrorCode::InvalidArgument));
             }
 
             FileReader reader;
@@ -76,21 +73,18 @@ namespace GameWIP::FileSystem
 
             if(result.ok() && !closeResult.ok())
             {
-                return GameWIP::Status::Types::Result<std::vector<std::byte>>::failure(
-                    closeResult.status(), std::move(result).value());
+                return GameWIP::Status::Types::Result<std::vector<std::byte>>::failure(closeResult.status(), std::move(result).value());
             }
 
             return result;
         }
         catch(const std::bad_alloc &)
         {
-            return GameWIP::Status::Types::Result<std::vector<std::byte>>::failure(
-                GameWIP::Status::Types::Status(ErrorCode::OutOfMemory));
+            return GameWIP::Status::Types::Result<std::vector<std::byte>>::failure(GameWIP::Status::Types::Status(ErrorCode::OutOfMemory));
         }
         catch(...)
         {
-            return GameWIP::Status::Types::Result<std::vector<std::byte>>::failure(
-                GameWIP::Status::Types::Status(ErrorCode::Unknown));
+            return GameWIP::Status::Types::Result<std::vector<std::byte>>::failure(GameWIP::Status::Types::Status(ErrorCode::Unknown));
         }
     }
 
@@ -135,8 +129,10 @@ namespace GameWIP::FileSystem
     /// Whole-file writes
     /// ------------------------------------------------------------
 
-    GameWIP::Status::Types::Result<IO::Types::WriteProgress>
-    writeAllBytes(const Types::Path &path, std::span<const std::byte> bytes, const Types::File::WriteOptions &options) noexcept
+    GameWIP::Status::Types::Result<IO::Types::WriteProgress> writeAllBytes(
+        const Types::Path &path,
+        std::span<const std::byte> bytes,
+        const Types::File::WriteOptions &options) noexcept
     {
         try
         {
@@ -190,8 +186,10 @@ namespace GameWIP::FileSystem
         }
     }
 
-    GameWIP::Status::Types::Result<IO::Types::WriteProgress>
-    writeAllText(const Types::Path &path, std::string_view utf8Text, const Types::File::WriteOptions &options) noexcept
+    GameWIP::Status::Types::Result<IO::Types::WriteProgress> writeAllText(
+        const Types::Path &path,
+        std::string_view utf8Text,
+        const Types::File::WriteOptions &options) noexcept
     {
         if(!validUtf8(utf8Text))
         {
@@ -205,8 +203,10 @@ namespace GameWIP::FileSystem
     /// Whole-file appends
     /// ------------------------------------------------------------
 
-    GameWIP::Status::Types::Result<IO::Types::WriteProgress>
-    appendBytes(const Types::Path &path, std::span<const std::byte> bytes, const Types::File::AppendOptions &options) noexcept
+    GameWIP::Status::Types::Result<IO::Types::WriteProgress> appendBytes(
+        const Types::Path &path,
+        std::span<const std::byte> bytes,
+        const Types::File::AppendOptions &options) noexcept
     {
         try
         {
@@ -257,8 +257,10 @@ namespace GameWIP::FileSystem
         }
     }
 
-    GameWIP::Status::Types::Result<IO::Types::WriteProgress>
-    appendText(const Types::Path &path, std::string_view utf8Text, const Types::File::AppendOptions &options) noexcept
+    GameWIP::Status::Types::Result<IO::Types::WriteProgress> appendText(
+        const Types::Path &path,
+        std::string_view utf8Text,
+        const Types::File::AppendOptions &options) noexcept
     {
         if(!validUtf8(utf8Text))
         {

@@ -114,7 +114,9 @@ namespace GameWIP::FileSystem
 
     /// @brief Returns portable metadata for an existing filesystem entry.
     /// @return Entry metadata, or NotFound when the entry is missing.
-    [[nodiscard]] GameWIP::Status::Types::Result<Types::EntryInfo> getEntryInfo(const Types::Path &path, const Types::EntryOptions &options = {}) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<Types::EntryInfo> getEntryInfo(
+        const Types::Path &path,
+        const Types::EntryOptions &options = {}) noexcept;
 
     /// @brief Tests whether a path resolves to a regular file.
     /// @return Successful true or false; missing entries produce successful false.
@@ -130,11 +132,15 @@ namespace GameWIP::FileSystem
 
     /// @brief Returns the size of an existing regular file.
     /// @return File size, NotFound when missing, or InvalidArgument when the resolved entry is not a regular file with portable size.
-    [[nodiscard]] GameWIP::Status::Types::Result<std::uint64_t> getFileSize(const Types::Path &path, const Types::EntryOptions &options = {}) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<std::uint64_t> getFileSize(
+        const Types::Path &path,
+        const Types::EntryOptions &options = {}) noexcept;
 
     /// @brief Returns the last-write time of an existing filesystem entry.
     /// @return Last-write time, or NotFound when the entry is missing.
-    [[nodiscard]] GameWIP::Status::Types::Result<Types::FileTime> getLastWriteTime(const Types::Path &path, const Types::EntryOptions &options = {}) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<Types::FileTime> getLastWriteTime(
+        const Types::Path &path,
+        const Types::EntryOptions &options = {}) noexcept;
 
     /// @brief Returns the portable basic read-only state of an existing entry.
     /// @return Successful true or false, or NotFound when the entry is missing.
@@ -145,7 +151,10 @@ namespace GameWIP::FileSystem
     /// @param readOnly True to request read-only state; false to request writable.
     /// @param options Symlink traversal behavior.
     /// @return Success or a validation, lookup, permission, or metadata failure status.
-    [[nodiscard]] GameWIP::Status::Types::Result<void> setReadOnly(const Types::Path &path, bool readOnly, const Types::EntryOptions &options = {}) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<void> setReadOnly(
+        const Types::Path &path,
+        bool readOnly,
+        const Types::EntryOptions &options = {}) noexcept;
 
     /// @brief Moves or renames one filesystem entry.
     /// @param from Source path.
@@ -154,5 +163,8 @@ namespace GameWIP::FileSystem
     /// @return Success or a validation, lookup, permission, conflict, or move failure status.
     /// @note Cross-volume moves return MoveFailed; no copy-and-delete fallback is performed.
     /// @note Native rename success is the operation's linearization point; later namespace changes do not change the returned success.
-    [[nodiscard]] GameWIP::Status::Types::Result<void> movePath(const Types::Path &from, const Types::Path &to, const Types::MoveOptions &options = {}) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<void> movePath(
+        const Types::Path &from,
+        const Types::Path &to,
+        const Types::MoveOptions &options = {}) noexcept;
 } // namespace GameWIP::FileSystem

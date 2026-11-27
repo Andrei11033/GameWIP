@@ -10,8 +10,10 @@ void testSessionInputOwnership(
     Terminal::Session &competing,
     const Terminal::Types::SessionOptions &streamOptions)
 {
-    static_cast<void>(context.expectEq("competing session reports ResourceBusy", ErrorCode::ResourceBusy, competing.open(streamOptions).status().code()));
-    static_cast<void>(context.expectEq("direct read conflicts with session ownership", ErrorCode::ResourceBusy, Terminal::readText().status().code()));
+    static_cast<void>(
+        context.expectEq("competing session reports ResourceBusy", ErrorCode::ResourceBusy, competing.open(streamOptions).status().code()));
+    static_cast<void>(
+        context.expectEq("direct read conflicts with session ownership", ErrorCode::ResourceBusy, Terminal::readText().status().code()));
 
     Hooks::setInputBytes(Terminal::Types::Input::Stream::Stdin, "session");
     const Terminal::Types::Input::TextResult sessionText = session.readText();
@@ -30,7 +32,8 @@ void testSessionInputOwnership(
     static_cast<void>(context.expectTrue("text read after incompatible event read succeeds", afterIncompatibleEventRead.ok()));
     if(afterIncompatibleEventRead.hasValue())
     {
-        static_cast<void>(context.expectEq("incompatible event read consumes nothing", std::string{"preserved"}, afterIncompatibleEventRead.value().text));
+        static_cast<void>(
+            context.expectEq("incompatible event read consumes nothing", std::string{"preserved"}, afterIncompatibleEventRead.value().text));
     }
 
     Hooks::setInputBytes(Terminal::Types::Input::Stream::Stdin, "deadline");
@@ -91,7 +94,8 @@ void testSessionInputRestorationFailure(
     static_cast<void>(context.expectTrue(
         "successful close restores exact managed-event flags",
         Hooks::inputManagedEventModeOverrideMatches(Terminal::Types::Input::Stream::Stdin, false, false, false)));
-    static_cast<void>(context.expectEq("session output after close reports NotOpen", ErrorCode::NotOpen, session.writeText("closed").status().code()));
+    static_cast<void>(
+        context.expectEq("session output after close reports NotOpen", ErrorCode::NotOpen, session.writeText("closed").status().code()));
 }
 
 /// @brief Checks event delivery and Session option validation.
@@ -109,7 +113,8 @@ void testSessionEventDelivery(TestSupport::Context &context, Terminal::Session &
     static_cast<void>(context.expectTrue("event cancellation keeps success status", cancelledEvent.ok()));
     if(cancelledEvent.hasValue())
     {
-        static_cast<void>(context.expectEq("event cancellation outcome", Terminal::Types::Input::ReadOutcome::Cancelled, cancelledEvent.value().outcome));
+        static_cast<void>(
+            context.expectEq("event cancellation outcome", Terminal::Types::Input::ReadOutcome::Cancelled, cancelledEvent.value().outcome));
     }
     static_cast<void>(context.expectTrue("event session closes", events.close().ok()));
 
@@ -124,7 +129,8 @@ void testSessionEventDelivery(TestSupport::Context &context, Terminal::Session &
 
     Terminal::Types::SessionOptions invalidOptions = streamOptions;
     invalidOptions.deliveryMode = static_cast<Terminal::Types::Input::DeliveryMode>(99);
-    static_cast<void>(context.expectEq("invalid session delivery mode is rejected", ErrorCode::InvalidArgument, competing.open(invalidOptions).status().code()));
+    static_cast<void>(
+        context.expectEq("invalid session delivery mode is rejected", ErrorCode::InvalidArgument, competing.open(invalidOptions).status().code()));
 }
 
 #endif

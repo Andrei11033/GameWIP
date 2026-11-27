@@ -209,7 +209,6 @@ void testManualLayeredAndPointer(TestSupport::Context &context, const GameWIP::T
     }
     else
     {
-        static_cast<void>(
-            context.expectEq("unsupported transparent framebuffer is rejected", ErrorCode::Unsupported, alphaStatus.status().code()));
+        static_cast<void>(context.expectEq("unsupported transparent framebuffer is rejected", ErrorCode::Unsupported, alphaStatus.status().code()));
     }
 }

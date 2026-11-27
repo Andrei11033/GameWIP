@@ -25,7 +25,9 @@ inline constexpr std::string_view kManualInteropText =
     return image;
 }
 
-[[nodiscard]] GameWIP::Status::Types::Status writeManualInteropBitmap(const std::filesystem::path &path, const Desktop::Types::DataTransfer::Image &image)
+[[nodiscard]] GameWIP::Status::Types::Status writeManualInteropBitmap(
+    const std::filesystem::path &path,
+    const Desktop::Types::DataTransfer::Image &image)
 {
     BITMAPFILEHEADER file{};
     file.bfType = 0x4D42;

@@ -36,14 +36,18 @@ namespace
     using ConstByteSpan = std::span<const std::byte>;
 
     // Whole-file result types
-    static_assert(
-        std::is_same_v<decltype(FileSystem::writeAllBytes(std::declval<const Path &>(), std::declval<ConstByteSpan>())), Status::Result<IO::Types::WriteProgress>>);
-    static_assert(
-        std::is_same_v<decltype(FileSystem::writeAllText(std::declval<const Path &>(), std::declval<std::string_view>())), Status::Result<IO::Types::WriteProgress>>);
-    static_assert(
-        std::is_same_v<decltype(FileSystem::appendBytes(std::declval<const Path &>(), std::declval<ConstByteSpan>())), Status::Result<IO::Types::WriteProgress>>);
-    static_assert(
-        std::is_same_v<decltype(FileSystem::appendText(std::declval<const Path &>(), std::declval<std::string_view>())), Status::Result<IO::Types::WriteProgress>>);
+    static_assert(std::is_same_v<
+                  decltype(FileSystem::writeAllBytes(std::declval<const Path &>(), std::declval<ConstByteSpan>())),
+                  Status::Result<IO::Types::WriteProgress>>);
+    static_assert(std::is_same_v<
+                  decltype(FileSystem::writeAllText(std::declval<const Path &>(), std::declval<std::string_view>())),
+                  Status::Result<IO::Types::WriteProgress>>);
+    static_assert(std::is_same_v<
+                  decltype(FileSystem::appendBytes(std::declval<const Path &>(), std::declval<ConstByteSpan>())),
+                  Status::Result<IO::Types::WriteProgress>>);
+    static_assert(std::is_same_v<
+                  decltype(FileSystem::appendText(std::declval<const Path &>(), std::declval<std::string_view>())),
+                  Status::Result<IO::Types::WriteProgress>>);
     static_assert(
         std::is_same_v<decltype(FileSystem::writeAllBytesAtomic(std::declval<const Path &>(), std::declval<ConstByteSpan>())), Status::Result<void>>);
 
@@ -87,9 +91,9 @@ namespace
 
     // Public result and option types
     static_assert(std::is_same_v<decltype(FileSystem::Types::File::AtomicWriteOptions{}.temporaryNamePrefix), std::string>);
-    static_assert(
-        std::is_same_v<decltype(std::declval<Status::Result<std::vector<FileSystem::Types::Directory::Entry>> &>().value()),
-                       std::vector<FileSystem::Types::Directory::Entry> &>);
+    static_assert(std::is_same_v<
+                  decltype(std::declval<Status::Result<std::vector<FileSystem::Types::Directory::Entry>> &>().value()),
+                  std::vector<FileSystem::Types::Directory::Entry> &>);
 
     namespace TestSupport = GameWIP::TestSupport;
     using ErrorCode = GameWIP::Status::Types::Code;

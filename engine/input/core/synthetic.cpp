@@ -135,18 +135,12 @@ namespace GameWIP::Input::Synthetic
         return Internal::result(setValueStatus(element, value, when));
     }
 
-    GameWIP::Status::Types::Result<void> Source::setAbsoluteValue(
-        Types::ElementId element,
-        const Types::Value &value,
-        Types::Timestamp when) noexcept
+    GameWIP::Status::Types::Result<void> Source::setAbsoluteValue(Types::ElementId element, const Types::Value &value, Types::Timestamp when) noexcept
     {
         return Internal::result(setAbsoluteValueStatus(element, value, when));
     }
 
-    GameWIP::Status::Types::Result<void> Source::addRelativeDelta(
-        Types::ElementId element,
-        const Types::Value &delta,
-        Types::Timestamp when) noexcept
+    GameWIP::Status::Types::Result<void> Source::addRelativeDelta(Types::ElementId element, const Types::Value &delta, Types::Timestamp when) noexcept
     {
         return Internal::result(addRelativeDeltaStatus(element, delta, when));
     }

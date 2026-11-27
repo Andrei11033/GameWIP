@@ -146,7 +146,7 @@ namespace GameWIP::TestSupport
         // Guard status
         Types::Status status_;            ///< Construction status.
         Types::Status restorationStatus_; ///< Most recent restoration status.
-        bool restored_ = false;                         ///< True once restoration succeeds.
+        bool restored_ = false;           ///< True once restoration succeeds.
     };
 
     /// @brief Temporarily unsets a process environment variable under an owned process-state scope.
@@ -181,7 +181,7 @@ namespace GameWIP::TestSupport
         // Guard status
         Types::Status status_;            ///< Construction status.
         Types::Status restorationStatus_; ///< Most recent restoration status.
-        bool restored_ = false;                         ///< True once restoration succeeds.
+        bool restored_ = false;           ///< True once restoration succeeds.
     };
 
     /// ------------------------------------------------------------

@@ -456,6 +456,14 @@
         },
         "update": {
           "type": "boolean"
+        },
+        "updatePin": {
+          "type": "boolean",
+          "description": "Advance the declared version when the update workflow resolves a newer release."
+        },
+        "reuseCompatibleExternal": {
+          "type": "boolean",
+          "description": "Reuse a compatible executable discovered outside the managed provider root."
         }
       }
     },
@@ -510,6 +518,36 @@
             },
             "kind": {
               "const": "cmakeMinimum"
+            },
+            "expectedCount": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "kind", "assetKey", "assetField", "pattern"],
+          "properties": {
+            "path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "kind": {
+              "const": "releaseAsset"
+            },
+            "assetKey": {
+              "type": "string",
+              "minLength": 1
+            },
+            "assetField": {
+              "enum": ["archive", "sha256"]
+            },
+            "pattern": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Literal asset template containing exactly one {value} token."
             },
             "expectedCount": {
               "type": "integer",

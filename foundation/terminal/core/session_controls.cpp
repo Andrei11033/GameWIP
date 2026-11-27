@@ -240,9 +240,7 @@ namespace GameWIP::Terminal
     /// Screen controls
     /// ------------------------------------------------------------
 
-    GameWIP::Status::Types::Result<void> Session::clear(
-        Types::Output::ClearTarget target,
-        const Types::Output::ControlOptions &options) noexcept
+    GameWIP::Status::Types::Result<void> Session::clear(Types::Output::ClearTarget target, const Types::Output::ControlOptions &options) noexcept
     {
         if(!state_)
         {
@@ -392,9 +390,7 @@ namespace GameWIP::Terminal
     /// Title and bell
     /// ------------------------------------------------------------
 
-    GameWIP::Status::Types::Result<void> Session::setTitle(
-        std::string_view utf8Title,
-        const Types::Output::ControlOptions &options) noexcept
+    GameWIP::Status::Types::Result<void> Session::setTitle(std::string_view utf8Title, const Types::Output::ControlOptions &options) noexcept
     {
         if(!state_)
         {

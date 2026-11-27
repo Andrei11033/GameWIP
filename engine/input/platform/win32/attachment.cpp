@@ -29,10 +29,7 @@ namespace GameWIP::Input::Platform::Win32
         std::int64_t nativeCode,
         GameWIP::Status::Types::NativeCodeDomain domain = GameWIP::Status::Types::NativeCodeDomain::Win32Error)
     {
-        return std::format(
-            "native={} 0x{:08X}",
-            GameWIP::Status::Types::nativeCodeDomainName(domain),
-            static_cast<std::uint32_t>(nativeCode));
+        return std::format("native={} 0x{:08X}", GameWIP::Status::Types::nativeCodeDomainName(domain), static_cast<std::uint32_t>(nativeCode));
     }
 
     [[nodiscard]] static std::string nativeCodeDetail(const GameWIP::Status::Types::Status &status)
@@ -192,11 +189,7 @@ namespace GameWIP::Input::Platform::Win32
                 {
                     impl_->rawInputEnabled = false;
                     ++system.impl_->health.totalBackendFailures;
-                    setBackendStatus(
-                        *impl_,
-                        Types::BackendKind::Win32RawInput,
-                        Types::BackendStatus::Failed,
-                        nativeCodeDetail(rawInputStatus));
+                    setBackendStatus(*impl_, Types::BackendKind::Win32RawInput, Types::BackendStatus::Failed, nativeCodeDetail(rawInputStatus));
                 }
             }
 
@@ -219,11 +212,7 @@ namespace GameWIP::Input::Platform::Win32
                     else
                     {
                         ++system.impl_->health.totalBackendFailures;
-                        setBackendStatus(
-                            *impl_,
-                            Types::BackendKind::Win32Hid,
-                            Types::BackendStatus::Failed,
-                            nativeCodeDetail(hidCollectionsStatus));
+                        setBackendStatus(*impl_, Types::BackendKind::Win32Hid, Types::BackendStatus::Failed, nativeCodeDetail(hidCollectionsStatus));
                         unregisterHidDeviceNotification(*impl_);
                         impl_->hidEnabled = false;
                     }
@@ -308,11 +297,7 @@ namespace GameWIP::Input::Platform::Win32
                     if(!enumerationStatus.ok())
                     {
                         ++system.impl_->health.totalBackendFailures;
-                        setBackendStatus(
-                            *impl_,
-                            Types::BackendKind::DirectInput,
-                            Types::BackendStatus::Failed,
-                            nativeCodeDetail(enumerationStatus));
+                        setBackendStatus(*impl_, Types::BackendKind::DirectInput, Types::BackendStatus::Failed, nativeCodeDetail(enumerationStatus));
                     }
                 }
                 else
@@ -327,8 +312,7 @@ namespace GameWIP::Input::Platform::Win32
                         *impl_,
                         Types::BackendKind::DirectInput,
                         backendStatus,
-                        directInputStatus.code() == Code::Unsupported ? "DirectInput runtime not found"
-                                                                           : nativeCodeDetail(directInputStatus));
+                        directInputStatus.code() == Code::Unsupported ? "DirectInput runtime not found" : nativeCodeDetail(directInputStatus));
                     impl_->directInputEnabled = false;
                 }
             }
@@ -352,8 +336,7 @@ namespace GameWIP::Input::Platform::Win32
                         *impl_,
                         Types::BackendKind::GameInput,
                         backendStatus,
-                        gameInputStatus.code() == Code::Unsupported ? "GameInput runtime not found"
-                                                                         : nativeCodeDetail(gameInputStatus));
+                        gameInputStatus.code() == Code::Unsupported ? "GameInput runtime not found" : nativeCodeDetail(gameInputStatus));
                     impl_->gameInputEnabled = false;
                 }
             }

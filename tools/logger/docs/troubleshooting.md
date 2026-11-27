@@ -7,7 +7,8 @@ Inspect those values first, then use the matching case below.
 ## Init succeeded but File is unavailable
 
 Inspect the initialization result's `value().requestedOutput`, `value().effectiveOutput`, and `value().outputSetupStatus`. Successful Console fallback
-keeps `ok()` true while preserving the File/setup failure directly. If File remains effective but setup reported a failure, inspect `getHealth()` for a
+keeps `ok()` true while preserving the File/setup failure directly. If File
+remains effective but setup reported a failure, inspect `getHealth()` for a
 degraded setup such as timestamp conversion failure.
 
 ## Logger became degraded

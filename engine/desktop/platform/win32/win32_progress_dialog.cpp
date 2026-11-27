@@ -196,7 +196,8 @@ namespace GameWIP::Desktop::Platform
                        suggested->bottom - suggested->top,
                        SWP_NOACTIVATE | SWP_NOZORDER) == FALSE)
                 {
-                    recordPumpFailure(statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, GetLastError(), "SetWindowPos ProgressDialog DPI"));
+                    recordPumpFailure(
+                        statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, GetLastError(), "SetWindowPos ProgressDialog DPI"));
                 }
                 const GameWIP::Status::Types::Status layout = layoutProgressWindow(*data, HIWORD(wParam));
 
@@ -431,7 +432,8 @@ namespace GameWIP::Desktop::Platform
 #endif
             ProgressDialogData &data = *state.platform;
             LONG_PTR style = 0;
-            const GameWIP::Status::Types::Status queryStatus = queryWindowLong(data.progress, GWL_STYLE, style, "GetWindowLongPtrW ProgressDialog mode");
+            const GameWIP::Status::Types::Status queryStatus =
+                queryWindowLong(data.progress, GWL_STYLE, style, "GetWindowLongPtrW ProgressDialog mode");
 
             if(!queryStatus.ok())
             {
@@ -482,7 +484,10 @@ namespace GameWIP::Desktop::Platform
 
                 if(IsWindowEnabled(owner->platform->handle) != (owner->interactionEnabled ? TRUE : FALSE))
                 {
-                    return statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, ERROR_FUNCTION_FAILED, "EnableWindow ProgressDialog owner restore");
+                    return statusFromWin32(
+                        GameWIP::Status::Types::Code::NativeFailure,
+                        ERROR_FUNCTION_FAILED,
+                        "EnableWindow ProgressDialog owner restore");
                 }
             }
 
@@ -564,7 +569,8 @@ namespace GameWIP::Desktop::Platform
                 {
                     data.destroying = false;
                     return Internal::result(
-                        statusFromWin32(GameWIP::Status::Types::Code::CloseFailed, GetLastError(), "DestroyWindow ProgressDialog"), false);
+                        statusFromWin32(GameWIP::Status::Types::Code::CloseFailed, GetLastError(), "DestroyWindow ProgressDialog"),
+                        false);
                 }
             }
 
@@ -1310,7 +1316,9 @@ namespace GameWIP::Desktop::Platform
             {
                 return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::NotOpen);
             }
-            return state->platform->ownerThreadId == GetCurrentThreadId() ? GameWIP::Status::Types::Status{} : GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::ResourceBusy);
+            return state->platform->ownerThreadId == GetCurrentThreadId()
+                       ? GameWIP::Status::Types::Status{}
+                       : GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::ResourceBusy);
         }
     } // namespace
 

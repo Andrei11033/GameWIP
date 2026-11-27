@@ -909,6 +909,36 @@ def check_registry_relationships(failures: list[str]) -> None:
                 if count != expected:
                     failures.append(f"{relative}: live version reference for '{tool_id}' expected {expected} exact match(es), found {count}")
 
+            elif kind == "releaseAsset":
+                pattern = reference.get("pattern", "")
+                asset_key = reference.get("assetKey")
+                asset_field = reference.get("assetField")
+                provider = tool_by_id.get(tool_id, {}).get("provider", {})
+                asset = provider.get("assets", {}).get(asset_key, {})
+
+                if provider.get("kind") != "githubRelease" or asset_field not in {"archive", "sha256"} or asset_field not in asset:
+                    failures.append(
+                        f"scripts/config/project-tools.json: release-asset reference for '{tool_id}' does not match a declared GitHub asset"
+                    )
+                    continue
+
+                if pattern.count("{value}") != 1:
+                    failures.append(
+                        f"scripts/config/project-tools.json: release-asset reference '{relative}' for '{tool_id}' must contain exactly one literal {{value}} token"
+                    )
+                    continue
+                expected = int(reference.get("expectedCount", 1))
+                concrete = pattern.replace("{value}", str(asset[asset_field]))
+                text = read_text(relative, failures)
+
+                if text is None:
+                    continue
+
+                count = text.count(concrete)
+
+                if count != expected:
+                    failures.append(f"{relative}: live release-asset reference for '{tool_id}' expected {expected} exact match(es), found {count}")
+
             elif kind == "cmakeMinimum":
                 expected = int(reference.get("expectedCount", 1))
                 concrete = f"cmake_minimum_required(VERSION {version})"
@@ -933,10 +963,10 @@ def check_registry_relationships(failures: list[str]) -> None:
                         f"scripts/config/project-tools.json: informational path reference '{relative}' for '{tool_id}' must not declare pattern or expectedCount"
                     )
 
-            elif kind not in {"path", "text", "cmakeMinimum"}:
+            elif kind not in {"path", "text", "releaseAsset", "cmakeMinimum"}:
                 failures.append(f"scripts/config/project-tools.json: tool '{tool_id}' uses unknown reference kind '{kind}'")
 
-            if kind in {"text", "cmakeMinimum"}:
+            if kind in {"text", "releaseAsset", "cmakeMinimum"}:
                 live_key = (
                     kind,
                     str(path),

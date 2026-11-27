@@ -68,7 +68,8 @@ void testUtf8OutputContracts(TestSupport::Context &context)
     const std::string before{buffer.text()};
     static_cast<void>(context.expectEq("buffer rejects malformed append", ErrorCode::EncodingFailed, buffer.appendText(malformed).status().code()));
     static_cast<void>(context.expectEq("buffer preserves previous text after malformed append", before, std::string{buffer.text()}));
-    static_cast<void>(context.expectEq("buffer rejects incomplete line append", ErrorCode::EncodingFailed, buffer.appendLine(incomplete).status().code()));
+    static_cast<void>(
+        context.expectEq("buffer rejects incomplete line append", ErrorCode::EncodingFailed, buffer.appendLine(incomplete).status().code()));
     static_cast<void>(context.expectEq("buffer preserves previous text after incomplete line append", before, std::string{buffer.text()}));
     static_cast<void>(
         context.expectEq("buffer rejects malformed formatted suffix", ErrorCode::EncodingFailed, buffer.print("{}", malformed).status().code()));

@@ -22,8 +22,10 @@ void testChildProcesses(TestSupport::Context &context, const std::filesystem::pa
     {
         const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
         static_cast<void>(context.expectEq(name, GameWIP::Status::Types::Code::InvalidArgument, result.status().code()));
-        static_cast<void>(
-            context.expectEq(std::string(name) + " leaves the child unstarted", TestSupport::Types::Process::Outcome::NotStarted, result.value().outcome));
+        static_cast<void>(context.expectEq(
+            std::string(name) + " leaves the child unstarted",
+            TestSupport::Types::Process::Outcome::NotStarted,
+            result.value().outcome));
     };
 
     // Validate argument and environment inputs.
@@ -109,7 +111,8 @@ void testChildProcesses(TestSupport::Context &context, const std::filesystem::pa
 
         const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
         static_cast<void>(context.expectTrue("Normal child exit has successful infrastructure", result.ok()));
-        static_cast<void>(context.expectEq("Nonzero child reports exited outcome", TestSupport::Types::Process::Outcome::Exited, result.value().outcome));
+        static_cast<void>(
+            context.expectEq("Nonzero child reports exited outcome", TestSupport::Types::Process::Outcome::Exited, result.value().outcome));
         static_cast<void>(context.expectEq("Child process reports nonzero exit", std::uint32_t{7}, result.value().exitCode));
     }
 
@@ -153,11 +156,10 @@ void testChildProcesses(TestSupport::Context &context, const std::filesystem::pa
         childOptions.executablePath = std::filesystem::path(executablePath).parent_path() / "missing-gamewip-child.exe";
         childOptions.waitTimeout = normalChildTimeout;
         const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
-        static_cast<void>(context.expectEq(
-            "Missing child reports launch failure",
-            GameWIP::Status::Types::Code::ProcessLaunchFailed,
-            result.status().code()));
-        static_cast<void>(context.expectEq("Missing child was not started", TestSupport::Types::Process::Outcome::NotStarted, result.value().outcome));
+        static_cast<void>(
+            context.expectEq("Missing child reports launch failure", GameWIP::Status::Types::Code::ProcessLaunchFailed, result.status().code()));
+        static_cast<void>(
+            context.expectEq("Missing child was not started", TestSupport::Types::Process::Outcome::NotStarted, result.value().outcome));
         static_cast<void>(context.expectTrue(
             "Missing child preserves a native diagnostic",
             result.status().diagnostic() != nullptr && result.status().diagnostic()->nativeCode.has_value()));
@@ -172,7 +174,8 @@ void testChildProcesses(TestSupport::Context &context, const std::filesystem::pa
 
         const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
         static_cast<void>(context.expectTrue("Child process timeout has successful infrastructure", result.ok()));
-        static_cast<void>(context.expectEq("Child process timeout is reported", TestSupport::Types::Process::Outcome::TimedOut, result.value().outcome));
+        static_cast<void>(
+            context.expectEq("Child process timeout is reported", TestSupport::Types::Process::Outcome::TimedOut, result.value().outcome));
     }
 
     // Exercise capture limits without repeating child setup.
@@ -230,6 +233,7 @@ void testChildProcesses(TestSupport::Context &context, const std::filesystem::pa
         childOptions.waitTimeout = 50ms;
         const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
         static_cast<void>(context.expectTrue("Descendant process timeout has successful infrastructure", result.ok()));
-        static_cast<void>(context.expectEq("Descendant process timeout is reported", TestSupport::Types::Process::Outcome::TimedOut, result.value().outcome));
+        static_cast<void>(
+            context.expectEq("Descendant process timeout is reported", TestSupport::Types::Process::Outcome::TimedOut, result.value().outcome));
     }
 }

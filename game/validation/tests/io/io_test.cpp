@@ -81,9 +81,7 @@ namespace
     static_assert(noexcept(std::declval<const IO::MemoryWriter &>().copyText()));
 
     // Borrowed source and shared result types
-    static_assert(std::is_same_v<
-                  decltype(std::declval<const IO::MemoryWriter &>().copyText()),
-                  GameWIP::Status::Types::Result<std::string>>);
+    static_assert(std::is_same_v<decltype(std::declval<const IO::MemoryWriter &>().copyText()), GameWIP::Status::Types::Result<std::string>>);
     static_assert(std::is_constructible_v<IO::MemoryReader, std::string &>);
     static_assert(!std::is_constructible_v<IO::MemoryReader, std::string &&>);
     static_assert(std::is_constructible_v<IO::MemoryReader, std::vector<std::byte> &>);

@@ -282,8 +282,8 @@ namespace GameWIP::TestSupport
             }
 
             std::filesystem::current_path(previousPath_, error);
-            restorationStatus_ = error ? Internal::failureStatus(GameWIP::Status::Types::Code::FileOperationFailed, Internal::nativeCode(error))
-                                       : Types::Status{};
+            restorationStatus_ =
+                error ? Internal::failureStatus(GameWIP::Status::Types::Code::FileOperationFailed, Internal::nativeCode(error)) : Types::Status{};
         }
         catch(const std::bad_alloc &)
         {

@@ -66,7 +66,9 @@ Its performance depends on keeping the source alive and stable; it never copies 
 
 ## Status cost
 
-`Status` owns a shared pointer to optional immutable diagnostics. Code-only statuses do not allocate. IO-generated statuses normally omit detail. Backends should avoid constructing success messages and should
+`Status` owns a shared pointer to optional immutable diagnostics. Code-only
+statuses do not allocate. IO-generated statuses normally omit detail. Backends
+should avoid constructing success messages and should
 attach failure text only when the diagnostic value justifies the allocation.
 
 Code-only statuses remain useful in hot or allocation-sensitive paths. Optional diagnostics preserve native codes and messages when needed.

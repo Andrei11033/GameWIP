@@ -36,16 +36,14 @@ namespace GameWIP::Input::Platform::Win32
             auto *messageAttachment = static_cast<Attachment *>(context);
             if(messageAttachment == nullptr)
             {
-                return GameWIP::Status::Types::Result<void>::failure(
-                    GameWIP::Status::Types::Status(GameWIP::Status::Types::Code::InvalidArgument));
+                return GameWIP::Status::Types::Result<void>::failure(GameWIP::Status::Types::Status(GameWIP::Status::Types::Code::InvalidArgument));
             }
 
             const auto result = messageAttachment->handleMessage(
                 static_cast<std::uint32_t>(message),
                 static_cast<std::uint64_t>(wParam),
                 static_cast<std::int64_t>(lParam));
-            return result.ok() ? GameWIP::Status::Types::Result<void>::success()
-                               : GameWIP::Status::Types::Result<void>::failure(result.status());
+            return result.ok() ? GameWIP::Status::Types::Result<void>::success() : GameWIP::Status::Types::Result<void>::failure(result.status());
         };
 
         const auto inputStatus = attachment.attach(system, static_cast<void *>(nativeHandle.value().window));

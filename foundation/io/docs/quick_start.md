@@ -17,6 +17,12 @@ find_package(IO ${GAMEWIP_REQUIRED_VERSION} EXACT CONFIG REQUIRED)
 target_link_libraries(MyTarget PRIVATE GameWIP::IO)
 ```
 
+## Source-tree CMake
+
+```cmake
+target_link_libraries(MyTarget PRIVATE IO)
+```
+
 ## Minimal usage
 
 ```cpp
@@ -53,7 +59,7 @@ int main()
 `MemoryReader` borrows its source. Keep it alive at a stable address until the reader is no longer used. Temporary strings and byte vectors are
 rejected, but caller-created dangling views cannot be detected.
 
-## Reporting a failure
+## Failure handling
 
 Use the portable code for decisions. Inspect optional diagnostics only when preparing a developer-facing report:
 

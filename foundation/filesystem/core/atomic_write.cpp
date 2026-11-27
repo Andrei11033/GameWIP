@@ -43,8 +43,9 @@ namespace GameWIP::FileSystem
 
         // Parent-directory validation
 
-        [[nodiscard]] GameWIP::Status::Types::Result<void>
-        validateDirectoryExists(const Types::Path &path, Types::SymlinkPolicy symlinkPolicy) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Result<void> validateDirectoryExists(
+            const Types::Path &path,
+            Types::SymlinkPolicy symlinkPolicy) noexcept
         {
             auto result = queryEntry(path, symlinkPolicy);
 
@@ -116,12 +117,11 @@ namespace GameWIP::FileSystem
             }
 
             // Ensure the parent exists before checking the destination.
-            auto parentStatus =
-                options.createParentDirectories
-                    ? createDirectories(
-                          parent,
-                          Types::Directory::CreateOptions{.succeedIfAlreadyExists = true, .symlinkPolicy = options.symlinkPolicy})
-                    : validateDirectoryExists(parent, options.symlinkPolicy);
+            auto parentStatus = options.createParentDirectories
+                                    ? createDirectories(
+                                          parent,
+                                          Types::Directory::CreateOptions{.succeedIfAlreadyExists = true, .symlinkPolicy = options.symlinkPolicy})
+                                    : validateDirectoryExists(parent, options.symlinkPolicy);
 
             if(!parentStatus.ok())
             {
@@ -228,8 +228,10 @@ namespace GameWIP::FileSystem
         }
     }
 
-    GameWIP::Status::Types::Result<void>
-    writeAllTextAtomic(const Types::Path &path, std::string_view utf8Text, const Types::File::AtomicWriteOptions &options) noexcept
+    GameWIP::Status::Types::Result<void> writeAllTextAtomic(
+        const Types::Path &path,
+        std::string_view utf8Text,
+        const Types::File::AtomicWriteOptions &options) noexcept
     {
         if(!validUtf8(utf8Text))
         {

@@ -233,7 +233,7 @@ namespace GameWIP::Game::Runtime
         const Logger::Types::Health::Snapshot health = Logger::getHealth();
         const std::string lastNativeCode = health.lastNativeCode.has_value() ? std::to_string(health.lastNativeCode->value) : "none";
         const std::string_view lastNativeCodeDomain = health.lastNativeCode.has_value()
-                                                          ? Status::nativeCodeDomainName(health.lastNativeCode->domain)
+                                                          ? GameWIP::Status::Types::nativeCodeDomainName(health.lastNativeCode->domain)
                                                           : std::string_view{"none"};
         if(Logger::shouldLog(Logger::Types::Level::Trace, LogArea::Shutdown))
         {

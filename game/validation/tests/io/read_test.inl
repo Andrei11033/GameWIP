@@ -75,7 +75,8 @@ void testReadAllBytes(TestSupport::Context &context)
     }
 
     UnknownSizeChunkReader exactScratchLimitReader(spanOf(source), 2, false);
-    const StatusTypes::Result<std::vector<std::byte>> exactScratchLimit = IO::readAllBytes(exactScratchLimitReader, std::span<std::byte>(scratch), source.size());
+    const StatusTypes::Result<std::vector<std::byte>> exactScratchLimit =
+        IO::readAllBytes(exactScratchLimitReader, std::span<std::byte>(scratch), source.size());
     static_cast<void>(context.expectTrue("readAllBytes accepts exact unknown-size limit after EOF probe", exactScratchLimit.ok()));
     if(exactScratchLimit.ok())
     {
@@ -83,7 +84,8 @@ void testReadAllBytes(TestSupport::Context &context)
     }
 
     ProbeFailureReader probeFailureReader(spanOf(source));
-    const StatusTypes::Result<std::vector<std::byte>> probeFailure = IO::readAllBytes(probeFailureReader, std::span<std::byte>(scratch), source.size());
+    const StatusTypes::Result<std::vector<std::byte>> probeFailure =
+        IO::readAllBytes(probeFailureReader, std::span<std::byte>(scratch), source.size());
     static_cast<void>(context.expectEq("readAllBytes propagates limit probe failure", ErrorCode::PermissionDenied, probeFailure.status().code()));
     static_cast<void>(context.expectTrue("readAllBytes limit probe failure preserves result", probeFailure.hasValue()));
     if(probeFailure.hasValue())
@@ -98,7 +100,8 @@ void testReadAllBytes(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("readAllBytes scratch limit preserves partial result", scratchLimit.hasValue()));
     if(scratchLimit.hasValue())
     {
-        static_cast<void>(context.expectEq("readAllBytes scratch overload returns limited bytes", makeBytes({0xde, 0xad, 0x00}), scratchLimit.value()));
+        static_cast<void>(
+            context.expectEq("readAllBytes scratch overload returns limited bytes", makeBytes({0xde, 0xad, 0x00}), scratchLimit.value()));
     }
 
     UnknownSizeChunkReader zeroLimitUnknownReader(spanOf(source), 1);
@@ -108,7 +111,8 @@ void testReadAllBytes(TestSupport::Context &context)
     static_cast<void>(context.expectFalse("readAllBytes zero unknown limit has no value", zeroLimitUnknown.hasValue()));
 
     UnknownSizeChunkReader emptyZeroLimitUnknownReader(spanOf(emptySource), 1);
-    const StatusTypes::Result<std::vector<std::byte>> emptyZeroLimitUnknown = IO::readAllBytes(emptyZeroLimitUnknownReader, std::span<std::byte>(scratch), 0);
+    const StatusTypes::Result<std::vector<std::byte>> emptyZeroLimitUnknown =
+        IO::readAllBytes(emptyZeroLimitUnknownReader, std::span<std::byte>(scratch), 0);
     static_cast<void>(context.expectTrue("readAllBytes zero limit accepts empty unknown stream", emptyZeroLimitUnknown.ok()));
 
     UnknownSizeChunkReader emptyScratchReader(spanOf(source), 1);
@@ -117,17 +121,21 @@ void testReadAllBytes(TestSupport::Context &context)
 
     // Check capability fallbacks, reported progress, and invalid reader results.
     SizeWithoutPositionReader sizeWithoutPositionReader(spanOf(source), 2);
-    const StatusTypes::Result<std::vector<std::byte>> sizeWithoutPosition = IO::readAllBytes(sizeWithoutPositionReader, std::span<std::byte>(scratch));
+    const StatusTypes::Result<std::vector<std::byte>> sizeWithoutPosition =
+        IO::readAllBytes(sizeWithoutPositionReader, std::span<std::byte>(scratch));
     static_cast<void>(context.expectTrue("readAllBytes falls back when size is known but position is not", sizeWithoutPosition.ok()));
     if(sizeWithoutPosition.ok())
     {
-        static_cast<void>(
-            context.expectEq("readAllBytes size-only fallback preserves remaining bytes", makeBytes({0x00, 0xbe, 0xef}), sizeWithoutPosition.value()));
+        static_cast<void>(context.expectEq(
+            "readAllBytes size-only fallback preserves remaining bytes",
+            makeBytes({0x00, 0xbe, 0xef}),
+            sizeWithoutPosition.value()));
     }
 
     ReportedSizeReader shortKnownReader(spanOf(source), source.size() + 2);
     const StatusTypes::Result<std::vector<std::byte>> shortKnown = IO::readAllBytes(shortKnownReader, IO::kNoByteLimit, 2);
-    static_cast<void>(context.expectEq("readAllBytes reports early known-size EOF as PartialRead", ErrorCode::PartialRead, shortKnown.status().code()));
+    static_cast<void>(
+        context.expectEq("readAllBytes reports early known-size EOF as PartialRead", ErrorCode::PartialRead, shortKnown.status().code()));
     static_cast<void>(context.expectTrue("readAllBytes partial read preserves result", shortKnown.hasValue()));
     if(shortKnown.hasValue())
     {
@@ -140,7 +148,8 @@ void testReadAllBytes(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("readAllBytes direct fill preserves partial result", failingResult.hasValue()));
     if(failingResult.hasValue())
     {
-        static_cast<void>(context.expectEq("readAllBytes direct fill keeps bytes before failure", makeBytes({0xde, 0xad, 0x00}), failingResult.value()));
+        static_cast<void>(
+            context.expectEq("readAllBytes direct fill keeps bytes before failure", makeBytes({0xde, 0xad, 0x00}), failingResult.value()));
     }
 
     SizeQueryFailureReader queryFailureReader;
@@ -245,12 +254,15 @@ void testReadAllText(TestSupport::Context &context)
     const std::string incompleteFailureSource = makeStringBytes({0x6f, 0x6b, 0xe2, 0x82, 0xac});
     FailingKnownSizeReader incompleteFailureReader(bytesOf(incompleteFailureSource), 2, ErrorCode::PermissionDenied);
     const StatusTypes::Result<std::string> incompleteFailure = IO::readAllText(incompleteFailureReader);
-    static_cast<void>(
-        context.expectEq("readAllText preserves backend failure for incomplete suffix", ErrorCode::PermissionDenied, incompleteFailure.status().code()));
+    static_cast<void>(context.expectEq(
+        "readAllText preserves backend failure for incomplete suffix",
+        ErrorCode::PermissionDenied,
+        incompleteFailure.status().code()));
     static_cast<void>(context.expectTrue("readAllText backend failure preserves valid text", incompleteFailure.hasValue()));
     if(incompleteFailure.hasValue())
     {
-        static_cast<void>(context.expectEq("readAllText trims incomplete suffix after backend failure", std::string{"ok"}, incompleteFailure.value()));
+        static_cast<void>(
+            context.expectEq("readAllText trims incomplete suffix after backend failure", std::string{"ok"}, incompleteFailure.value()));
     }
 
     const std::string malformedFailureSource = makeStringBytes({0x6f, 0x6b, 0xff, 0x21});
@@ -294,7 +306,8 @@ void testReadAllText(TestSupport::Context &context)
         static_cast<void>(context.expectTrue("readAllText known remaining after seek succeeds", seekedResult.ok()));
         if(seekedResult.ok())
         {
-            static_cast<void>(context.expectEq("readAllText known remaining after seek preserves text", std::string("\0beta", 5), seekedResult.value()));
+            static_cast<void>(
+                context.expectEq("readAllText known remaining after seek preserves text", std::string("\0beta", 5), seekedResult.value()));
         }
     }
 
@@ -305,7 +318,8 @@ void testReadAllText(TestSupport::Context &context)
 
     IO::MemoryReader zeroLimitReader(bytesOf(text));
     const StatusTypes::Result<std::string> zeroLimit = IO::readAllText(zeroLimitReader, 0, 4);
-    static_cast<void>(context.expectEq("readAllText zero limit rejects non-empty known stream", ErrorCode::SizeLimitExceeded, zeroLimit.status().code()));
+    static_cast<void>(
+        context.expectEq("readAllText zero limit rejects non-empty known stream", ErrorCode::SizeLimitExceeded, zeroLimit.status().code()));
     static_cast<void>(context.expectFalse("readAllText zero limit has no value", zeroLimit.hasValue()));
 
     IO::MemoryReader emptyReader(bytesOf(""));
@@ -356,7 +370,9 @@ void testReadAllText(TestSupport::Context &context)
     if(incompleteAtExactLimitResult.hasValue())
     {
         static_cast<void>(context.expectEq(
-            "readAllText exact-limit incomplete UTF-8 preserves valid prefix", std::string{"A"}, incompleteAtExactLimitResult.value()));
+            "readAllText exact-limit incomplete UTF-8 preserves valid prefix",
+            std::string{"A"},
+            incompleteAtExactLimitResult.value()));
     }
 
     ProbeFailureReader probeFailureReader(bytesOf(text));
@@ -391,7 +407,8 @@ void testReadAllText(TestSupport::Context &context)
     // Check capability failures and invalid reader progress.
     ReportedSizeReader shortKnownReader(bytesOf(text), text.size() + 2);
     const StatusTypes::Result<std::string> shortKnown = IO::readAllText(shortKnownReader, IO::kNoByteLimit, 4);
-    static_cast<void>(context.expectEq("readAllText reports early known-size EOF as PartialRead", ErrorCode::PartialRead, shortKnown.status().code()));
+    static_cast<void>(
+        context.expectEq("readAllText reports early known-size EOF as PartialRead", ErrorCode::PartialRead, shortKnown.status().code()));
     static_cast<void>(context.expectTrue("readAllText partial read preserves result", shortKnown.hasValue()));
     if(shortKnown.hasValue())
     {

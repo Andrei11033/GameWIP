@@ -14,6 +14,7 @@ project_structure.
 
 ## Foundation libraries
 
+- @subpage status - Shared operation outcomes, optional diagnostics, and value-bearing results.
 - @subpage unicode - Strict Unicode validation, conversion, scalar traversal,
   and grapheme traversal.
 - @subpage io - Shared byte-reader, byte-writer, transfer, status, and UTF-8

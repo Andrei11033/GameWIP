@@ -160,7 +160,9 @@ namespace GameWIP::Desktop
         /// @param description Initial Window properties and policies.
         /// @param queue Explicit queue storage and ownership policy.
         /// @return Success, or a status explaining why no native Window was opened.
-        [[nodiscard]] GameWIP::Status::Types::Result<void> open(const Types::Description &description, Types::Events::QueueConfiguration queue) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> open(
+            const Types::Description &description,
+            Types::Events::QueueConfiguration queue) noexcept;
 
         /// @brief Reports whether native Window operations are available.
         [[nodiscard]] bool isOpen() const noexcept;

@@ -81,15 +81,15 @@ namespace GameWIP::IO
     /// @return Total accepted bytes, including progress from a final failing write.
     /// @note Empty input succeeds without calling writer.write(). The helper does not flush or close
     /// the writer. Impossible counts and successful zero progress return WriteFailed.
-    [[nodiscard]] GameWIP::Status::Types::Result<Types::WriteProgress>
-    writeAllBytes(Writer &writer, std::span<const std::byte> bytes) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<Types::WriteProgress> writeAllBytes(Writer &writer, std::span<const std::byte> bytes) noexcept;
 
     /// @brief Writes all vector bytes, retrying successful short writes until complete or failed.
     /// @tparam Allocator Vector allocator type.
     /// @return Total accepted bytes, including bytes accepted by a failing write.
     template <typename Allocator>
-    [[nodiscard]] GameWIP::Status::Types::Result<Types::WriteProgress>
-    writeAllBytes(Writer &writer, const std::vector<std::byte, Allocator> &bytes) noexcept
+    [[nodiscard]] GameWIP::Status::Types::Result<Types::WriteProgress> writeAllBytes(
+        Writer &writer,
+        const std::vector<std::byte, Allocator> &bytes) noexcept
     {
         return writeAllBytes(writer, std::span<const std::byte>(bytes.data(), bytes.size()));
     }
@@ -100,8 +100,7 @@ namespace GameWIP::IO
     /// @return EncodingFailed with zero bytes written for invalid input; otherwise the writeAllBytes() result.
     /// @note Validation happens before writer.write() is called. No flush or close is performed.
     /// @see @ref io_utf8_policy
-    [[nodiscard]] GameWIP::Status::Types::Result<Types::WriteProgress>
-    writeAllText(Writer &writer, std::string_view utf8Text) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<Types::WriteProgress> writeAllText(Writer &writer, std::string_view utf8Text) noexcept;
 
     /// @}
 } // namespace GameWIP::IO

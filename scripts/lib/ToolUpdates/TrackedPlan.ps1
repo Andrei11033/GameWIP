@@ -4,7 +4,13 @@
 
 function Get-GameWipReferenceTexts
 {
-    param([hashtable]$Reference, [string]$OldVersion, [string]$NewVersion)
+    param(
+        [hashtable]$Reference,
+        [hashtable]$Tool,
+        [string]$OldVersion,
+        [string]$NewVersion,
+        $ReleaseMetadata
+    )
 
     if ($Reference.kind -eq 'path')
     {
@@ -25,6 +31,25 @@ function Get-GameWipReferenceTexts
         return [pscustomobject]@{
             Old = $pattern.Replace('{version}', $OldVersion)
             New = $pattern.Replace('{version}', $NewVersion)
+        }
+    }
+
+    if ($Reference.kind -eq 'releaseAsset')
+    {
+        $assetKey = [string]$Reference.assetKey
+        $assetField = [string]$Reference.assetField
+        $oldValue = [string]$Tool.provider.assets[$assetKey][$assetField]
+        $newValue = [string]$ReleaseMetadata.Assets[$assetKey][$assetField]
+
+        if ([string]::IsNullOrWhiteSpace($newValue))
+        {
+            throw "Latest release metadata for '$($Tool.id)' is missing '$assetKey.$assetField'."
+        }
+        $pattern = [string]$Reference.pattern
+
+        return [pscustomobject]@{
+            Old = $pattern.Replace('{value}', $oldValue)
+            New = $pattern.Replace('{value}', $newValue)
         }
     }
 
@@ -77,7 +102,10 @@ function Get-GameWipTrackedToolMutationPlan
 
         $registryTool = $registryTool[0]
 
-        if ($tool.versionPolicy -eq 'exact' -and $item.Latest -and $item.Latest -ne $tool.requiredVersion)
+        $updatePin = $tool.versionPolicy -eq 'exact' -or
+            ($tool.capabilities.Contains('updatePin') -and [bool]$tool.capabilities.updatePin)
+
+        if ($updatePin -and $item.Latest -and $item.Latest -ne $tool.requiredVersion)
         {
             # Stage every declared live reference before updating the pin.
             $oldVersion = [string]$tool.requiredVersion
@@ -98,7 +126,12 @@ function Get-GameWipTrackedToolMutationPlan
                 {
                     Read-GameWipUtf8Text -Path $fullPath
                 }
-                $texts = Get-GameWipReferenceTexts -Reference $reference -OldVersion $oldVersion -NewVersion $newVersion
+                $texts = Get-GameWipReferenceTexts `
+                    -Reference $reference `
+                    -Tool $tool `
+                    -OldVersion $oldVersion `
+                    -NewVersion $newVersion `
+                    -ReleaseMetadata $item.ReleaseMetadata
                 $expectedCount = if ($reference.Contains('expectedCount'))
                 {
                     [int]$reference.expectedCount
@@ -115,7 +148,15 @@ function Get-GameWipTrackedToolMutationPlan
                 }
 
                 $staged[$fullPath] = $current.Replace($texts.Old, $texts.New)
-                $descriptions.Add("$($reference.path): $($tool.id) $oldVersion -> $newVersion") | Out-Null
+                $changeDescription = if ($reference.kind -eq 'releaseAsset')
+                {
+                    "$($tool.id) asset $($reference.assetKey).$($reference.assetField)"
+                }
+                else
+                {
+                    "$($tool.id) $oldVersion -> $newVersion"
+                }
+                $descriptions.Add("$($reference.path): $changeDescription") | Out-Null
             }
             $registryMutations.Add(@{
                     toolId = [string]$tool.id

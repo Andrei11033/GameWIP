@@ -81,8 +81,10 @@ void testPassiveHelpers(TestSupport::Context &context)
     static_cast<void>(context.expectEq("byte segment kind", Terminal::Types::Output::SegmentKind::Bytes, bytes.kind()));
     static_cast<void>(context.expectEq("byte segment size", byteText.size(), bytes.bytes().size()));
 
-    static_cast<void>(
-        context.expectEq("formatted print failure returns status", ErrorCode::InvalidArgument, Terminal::print("{}", TerminalThrowingFormat{}).status().code()));
+    static_cast<void>(context.expectEq(
+        "formatted print failure returns status",
+        ErrorCode::InvalidArgument,
+        Terminal::print("{}", TerminalThrowingFormat{}).status().code()));
     Terminal::Types::Output::LineOptions lineOptions;
     lineOptions.lineEnding = Terminal::Types::Output::LineEnding::Lf;
     static_cast<void>(context.expectEq(
@@ -117,8 +119,10 @@ void testCapabilitiesAndQueries(TestSupport::Context &context)
         "invalid input capability stream is rejected",
         ErrorCode::InvalidArgument,
         Terminal::getInputCapabilities(invalidInputStream).status().code()));
-    static_cast<void>(
-        context.expectEq("invalid input read stream is rejected", ErrorCode::InvalidArgument, Terminal::readText(invalidInputStream).status().code()));
+    static_cast<void>(context.expectEq(
+        "invalid input read stream is rejected",
+        ErrorCode::InvalidArgument,
+        Terminal::readText(invalidInputStream).status().code()));
 
     // Prepare output capabilities and reject unavailable streams.
     setupCapturedOutput(Terminal::Types::Output::Stream::Stdout);

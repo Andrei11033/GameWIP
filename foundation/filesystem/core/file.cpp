@@ -159,8 +159,7 @@ namespace GameWIP::FileSystem
     {
         if(!isOpen())
         {
-            return GameWIP::Status::Types::Result<IO::Types::ReadProgress>::failure(
-                GameWIP::Status::Types::Status(ErrorCode::NotOpen));
+            return GameWIP::Status::Types::Result<IO::Types::ReadProgress>::failure(GameWIP::Status::Types::Status(ErrorCode::NotOpen));
         }
 
         return Platform::readFile(*state_, destination);

@@ -207,15 +207,13 @@ namespace GameWIP::Desktop
     GameWIP::Status::Types::Result<Types::ScreenPosition> Window::clientToScreen(Types::LogicalPosition position) const noexcept
     {
         GameWIP::Status::Types::Status status = requireState(state_.get());
-        return status.ok() ? Platform::clientToScreen(*state_, position)
-                           : GameWIP::Status::Types::Result<Types::ScreenPosition>::failure(status);
+        return status.ok() ? Platform::clientToScreen(*state_, position) : GameWIP::Status::Types::Result<Types::ScreenPosition>::failure(status);
     }
 
     GameWIP::Status::Types::Result<Types::LogicalPosition> Window::screenToClient(Types::ScreenPosition position) const noexcept
     {
         GameWIP::Status::Types::Status status = requireState(state_.get());
-        return status.ok() ? Platform::screenToClient(*state_, position)
-                           : GameWIP::Status::Types::Result<Types::LogicalPosition>::failure(status);
+        return status.ok() ? Platform::screenToClient(*state_, position) : GameWIP::Status::Types::Result<Types::LogicalPosition>::failure(status);
     }
 
     GameWIP::Status::Types::Result<void> Window::setDpiResizePolicy(Types::DpiResizePolicy policy) noexcept

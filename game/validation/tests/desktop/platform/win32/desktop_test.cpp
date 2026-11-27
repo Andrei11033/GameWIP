@@ -83,12 +83,10 @@ namespace
     [[nodiscard]] std::string manualStatusDetails(const OperationStatus &status)
     {
         const GameWIP::Status::Types::Diagnostic *diagnostic = status.diagnostic();
-        const std::string nativeCode = diagnostic != nullptr && diagnostic->nativeCode.has_value()
-                                           ? std::format(
-                                                 "{}:{}",
-                                                 static_cast<unsigned int>(diagnostic->nativeCode->domain),
-                                                 diagnostic->nativeCode->value)
-                                           : "<none>";
+        const std::string nativeCode =
+            diagnostic != nullptr && diagnostic->nativeCode.has_value()
+                ? std::format("{}:{}", static_cast<unsigned int>(diagnostic->nativeCode->domain), diagnostic->nativeCode->value)
+                : "<none>";
         const std::string message = diagnostic != nullptr && !diagnostic->message.empty() ? diagnostic->message : "<none>";
         return std::format("code={} native={} message={}", GameWIP::Status::Types::codeName(status.code()), nativeCode, message);
     }
@@ -198,8 +196,8 @@ namespace GameWIP::Test
                 {
                     std::_Exit(73);
                 });
-            const auto result = GameWIP::Status::Types::Result<Desktop::Types::LogicalSize>::failure(
-                GameWIP::Status::Types::Status(ErrorCode::NativeFailure));
+            const auto result =
+                GameWIP::Status::Types::Result<Desktop::Types::LogicalSize>::failure(GameWIP::Status::Types::Status(ErrorCode::NativeFailure));
             return static_cast<int>(result.value().width);
         }
 

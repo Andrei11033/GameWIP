@@ -42,10 +42,7 @@ namespace GameWIP::FileSystem::Platform::Win32
     }
 
     /// @brief Publishes a successfully opened native handle into platform-neutral file state.
-    [[nodiscard]] Result<void> assignFileState(
-        std::unique_ptr<Internal::FileState> &state,
-        UniqueHandle handle,
-        const NativeOpenRequest &request)
+    [[nodiscard]] Result<void> assignFileState(std::unique_ptr<Internal::FileState> &state, UniqueHandle handle, const NativeOpenRequest &request)
     {
         auto newState = std::make_unique<Internal::FileState>();
         newState->nativeHandle = handle.release();
@@ -222,10 +219,7 @@ namespace GameWIP::FileSystem::Platform::Win32
     }
 
     /// @brief Executes one validated native open and initializes FileState on success.
-    [[nodiscard]] Result<void> openNativeFile(
-        std::unique_ptr<Internal::FileState> &state,
-        const Types::Path &path,
-        const NativeOpenRequest &request)
+    [[nodiscard]] Result<void> openNativeFile(std::unique_ptr<Internal::FileState> &state, const Types::Path &path, const NativeOpenRequest &request)
     {
         if(path.empty() || !isValidFileShare(request.share) || !isValidSymlinkPolicy(request.symlinkPolicy) ||
            !IO::isValidFlushMode(request.flushOnClose))

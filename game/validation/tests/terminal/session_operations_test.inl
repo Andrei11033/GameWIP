@@ -9,7 +9,8 @@ void testClosedSessionErrors(TestSupport::Context &context)
     Terminal::Session closed;
     static_cast<void>(context.expectFalse("default session starts closed", closed.isOpen()));
     static_cast<void>(context.expectEq("closed session read reports NotOpen", ErrorCode::NotOpen, closed.readText().status().code()));
-    static_cast<void>(context.expectEq("closed session input query reports NotOpen", ErrorCode::NotOpen, closed.getInputCapabilities().status().code()));
+    static_cast<void>(
+        context.expectEq("closed session input query reports NotOpen", ErrorCode::NotOpen, closed.getInputCapabilities().status().code()));
     static_cast<void>(context.expectEq("closed session write reports NotOpen", ErrorCode::NotOpen, closed.writeText("closed").status().code()));
     static_cast<void>(
         context.expectEq("closed session output query reports NotOpen", ErrorCode::NotOpen, closed.getOutputCapabilities().status().code()));
@@ -26,18 +27,25 @@ void testClosedSessionErrors(TestSupport::Context &context)
         "closed session cursor move reports NotOpen",
         ErrorCode::NotOpen,
         closed.moveCursor(Terminal::Types::Cursor::MoveDirection::Up).status().code()));
-    static_cast<void>(context.expectEq("closed session cursor set reports NotOpen", ErrorCode::NotOpen, closed.setCursorPosition({}).status().code()));
-    static_cast<void>(context.expectEq("closed session cursor query reports NotOpen", ErrorCode::NotOpen, closed.getCursorPosition().status().code()));
-    static_cast<void>(context.expectEq("closed session cursor save reports NotOpen", ErrorCode::NotOpen, closed.saveCursorPosition().status().code()));
-    static_cast<void>(context.expectEq("closed session cursor restore reports NotOpen", ErrorCode::NotOpen, closed.restoreCursorPosition().status().code()));
-    static_cast<void>(context.expectEq("closed session visibility reports NotOpen", ErrorCode::NotOpen, closed.setCursorVisible(false).status().code()));
+    static_cast<void>(
+        context.expectEq("closed session cursor set reports NotOpen", ErrorCode::NotOpen, closed.setCursorPosition({}).status().code()));
+    static_cast<void>(
+        context.expectEq("closed session cursor query reports NotOpen", ErrorCode::NotOpen, closed.getCursorPosition().status().code()));
+    static_cast<void>(
+        context.expectEq("closed session cursor save reports NotOpen", ErrorCode::NotOpen, closed.saveCursorPosition().status().code()));
+    static_cast<void>(
+        context.expectEq("closed session cursor restore reports NotOpen", ErrorCode::NotOpen, closed.restoreCursorPosition().status().code()));
+    static_cast<void>(
+        context.expectEq("closed session visibility reports NotOpen", ErrorCode::NotOpen, closed.setCursorVisible(false).status().code()));
     static_cast<void>(context.expectEq("closed session clear reports NotOpen", ErrorCode::NotOpen, closed.clear().status().code()));
     static_cast<void>(context.expectEq(
         "closed session scroll reports NotOpen",
         ErrorCode::NotOpen,
         closed.scroll(Terminal::Types::Output::ScrollDirection::Up).status().code()));
-    static_cast<void>(context.expectEq("closed session alternate enter reports NotOpen", ErrorCode::NotOpen, closed.enterAlternateScreen().status().code()));
-    static_cast<void>(context.expectEq("closed session alternate leave reports NotOpen", ErrorCode::NotOpen, closed.leaveAlternateScreen().status().code()));
+    static_cast<void>(
+        context.expectEq("closed session alternate enter reports NotOpen", ErrorCode::NotOpen, closed.enterAlternateScreen().status().code()));
+    static_cast<void>(
+        context.expectEq("closed session alternate leave reports NotOpen", ErrorCode::NotOpen, closed.leaveAlternateScreen().status().code()));
     static_cast<void>(context.expectEq("closed session title reports NotOpen", ErrorCode::NotOpen, closed.setTitle("closed").status().code()));
     static_cast<void>(context.expectEq("closed session bell reports NotOpen", ErrorCode::NotOpen, closed.ringBell().status().code()));
     static_cast<void>(context.expectTrue("closing a closed session is idempotent", closed.close().ok()));
@@ -123,7 +131,8 @@ void testBoundStreamsAndOutput(TestSupport::Context &context, Terminal::Session 
     static_cast<void>(context.expectTrue("session bell succeeds", session.ringBell().ok()));
     static_cast<void>(context.expectTrue("session flush succeeds", session.flush(IO::Types::FlushMode::Data).ok()));
 
-    static_cast<void>(context.expectEq("same session re-open reports AlreadyOpen", ErrorCode::AlreadyOpen, session.open(streamOptions).status().code()));
+    static_cast<void>(
+        context.expectEq("same session re-open reports AlreadyOpen", ErrorCode::AlreadyOpen, session.open(streamOptions).status().code()));
 }
 
 #endif

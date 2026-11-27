@@ -70,8 +70,10 @@ namespace GameWIP::FileSystem::Internal
     /// Parent-path validation
     /// ------------------------------------------------------------
 
-    GameWIP::Status::Types::Result<void>
-    validateParentDirectory(const Types::Path &path, bool createMissing, Types::SymlinkPolicy symlinkPolicy) noexcept
+    GameWIP::Status::Types::Result<void> validateParentDirectory(
+        const Types::Path &path,
+        bool createMissing,
+        Types::SymlinkPolicy symlinkPolicy) noexcept
     {
         try
         {

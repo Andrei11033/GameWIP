@@ -142,7 +142,9 @@ namespace GameWIP::Desktop::Platform
         }
     }
 
-    GameWIP::Status::Types::Status prepareAccessibilitySnapshot(const std::shared_ptr<AccessibilityRuntime> &runtime, PublishedSnapshot &snapshot) noexcept
+    GameWIP::Status::Types::Status prepareAccessibilitySnapshot(
+        const std::shared_ptr<AccessibilityRuntime> &runtime,
+        PublishedSnapshot &snapshot) noexcept
     {
         auto &native = *static_cast<UiaState *>(runtime->native.get());
         try

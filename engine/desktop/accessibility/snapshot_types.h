@@ -128,8 +128,8 @@ namespace GameWIP::Desktop::Types::Accessibility
     struct ValidationInfo
     {
         ValidationIssue issue = ValidationIssue::None; ///< First deterministic semantic issue, or None when valid.
-        NodeId node = kInvalidNodeId;                   ///< Offending node when known.
-        std::size_t index = 0;                          ///< Offending node or bounded field index, depending on issue.
+        NodeId node = kInvalidNodeId;                  ///< Offending node when known.
+        std::size_t index = 0;                         ///< Offending node or bounded field index, depending on issue.
     };
 
     /// @brief Shared result carrying validation details on success or semantic failure.

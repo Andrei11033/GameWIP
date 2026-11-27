@@ -45,8 +45,7 @@ namespace GameWIP::FileSystem::Platform
                 return failure<void>(ErrorCode::InvalidArgument);
             }
 
-            auto opened =
-                openExistingPath(path, symlinkPolicy, FILE_READ_ATTRIBUTES | FILE_WRITE_ATTRIBUTES, kShareAll, true, ErrorCode::StatFailed);
+            auto opened = openExistingPath(path, symlinkPolicy, FILE_READ_ATTRIBUTES | FILE_WRITE_ATTRIBUTES, kShareAll, true, ErrorCode::StatFailed);
 
             if(!opened.ok())
             {
@@ -65,7 +64,10 @@ namespace GameWIP::FileSystem::Platform
         }
     }
 
-    GameWIP::Status::Types::Result<void> copyBasicMetadata(const Types::Path &from, const Types::Path &to, Types::SymlinkPolicy symlinkPolicy) noexcept
+    GameWIP::Status::Types::Result<void> copyBasicMetadata(
+        const Types::Path &from,
+        const Types::Path &to,
+        Types::SymlinkPolicy symlinkPolicy) noexcept
     {
         try
         {
@@ -129,8 +131,7 @@ namespace GameWIP::FileSystem::Platform
                 return failure<void>(ErrorCode::InvalidArgument);
             }
 
-            auto opened =
-                openExistingPath(path, options.symlinkPolicy, DELETE | FILE_READ_ATTRIBUTES, kShareAll, true, ErrorCode::RemoveFailed);
+            auto opened = openExistingPath(path, options.symlinkPolicy, DELETE | FILE_READ_ATTRIBUTES, kShareAll, true, ErrorCode::RemoveFailed);
 
             if(!opened.ok())
             {
@@ -167,8 +168,7 @@ namespace GameWIP::FileSystem::Platform
                 return failure<void>(ErrorCode::InvalidArgument);
             }
 
-            auto opened =
-                openExistingPath(path, options.symlinkPolicy, DELETE | FILE_READ_ATTRIBUTES, kShareAll, true, ErrorCode::RemoveFailed);
+            auto opened = openExistingPath(path, options.symlinkPolicy, DELETE | FILE_READ_ATTRIBUTES, kShareAll, true, ErrorCode::RemoveFailed);
 
             if(!opened.ok())
             {

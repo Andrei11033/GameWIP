@@ -47,7 +47,8 @@ void testRunnerAndSection(TestSupport::Context &context, const std::filesystem::
     static_cast<void>(context.expectTrue("Runner report read succeeds", reportResult.ok()));
     if(reportResult.ok())
     {
-        static_cast<void>(context.expectContains("Runner report includes result", reportResult.value(), "[RESULT] FirstSuite passed=1 failed=0 skipped=1"));
+        static_cast<void>(
+            context.expectContains("Runner report includes result", reportResult.value(), "[RESULT] FirstSuite passed=1 failed=0 skipped=1"));
         static_cast<void>(context.expectContains("Section reports begin", reportResult.value(), "begin section: small section"));
         static_cast<void>(context.expectContains("Section reports metric", reportResult.value(), "section small section elapsedMs="));
     }

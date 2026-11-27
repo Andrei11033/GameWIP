@@ -610,7 +610,10 @@ namespace GameWIP::Desktop::Platform
             if(!utf8ToUtf16(state.tooltip, tooltip, nativeCode))
             {
                 DestroyIcon(newIcon);
-                return GameWIP::Desktop::Internal::statusFor(ErrorCode::EncodingFailed, nativeCode, GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
+                return GameWIP::Desktop::Internal::statusFor(
+                    ErrorCode::EncodingFailed,
+                    nativeCode,
+                    GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
             }
             NOTIFYICONDATAW data{};
             data.cbSize = sizeof(data);

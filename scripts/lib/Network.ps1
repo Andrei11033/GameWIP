@@ -44,23 +44,47 @@ function Invoke-GameWipHttpDownloadAttempt
     $response = $null
     $inputStream = $null
     $outputStream = $null
+    $cancellationSource = $null
+    $copyTask = $null
 
     try
     {
         $client = [Net.Http.HttpClient]::new()
         $client.Timeout = [TimeSpan]::FromSeconds($TimeoutSeconds)
+        $cancellationSource = [Threading.CancellationTokenSource]::new()
 
         foreach ($name in $Headers.Keys)
         {
             [void]$client.DefaultRequestHeaders.TryAddWithoutValidation([string]$name, [string]$Headers[$name])
         }
 
-        $responseTask = $client.GetAsync($Uri, [Net.Http.HttpCompletionOption]::ResponseHeadersRead)
+        $responseTask = $client.GetAsync(
+            $Uri,
+            [Net.Http.HttpCompletionOption]::ResponseHeadersRead,
+            $cancellationSource.Token
+        )
         $lastReport = [Diagnostics.Stopwatch]::StartNew()
 
         while (-not $responseTask.IsCompleted)
         {
-            Assert-GameWipNotCancelled
+            try
+            {
+                Assert-GameWipNotCancelled
+            }
+
+            catch
+            {
+                $cancellationSource.Cancel()
+                try
+                {
+                    $responseTask.GetAwaiter().GetResult() | Out-Null
+                }
+                catch
+                {
+                    Write-Verbose "Response cleanup after cancellation failed: $($_.Exception.Message)"
+                }
+                throw
+            }
 
             if ($lastReport.Elapsed.TotalSeconds -ge 15)
             {
@@ -77,39 +101,33 @@ function Invoke-GameWipHttpDownloadAttempt
         # Stream directly to disk instead of buffering the response body.
         $inputStream = $response.Content.ReadAsStreamAsync().GetAwaiter().GetResult()
         $outputStream = [IO.File]::Open($OutFile, [IO.FileMode]::Create, [IO.FileAccess]::Write, [IO.FileShare]::None)
-        $buffer = [byte[]]::new(65536)
-        [long]$received = 0
+        $copyTask = $inputStream.CopyToAsync($outputStream, 1048576, $cancellationSource.Token)
         $lastReport.Restart()
 
-        while ($true)
+        while (-not $copyTask.IsCompleted)
         {
-            Assert-GameWipNotCancelled
-            $readTask = $inputStream.ReadAsync($buffer, 0, $buffer.Length)
-
-            while (-not $readTask.IsCompleted)
+            try
             {
                 Assert-GameWipNotCancelled
-
-                if ($lastReport.Elapsed.TotalSeconds -ge 15)
-                {
-                    $receivedMiB = [Math]::Round($received / 1MB, 1)
-                    Write-GameWipHost "  $Label is still downloading ($receivedMiB MiB received)..." -ForegroundColor DarkGray
-                    $lastReport.Restart()
-                }
-                Start-Sleep -Milliseconds 200
             }
 
-            $read = $readTask.GetAwaiter().GetResult()
-
-            if ($read -eq 0)
+            catch
             {
-                break
+                $cancellationSource.Cancel()
+                try
+                {
+                    $copyTask.GetAwaiter().GetResult() | Out-Null
+                }
+                catch
+                {
+                    Write-Verbose "Download cleanup after cancellation failed: $($_.Exception.Message)"
+                }
+                throw
             }
-            $outputStream.Write($buffer, 0, $read)
-            $received += $read
 
             if ($lastReport.Elapsed.TotalSeconds -ge 15)
             {
+                [long]$received = $outputStream.Position
                 $progress = if ($null -ne $contentLength -and $contentLength -gt 0)
                 {
                     '{0:N1}/{1:N1} MiB ({2:N0}%)' -f ($received / 1MB), ($contentLength / 1MB), (($received * 100.0) / $contentLength)
@@ -121,7 +139,11 @@ function Invoke-GameWipHttpDownloadAttempt
                 Write-GameWipHost "  $Label download progress: $progress" -ForegroundColor DarkGray
                 $lastReport.Restart()
             }
+
+            Start-Sleep -Milliseconds 200
         }
+
+        $copyTask.GetAwaiter().GetResult() | Out-Null
     }
 
     finally
@@ -145,6 +167,11 @@ function Invoke-GameWipHttpDownloadAttempt
         if ($null -ne $client)
         {
             $client.Dispose()
+        }
+
+        if ($null -ne $cancellationSource)
+        {
+            $cancellationSource.Dispose()
         }
     }
 }

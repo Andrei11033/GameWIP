@@ -116,8 +116,7 @@ namespace GameWIP::Terminal::Internal
 
     [[nodiscard]] inline GameWIP::Status::Types::Result<void> result(GameWIP::Status::Types::Status status) noexcept
     {
-        return status.ok() ? GameWIP::Status::Types::Result<void>::success()
-                           : GameWIP::Status::Types::Result<void>::failure(std::move(status));
+        return status.ok() ? GameWIP::Status::Types::Result<void>::success() : GameWIP::Status::Types::Result<void>::failure(std::move(status));
     }
 
     template <typename T> [[nodiscard]] GameWIP::Status::Types::Result<T> result(GameWIP::Status::Types::Result<T> value)
@@ -126,15 +125,13 @@ namespace GameWIP::Terminal::Internal
     }
 
     template <typename T>
-    [[nodiscard]] GameWIP::Status::Types::Result<T> withStatus(
-        GameWIP::Status::Types::Result<T> value,
-        GameWIP::Status::Types::Status status)
+    [[nodiscard]] GameWIP::Status::Types::Result<T> withStatus(GameWIP::Status::Types::Result<T> value, GameWIP::Status::Types::Status status)
     {
         if(status.ok())
         {
-            return value.hasValue() ? GameWIP::Status::Types::Result<T>::success(std::move(value).value())
-                                    : GameWIP::Status::Types::Result<T>::failure(
-                                          GameWIP::Status::Types::Status(GameWIP::Status::Types::Code::Unknown));
+            return value.hasValue()
+                       ? GameWIP::Status::Types::Result<T>::success(std::move(value).value())
+                       : GameWIP::Status::Types::Result<T>::failure(GameWIP::Status::Types::Status(GameWIP::Status::Types::Code::Unknown));
         }
 
         if(value.hasValue())
@@ -236,11 +233,7 @@ namespace GameWIP::Terminal::Internal
 
     [[nodiscard]] inline LineResult result(LineOperation operation)
     {
-        Terminal::Types::Input::LineInfo value{
-            operation.outcome,
-            std::move(operation.line),
-            operation.consumedLineEnding,
-            operation.wasTruncated};
+        Terminal::Types::Input::LineInfo value{operation.outcome, std::move(operation.line), operation.consumedLineEnding, operation.wasTruncated};
         if(!operation.status.ok())
         {
             return LineResult::failure(std::move(operation.status), std::move(value));

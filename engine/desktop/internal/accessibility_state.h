@@ -284,7 +284,9 @@ namespace GameWIP::Desktop::Platform
     using Internal::PublishedSnapshot;
     using Internal::WindowState;
 
-    [[nodiscard]] GameWIP::Status::Types::Status enableAccessibility(WindowState &window, const std::shared_ptr<AccessibilityRuntime> &runtime) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Status enableAccessibility(
+        WindowState &window,
+        const std::shared_ptr<AccessibilityRuntime> &runtime) noexcept;
     [[nodiscard]] GameWIP::Status::Types::Status prepareAccessibilitySnapshot(
         const std::shared_ptr<AccessibilityRuntime> &runtime,
         PublishedSnapshot &snapshot) noexcept;

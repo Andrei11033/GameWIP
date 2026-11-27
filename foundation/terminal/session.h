@@ -119,13 +119,19 @@ namespace GameWIP::Terminal
         /// @{
 
         /// @brief Writes UTF-8 text to the bound primary output stream.
-        [[nodiscard]] GameWIP::Status::Types::Result<void> writeText(std::string_view utf8Text, const Types::Output::TextOptions &options = {}) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> writeText(
+            std::string_view utf8Text,
+            const Types::Output::TextOptions &options = {}) noexcept;
 
         /// @brief Writes UTF-8 text followed by a line ending to the bound primary output stream.
-        [[nodiscard]] GameWIP::Status::Types::Result<void> writeLine(std::string_view utf8Text = {}, const Types::Output::LineOptions &options = {}) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> writeLine(
+            std::string_view utf8Text = {},
+            const Types::Output::LineOptions &options = {}) noexcept;
 
         /// @brief Writes arbitrary bytes to the bound primary output stream.
-        [[nodiscard]] GameWIP::Status::Types::Result<IO::Types::WriteProgress> writeBytes(std::span<const std::byte> bytes, const Types::Output::ByteOptions &options = {}) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<IO::Types::WriteProgress> writeBytes(
+            std::span<const std::byte> bytes,
+            const Types::Output::ByteOptions &options = {}) noexcept;
 
         /// @brief Writes one atomic logical batch of text, styled text, and bytes to the bound output.
         [[nodiscard]] GameWIP::Status::Types::Result<void> writeSegments(
@@ -133,14 +139,19 @@ namespace GameWIP::Terminal
             const Types::Output::SegmentOptions &options = {}) noexcept;
 
         /// @brief Formats UTF-8 text and writes it to the bound output.
-        template <class... Args> [[nodiscard]] GameWIP::Status::Types::Result<void> print(std::format_string<Args...> format, Args &&...args) noexcept;
+        template <class... Args>
+        [[nodiscard]] GameWIP::Status::Types::Result<void> print(std::format_string<Args...> format, Args &&...args) noexcept;
 
         /// @brief Formats UTF-8 text with explicit write options and writes it to the bound output.
         template <class... Args>
-        [[nodiscard]] GameWIP::Status::Types::Result<void> print(const Types::Output::TextOptions &options, std::format_string<Args...> format, Args &&...args) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> print(
+            const Types::Output::TextOptions &options,
+            std::format_string<Args...> format,
+            Args &&...args) noexcept;
 
         /// @brief Formats UTF-8 text and writes it followed by a line ending to the bound output.
-        template <class... Args> [[nodiscard]] GameWIP::Status::Types::Result<void> println(std::format_string<Args...> format, Args &&...args) noexcept;
+        template <class... Args>
+        [[nodiscard]] GameWIP::Status::Types::Result<void> println(std::format_string<Args...> format, Args &&...args) noexcept;
 
         /// @brief Formats UTF-8 text with explicit line options and writes it to the bound output.
         template <class... Args>
@@ -202,7 +213,9 @@ namespace GameWIP::Terminal
         [[nodiscard]] GameWIP::Status::Types::Result<void> leaveAlternateScreen(const Types::Output::ControlOptions &options = {}) noexcept;
 
         /// @brief Sets the terminal title through the bound output.
-        [[nodiscard]] GameWIP::Status::Types::Result<void> setTitle(std::string_view utf8Title, const Types::Output::ControlOptions &options = {}) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> setTitle(
+            std::string_view utf8Title,
+            const Types::Output::ControlOptions &options = {}) noexcept;
 
         /// @brief Emits the terminal bell through the bound output.
         [[nodiscard]] GameWIP::Status::Types::Result<void> ringBell(const Types::Output::ControlOptions &options = {}) noexcept;
@@ -230,7 +243,10 @@ namespace GameWIP::Terminal
     }
 
     template <class... Args>
-    GameWIP::Status::Types::Result<void> Session::print(const Types::Output::TextOptions &options, std::format_string<Args...> format, Args &&...args) noexcept
+    GameWIP::Status::Types::Result<void> Session::print(
+        const Types::Output::TextOptions &options,
+        std::format_string<Args...> format,
+        Args &&...args) noexcept
     {
         return vprint(options, format.get(), std::make_format_args(args...));
     }
@@ -241,7 +257,10 @@ namespace GameWIP::Terminal
     }
 
     template <class... Args>
-    GameWIP::Status::Types::Result<void> Session::println(const Types::Output::LineOptions &options, std::format_string<Args...> format, Args &&...args) noexcept
+    GameWIP::Status::Types::Result<void> Session::println(
+        const Types::Output::LineOptions &options,
+        std::format_string<Args...> format,
+        Args &&...args) noexcept
     {
         return vprintln(options, format.get(), std::make_format_args(args...));
     }

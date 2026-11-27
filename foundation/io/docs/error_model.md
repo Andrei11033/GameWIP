@@ -53,6 +53,7 @@ The complete vocabulary and symbolic names are documented by the Status library.
 - At a finite limit, an unknown-size reader may be advanced by one probe byte that is not stored.
 
 @anchor io_utf8_policy
+
 ## UTF-8 text policy
 
 This is the shared policy for IO, FileSystem, and Terminal text APIs; other pages link here.

@@ -43,9 +43,7 @@ namespace
                 if(!workspace_->status().ok())
                 {
                     throw std::runtime_error(
-                        std::format(
-                            "Could not create FileSystem benchmark workspace: {}",
-                            TestSupport::formatStatus(workspace_->status())));
+                        std::format("Could not create FileSystem benchmark workspace: {}", TestSupport::formatStatus(workspace_->status())));
                 }
             }
 
@@ -147,9 +145,8 @@ namespace
 
             if(!openStatus.ok())
             {
-                const std::string error = std::format(
-                    "FileSystem DirectoryCursor benchmark open failed (status={}).",
-                    static_cast<int>(openStatus.status().code()));
+                const std::string error =
+                    std::format("FileSystem DirectoryCursor benchmark open failed (status={}).", static_cast<int>(openStatus.status().code()));
                 state.SkipWithError(error);
                 break;
             }

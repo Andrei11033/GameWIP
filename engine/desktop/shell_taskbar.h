@@ -90,7 +90,10 @@ namespace GameWIP::Desktop
         /// @param description Initial presentation and button snapshot.
         /// @param eventQueue Open queue owned by the same thread as window.
         /// @return Success, or a status explaining why no taskbar publication was opened.
-        [[nodiscard]] GameWIP::Status::Types::Result<void> open(Window &window, const Types::Taskbar::Description &description, ShellEventQueue &eventQueue) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> open(
+            Window &window,
+            const Types::Taskbar::Description &description,
+            ShellEventQueue &eventQueue) noexcept;
 
         /// @brief Reports whether the taskbar binding is open for its current Window lifetime.
         [[nodiscard]] bool isOpen() const noexcept;

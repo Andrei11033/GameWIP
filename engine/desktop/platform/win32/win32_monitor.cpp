@@ -323,11 +323,10 @@ namespace GameWIP::Desktop::Platform
 
                 if(!utf16ToUtf8(display.DeviceString, name, nativeCode))
                 {
-                    return StatusTypes::Result<Types::Display::Info>::failure(
-                        statusFromWin32(
-                            unicodeConversionError(nativeCode, GameWIP::Status::Types::Code::EncodingFailed),
-                            nativeCode,
-                            "monitor name conversion"));
+                    return StatusTypes::Result<Types::Display::Info>::failure(statusFromWin32(
+                        unicodeConversionError(nativeCode, GameWIP::Status::Types::Code::EncodingFailed),
+                        nativeCode,
+                        "monitor name conversion"));
                 }
             }
 
@@ -337,11 +336,10 @@ namespace GameWIP::Desktop::Platform
 
                 if(!utf16ToUtf8(native.szDevice, name, nativeCode))
                 {
-                    return StatusTypes::Result<Types::Display::Info>::failure(
-                        statusFromWin32(
-                            unicodeConversionError(nativeCode, GameWIP::Status::Types::Code::EncodingFailed),
-                            nativeCode,
-                            "monitor device conversion"));
+                    return StatusTypes::Result<Types::Display::Info>::failure(statusFromWin32(
+                        unicodeConversionError(nativeCode, GameWIP::Status::Types::Code::EncodingFailed),
+                        nativeCode,
+                        "monitor device conversion"));
                 }
             }
 
@@ -405,9 +403,8 @@ namespace GameWIP::Desktop::Platform
             if(EnumDisplayMonitors(nullptr, nullptr, enumerateMonitor, reinterpret_cast<LPARAM>(&context)) == FALSE)
             {
                 const StatusTypes::Status failure =
-                    context.status.ok()
-                        ? statusFromWin32(GameWIP::Status::Types::Code::StatFailed, GetLastError(), "EnumDisplayMonitors")
-                        : std::move(context.status);
+                    context.status.ok() ? statusFromWin32(GameWIP::Status::Types::Code::StatFailed, GetLastError(), "EnumDisplayMonitors")
+                                        : std::move(context.status);
 
                 return monitors.empty() ? StatusTypes::Result<std::vector<Types::Display::Info>>::failure(failure)
                                         : StatusTypes::Result<std::vector<Types::Display::Info>>::failure(failure, std::move(monitors));

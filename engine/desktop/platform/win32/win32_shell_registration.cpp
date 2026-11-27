@@ -132,11 +132,7 @@ namespace GameWIP::Desktop::Platform
                 portable = ErrorCode::OutOfMemory;
             }
             std::string message(operation);
-            return GameWIP::Desktop::Internal::statusFor(
-                portable,
-                code,
-                GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error,
-                message);
+            return GameWIP::Desktop::Internal::statusFor(portable, code, GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error, message);
         }
 
         [[nodiscard]] GameWIP::Status::Types::Status openRegistryKey(HKEY root, std::wstring_view path, REGSAM access, RegistryKey &key, bool create)
@@ -387,7 +383,8 @@ namespace GameWIP::Desktop::Platform
 
             [[nodiscard]] GameWIP::Status::Types::Status restoreTree(std::wstring_view destinationPath, std::wstring_view slot, bool captured)
             {
-                const GameWIP::Status::Types::Status deleteStatus = deleteRegistryTree(HKEY_CURRENT_USER, destinationPath, "remove registry replacement");
+                const GameWIP::Status::Types::Status deleteStatus =
+                    deleteRegistryTree(HKEY_CURRENT_USER, destinationPath, "remove registry replacement");
 
                 if(!deleteStatus.ok())
                 {
@@ -547,7 +544,10 @@ namespace GameWIP::Desktop::Platform
                 // Convert the validated target for registry access.
                 if(!utf8ToUtf16(normalizedUtf8, normalizedUtf16, nativeCode))
                 {
-                    return GameWIP::Desktop::Internal::statusFor(ErrorCode::EncodingFailed, nativeCode, GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
+                    return GameWIP::Desktop::Internal::statusFor(
+                        ErrorCode::EncodingFailed,
+                        nativeCode,
+                        GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
                 }
                 return GameWIP::Status::Types::Status{};
             }
@@ -608,7 +608,10 @@ namespace GameWIP::Desktop::Platform
 
             if(!utf16ToUtf8(ownerUtf16, owner, nativeCode))
             {
-                return GameWIP::Desktop::Internal::statusFor(ErrorCode::EncodingFailed, nativeCode, GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
+                return GameWIP::Desktop::Internal::statusFor(
+                    ErrorCode::EncodingFailed,
+                    nativeCode,
+                    GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
             }
 
             hasOwner = true;
@@ -743,7 +746,10 @@ namespace GameWIP::Desktop::Platform
 
             if(!utf8ToUtf16(ownerKey, owner, nativeCode) || !utf8ToUtf16(displayName, display, nativeCode))
             {
-                return GameWIP::Desktop::Internal::statusFor(ErrorCode::EncodingFailed, nativeCode, GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
+                return GameWIP::Desktop::Internal::statusFor(
+                    ErrorCode::EncodingFailed,
+                    nativeCode,
+                    GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
             }
 
             status = writeRegistryString(application.get(), L"GameWIP.OwnerKey", owner);
@@ -856,7 +862,10 @@ namespace GameWIP::Desktop::Platform
 
                 if(!utf8ToUtf16(extension, extensionWide, extensionCode))
                 {
-                    return GameWIP::Desktop::Internal::statusFor(ErrorCode::EncodingFailed, extensionCode, GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
+                    return GameWIP::Desktop::Internal::statusFor(
+                        ErrorCode::EncodingFailed,
+                        extensionCode,
+                        GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
                 }
                 RegistryKey supportedTypes;
                 status = openRegistryKey(application.get(), L"SupportedTypes", KEY_READ | KEY_WRITE, supportedTypes, true);
@@ -922,7 +931,10 @@ namespace GameWIP::Desktop::Platform
 
             if(!utf8ToUtf16(extension, extensionWide, nativeCode))
             {
-                return GameWIP::Desktop::Internal::statusFor(ErrorCode::EncodingFailed, nativeCode, GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
+                return GameWIP::Desktop::Internal::statusFor(
+                    ErrorCode::EncodingFailed,
+                    nativeCode,
+                    GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
             }
 
             const std::wstring supportedPath = applicationPath + L"\\SupportedTypes";
@@ -1045,7 +1057,10 @@ namespace GameWIP::Desktop::Platform
             if(!utf8ToUtf16(ownerKey, owner, nativeCode) || !utf8ToUtf16(displayName, display, nativeCode) ||
                (!contentType.empty() && !utf8ToUtf16(contentType, type, nativeCode)))
             {
-                return GameWIP::Desktop::Internal::statusFor(ErrorCode::EncodingFailed, nativeCode, GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
+                return GameWIP::Desktop::Internal::statusFor(
+                    ErrorCode::EncodingFailed,
+                    nativeCode,
+                    GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
             }
 
             // Write ownership, display, and content metadata.
@@ -1305,7 +1320,10 @@ namespace GameWIP::Desktop::Platform
 
             if(!utf16ToUtf8(applicationName, applicationNameUtf8, nativeCode))
             {
-                return GameWIP::Desktop::Internal::statusFor(ErrorCode::EncodingFailed, nativeCode, GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
+                return GameWIP::Desktop::Internal::statusFor(
+                    ErrorCode::EncodingFailed,
+                    nativeCode,
+                    GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
             }
 
             conflicts.push_back(
@@ -1375,7 +1393,8 @@ namespace GameWIP::Desktop::Platform
 
                     if(ownProgram && extension)
                     {
-                        const GameWIP::Status::Types::Status applicationStatus = readRegistryString(program.get(), L"GameWIP.ApplicationKey", applicationName);
+                        const GameWIP::Status::Types::Status applicationStatus =
+                            readRegistryString(program.get(), L"GameWIP.ApplicationKey", applicationName);
 
                         if(!applicationStatus.ok() && applicationStatus.code() != ErrorCode::NotFound)
                         {
@@ -1395,7 +1414,8 @@ namespace GameWIP::Desktop::Platform
 
                 if(!sameOwner && !ownProgram)
                 {
-                    result.status = exists ? GameWIP::Desktop::Internal::statusFor(ErrorCode::AlreadyExists) : GameWIP::Desktop::Internal::statusFor(ErrorCode::NotFound);
+                    result.status = exists ? GameWIP::Desktop::Internal::statusFor(ErrorCode::AlreadyExists)
+                                           : GameWIP::Desktop::Internal::statusFor(ErrorCode::NotFound);
                     return result;
                 }
 
@@ -1721,7 +1741,10 @@ namespace GameWIP::Desktop::Platform
 
                 if(!utf8ToUtf16(description.ownerKey, owner, nativeCode))
                 {
-                    result.status = GameWIP::Desktop::Internal::statusFor(ErrorCode::EncodingFailed, nativeCode, GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
+                    result.status = GameWIP::Desktop::Internal::statusFor(
+                        ErrorCode::EncodingFailed,
+                        nativeCode,
+                        GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
                     return result;
                 }
 
@@ -1875,7 +1898,10 @@ namespace GameWIP::Desktop::Platform
 
                 if(!utf8ToUtf16(description.ownerKey, owner, nativeCode))
                 {
-                    result.status = GameWIP::Desktop::Internal::statusFor(ErrorCode::EncodingFailed, nativeCode, GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
+                    result.status = GameWIP::Desktop::Internal::statusFor(
+                        ErrorCode::EncodingFailed,
+                        nativeCode,
+                        GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
                     return result;
                 }
 

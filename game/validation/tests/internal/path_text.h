@@ -25,7 +25,9 @@ namespace GameWIP::Test::Internal
         if(!result.ok())
         {
             const GameWIP::Status::Types::Diagnostic *diagnostic = result.status().diagnostic();
-            context.fail(failureName, std::format("code={} detail={}", static_cast<int>(result.status().code()), diagnostic == nullptr ? "" : diagnostic->message));
+            context.fail(
+                failureName,
+                std::format("code={} detail={}", static_cast<int>(result.status().code()), diagnostic == nullptr ? "" : diagnostic->message));
             return {};
         }
 
@@ -40,7 +42,9 @@ namespace GameWIP::Test::Internal
         if(!result.ok())
         {
             const GameWIP::Status::Types::Diagnostic *diagnostic = result.status().diagnostic();
-            context.fail(failureName, std::format("code={} detail={}", static_cast<int>(result.status().code()), diagnostic == nullptr ? "" : diagnostic->message));
+            context.fail(
+                failureName,
+                std::format("code={} detail={}", static_cast<int>(result.status().code()), diagnostic == nullptr ? "" : diagnostic->message));
             return {};
         }
 

@@ -82,8 +82,9 @@ namespace GameWIP::FileSystem
         }
     }
 
-    GameWIP::Status::Types::Result<std::vector<Types::Directory::Entry>>
-    listDirectory(const Types::Path &path, const Types::Directory::ListOptions &options) noexcept
+    GameWIP::Status::Types::Result<std::vector<Types::Directory::Entry>> listDirectory(
+        const Types::Path &path,
+        const Types::Directory::ListOptions &options) noexcept
     {
         std::vector<Types::Directory::Entry> entries;
 
@@ -154,8 +155,9 @@ namespace GameWIP::FileSystem
         }
     }
 
-    GameWIP::Status::Types::Result<std::uint64_t>
-    removeDirectoryTree(const Types::Path &path, const Types::Directory::RemoveTreeOptions &options) noexcept
+    GameWIP::Status::Types::Result<std::uint64_t> removeDirectoryTree(
+        const Types::Path &path,
+        const Types::Directory::RemoveTreeOptions &options) noexcept
     {
         try
         {
@@ -231,12 +233,11 @@ namespace GameWIP::FileSystem
                     {
                         // Open the root once and children relative to their retained parent.
                         GameWIP::Status::Types::Result<std::unique_ptr<Internal::DirectoryCursorState>> opened =
-                            pending.size() == 1
-                                ? Platform::openDirectoryCursor(current.path, Types::SymlinkPolicy::DoNotFollow)
-                                : Platform::openChildDirectoryCursor(
-                                      *pending[pending.size() - 2].cursor,
-                                      current.path,
-                                      Types::SymlinkPolicy::DoNotFollow);
+                            pending.size() == 1 ? Platform::openDirectoryCursor(current.path, Types::SymlinkPolicy::DoNotFollow)
+                                                : Platform::openChildDirectoryCursor(
+                                                      *pending[pending.size() - 2].cursor,
+                                                      current.path,
+                                                      Types::SymlinkPolicy::DoNotFollow);
 
                         if(!opened.ok())
                         {
@@ -271,14 +272,13 @@ namespace GameWIP::FileSystem
                 }
 
                 // Remove the leaf or the now-empty directory.
-                auto removeResult =
-                    current.info.kind == Types::EntryKind::Directory
-                        ? removeEmptyDirectory(
-                              current.path,
-                              Types::RemoveOptions{.succeedIfMissing = false, .symlinkPolicy = Types::SymlinkPolicy::DoNotFollow})
-                        : removeFile(
-                              current.path,
-                              Types::RemoveOptions{.succeedIfMissing = false, .symlinkPolicy = Types::SymlinkPolicy::DoNotFollow});
+                auto removeResult = current.info.kind == Types::EntryKind::Directory
+                                        ? removeEmptyDirectory(
+                                              current.path,
+                                              Types::RemoveOptions{.succeedIfMissing = false, .symlinkPolicy = Types::SymlinkPolicy::DoNotFollow})
+                                        : removeFile(
+                                              current.path,
+                                              Types::RemoveOptions{.succeedIfMissing = false, .symlinkPolicy = Types::SymlinkPolicy::DoNotFollow});
 
                 if(!removeResult.ok())
                 {

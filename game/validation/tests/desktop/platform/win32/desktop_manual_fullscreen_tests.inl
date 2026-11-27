@@ -159,7 +159,8 @@ void testManualFullscreenAndTopology(
 
                 if(sections.exclusive)
                 {
-                    const GameWIP::Status::Types::Result<void> enterStatus = setManualModeWithDiagnostics(context, window, "exclusive-enter", exclusive);
+                    const GameWIP::Status::Types::Result<void> enterStatus =
+                        setManualModeWithDiagnostics(context, window, "exclusive-enter", exclusive);
 
                     if(requireManualStatus(context, "exclusive fullscreen enters", enterStatus))
                     {
@@ -223,7 +224,8 @@ void testManualFullscreenAndTopology(
                     }
                     unsupportedRequest.displayMode->resolution = {1, 1};
                     const Desktop::Types::WindowMode previousMode = window.windowMode();
-                    const GameWIP::Status::Types::Result<void> unsupportedStatus = setManualModeWithDiagnostics(context, window, "exclusive-unsupported", unsupported);
+                    const GameWIP::Status::Types::Result<void> unsupportedStatus =
+                        setManualModeWithDiagnostics(context, window, "exclusive-unsupported", unsupported);
                     static_cast<void>(context.expectTrue("unsupported exact mode is rejected", !unsupportedStatus.ok()));
                     static_cast<void>(context.expectEq("unsupported exact mode preserves Window mode", previousMode, window.windowMode()));
                 }
@@ -327,7 +329,8 @@ void testManualFullscreenAndTopology(
         else
         {
             const Desktop::Types::WindowModeRequest activeBorderless = Desktop::Types::WindowModes::borderlessFullscreen(*topologyMonitor);
-            const GameWIP::Status::Types::Result<void> borderlessEnter = setManualModeWithDiagnostics(context, window, "borderless-disconnect-enter", activeBorderless);
+            const GameWIP::Status::Types::Result<void> borderlessEnter =
+                setManualModeWithDiagnostics(context, window, "borderless-disconnect-enter", activeBorderless);
 
             if(borderlessEnter.ok())
             {

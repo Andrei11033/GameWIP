@@ -82,8 +82,9 @@ succeeds; additional data triggers the probe and failure.
 
 ## A write reports the full payload with failure
 
-The payload may have been fully accepted before a later flush or close failure. Inspect `.status()` and the retained `WriteProgress`. The destination may contain
-complete or partial new content after non-atomic operations.
+The payload may have been fully accepted before a later flush or close failure.
+Inspect `.status()` and the retained `WriteProgress`. After a non-atomic write,
+the destination may contain complete or partial new content.
 
 ## Atomic write fails after replacement
 

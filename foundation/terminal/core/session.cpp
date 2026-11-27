@@ -359,7 +359,8 @@ namespace GameWIP::Terminal
             ownership = {};
 
             const bool directClaim = owner == nullptr;
-            GameWIP::Status::Types::Status status = directClaim ? Internal::claimDirectInput(options.input) : Internal::claimInput(options.input, owner);
+            GameWIP::Status::Types::Status status =
+                directClaim ? Internal::claimDirectInput(options.input) : Internal::claimInput(options.input, owner);
 
             if(!status.ok())
             {
@@ -1009,11 +1010,8 @@ namespace GameWIP::Terminal
 
             if(state_->ownership.capabilities.kind == Types::StreamKind::Terminal && state_->ownership.capabilities.supportsEventInput)
             {
-                return Internal::result(Internal::managedTerminalLineRead(
-                    state_->options.input,
-                    state_->options.output,
-                    options,
-                    state_->lineBoundaryStorage));
+                return Internal::result(
+                    Internal::managedTerminalLineRead(state_->options.input, state_->options.output, options, state_->lineBoundaryStorage));
             }
             std::lock_guard inputLock(Internal::inputIoMutex(state_->options.input));
             return Internal::result(Platform::readLine(state_->options.input, options));

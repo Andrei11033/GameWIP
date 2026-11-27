@@ -20,10 +20,7 @@ namespace GameWIP::FileSystem::Internal
     // Shared lock acquisition
 
     template <typename LockFactory>
-    [[nodiscard]] auto tryLockFileState(
-        const std::unique_ptr<FileState> &state,
-        Types::Lock::Mode mode,
-        LockFactory &&makeLock) noexcept
+    [[nodiscard]] auto tryLockFileState(const std::unique_ptr<FileState> &state, Types::Lock::Mode mode, LockFactory &&makeLock) noexcept
     {
         using Lock = std::invoke_result_t<LockFactory, std::unique_ptr<FileLockState>, Types::Lock::Mode>;
         using Result = GameWIP::Status::Types::Result<Lock>;

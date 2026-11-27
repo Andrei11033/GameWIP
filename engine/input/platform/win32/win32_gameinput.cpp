@@ -458,9 +458,7 @@ namespace GameWIP::Input::Platform::Win32
         InterfaceReference<GameInputApi::IGameInput> gameInput(nativeGameInput);
         if(FAILED(result) || gameInput == nullptr)
         {
-            return nativeStatus(
-                static_cast<std::uint32_t>(FAILED(result) ? result : E_FAIL),
-                GameWIP::Status::Types::NativeCodeDomain::HResult);
+            return nativeStatus(static_cast<std::uint32_t>(FAILED(result) ? result : E_FAIL), GameWIP::Status::Types::NativeCodeDomain::HResult);
         }
 
         // Register controller-capable devices, then consume the initial notifications.
@@ -480,9 +478,7 @@ namespace GameWIP::Input::Platform::Win32
             &attachment.gameInputCallbackToken);
         if(FAILED(result))
         {
-            return nativeStatus(
-                static_cast<std::uint32_t>(result),
-                GameWIP::Status::Types::NativeCodeDomain::HResult);
+            return nativeStatus(static_cast<std::uint32_t>(result), GameWIP::Status::Types::NativeCodeDomain::HResult);
         }
 
         attachment.gameInputModule = moduleReference.release();

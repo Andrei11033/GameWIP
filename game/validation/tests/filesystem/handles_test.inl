@@ -76,8 +76,10 @@ void testWholeFileHelpersAndHandles(TestSupport::Context &context, const std::fi
 
     static_cast<void>(context.expectFalse("append writer is not seekable", appendWriter.canSeek()));
     static_cast<void>(context.expectEq("append writer position is NotSeekable", ErrorCode::NotSeekable, appendWriter.position().status().code()));
-    static_cast<void>(
-        context.expectEq("append writer seek is NotSeekable", ErrorCode::NotSeekable, appendWriter.seek(0, IO::Types::SeekOrigin::Begin).status().code()));
+    static_cast<void>(context.expectEq(
+        "append writer seek is NotSeekable",
+        ErrorCode::NotSeekable,
+        appendWriter.seek(0, IO::Types::SeekOrigin::Begin).status().code()));
     static_cast<void>(context.expectTrue("append writer writes", appendWriter.write(bytesOf("h")).ok()));
     static_cast<void>(context.expectTrue("append writer closes", appendWriter.close().ok()));
 

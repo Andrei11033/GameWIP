@@ -31,8 +31,7 @@ namespace
         Input::Types::Frame frame;
 
         static_cast<void>(context.expectFalse("new Input system is closed", input.isOpen()));
-        static_cast<void>(
-            context.expectEq("capture on closed system reports NotOpen", Status::Code::NotOpen, input.capture(frame).status().code()));
+        static_cast<void>(context.expectEq("capture on closed system reports NotOpen", Status::Code::NotOpen, input.capture(frame).status().code()));
 
         static_cast<void>(context.expectTrue("Input system opens", input.open().ok()));
         static_cast<void>(context.expectTrue("opened Input system reports open", input.isOpen()));

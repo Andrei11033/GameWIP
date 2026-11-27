@@ -83,8 +83,7 @@ namespace GameWIP::FileSystem::Platform::Win32
             return failure<HandleInfo>(makeNtStatus(status, fallback));
         }
 
-        return Result<HandleInfo>::success(
-            HandleInfo{.handle = UniqueHandle{rawHandle}, .information = ioStatus.Information});
+        return Result<HandleInfo>::success(HandleInfo{.handle = UniqueHandle{rawHandle}, .information = ioStatus.Information});
     }
 
     /// @brief Opens one child and rejects reparse points when the policy requires it.
@@ -242,12 +241,8 @@ namespace GameWIP::FileSystem::Platform::Win32
         // Open roots directly because they have no parent components.
         if(parsedPath.value().components.empty())
         {
-            auto root = openRootDirectory(
-                parsedPath.value().root,
-                shareMode,
-                desiredAccess,
-                symlinkPolicy == Types::SymlinkPolicy::DoNotFollow,
-                fallback);
+            auto root =
+                openRootDirectory(parsedPath.value().root, shareMode, desiredAccess, symlinkPolicy == Types::SymlinkPolicy::DoNotFollow, fallback);
 
             if(!root.ok())
             {
@@ -316,8 +311,7 @@ namespace GameWIP::FileSystem::Platform::Win32
             return failure<OpenPath>(ErrorCode::IsDirectory);
         }
 
-        return Result<OpenPath>::success(
-            OpenPath{.handle = std::move(finalHandle).value().handle, .info = std::move(info).value()});
+        return Result<OpenPath>::success(OpenPath{.handle = std::move(finalHandle).value().handle, .info = std::move(info).value()});
     }
 
     /// @brief Retains every traversal handle so a multi-step operation cannot swap path components.

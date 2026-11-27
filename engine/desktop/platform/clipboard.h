@@ -23,9 +23,12 @@ namespace GameWIP::Desktop::Platform
     /// ------------------------------------------------------------
 
     /// @brief Tests native clipboard availability for one portable format.
-    [[nodiscard]] GameWIP::Status::Types::Result<bool> clipboardHasFormat(Types::DataTransfer::FormatView format, std::chrono::milliseconds timeout) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<bool> clipboardHasFormat(
+        Types::DataTransfer::FormatView format,
+        std::chrono::milliseconds timeout) noexcept;
     /// @brief Enumerates portable formats currently available on the clipboard.
-    [[nodiscard]] GameWIP::Status::Types::Result<std::vector<Types::DataTransfer::Format>> clipboardGetFormats(std::chrono::milliseconds timeout) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<std::vector<Types::DataTransfer::Format>> clipboardGetFormats(
+        std::chrono::milliseconds timeout) noexcept;
 
     /// @brief Reads Unicode text from the clipboard.
     [[nodiscard]] GameWIP::Status::Types::Result<std::string> clipboardReadText(std::chrono::milliseconds timeout) noexcept;

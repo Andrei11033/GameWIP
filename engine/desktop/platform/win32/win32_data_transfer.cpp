@@ -31,10 +31,7 @@ namespace GameWIP::Desktop::Platform::DataTransfer
         /// @brief Creates a data-transfer status with an optional native error value.
         [[nodiscard]] GameWIP::Status::Types::Status failure(ErrorCode code, DWORD native = 0) noexcept
         {
-            return GameWIP::Desktop::Internal::statusFor(
-                code,
-                native,
-                GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
+            return GameWIP::Desktop::Internal::statusFor(code, native, GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
         }
 
         /// @brief Multiplies sizes while rejecting native allocation overflow.
@@ -681,7 +678,11 @@ namespace GameWIP::Desktop::Platform::DataTransfer
         }
 
         /// @brief Copies opaque custom clipboard bytes into the portable value.
-        [[nodiscard]] GameWIP::Status::Types::Status materializeCustom(const void *raw, std::size_t size, const Transfer::Format &format, Transfer::Item &out)
+        [[nodiscard]] GameWIP::Status::Types::Status materializeCustom(
+            const void *raw,
+            std::size_t size,
+            const Transfer::Format &format,
+            Transfer::Item &out)
         {
             Transfer::CustomData data;
             data.formatName = format.customName;

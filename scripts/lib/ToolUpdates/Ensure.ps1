@@ -64,7 +64,10 @@ function Invoke-GameWipToolEnsure
         $detected = $toolStatus.Detected
         $compatibility = $toolStatus.Compatibility
         $providerOk = Test-GameWipDetectedToolFromDeclaredProvider -Tool $tool -Detected $detected
+        $reuseExternal = $tool.capabilities.Contains('reuseCompatibleExternal') -and
+            [bool]$tool.capabilities.reuseCompatibleExternal
         $providerRepairRequired = -not $providerOk -and
+            -not $reuseExternal -and
             $tool.provider.kind -in @('python', 'npm', 'powershellGallery', 'githubRelease')
         $action = if (-not $detected.Installed)
         {

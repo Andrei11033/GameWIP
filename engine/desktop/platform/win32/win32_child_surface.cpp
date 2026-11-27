@@ -236,17 +236,19 @@ namespace GameWIP::Desktop::Platform
 
                 if(!physicalRect(state->rect, newDpi, x, y, width, height))
                 {
-                    recordPumpFailure(GameWIP::Desktop::Internal::statusFor(
-                        GameWIP::Status::Types::Code::NativeFailure,
-                        ERROR_ARITHMETIC_OVERFLOW,
-                        GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error,
-                        "scale ChildSurface geometry"));
+                    recordPumpFailure(
+                        GameWIP::Desktop::Internal::statusFor(
+                            GameWIP::Status::Types::Code::NativeFailure,
+                            ERROR_ARITHMETIC_OVERFLOW,
+                            GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error,
+                            "scale ChildSurface geometry"));
                     return 0;
                 }
 
                 if(SetWindowPos(window, nullptr, x, y, width, height, SWP_NOACTIVATE | SWP_NOZORDER) == FALSE)
                 {
-                    recordPumpFailure(statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, GetLastError(), "apply ChildSurface DPI geometry"));
+                    recordPumpFailure(
+                        statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, GetLastError(), "apply ChildSurface DPI geometry"));
                     return 0;
                 }
 
@@ -462,7 +464,9 @@ namespace GameWIP::Desktop::Platform
             if(DestroyWindow(state.platform->handle) == FALSE)
             {
                 state.platform->destroying = false;
-                return Internal::result(statusFromWin32(GameWIP::Status::Types::Code::CloseFailed, GetLastError(), "destroy ChildSurface host"), false);
+                return Internal::result(
+                    statusFromWin32(GameWIP::Status::Types::Code::CloseFailed, GetLastError(), "destroy ChildSurface host"),
+                    false);
             }
         }
 
@@ -572,7 +576,9 @@ namespace GameWIP::Desktop::Platform
     }
 
     /// @brief Converts child-local logical coordinates to virtual-screen pixels.
-    GameWIP::Status::Types::Result<Types::ScreenPosition> childSurfaceClientToScreen(const ChildSurfaceState &state, Types::LogicalPosition position) noexcept
+    GameWIP::Status::Types::Result<Types::ScreenPosition> childSurfaceClientToScreen(
+        const ChildSurfaceState &state,
+        Types::LogicalPosition position) noexcept
     {
         LONG x = 0;
         LONG y = 0;
@@ -596,7 +602,9 @@ namespace GameWIP::Desktop::Platform
     }
 
     /// @brief Converts virtual-screen pixels to child-local logical coordinates.
-    GameWIP::Status::Types::Result<Types::LogicalPosition> childSurfaceScreenToClient(const ChildSurfaceState &state, Types::ScreenPosition position) noexcept
+    GameWIP::Status::Types::Result<Types::LogicalPosition> childSurfaceScreenToClient(
+        const ChildSurfaceState &state,
+        Types::ScreenPosition position) noexcept
     {
         POINT point{position.x, position.y};
 
@@ -694,8 +702,7 @@ namespace GameWIP::Desktop::Native::Win32
 
         if(state == nullptr || !Platform::hasLiveNativeChildSurface(*state))
         {
-            return GameWIP::Status::Types::Result<HandleView>::failure(
-                GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::NotOpen));
+            return GameWIP::Status::Types::Result<HandleView>::failure(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::NotOpen));
         }
 
         if(!Platform::isChildSurfaceOwnedByCurrentThread(*state))

@@ -7,11 +7,12 @@
 gamewip_is_supported_powershell()
 {
     local executable="$1"
+    local minimum_version="$GAMEWIP_POWERSHELL_VERSION"
 
     [[ -x "$executable" ]] || return 1
 
     "$executable" -NoLogo -NoProfile -NonInteractive \
-        -Command 'if ($PSVersionTable.PSVersion.Major -ge 7) { exit 0 }; exit 1' \
+        -Command "if (\$PSVersionTable.PSVersion -ge [Version]'$minimum_version') { exit 0 }; exit 1" \
         >/dev/null 2>&1
 }
 
@@ -25,11 +26,10 @@ gamewip_is_managed_powershell()
     local existing_marker=''
 
     [[ -f "$marker" ]] || return 1
-    expected_marker="$(printf 'version=%s\narchive=powershell-%s-linux-%s.tar.gz\nsha256=%s' \
-        "$GAMEWIP_POWERSHELL_VERSION" "$GAMEWIP_POWERSHELL_VERSION" "$architecture" "$expected_sha256")"
-    existing_marker="$(<"$marker")"
+    expected_marker="\"schemaVersion\":1,\"toolId\":\"powershell\",\"version\":\"$GAMEWIP_POWERSHELL_VERSION\",\"archive\":\"powershell-$GAMEWIP_POWERSHELL_VERSION-linux-$architecture.tar.gz\",\"sha256\":\"$expected_sha256\""
+    existing_marker="$(tr -d '[:space:]' <"$marker")"
 
-    [[ "$existing_marker" == "$expected_marker" ]] && gamewip_is_supported_powershell "$executable"
+    [[ "$existing_marker" == *"$expected_marker"* ]] && gamewip_is_supported_powershell "$executable"
 }
 
 gamewip_find_powershell()
@@ -39,12 +39,17 @@ gamewip_find_powershell()
     local candidate=''
     local architecture=''
     local expected_sha256=''
+    local managed_tools_root=''
 
     if ! storage_root="$(gamewip_resolve_storage_root "$repository_root")"; then
         return 1
     fi
     GAMEWIP_STORAGE_ROOT="$storage_root"
     export GAMEWIP_STORAGE_ROOT
+
+    if ! managed_tools_root="$(gamewip_resolve_managed_tools_root "$repository_root" "$storage_root")"; then
+        return 1
+    fi
 
     if candidate="$(command -v pwsh 2>/dev/null)" && gamewip_is_supported_powershell "$candidate"; then
         GAMEWIP_POWERSHELL_COMMAND="$candidate"
@@ -65,10 +70,10 @@ gamewip_find_powershell()
             ;;
     esac
 
-    candidate="$storage_root/tools/powershell/$GAMEWIP_POWERSHELL_VERSION/pwsh"
+    candidate="$managed_tools_root/tools/powershell/$GAMEWIP_POWERSHELL_VERSION/pwsh"
     if gamewip_is_managed_powershell \
         "$candidate" \
-        "${candidate%/*}/.gamewip-tool" \
+        "${candidate%/*}/.gamewip-tool.json" \
         "$architecture" \
         "$expected_sha256"; then
         GAMEWIP_POWERSHELL_COMMAND="$candidate"

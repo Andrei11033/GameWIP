@@ -66,7 +66,8 @@ void testCancellationSignalFailure(TestSupport::Context &context, const std::fil
     child.captureOutput = true;
     const TestSupport::Types::Process::Result childResult = TestSupport::runChildProcess(child);
     static_cast<void>(context.expectTrue("infinite cancellation child infrastructure succeeds", childResult.ok()));
-    static_cast<void>(context.expectEq("infinite cancellation child exits", TestSupport::Types::Process::Outcome::Exited, childResult.value().outcome));
+    static_cast<void>(
+        context.expectEq("infinite cancellation child exits", TestSupport::Types::Process::Outcome::Exited, childResult.value().outcome));
 
     if(childResult.value().outcome == TestSupport::Types::Process::Outcome::Exited)
     {

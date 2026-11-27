@@ -6,10 +6,10 @@ workflow reference.
 
 ## First checkout setup
 
-Run the repository setup entry point after cloning. On Linux, `setup.sh` offers
-to install its verified PowerShell runtime when needed. The fresh-machine flow,
-supported distributions, repair and update actions, and command options are
-documented in @ref project_environment_setup.
+Run the repository setup entry point after cloning. If PowerShell 7.7 or newer
+is missing, setup asks before installing the verified managed runtime. The
+fresh-machine flow, supported distributions, repair and update actions, and
+command options are documented in @ref project_environment_setup.
 
 ```powershell
 .\setup.bat

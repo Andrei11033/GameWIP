@@ -404,7 +404,9 @@ namespace GameWIP::Desktop
         }
     }
 
-    GameWIP::Status::Types::Result<void> NotificationCenter::update(Types::Shell::NotificationId id, const Types::Notifications::Description &description) noexcept
+    GameWIP::Status::Types::Result<void> NotificationCenter::update(
+        Types::Shell::NotificationId id,
+        const Types::Notifications::Description &description) noexcept
     {
         GameWIP::Status::Types::Status status = requireOwnedNotification(Internal::NotificationCenterAccess::state(*this), ownedByCurrentThread());
 

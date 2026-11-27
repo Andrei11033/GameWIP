@@ -78,7 +78,7 @@ namespace GameWIP::TestSupport
         // Guard status
         Types::Status status_;            ///< Construction status.
         Types::Status restorationStatus_; ///< Most recent restoration status.
-        bool restored_ = false;                         ///< True once restoration succeeds.
+        bool restored_ = false;           ///< True once restoration succeeds.
     };
 
     /// ------------------------------------------------------------

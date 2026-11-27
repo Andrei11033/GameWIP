@@ -38,7 +38,8 @@ void testInputReads(TestSupport::Context &context)
     if(firstLine.hasValue())
     {
         static_cast<void>(context.expectEq("first line text", std::string{"one\r\n"}, firstLine.value().line));
-        static_cast<void>(context.expectEq("first line ending", Terminal::Types::Input::ConsumedLineEnding::CrLf, firstLine.value().consumedLineEnding));
+        static_cast<void>(
+            context.expectEq("first line ending", Terminal::Types::Input::ConsumedLineEnding::CrLf, firstLine.value().consumedLineEnding));
     }
 
     Terminal::Types::Input::LineOptions normalizeOptions;
@@ -48,7 +49,8 @@ void testInputReads(TestSupport::Context &context)
     if(secondLine.hasValue())
     {
         static_cast<void>(context.expectEq("second line text", std::string{"two\n"}, secondLine.value().line));
-        static_cast<void>(context.expectEq("second line ending", Terminal::Types::Input::ConsumedLineEnding::Cr, secondLine.value().consumedLineEnding));
+        static_cast<void>(
+            context.expectEq("second line ending", Terminal::Types::Input::ConsumedLineEnding::Cr, secondLine.value().consumedLineEnding));
     }
 
     const Terminal::Types::Input::LineResult finalLine = Terminal::readLine();
@@ -63,8 +65,10 @@ void testInputReads(TestSupport::Context &context)
     setupInput("kept\n");
     Terminal::Types::Input::LineOptions invalidLineModeOptions;
     invalidLineModeOptions.lineEndingMode = static_cast<Terminal::Types::Input::LineEndingMode>(-1);
-    static_cast<void>(
-        context.expectEq("invalid line read mode is rejected", ErrorCode::InvalidArgument, Terminal::readLine(invalidLineModeOptions).status().code()));
+    static_cast<void>(context.expectEq(
+        "invalid line read mode is rejected",
+        ErrorCode::InvalidArgument,
+        Terminal::readLine(invalidLineModeOptions).status().code()));
     const auto retainedLine = Terminal::readLine();
     static_cast<void>(context.expectTrue("invalid line read mode preserves readable input", retainedLine.ok()));
     if(retainedLine.hasValue())
@@ -109,7 +113,9 @@ void testInputReads(TestSupport::Context &context)
         static_cast<void>(context.expectEq("limited LF keep size", std::size_t{3}, keepLimitedLf.value().line.size()));
         static_cast<void>(context.expectTrue("limited LF keep reports truncation", keepLimitedLf.value().wasTruncated));
         static_cast<void>(context.expectEq(
-            "limited LF keep ending consumed", Terminal::Types::Input::ConsumedLineEnding::Lf, keepLimitedLf.value().consumedLineEnding));
+            "limited LF keep ending consumed",
+            Terminal::Types::Input::ConsumedLineEnding::Lf,
+            keepLimitedLf.value().consumedLineEnding));
     }
     const Terminal::Types::Input::LineResult afterLimitedLf = Terminal::readLine();
     static_cast<void>(context.expectTrue("after limited LF status", afterLimitedLf.ok()));
@@ -129,7 +135,9 @@ void testInputReads(TestSupport::Context &context)
         static_cast<void>(context.expectEq("limited CRLF keep text avoids partial ending", std::string{"abc"}, keepLimitedCrLf.value().line));
         static_cast<void>(context.expectTrue("limited CRLF keep reports truncation", keepLimitedCrLf.value().wasTruncated));
         static_cast<void>(context.expectEq(
-            "limited CRLF keep ending consumed", Terminal::Types::Input::ConsumedLineEnding::CrLf, keepLimitedCrLf.value().consumedLineEnding));
+            "limited CRLF keep ending consumed",
+            Terminal::Types::Input::ConsumedLineEnding::CrLf,
+            keepLimitedCrLf.value().consumedLineEnding));
     }
     const Terminal::Types::Input::LineResult afterLimitedCrLf = Terminal::readLine();
     static_cast<void>(context.expectTrue("after limited CRLF status", afterLimitedCrLf.ok()));
@@ -150,7 +158,9 @@ void testInputReads(TestSupport::Context &context)
         static_cast<void>(context.expectEq("limited normalize size", std::size_t{4}, normalizeLimited.value().line.size()));
         static_cast<void>(context.expectTrue("limited normalize reports truncation", normalizeLimited.value().wasTruncated));
         static_cast<void>(context.expectEq(
-            "limited normalize ending consumed", Terminal::Types::Input::ConsumedLineEnding::CrLf, normalizeLimited.value().consumedLineEnding));
+            "limited normalize ending consumed",
+            Terminal::Types::Input::ConsumedLineEnding::CrLf,
+            normalizeLimited.value().consumedLineEnding));
     }
     const Terminal::Types::Input::LineResult afterLimitedNormalize = Terminal::readLine();
     static_cast<void>(context.expectTrue("after limited normalize status", afterLimitedNormalize.ok()));
@@ -168,7 +178,9 @@ void testInputReads(TestSupport::Context &context)
     {
         static_cast<void>(context.expectEq("long line size", std::size_t{4095}, longLine.value().line.size()));
         static_cast<void>(context.expectEq(
-            "long line detects CRLF across read chunks", Terminal::Types::Input::ConsumedLineEnding::CrLf, longLine.value().consumedLineEnding));
+            "long line detects CRLF across read chunks",
+            Terminal::Types::Input::ConsumedLineEnding::CrLf,
+            longLine.value().consumedLineEnding));
     }
     const auto afterLongLine = Terminal::readLine();
     static_cast<void>(context.expectTrue("line after chunk-boundary CRLF status", afterLongLine.ok()));

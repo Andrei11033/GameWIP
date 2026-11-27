@@ -69,10 +69,7 @@ namespace
         const Status::Diagnostic *diagnostic = status.diagnostic();
         const std::string nativeCode =
             diagnostic != nullptr && diagnostic->nativeCode.has_value()
-                ? std::format(
-                      "{}:{}",
-                      Status::nativeCodeDomainName(diagnostic->nativeCode->domain),
-                      diagnostic->nativeCode->value)
+                ? std::format("{}:{}", Status::nativeCodeDomainName(diagnostic->nativeCode->domain), diagnostic->nativeCode->value)
                 : "<none>";
         const std::string message = diagnostic != nullptr && !diagnostic->message.empty() ? diagnostic->message : "<none>";
         return std::format("code={} native={} message={}", Status::codeName(status.code()), nativeCode, message);
@@ -103,9 +100,8 @@ namespace
 
                     if(!workspace_->status().ok())
                     {
-                        const std::string error = std::format(
-                            "Could not create Logger benchmark workspace: {}.",
-                            TestSupport::formatStatus(workspace_->status()));
+                        const std::string error =
+                            std::format("Could not create Logger benchmark workspace: {}.", TestSupport::formatStatus(workspace_->status()));
                         state.SkipWithError(error);
                         workspace_.reset();
                         return false;
@@ -332,9 +328,7 @@ namespace
                     if(!workspace->status().ok())
                     {
                         state.SkipWithError(
-                            std::format(
-                                "Could not create multi-producer workspace: {}.",
-                                TestSupport::formatStatus(workspace->status())));
+                            std::format("Could not create multi-producer workspace: {}.", TestSupport::formatStatus(workspace->status())));
                         workspace.reset();
                         initialized = false;
                     }

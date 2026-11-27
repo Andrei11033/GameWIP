@@ -137,8 +137,7 @@ namespace GameWIP::Logger::Internal::Core
         ReportSinkProgress progress;
         const auto finishResult = [&]() -> ReportSinkResult
         {
-            return status.ok() ? ReportSinkResult::success(std::move(progress))
-                               : ReportSinkResult::failure(std::move(status), std::move(progress));
+            return status.ok() ? ReportSinkResult::success(std::move(progress)) : ReportSinkResult::failure(std::move(status), std::move(progress));
         };
 
         if(!isValidLevel(level))

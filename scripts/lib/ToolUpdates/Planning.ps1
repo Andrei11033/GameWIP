@@ -143,7 +143,9 @@ function Show-GameWipToolUpdatePlan
         }
         $latestSemantic = if ($item.Query.State -eq 'resolved')
         {
-            $hasActionableDifference = if ($item.Tool.versionPolicy -eq 'exact' -and $item.Tool.Contains('requiredVersion'))
+            $updatesPin = $item.Tool.versionPolicy -eq 'exact' -or
+                ($item.Tool.capabilities.Contains('updatePin') -and [bool]$item.Tool.capabilities.updatePin)
+            $hasActionableDifference = if ($updatesPin -and $item.Tool.Contains('requiredVersion'))
             {
                 [string]$item.Latest -ne [string]$item.Tool.requiredVersion
             }

@@ -1,4 +1,4 @@
-@page filesystem_examples FileSystem examples
+@page filesystem_examples Examples
 
 These examples use the shared `GameWIP::Status::Types::Result<T>` contract:
 `.ok()` reports completion, `.status()` gives the operation outcome, and

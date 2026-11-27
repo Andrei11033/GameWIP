@@ -79,15 +79,11 @@ namespace GameWIP::FileSystem::Platform::Win32
                     GameWIP::Status::Types::NativeCode{GameWIP::Status::Types::NativeCodeDomain::Win32Error, error},
                     message);
             }
-            return Status::withDiagnostic(
-                code,
-                GameWIP::Status::Types::NativeCode{GameWIP::Status::Types::NativeCodeDomain::Win32Error, error});
+            return Status::withDiagnostic(code, GameWIP::Status::Types::NativeCode{GameWIP::Status::Types::NativeCodeDomain::Win32Error, error});
         }
         catch(...)
         {
-            return Status::withDiagnostic(
-                code,
-                GameWIP::Status::Types::NativeCode{GameWIP::Status::Types::NativeCodeDomain::Win32Error, error});
+            return Status::withDiagnostic(code, GameWIP::Status::Types::NativeCode{GameWIP::Status::Types::NativeCodeDomain::Win32Error, error});
         }
     }
 
@@ -104,11 +100,10 @@ namespace GameWIP::FileSystem::Platform::Win32
         {
             if(Unicode::Utf8::validate(message).outcome != Unicode::Types::ValidationOutcome::Valid)
             {
-                return nativeCode == 0
-                           ? Status(code)
-                           : Status::withDiagnostic(
-                                 code,
-                                 GameWIP::Status::Types::NativeCode{GameWIP::Status::Types::NativeCodeDomain::Other, nativeCode});
+                return nativeCode == 0 ? Status(code)
+                                       : Status::withDiagnostic(
+                                             code,
+                                             GameWIP::Status::Types::NativeCode{GameWIP::Status::Types::NativeCodeDomain::Other, nativeCode});
             }
             if(nativeCode == 0)
             {
@@ -121,11 +116,10 @@ namespace GameWIP::FileSystem::Platform::Win32
         }
         catch(...)
         {
-            return nativeCode == 0
-                       ? Status(code)
-                       : Status::withDiagnostic(
-                             code,
-                             GameWIP::Status::Types::NativeCode{GameWIP::Status::Types::NativeCodeDomain::Other, nativeCode});
+            return nativeCode == 0 ? Status(code)
+                                   : Status::withDiagnostic(
+                                         code,
+                                         GameWIP::Status::Types::NativeCode{GameWIP::Status::Types::NativeCodeDomain::Other, nativeCode});
         }
     }
 

@@ -174,8 +174,11 @@ stride times height exactly. See @ref desktop_clipboard.
 
 ## Custom cursor selection fails
 
-Include `desktop/cursor.h` and check `Types::Capability::CustomCursor`. `createCursor()` returns a failed `GameWIP::Status::Types::Result<Cursor>` with `InvalidArgument` for an empty variant set, invalid
-dimensions or hotspot, zero or duplicate intended DPI, an undersized stride, or a payload whose size does not exactly match its resolved rows.
+Include `desktop/cursor.h` and check `Types::Capability::CustomCursor`.
+`createCursor()` returns a failed `GameWIP::Status::Types::Result<Cursor>` with
+`InvalidArgument` for an empty variant set, invalid dimensions or hotspot, zero
+or duplicate intended DPI, an undersized stride, or a payload whose size does
+not exactly match its resolved rows.
 `setCursor()` additionally requires a valid `Cursor` and an open Window on its owner thread. See @ref desktop_custom_cursors for the complete
 contract.
 

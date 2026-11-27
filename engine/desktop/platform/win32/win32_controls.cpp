@@ -56,7 +56,11 @@ namespace GameWIP::Desktop::Platform
 
         /// @brief Applies a cached style change transactionally and restores the old value on failure.
         template <typename Value, typename Apply>
-        [[nodiscard]] GameWIP::Status::Types::Status updateStyleValue(WindowState &state, Value &destination, const Value &value, Apply &&apply) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status updateStyleValue(
+            WindowState &state,
+            Value &destination,
+            const Value &value,
+            Apply &&apply) noexcept
         {
             if(destination == value)
             {

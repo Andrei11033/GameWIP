@@ -147,9 +147,9 @@ namespace GameWIP::Desktop::Platform
 
         // Pump state and deferred failures
         ProgressDialogState *pendingProgressOwnerRestoreHead =
-            nullptr;                                          ///< Intrusive retry chain for owners of unexpectedly destroyed progress HWNDs.
-        bool pumping = false;                                 ///< Reentrancy guard for the native message pump.
-        Types::Events::PumpInfo *activePumpInfo = nullptr; ///< Call-scoped event counts during a pump.
+            nullptr;                                                ///< Intrusive retry chain for owners of unexpectedly destroyed progress HWNDs.
+        bool pumping = false;                                       ///< Reentrancy guard for the native message pump.
+        Types::Events::PumpInfo *activePumpInfo = nullptr;          ///< Call-scoped event counts during a pump.
         GameWIP::Status::Types::Status *activePumpStatus = nullptr; ///< Call-scoped status for callback failures.
         std::optional<GameWIP::Status::Types::Status> deferredPumpFailure; ///< First native callback failure observed outside an active pump.
     };
@@ -196,7 +196,10 @@ namespace GameWIP::Desktop::Platform
     /// boundary and never expose partially converted output as a successful result.
     /// @{
 
-    [[nodiscard]] GameWIP::Status::Types::Status statusFromWin32(GameWIP::Status::Types::Code fallback, DWORD nativeCode, std::string_view operation) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Status statusFromWin32(
+        GameWIP::Status::Types::Code fallback,
+        DWORD nativeCode,
+        std::string_view operation) noexcept;
     [[nodiscard]] GameWIP::Status::Types::Status statusFromDisplayChange(LONG nativeCode, std::string_view operation) noexcept;
     [[nodiscard]] UINT dpiForWindow(HWND window) noexcept;
     [[nodiscard]] bool logicalToPhysicalChecked(std::int32_t value, UINT dpi, LONG &output) noexcept;

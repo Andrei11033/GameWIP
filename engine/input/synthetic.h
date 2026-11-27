@@ -76,7 +76,8 @@ namespace GameWIP::Input::Synthetic
         /// @brief Creates one virtual device from a descriptor.
         /// @param description Device and element metadata to publish.
         /// @return The new runtime device identity.
-        [[nodiscard]] INPUT_EXPORT GameWIP::Status::Types::Result<Types::DeviceId> addDevice(const Types::SyntheticDeviceDescription &description) noexcept;
+        [[nodiscard]] INPUT_EXPORT GameWIP::Status::Types::Result<Types::DeviceId> addDevice(
+            const Types::SyntheticDeviceDescription &description) noexcept;
 
         /// @brief Disconnects one virtual device owned by this source.
         /// @param device Runtime device identity to remove.
@@ -93,21 +94,30 @@ namespace GameWIP::Input::Synthetic
         /// @param when Optional observation timestamp; zero uses the portable clock.
         /// @return Operation status.
         /// @details Absolute elements replace their value; relative elements add this report to the current frame's accumulated value.
-        [[nodiscard]] INPUT_EXPORT GameWIP::Status::Types::Result<void> setValue(Types::ElementId element, const Types::Value &value, Types::Timestamp when = {}) noexcept;
+        [[nodiscard]] INPUT_EXPORT GameWIP::Status::Types::Result<void> setValue(
+            Types::ElementId element,
+            const Types::Value &value,
+            Types::Timestamp when = {}) noexcept;
 
         /// @brief Replaces an absolute element value.
         /// @param element Runtime element identity to update.
         /// @param value Typed value matching an absolute element descriptor.
         /// @param when Optional observation timestamp; zero uses the portable clock.
         /// @return Operation status.
-        [[nodiscard]] INPUT_EXPORT GameWIP::Status::Types::Result<void> setAbsoluteValue(Types::ElementId element, const Types::Value &value, Types::Timestamp when = {}) noexcept;
+        [[nodiscard]] INPUT_EXPORT GameWIP::Status::Types::Result<void> setAbsoluteValue(
+            Types::ElementId element,
+            const Types::Value &value,
+            Types::Timestamp when = {}) noexcept;
 
         /// @brief Adds a relative delta to an element for the current frame.
         /// @param element Runtime element identity to update.
         /// @param delta Typed delta matching a relative element descriptor.
         /// @param when Optional observation timestamp; zero uses the portable clock.
         /// @return Operation status.
-        [[nodiscard]] INPUT_EXPORT GameWIP::Status::Types::Result<void> addRelativeDelta(Types::ElementId element, const Types::Value &delta, Types::Timestamp when = {}) noexcept;
+        [[nodiscard]] INPUT_EXPORT GameWIP::Status::Types::Result<void> addRelativeDelta(
+            Types::ElementId element,
+            const Types::Value &delta,
+            Types::Timestamp when = {}) noexcept;
 
         /// @brief Publishes a repeated report without creating a boolean edge.
         /// @param element Runtime element identity to repeat.
@@ -130,7 +140,10 @@ namespace GameWIP::Input::Synthetic
         /// @param utf8 UTF-8 text to append to the current frame.
         /// @param when Optional observation timestamp; zero uses the portable clock.
         /// @return Operation status.
-        [[nodiscard]] INPUT_EXPORT GameWIP::Status::Types::Result<void> commitText(Types::SurfaceId surface, std::string_view utf8, Types::Timestamp when = {}) noexcept;
+        [[nodiscard]] INPUT_EXPORT GameWIP::Status::Types::Result<void> commitText(
+            Types::SurfaceId surface,
+            std::string_view utf8,
+            Types::Timestamp when = {}) noexcept;
 
     private:
         [[nodiscard]] GameWIP::Status::Types::Status attachStatus(System &system) noexcept;

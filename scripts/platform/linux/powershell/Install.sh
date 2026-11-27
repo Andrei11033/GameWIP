@@ -11,6 +11,7 @@ gamewip_install_powershell()
     local repository_root="$1"
     local architecture=''
     local storage_root=''
+    local managed_tools_root=''
     local archive_name=''
     local expected_sha256=''
     local install_root=''
@@ -20,6 +21,9 @@ gamewip_install_powershell()
     local extract_root=''
     local download_url=''
     local command_name=''
+    local backup_root=''
+    local backup_moved=false
+    local install_moved=false
 
     case "$(uname -m)" in
         x86_64 | amd64)
@@ -36,7 +40,7 @@ gamewip_install_powershell()
             ;;
     esac
 
-    for command_name in curl sha256sum tar mktemp mkdir chmod mv rm realpath; do
+    for command_name in curl sha256sum tar mktemp mkdir chmod mv rm realpath tr; do
         if ! command -v "$command_name" >/dev/null 2>&1; then
             printf 'PowerShell bootstrap requires %s. Install it, then rerun setup.sh.\n' "$command_name" >&2
             return 1
@@ -47,26 +51,33 @@ gamewip_install_powershell()
     storage_root="$(gamewip_resolve_storage_root "$repository_root")"
     GAMEWIP_STORAGE_ROOT="$storage_root"
     export GAMEWIP_STORAGE_ROOT
-    tools_root="$storage_root/tools/powershell"
+    managed_tools_root="$(gamewip_resolve_managed_tools_root "$repository_root" "$storage_root")"
+    tools_root="$managed_tools_root/tools/powershell"
     install_root="$tools_root/$GAMEWIP_POWERSHELL_VERSION"
 
     if [[ -e "$install_root" || -L "$install_root" ]]; then
         if gamewip_is_managed_powershell \
             "$install_root/pwsh" \
-            "$install_root/.gamewip-tool" \
+            "$install_root/.gamewip-tool.json" \
             "$architecture" \
             "$expected_sha256"; then
             printf '%s\n' "$install_root/pwsh"
             return 0
         fi
-
-        printf 'PowerShell install path exists but is not usable: %s\n' "$install_root" >&2
-        return 1
+        printf 'Repairing the incomplete managed PowerShell runtime at %s.\n' "$install_root" >&2
     fi
 
     mkdir -p "$tools_root"
     staging_root="$(mktemp -d "$tools_root/.${GAMEWIP_POWERSHELL_VERSION}.XXXXXX")"
-    trap 'rm -rf -- "$staging_root"' EXIT
+    trap '
+        if [[ "$install_moved" == true ]]; then
+            rm -rf -- "$install_root"
+        fi
+        if [[ "$backup_moved" == true ]]; then
+            mv -T -- "$backup_root" "$install_root"
+        fi
+        rm -rf -- "$staging_root"
+    ' EXIT
 
     archive_path="$staging_root/$archive_name"
     download_url="https://github.com/PowerShell/PowerShell/releases/download/v$GAMEWIP_POWERSHELL_VERSION/$archive_name"
@@ -89,26 +100,49 @@ gamewip_install_powershell()
     chmod +x "$extract_root/pwsh"
 
     if ! gamewip_is_supported_powershell "$extract_root/pwsh"; then
-        printf 'The verified archive did not provide a usable PowerShell 7 runtime.\n' >&2
+        printf 'The verified archive did not provide a usable PowerShell %s runtime.\n' \
+            "$GAMEWIP_POWERSHELL_VERSION" >&2
         return 1
     fi
 
-    printf '%s\n' \
-        "version=$GAMEWIP_POWERSHELL_VERSION" \
-        "archive=$archive_name" \
-        "sha256=$expected_sha256" \
-        >"$extract_root/.gamewip-tool"
+    printf '{"schemaVersion":1,"toolId":"powershell","version":"%s","archive":"%s","sha256":"%s"}\n' \
+        "$GAMEWIP_POWERSHELL_VERSION" "$archive_name" "$expected_sha256" \
+        >"$extract_root/.gamewip-tool.json"
+
+    if [[ -e "$install_root" || -L "$install_root" ]]; then
+        backup_root="$staging_root/previous"
+        mv -T -- "$install_root" "$backup_root"
+        backup_moved=true
+    fi
 
     if ! mv -T -- "$extract_root" "$install_root"; then
         if ! gamewip_is_managed_powershell \
             "$install_root/pwsh" \
-            "$install_root/.gamewip-tool" \
+            "$install_root/.gamewip-tool.json" \
             "$architecture" \
             "$expected_sha256"; then
             printf 'Could not install PowerShell into %s.\n' "$install_root" >&2
             return 1
         fi
     fi
+    install_moved=true
+
+    if ! gamewip_is_managed_powershell \
+        "$install_root/pwsh" \
+        "$install_root/.gamewip-tool.json" \
+        "$architecture" \
+        "$expected_sha256"; then
+        printf 'Installed PowerShell failed marker or version verification: %s\n' "$install_root" >&2
+        return 1
+    fi
+
+    if [[ "$backup_moved" == true ]]; then
+        rm -rf -- "$backup_root"
+    fi
+    backup_moved=false
+    install_moved=false
+    trap - EXIT
+    rm -rf -- "$staging_root"
 
     printf '%s\n' "$install_root/pwsh"
 )

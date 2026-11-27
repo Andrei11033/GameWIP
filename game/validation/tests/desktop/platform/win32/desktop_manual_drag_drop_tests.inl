@@ -225,7 +225,8 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
             if(run.result.hasValue())
             {
                 static_cast<void>(context.expectEq(std::format("{} outcome", effectCase.label), expectedOutcome, run.result.value().outcome));
-                static_cast<void>(context.expectEq(std::format("{} negotiated effect", effectCase.label), effectCase.expected, run.result.value().effect));
+                static_cast<void>(
+                    context.expectEq(std::format("{} negotiated effect", effectCase.label), effectCase.expected, run.result.value().effect));
             }
         }
     }
@@ -296,7 +297,8 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
         {
             if(run.result.hasValue())
             {
-                static_cast<void>(context.expectEq(std::format("{} does not override target preference", modifier), DD::Effect::Move, run.result.value().effect));
+                static_cast<void>(
+                    context.expectEq(std::format("{} does not override target preference", modifier), DD::Effect::Move, run.result.value().effect));
             }
         }
     }

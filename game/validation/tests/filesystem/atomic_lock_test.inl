@@ -77,10 +77,8 @@ void testAtomicWriteAndLocks(TestSupport::Context &context, const std::filesyste
     FileSystem::File detachedCompetitor;
     static_cast<void>(context.expectTrue("detached lock competitor opens", detachedCompetitor.open(detachedOwnerFile).ok()));
     const auto blockedByDetachedOwner = detachedCompetitor.tryLockExclusive();
-    static_cast<void>(context.expectEq(
-        "lock remains active after source handle destruction",
-        ErrorCode::WouldBlock,
-        blockedByDetachedOwner.status().code()));
+    static_cast<void>(
+        context.expectEq("lock remains active after source handle destruction", ErrorCode::WouldBlock, blockedByDetachedOwner.status().code()));
     static_cast<void>(context.expectTrue("detached owner unlock succeeds", detachedOwnerLock.unlock().ok()));
     auto acquiredAfterDetachedUnlock = detachedCompetitor.tryLockExclusive();
     static_cast<void>(context.expectTrue("competitor acquires after detached owner unlock", acquiredAfterDetachedUnlock.ok()));

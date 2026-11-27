@@ -191,9 +191,7 @@ namespace GameWIP::FileSystem::Platform::Win32
     /// ------------------------------------------------------------
 
     /// Converts one native enumeration record into a platform-neutral directory entry.
-    [[nodiscard]] Result<Platform::DirectoryCursorEntry> directoryCursorEntry(
-        Internal::DirectoryCursorState &state,
-        const WIN32_FIND_DATAW &findData)
+    [[nodiscard]] Result<Platform::DirectoryCursorEntry> directoryCursorEntry(Internal::DirectoryCursorState &state, const WIN32_FIND_DATAW &findData)
     {
         const std::wstring childName{findData.cFileName};
         const Types::Path childPath = state.directoryPath / std::filesystem::path{childName};
@@ -227,8 +225,7 @@ namespace GameWIP::FileSystem::Platform::Win32
     }
 
     /// Starts native enumeration after the caller has stabilized the directory path.
-    [[nodiscard]] Result<std::unique_ptr<Internal::DirectoryCursorState>>
-    startDirectoryCursor(std::unique_ptr<Internal::DirectoryCursorState> state)
+    [[nodiscard]] Result<std::unique_ptr<Internal::DirectoryCursorState>> startDirectoryCursor(std::unique_ptr<Internal::DirectoryCursorState> state)
     {
         auto absolutePath = absoluteNativePath(state->directoryPath);
 
@@ -251,8 +248,7 @@ namespace GameWIP::FileSystem::Platform::Win32
             }
             else
             {
-                return failure<std::unique_ptr<Internal::DirectoryCursorState>>(
-                    makeWin32Status(error, ErrorCode::DirectoryListFailed));
+                return failure<std::unique_ptr<Internal::DirectoryCursorState>>(makeWin32Status(error, ErrorCode::DirectoryListFailed));
             }
         }
         else
@@ -268,8 +264,7 @@ namespace GameWIP::FileSystem::Platform::Win32
 
                 if(error != ERROR_NO_MORE_FILES)
                 {
-                    return failure<std::unique_ptr<Internal::DirectoryCursorState>>(
-                        makeWin32Status(error, ErrorCode::DirectoryListFailed));
+                    return failure<std::unique_ptr<Internal::DirectoryCursorState>>(makeWin32Status(error, ErrorCode::DirectoryListFailed));
                 }
                 state->finished = true;
                 break;
@@ -301,8 +296,9 @@ namespace GameWIP::FileSystem::Platform::Win32
     }
 
     /// Opens a root cursor while retaining the complete path traversal chain.
-    [[nodiscard]] Result<std::unique_ptr<Internal::DirectoryCursorState>>
-    openDirectoryCursorImpl(const Types::Path &path, Types::SymlinkPolicy symlinkPolicy)
+    [[nodiscard]] Result<std::unique_ptr<Internal::DirectoryCursorState>> openDirectoryCursorImpl(
+        const Types::Path &path,
+        Types::SymlinkPolicy symlinkPolicy)
     {
         // Stabilize the requested directory before creating cursor state.
         auto stablePath = stabilizeExistingPath(path, symlinkPolicy, true);
@@ -366,9 +362,7 @@ namespace GameWIP::FileSystem::Platform::Win32
         if(state.hasBufferedEntry)
         {
             state.hasBufferedEntry = false;
-            Platform::DirectoryCursorEntry entry{
-                .entry = std::move(state.bufferedEntry),
-                .hidden = state.bufferedEntryHidden};
+            Platform::DirectoryCursorEntry entry{.entry = std::move(state.bufferedEntry), .hidden = state.bufferedEntryHidden};
             return Result<std::optional<Platform::DirectoryCursorEntry>>::success(std::move(entry));
         }
 
@@ -407,8 +401,9 @@ namespace GameWIP::FileSystem::Platform::Win32
     }
 
     /// Enumerates direct children and applies public filtering and count policy.
-    [[nodiscard]] Result<std::vector<Types::Directory::Entry>>
-    listDirectoryImpl(const Types::Path &path, const Types::Directory::ListOptions &options)
+    [[nodiscard]] Result<std::vector<Types::Directory::Entry>> listDirectoryImpl(
+        const Types::Path &path,
+        const Types::Directory::ListOptions &options)
     {
         // Reuse cursor traversal and apply filters as entries arrive.
         auto opened = openDirectoryCursorImpl(path, options.symlinkPolicy);
@@ -444,8 +439,7 @@ namespace GameWIP::FileSystem::Platform::Win32
 
             if(entries.size() >= options.maxEntries)
             {
-                return Result<std::vector<Types::Directory::Entry>>::failure(
-                    Status(ErrorCode::SizeLimitExceeded), std::move(entries));
+                return Result<std::vector<Types::Directory::Entry>>::failure(Status(ErrorCode::SizeLimitExceeded), std::move(entries));
             }
 
             entries.push_back(std::move(entry.entry));

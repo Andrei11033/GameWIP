@@ -12,8 +12,7 @@ namespace GameWIP::Input::Internal
 
     [[nodiscard]] inline GameWIP::Status::Types::Result<void> result(GameWIP::Status::Types::Status status) noexcept
     {
-        return status.ok() ? GameWIP::Status::Types::Result<void>::success()
-                           : GameWIP::Status::Types::Result<void>::failure(std::move(status));
+        return status.ok() ? GameWIP::Status::Types::Result<void>::success() : GameWIP::Status::Types::Result<void>::failure(std::move(status));
     }
 
     // Failed operations with typed results

@@ -84,7 +84,8 @@ void testMemoryReader(TestSupport::Context &context)
     static_cast<void>(context.expectFalse("MemoryReader cannot seek after close", movedReader.canSeek()));
     static_cast<void>(
         context.expectEq("MemoryReader read after close reports NotOpen", ErrorCode::NotOpen, movedReader.read(firstChunk).status().code()));
-    static_cast<void>(context.expectEq("MemoryReader position after close reports NotOpen", ErrorCode::NotOpen, movedReader.position().status().code()));
+    static_cast<void>(
+        context.expectEq("MemoryReader position after close reports NotOpen", ErrorCode::NotOpen, movedReader.position().status().code()));
     static_cast<void>(context.expectEq("MemoryReader size after close reports NotOpen", ErrorCode::NotOpen, movedReader.size().status().code()));
     static_cast<void>(context.expectEq(
         "MemoryReader seek after close reports NotOpen",
@@ -139,7 +140,10 @@ void testMemoryReaderSeek(TestSupport::Context &context)
         static_cast<void>(context.expectEq(name + " payload", test.byte, byte[0]));
     }
 
-    if(!context.expectEq("MemoryReader position before rejected seeks", ErrorCode::Success, reader.seek(2, IO::Types::SeekOrigin::Begin).status().code()))
+    if(!context.expectEq(
+           "MemoryReader position before rejected seeks",
+           ErrorCode::Success,
+           reader.seek(2, IO::Types::SeekOrigin::Begin).status().code()))
     {
         return;
     }
@@ -191,8 +195,10 @@ void testMemoryWriter(TestSupport::Context &context)
     static_cast<void>(context.expectFalse("MemoryWriter is append-only", writer.canSeek()));
     static_cast<void>(context.expectTrue("MemoryWriter initial capacity is reserved", writer.capacity() >= 8));
     static_cast<void>(context.expectEq("MemoryWriter initial position is zero", std::uint64_t{0}, writer.position().value()));
-    static_cast<void>(
-        context.expectEq("MemoryWriter seek reports NotSeekable", ErrorCode::NotSeekable, writer.seek(0, IO::Types::SeekOrigin::Begin).status().code()));
+    static_cast<void>(context.expectEq(
+        "MemoryWriter seek reports NotSeekable",
+        ErrorCode::NotSeekable,
+        writer.seek(0, IO::Types::SeekOrigin::Begin).status().code()));
 
     const WriteResult write = writer.write(source);
 
@@ -233,8 +239,8 @@ void testMemoryWriter(TestSupport::Context &context)
     }
     const std::size_t capacityBeforeFailure = writer.capacity();
     const StatusTypes::Result<void> impossibleReserve = writer.reserve((std::numeric_limits<std::size_t>::max)());
-    static_cast<void>(context.expectEq(
-        "MemoryWriter reserve rejects impossible capacity", ErrorCode::SizeLimitExceeded, impossibleReserve.status().code()));
+    static_cast<void>(
+        context.expectEq("MemoryWriter reserve rejects impossible capacity", ErrorCode::SizeLimitExceeded, impossibleReserve.status().code()));
     static_cast<void>(context.expectEq("MemoryWriter rejected reserve preserves bytes", copyBytes(bytesOf(retainedText)), copyBytes(writer.bytes())));
     static_cast<void>(context.expectEq("MemoryWriter rejected reserve preserves capacity", capacityBeforeFailure, writer.capacity()));
 

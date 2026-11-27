@@ -1,11 +1,10 @@
 @page project_environment_setup Development environment setup
 
 GameWIP setup supports Windows and Linux. Windows uses `setup.bat`; Linux uses
-`setup.sh` on Ubuntu, Debian, and CachyOS. Both dispatch to the same PowerShell
-helper. If PowerShell 7 is missing, `setup.sh` offers to install its pinned,
-hash-verified runtime under `<storage-root>/tools/powershell` (default
-`build/gamewip/tools/powershell`); `gamewip.sh` reuses it. Preview does not
-install the runtime.
+`setup.sh` on Ubuntu, Debian, and CachyOS. Both require PowerShell 7.7 or newer
+and dispatch to the same helper. If no compatible version is found, setup asks
+before installing the verified 7.7.0 runtime under
+`<managed-tools-root>/tools/powershell`. Preview does not install it.
 
 Linux setup prepares host packages, pinned CMake, LLVM-MinGW for Windows
 cross-builds, and Zig for Linux targets. An exact compatible system Zig is
@@ -13,9 +12,10 @@ reused; otherwise setup installs the pinned archive.
 
 ## Storage and tool locations
 
-Helper data defaults to `build/gamewip/`: caches, state, temporary files, run
-receipts, PowerShell, and managed tools. Preset build trees and the default
-install prefix also remain under `build/`.
+Helper data defaults to `build/gamewip/`: caches, state, temporary files, and
+run receipts. PowerShell and managed tools default under
+`build/gamewip/tools/managed/`. Preset build trees and the default install
+prefix also remain under `build/`.
 
 Set these environment variables before running setup or the project helper.
 Pass the same names as CMake cache variables when configuring directly:

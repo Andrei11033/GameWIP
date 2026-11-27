@@ -89,7 +89,8 @@ namespace GameWIP::Desktop::Renderer
     /// @param window Open Window to inspect on its owner thread.
     /// @return Status plus the generation, framebuffer size, and exact required word count;
     /// Unsupported when the backend does not advertise pointer-mask routing.
-    [[nodiscard]] DESKTOP_EXPORT GameWIP::Status::Types::Result<Types::Renderer::PointerHitMaskTarget> beginPointerHitMaskUpdate(Window &window) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT GameWIP::Status::Types::Result<Types::Renderer::PointerHitMaskTarget> beginPointerHitMaskUpdate(
+        Window &window) noexcept;
     /// @brief Publishes an exact-size packed mask for a previously returned generation.
     /// @details Owner-thread operation; copies words before return. Rows run from top to bottom.
     /// Pixel (x, y) uses bit x % 32 in word y * ceil(width / 32) + x / 32, least-significant bit first.

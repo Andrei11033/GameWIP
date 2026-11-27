@@ -2,6 +2,82 @@
   "schemaVersion": 1,
   "tools": [
     {
+      "id": "powershell",
+      "name": "PowerShell",
+      "category": "runtime",
+      "provider": {
+        "kind": "githubRelease",
+        "repository": "PowerShell/PowerShell",
+        "releaseTag": "v7.7.0",
+        "installMode": "directoryArchive",
+        "managedDirectory": "tools/powershell",
+        "binaryDirectory": ".",
+        "validationFiles": ["pwsh", "pwsh.exe", "pwsh.dll", "System.Management.Automation.dll"],
+        "assets": {
+          "windows-amd64": {
+            "archive": "PowerShell-7.7.0-win-x64.zip",
+            "sha256": "7c74e03b20a75b59715847439d046a6214b1863ee79b187872980f139bb4a05f",
+            "validationFiles": ["pwsh.exe", "pwsh.dll", "System.Management.Automation.dll"]
+          },
+          "windows-arm64": {
+            "archive": "PowerShell-7.7.0-win-arm64.zip",
+            "sha256": "5dc7440cd98f0ba786a44d7db9205df5058474fd4db143caf7171e8375f34f75",
+            "validationFiles": ["pwsh.exe", "pwsh.dll", "System.Management.Automation.dll"]
+          },
+          "linux-amd64": {
+            "archive": "powershell-7.7.0-linux-x64.tar.gz",
+            "sha256": "c89d9c682d2c403dfe726f3df948e359675235a5bd6fab535776de69729ca0cb",
+            "validationFiles": ["pwsh", "pwsh.dll", "System.Management.Automation.dll"]
+          },
+          "linux-arm64": {
+            "archive": "powershell-7.7.0-linux-arm64.tar.gz",
+            "sha256": "e59c89776eaa59790d44b3edd14277435225ab08b6e7603763101b89de83d935",
+            "validationFiles": ["pwsh", "pwsh.dll", "System.Management.Automation.dll"]
+          }
+        }
+      },
+      "versionPolicy": "minimum",
+      "requiredVersion": "7.7.0",
+      "detection": {
+        "command": "pwsh",
+        "versionArguments": ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", "$PSVersionTable.PSVersion.ToString()"],
+        "versionPattern": "(?m)^([0-9]+\\.[0-9]+\\.[0-9]+)$"
+      },
+      "capabilities": {
+        "detectInstalled": true,
+        "checkLatest": true,
+        "update": true,
+        "updatePin": true,
+        "reuseCompatibleExternal": true
+      },
+      "references": [
+        {
+          "path": "docs/doxygen/project_tools.md",
+          "kind": "text",
+          "pattern": "| PowerShell | {version} or newer | verified GitHub release |"
+        },
+        {
+          "path": "scripts/platform/linux/powershell_bootstrap.sh",
+          "kind": "text",
+          "pattern": "GAMEWIP_POWERSHELL_VERSION='{version}'"
+        },
+        {
+          "path": "scripts/platform/linux/powershell_bootstrap.sh",
+          "kind": "releaseAsset",
+          "assetKey": "linux-amd64",
+          "assetField": "sha256",
+          "pattern": "GAMEWIP_POWERSHELL_X64_SHA256='{value}'"
+        },
+        {
+          "path": "scripts/platform/linux/powershell_bootstrap.sh",
+          "kind": "releaseAsset",
+          "assetKey": "linux-arm64",
+          "assetField": "sha256",
+          "pattern": "GAMEWIP_POWERSHELL_ARM64_SHA256='{value}'"
+        }
+      ]
+    },
+    {
       "id": "msys2",
       "name": "MSYS2",
       "category": "environment",

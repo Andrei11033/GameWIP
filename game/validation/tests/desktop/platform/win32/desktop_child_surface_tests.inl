@@ -354,8 +354,10 @@ void testChildSurfaces(TestSupport::Context &context)
         "unexpected native destruction retains pending-finalize state",
         Desktop::Types::LifetimeState::NativeDestroyedPendingFinalize,
         surface.lifetimeState()));
-    static_cast<void>(
-        context.expectEq("native handle invalidates after destruction", ErrorCode::NotOpen, Desktop::Native::Win32::getHandle(surface).status().code()));
+    static_cast<void>(context.expectEq(
+        "native handle invalidates after destruction",
+        ErrorCode::NotOpen,
+        Desktop::Native::Win32::getHandle(surface).status().code()));
     static_cast<void>(context.expectEq("reopen before finalization is rejected", StatusCode::AlreadyOpen, surface.open(parent).status().code()));
     bool foundNativeDestroyed = false;
 
@@ -382,7 +384,8 @@ void testChildSurfaces(TestSupport::Context &context)
                 if(context.expectTrue("shared event pump processes ChildSurface native messages", childPump.ok()))
                 {
                     static_cast<void>(context.expectEq("shared pump counts a ChildSurface event", std::size_t{1}, childPump.value().eventsQueued));
-                    static_cast<void>(context.expectEq("shared pump reports no ChildSurface drop", std::uint64_t{0}, childPump.value().eventsDropped));
+                    static_cast<void>(
+                        context.expectEq("shared pump reports no ChildSurface drop", std::uint64_t{0}, childPump.value().eventsDropped));
                     static_cast<void>(context.expectEq(
                         "pumped native destruction enters pending finalization",
                         Desktop::Types::LifetimeState::NativeDestroyedPendingFinalize,

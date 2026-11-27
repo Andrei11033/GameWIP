@@ -37,14 +37,14 @@ void testSummaryAndTimer(TestSupport::Context &context)
     suiteResult.summary.failed = 1;
     static_cast<void>(context.expectFalse("SuiteResult failure mirrors summary", suiteResult.ok()));
 
-    static_cast<void>(
-        context.expectEq("Infrastructure success has a stable diagnostic", std::string("Success"), TestSupport::formatStatus({})));
+    static_cast<void>(context.expectEq("Infrastructure success has a stable diagnostic", std::string("Success"), TestSupport::formatStatus({})));
     static_cast<void>(context.expectEq(
         "Infrastructure failure diagnostic preserves category and native code",
         std::string("FileOperationFailed (nativeCode=Other:42)"),
-        TestSupport::formatStatus(GameWIP::Status::Types::Status::withDiagnostic(
-            GameWIP::Status::Types::Code::FileOperationFailed,
-            GameWIP::Status::Types::NativeCode{GameWIP::Status::Types::NativeCodeDomain::Other, 42}))));
+        TestSupport::formatStatus(
+            GameWIP::Status::Types::Status::withDiagnostic(
+                GameWIP::Status::Types::Code::FileOperationFailed,
+                GameWIP::Status::Types::NativeCode{GameWIP::Status::Types::NativeCodeDomain::Other, 42}))));
 
     TestSupport::Timer timer;
     static_cast<void>(context.expectTrue("Timer elapsed non-negative", timer.elapsedMilliseconds() >= 0.0));

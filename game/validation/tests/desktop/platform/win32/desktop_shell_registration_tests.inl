@@ -173,17 +173,10 @@ void testShellRegistrationOwnership(TestSupport::Context &context, const std::fi
         }
 
         const auto replaced = registerOwner(owner, RegistrationTypes::ConflictPolicy::ReplaceOwned, action);
-        context.info(
-            std::format(
-                "{} replacement: {}",
-                kind,
-                manualStatusDetails(replaced.status())));
-        static_cast<void>(context.expectTrue(
-            kind + " same-owner replacement succeeds",
-            replaced.ok() && replaced.value().replacedOwned));
-        static_cast<void>(context.expectTrue(
-            kind + " same-owner replacement has no foreign conflicts",
-            replaced.hasValue() && replaced.value().conflicts.empty()));
+        context.info(std::format("{} replacement: {}", kind, manualStatusDetails(replaced.status())));
+        static_cast<void>(context.expectTrue(kind + " same-owner replacement succeeds", replaced.ok() && replaced.value().replacedOwned));
+        static_cast<void>(
+            context.expectTrue(kind + " same-owner replacement has no foreign conflicts", replaced.hasValue() && replaced.value().conflicts.empty()));
 
         // Verify failed replacement restores the previous registry state.
         const auto failed = registerOwner(owner, RegistrationTypes::ConflictPolicy::ReplaceOwned, action, true);
@@ -219,26 +212,22 @@ void testShellRegistrationOwnership(TestSupport::Context &context, const std::fi
         const auto rejected = registerOwner(foreignOwner, RegistrationTypes::ConflictPolicy::Report, foreignAction);
         static_cast<void>(context.expectEq(kind + " foreign replacement is rejected", ErrorCode::AlreadyExists, rejected.status().code()));
         static_cast<void>(context.expectTrue(kind + " rejected registration retains conflict details", rejected.hasValue()));
-        static_cast<void>(context.expectEq(
-            kind + " reports one foreign conflict",
-            std::size_t{1},
-            rejected.hasValue() ? rejected.value().conflicts.size() : 0));
+        static_cast<void>(
+            context.expectEq(kind + " reports one foreign conflict", std::size_t{1}, rejected.hasValue() ? rejected.value().conflicts.size() : 0));
 
         if(rejected.hasValue() && rejected.value().conflicts.size() == 1)
         {
-            static_cast<void>(context.expectEq(
-                kind + " conflict retains exact Unicode owner", owner, rejected.value().conflicts.front().ownerKey));
+            static_cast<void>(context.expectEq(kind + " conflict retains exact Unicode owner", owner, rejected.value().conflicts.front().ownerKey));
         }
         const auto foreignCleanup = unregister(foreignOwner);
         static_cast<void>(
             context.expectEq(kind + " foreign cleanup cannot remove registration", ErrorCode::AlreadyExists, foreignCleanup.status().code()));
         const auto coexist = registerOwner(foreignOwner, RegistrationTypes::ConflictPolicy::Coexist, foreignAction);
-        static_cast<void>(context.expectTrue(
-            kind + " foreign handler coexists", coexist.ok() && coexist.value().conflicts.size() == 1));
+        static_cast<void>(context.expectTrue(kind + " foreign handler coexists", coexist.ok() && coexist.value().conflicts.size() == 1));
         static_cast<void>(context.expectTrue(kind + " coexisting handler cleanup succeeds", unregister(foreignOwner).ok()));
         const auto retained = registerOwner(owner, RegistrationTypes::ConflictPolicy::ReplaceOwned, action);
-        static_cast<void>(context.expectTrue(
-            kind + " original owner remains after foreign cleanup", retained.ok() && retained.value().replacedOwned));
+        static_cast<void>(
+            context.expectTrue(kind + " original owner remains after foreign cleanup", retained.ok() && retained.value().replacedOwned));
 
         if(file)
         {

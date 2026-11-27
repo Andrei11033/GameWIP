@@ -73,7 +73,9 @@ namespace GameWIP::Desktop::Internal
         }
 
         /// @brief Validates launch targets and arguments before shell registration or publication.
-        [[nodiscard]] GameWIP::Status::Types::Status validateLaunchAction(const Types::Shell::LaunchActionView &action, bool allowPlaceholders) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status validateLaunchAction(
+            const Types::Shell::LaunchActionView &action,
+            bool allowPlaceholders) noexcept
         {
             if(action.executable.path.get().empty() || (!allowPlaceholders && containsPlaceholder(action)))
             {

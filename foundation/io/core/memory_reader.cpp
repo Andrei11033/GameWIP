@@ -41,13 +41,15 @@ namespace GameWIP::IO
         if(!open_)
         {
             return ResultTypes::Result<Types::ReadProgress>::failure(
-                ResultTypes::Status(ResultTypes::Code::NotOpen), Types::ReadProgress{.bytesRead = 0, .endOfStream = false});
+                ResultTypes::Status(ResultTypes::Code::NotOpen),
+                Types::ReadProgress{.bytesRead = 0, .endOfStream = false});
         }
 
         if(position_ > bytes_.size())
         {
             return ResultTypes::Result<Types::ReadProgress>::failure(
-                ResultTypes::Status(ResultTypes::Code::InvalidArgument), Types::ReadProgress{.bytesRead = 0, .endOfStream = false});
+                ResultTypes::Status(ResultTypes::Code::InvalidArgument),
+                Types::ReadProgress{.bytesRead = 0, .endOfStream = false});
         }
 
         if(destination.empty())

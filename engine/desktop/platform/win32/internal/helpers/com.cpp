@@ -37,10 +37,7 @@ namespace GameWIP::Desktop::Platform
             code = ErrorCode::Unsupported;
         }
 
-        return GameWIP::Desktop::Internal::statusFor(
-            code,
-            static_cast<std::int64_t>(result),
-            GameWIP::Desktop::Internal::NativeCodeDomain::HResult);
+        return GameWIP::Desktop::Internal::statusFor(code, static_cast<std::int64_t>(result), GameWIP::Desktop::Internal::NativeCodeDomain::HResult);
     }
 
     /// ------------------------------------------------------------

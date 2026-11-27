@@ -57,19 +57,17 @@ namespace GameWIP::Desktop::Platform
 
         [[nodiscard]] GameWIP::Status::Types::Result<Types::Dialogs::File::Selection> sharedResult(FileDialogOperation operation)
         {
-            Types::Dialogs::File::Selection selection{
-                operation.outcome, std::move(operation.path), operation.selectedFilterIndex};
-            const bool hasPartialValue = selection.outcome == Types::Dialogs::Outcome::Accepted || !selection.path.empty() ||
-                                         selection.selectedFilterIndex.has_value();
+            Types::Dialogs::File::Selection selection{operation.outcome, std::move(operation.path), operation.selectedFilterIndex};
+            const bool hasPartialValue =
+                selection.outcome == Types::Dialogs::Outcome::Accepted || !selection.path.empty() || selection.selectedFilterIndex.has_value();
             return Internal::resultWithPartial(std::move(operation.status), std::move(selection), hasPartialValue);
         }
 
         [[nodiscard]] GameWIP::Status::Types::Result<Types::Dialogs::File::SelectionList> sharedResult(FileDialogListOperation operation)
         {
-            Types::Dialogs::File::SelectionList selection{
-                operation.outcome, std::move(operation.paths), operation.selectedFilterIndex};
-            const bool hasPartialValue = selection.outcome == Types::Dialogs::Outcome::Accepted || !selection.paths.empty() ||
-                                         selection.selectedFilterIndex.has_value();
+            Types::Dialogs::File::SelectionList selection{operation.outcome, std::move(operation.paths), operation.selectedFilterIndex};
+            const bool hasPartialValue =
+                selection.outcome == Types::Dialogs::Outcome::Accepted || !selection.paths.empty() || selection.selectedFilterIndex.has_value();
             return Internal::resultWithPartial(std::move(operation.status), std::move(selection), hasPartialValue);
         }
 
@@ -135,7 +133,9 @@ namespace GameWIP::Desktop::Platform
         };
 
         /// @brief Converts portable filter names/extensions while retaining stable COM pointers.
-        [[nodiscard]] GameWIP::Status::Types::Status makeFilters(std::span<const Types::Dialogs::File::Filter> filters, NativeFilters &native) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status makeFilters(
+            std::span<const Types::Dialogs::File::Filter> filters,
+            NativeFilters &native) noexcept
         {
             if(filters.size() > std::numeric_limits<UINT>::max())
             {
@@ -287,7 +287,10 @@ namespace GameWIP::Desktop::Platform
         }
 
         /// @brief Reads a native one-based filter index into the portable zero-based result.
-        [[nodiscard]] GameWIP::Status::Types::Status selectedFilter(IFileDialog &dialog, std::size_t filterCount, std::optional<std::size_t> &selected) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status selectedFilter(
+            IFileDialog &dialog,
+            std::size_t filterCount,
+            std::optional<std::size_t> &selected) noexcept
         {
             selected.reset();
 
@@ -840,8 +843,8 @@ namespace GameWIP::Desktop::Platform
 
             if(Internal::consumeFileDialogResponse(Win32TestHooks::FileDialogOperation::OpenFile, response))
             {
-                return sharedResult(completeSimulatedSingleFileDialog(
-                    Win32TestHooks::FileDialogOperation::OpenFile, description, std::move(response), false));
+                return sharedResult(
+                    completeSimulatedSingleFileDialog(Win32TestHooks::FileDialogOperation::OpenFile, description, std::move(response), false));
             }
 #endif
             return sharedResult(singleOpen(description, false));
@@ -865,8 +868,8 @@ namespace GameWIP::Desktop::Platform
 
             if(Internal::consumeFileDialogResponse(Win32TestHooks::FileDialogOperation::OpenFiles, response))
             {
-                return sharedResult(completeSimulatedMultipleFileDialog(
-                    Win32TestHooks::FileDialogOperation::OpenFiles, description, std::move(response), false));
+                return sharedResult(
+                    completeSimulatedMultipleFileDialog(Win32TestHooks::FileDialogOperation::OpenFiles, description, std::move(response), false));
             }
 #endif
             return sharedResult(multipleOpen(description, false));
@@ -1041,8 +1044,8 @@ namespace GameWIP::Desktop::Platform
 
             if(Internal::consumeFileDialogResponse(Win32TestHooks::FileDialogOperation::SelectFolder, response))
             {
-                return sharedResult(completeSimulatedSingleFileDialog(
-                    Win32TestHooks::FileDialogOperation::SelectFolder, translated, std::move(response), true));
+                return sharedResult(
+                    completeSimulatedSingleFileDialog(Win32TestHooks::FileDialogOperation::SelectFolder, translated, std::move(response), true));
             }
 #endif
             return sharedResult(singleOpen(translated, true));
@@ -1070,8 +1073,8 @@ namespace GameWIP::Desktop::Platform
 
             if(Internal::consumeFileDialogResponse(Win32TestHooks::FileDialogOperation::SelectFolders, response))
             {
-                return sharedResult(completeSimulatedMultipleFileDialog(
-                    Win32TestHooks::FileDialogOperation::SelectFolders, translated, std::move(response), true));
+                return sharedResult(
+                    completeSimulatedMultipleFileDialog(Win32TestHooks::FileDialogOperation::SelectFolders, translated, std::move(response), true));
             }
 #endif
             return sharedResult(multipleOpen(translated, true));

@@ -35,11 +35,11 @@ namespace GameWIP::FileSystem::Internal
     /// Write failures
     /// ------------------------------------------------------------
 
-    GameWIP::Status::Types::Result<IO::Types::WriteProgress>
-    writeFailure(GameWIP::Status::Types::Status status, std::size_t bytesWritten) noexcept
+    GameWIP::Status::Types::Result<IO::Types::WriteProgress> writeFailure(GameWIP::Status::Types::Status status, std::size_t bytesWritten) noexcept
     {
         return GameWIP::Status::Types::Result<IO::Types::WriteProgress>::failure(
-            std::move(status), IO::Types::WriteProgress{.bytesWritten = bytesWritten});
+            std::move(status),
+            IO::Types::WriteProgress{.bytesWritten = bytesWritten});
     }
 
     GameWIP::Status::Types::Result<IO::Types::WriteProgress> writeFailure(ErrorCode code, std::size_t bytesWritten) noexcept

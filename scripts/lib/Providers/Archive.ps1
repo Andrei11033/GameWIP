@@ -4,6 +4,66 @@
 # Shared directory-archive installation
 # ------------------------------------------------------------
 
+function Expand-GameWipArchive
+{
+    param(
+        [Parameter(Mandatory = $true)][string]$ArchivePath,
+        [Parameter(Mandatory = $true)][string]$DestinationPath,
+        [Parameter(Mandatory = $true)][string]$Name
+    )
+
+    $archiveTool = if ((Test-GameWipWindowsHost) -and $ArchivePath.EndsWith('.zip', [StringComparison]::OrdinalIgnoreCase))
+    {
+        Get-Command tar.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+    }
+    else
+    {
+        $null
+    }
+
+    if ($null -ne $archiveTool)
+    {
+        Invoke-GameWipProviderNative `
+            -Name "extract-$Name" `
+            -FilePath $archiveTool.Source `
+            -Arguments @('-xf', $ArchivePath, '-C', $DestinationPath) | Out-Null
+    }
+    elseif ($ArchivePath.EndsWith('.zip', [StringComparison]::OrdinalIgnoreCase))
+    {
+        $previousProgressPreference = $global:ProgressPreference
+
+        try
+        {
+            $global:ProgressPreference = 'SilentlyContinue'
+            Expand-Archive -LiteralPath $ArchivePath -DestinationPath $DestinationPath
+        }
+
+        finally
+        {
+            $global:ProgressPreference = $previousProgressPreference
+        }
+    }
+    elseif ($ArchivePath.EndsWith('.tar.gz', [StringComparison]::OrdinalIgnoreCase) -or
+        $ArchivePath.EndsWith('.tgz', [StringComparison]::OrdinalIgnoreCase))
+    {
+        Invoke-GameWipProviderNative `
+            -Name "extract-$Name" `
+            -FilePath tar `
+            -Arguments @('-xzf', $ArchivePath, '-C', $DestinationPath) | Out-Null
+    }
+    elseif ($ArchivePath.EndsWith('.tar.xz', [StringComparison]::OrdinalIgnoreCase))
+    {
+        Invoke-GameWipProviderNative `
+            -Name "extract-$Name" `
+            -FilePath tar `
+            -Arguments @('-xJf', $ArchivePath, '-C', $DestinationPath) | Out-Null
+    }
+    else
+    {
+        throw "Unsupported archive format for '$Name': '$ArchivePath'."
+    }
+}
+
 function Install-GameWipVerifiedDirectoryArchive
 {
     param(
@@ -17,34 +77,20 @@ function Install-GameWipVerifiedDirectoryArchive
     # Validate and extract the archive before touching the managed install.
     $extractRoot = Join-Path $Script:OperationContext.Temp "extract-$($Tool.id)"
     New-Item -ItemType Directory -Path $extractRoot | Out-Null
-    $archiveName = [string]$Asset.archive
+    Expand-GameWipArchive -ArchivePath $Download -DestinationPath $extractRoot -Name $Tool.id
 
-    if ($archiveName.EndsWith('.zip', [StringComparison]::OrdinalIgnoreCase))
+    $payloadDirectories = @(Get-ChildItem -LiteralPath $extractRoot -Directory -Force)
+    $payloadFiles = @(Get-ChildItem -LiteralPath $extractRoot -File -Force)
+
+    if ($payloadDirectories.Count -eq 1 -and $payloadFiles.Count -eq 0)
     {
-        Expand-Archive -LiteralPath $Download -DestinationPath $extractRoot
-    }
-    elseif ($archiveName.EndsWith('.tar.gz', [StringComparison]::OrdinalIgnoreCase) -or
-        $archiveName.EndsWith('.tgz', [StringComparison]::OrdinalIgnoreCase))
-    {
-        Invoke-GameWipProviderNative -Name "extract-$($Tool.id)" -FilePath tar -Arguments @('-xzf', $Download, '-C', $extractRoot) | Out-Null
-    }
-    elseif ($archiveName.EndsWith('.tar.xz', [StringComparison]::OrdinalIgnoreCase))
-    {
-        Invoke-GameWipProviderNative -Name "extract-$($Tool.id)" -FilePath tar -Arguments @('-xJf', $Download, '-C', $extractRoot) | Out-Null
+        $payload = $payloadDirectories[0].FullName
     }
     else
     {
-        throw "Unsupported directory archive format '$archiveName'."
+        # Some runtime archives place their files directly at the archive root.
+        $payload = $extractRoot
     }
-
-    $payloadDirectories = @(Get-ChildItem -LiteralPath $extractRoot -Directory -Force)
-
-    if ($payloadDirectories.Count -ne 1 -or @(Get-ChildItem -LiteralPath $extractRoot -File -Force).Count -ne 0)
-    {
-        throw "Directory archive '$($Asset.archive)' must contain one top-level directory."
-    }
-
-    $payload = $payloadDirectories[0].FullName
 
     # Confirm the archive matches the declared file set.
     foreach ($relativePath in @(Get-GameWipToolValidationFiles -Tool $Tool -AssetKey $AssetKey))
@@ -83,25 +129,31 @@ function Install-GameWipVerifiedDirectoryArchive
         Set-GameWipMutationStarted
         New-Item -ItemType Directory -Force -Path $familyRoot | Out-Null
 
-        if (Test-GameWipWindowsHost)
+        $useSameVolumeMove = (
+            (Test-GameWipWindowsHost) -and
+            [string]::IsNullOrWhiteSpace([string]$env:GAMEWIP_STORAGE_ROOT) -and
+            [string]::IsNullOrWhiteSpace([string]$env:GAMEWIP_MANAGED_TOOLS_ROOT)
+        )
+
+        if ((Test-GameWipWindowsHost) -and -not $useSameVolumeMove)
         {
-            Copy-Item -LiteralPath $payload -Destination $incoming -Recurse
+            Copy-Item -LiteralPath $payload -Destination $incoming -Recurse | Out-Null
         }
         else
         {
-            Move-Item -LiteralPath $payload -Destination $incoming
+            Move-Item -LiteralPath $payload -Destination $incoming | Out-Null
         }
 
         if (Test-Path -LiteralPath $toolRoot)
         {
             $backup = Join-Path $familyRoot ('.{0}.{1}.backup' -f $Version, [guid]::NewGuid().ToString('N'))
-            Move-Item -LiteralPath $toolRoot -Destination $backup
+            Move-Item -LiteralPath $toolRoot -Destination $backup | Out-Null
         }
 
         # Replace the version only after the staged payload passes validation.
         try
         {
-            Move-Item -LiteralPath $incoming -Destination $toolRoot
+            Move-Item -LiteralPath $incoming -Destination $toolRoot | Out-Null
             $incoming = $null
             $installedFiles = @(Get-GameWipToolValidationFiles -Tool $Tool -AssetKey $AssetKey | Where-Object {
                     $relativePath = [string]$_.Replace('/', [IO.Path]::DirectorySeparatorChar)
@@ -122,7 +174,7 @@ function Install-GameWipVerifiedDirectoryArchive
 
             if ($null -ne $backup -and (Test-Path -LiteralPath $backup))
             {
-                Move-Item -LiteralPath $backup -Destination $toolRoot
+                Move-Item -LiteralPath $backup -Destination $toolRoot | Out-Null
                 $backup = $null
             }
             throw

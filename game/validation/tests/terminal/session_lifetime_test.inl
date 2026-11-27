@@ -15,7 +15,8 @@ void testSessionMoveOwnership(TestSupport::Context &context, Terminal::Session &
     // NOLINTNEXTLINE(bugprone-use-after-move) -- Session explicitly specifies a closed, queryable moved-from state.
     static_cast<void>(context.expectFalse("moved-from session becomes closed", movable.isOpen()));
     static_cast<void>(context.expectTrue("move construction preserves open ownership", moved.isOpen()));
-    static_cast<void>(context.expectEq("moved session still blocks competitors", ErrorCode::ResourceBusy, competing.open(streamOptions).status().code()));
+    static_cast<void>(
+        context.expectEq("moved session still blocks competitors", ErrorCode::ResourceBusy, competing.open(streamOptions).status().code()));
     static_cast<void>(context.expectTrue("moved session closes", moved.close().ok()));
     static_cast<void>(context.expectEq(
         "move construction preserves pending output cleanup",

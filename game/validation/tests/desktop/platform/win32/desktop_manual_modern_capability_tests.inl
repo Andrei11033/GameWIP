@@ -57,11 +57,10 @@ void testManualModernWindowsCapabilities(TestSupport::Context &context, const Ga
     {
         for(const Desktop::Types::BackdropEffect effect : effects)
         {
-            static_cast<void>(
-                context.expectEq(
-                    "unsupported backdrop effect is rejected",
-                    ErrorCode::Unsupported,
-                    window.setBackdropEffect(effect).status().code()));
+            static_cast<void>(context.expectEq(
+                "unsupported backdrop effect is rejected",
+                ErrorCode::Unsupported,
+                window.setBackdropEffect(effect).status().code()));
         }
         context.skip("system backdrop presentation", "runtime does not advertise SystemBackdrop");
     }
@@ -90,7 +89,6 @@ void testManualModernWindowsCapabilities(TestSupport::Context &context, const Ga
     }
     else
     {
-        static_cast<void>(
-            context.expectEq("unsupported modern alpha Window is rejected", ErrorCode::Unsupported, alphaStatus.status().code()));
+        static_cast<void>(context.expectEq("unsupported modern alpha Window is rejected", ErrorCode::Unsupported, alphaStatus.status().code()));
     }
 }

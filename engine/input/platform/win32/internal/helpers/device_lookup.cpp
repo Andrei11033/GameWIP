@@ -16,9 +16,7 @@ namespace GameWIP::Input::Platform::Win32
         return GameWIP::Status::Types::Status(code);
     }
 
-    [[nodiscard]] GameWIP::Status::Types::Status nativeStatus(
-        std::uint32_t code,
-        GameWIP::Status::Types::NativeCodeDomain domain) noexcept
+    [[nodiscard]] GameWIP::Status::Types::Status nativeStatus(std::uint32_t code, GameWIP::Status::Types::NativeCodeDomain domain) noexcept
     {
         return GameWIP::Status::Types::Status::withDiagnostic(
             Code::NativeFailure,

@@ -35,9 +35,15 @@ namespace GameWIP::Desktop::Platform::DataTransfer
     /// @brief Enumerates supported HGLOBAL formats exposed by a foreign data object.
     [[nodiscard]] GameWIP::Status::Types::Status formats(IDataObject &, std::vector<FormatIdentity> &) noexcept;
     /// @brief Decodes one HGLOBAL payload into the requested portable item kind.
-    [[nodiscard]] GameWIP::Status::Types::Status materializeGlobal(HGLOBAL, const Types::DataTransfer::Format &, Types::DataTransfer::Item &) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Status materializeGlobal(
+        HGLOBAL,
+        const Types::DataTransfer::Format &,
+        Types::DataTransfer::Item &) noexcept;
     /// @brief Requests and decodes one portable item from a foreign data object.
-    [[nodiscard]] GameWIP::Status::Types::Status materialize(IDataObject &, const Types::DataTransfer::Format &, Types::DataTransfer::Item &) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Status materialize(
+        IDataObject &,
+        const Types::DataTransfer::Format &,
+        Types::DataTransfer::Item &) noexcept;
     /// @brief Resolves a portable format to its Win32 clipboard identifier.
     [[nodiscard]] CLIPFORMAT nativeFormat(const Types::DataTransfer::Format &, GameWIP::Status::Types::Status &) noexcept;
     /// @brief Compares portable formats using the native identity of custom formats.

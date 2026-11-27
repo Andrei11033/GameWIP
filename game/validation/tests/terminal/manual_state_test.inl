@@ -38,7 +38,8 @@ void testManualStateRestoration(
             const Terminal::Types::Input::LineResult hiddenInput = session.readLine();
             bool readSucceeded = requireManualOperation(context, "manual session restoration", "read managed session input", hiddenInput.status());
 
-            if(readSucceeded && (hiddenInput.value().outcome != Terminal::Types::Input::ReadOutcome::Completed || hiddenInput.value().line != "hidden"))
+            if(readSucceeded &&
+               (hiddenInput.value().outcome != Terminal::Types::Input::ReadOutcome::Completed || hiddenInput.value().line != "hidden"))
             {
                 context.fail("manual session restoration", "managed hidden input did not produce the requested line");
                 readSucceeded = false;

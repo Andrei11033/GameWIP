@@ -68,8 +68,7 @@ namespace GameWIP::IO::Internal::Core
                 return failure<KnownReadableByteCount>(Code::InvalidArgument);
             }
 
-            return ResultTypes::Result<KnownReadableByteCount>::success(
-                {.byteCount = sizeResult.value() - positionResult.value(), .known = true});
+            return ResultTypes::Result<KnownReadableByteCount>::success({.byteCount = sizeResult.value() - positionResult.value(), .known = true});
         }
 
         [[nodiscard]] ResultTypes::Result<std::vector<std::byte>> readAllBytesKnownSize(
@@ -381,8 +380,8 @@ namespace GameWIP::IO::Internal::Core
                 }
 
                 const auto remainingLimit = maxBytes - totalRead;
-                const auto requestSize = static_cast<std::size_t>(
-                    std::min<std::uint64_t>(static_cast<std::uint64_t>(scratchBuffer.size()), remainingLimit));
+                const auto requestSize =
+                    static_cast<std::size_t>(std::min<std::uint64_t>(static_cast<std::uint64_t>(scratchBuffer.size()), remainingLimit));
                 const std::span<std::byte> request = scratchBuffer.first(requestSize);
                 auto readResult = reader.read(request);
                 const std::size_t reportedBytes = readResult.hasValue() ? readResult.value().bytesRead : 0;
@@ -440,8 +439,8 @@ namespace GameWIP::IO::Internal::Core
                 }
 
                 const auto remainingLimit = maxBytes - totalRead;
-                const auto requestSize = static_cast<std::size_t>(
-                    std::min<std::uint64_t>(static_cast<std::uint64_t>(scratchBuffer.size()), remainingLimit));
+                const auto requestSize =
+                    static_cast<std::size_t>(std::min<std::uint64_t>(static_cast<std::uint64_t>(scratchBuffer.size()), remainingLimit));
                 const std::span<std::byte> request = scratchBuffer.first(requestSize);
                 auto readResult = reader.read(request);
                 const std::size_t reportedBytes = readResult.hasValue() ? readResult.value().bytesRead : 0;
@@ -516,10 +515,7 @@ namespace GameWIP::IO
 
     using namespace Internal::Core;
 
-    [[nodiscard]] ResultTypes::Result<std::vector<std::byte>> readAllBytes(
-        Reader &reader,
-        std::uint64_t maxBytes,
-        std::size_t bufferSize) noexcept
+    [[nodiscard]] ResultTypes::Result<std::vector<std::byte>> readAllBytes(Reader &reader, std::uint64_t maxBytes, std::size_t bufferSize) noexcept
     {
         if(bufferSize == 0)
         {
@@ -585,10 +581,7 @@ namespace GameWIP::IO
         return readAllBytesWithScratch(reader, scratchBuffer, maxBytes);
     }
 
-    [[nodiscard]] ResultTypes::Result<std::string> readAllText(
-        Reader &reader,
-        std::uint64_t maxBytes,
-        std::size_t bufferSize) noexcept
+    [[nodiscard]] ResultTypes::Result<std::string> readAllText(Reader &reader, std::uint64_t maxBytes, std::size_t bufferSize) noexcept
     {
         if(bufferSize == 0)
         {
@@ -626,10 +619,7 @@ namespace GameWIP::IO
         return finalizeReadAllText(readAllTextWithScratch(reader, scratch.value().bytes, maxBytes));
     }
 
-    [[nodiscard]] ResultTypes::Result<std::string> readAllText(
-        Reader &reader,
-        std::span<std::byte> scratchBuffer,
-        std::uint64_t maxBytes) noexcept
+    [[nodiscard]] ResultTypes::Result<std::string> readAllText(Reader &reader, std::span<std::byte> scratchBuffer, std::uint64_t maxBytes) noexcept
     {
         if(scratchBuffer.empty())
         {
@@ -672,20 +662,21 @@ namespace GameWIP::IO
             if(reportedBytes > bytes.size())
             {
                 return ResultTypes::Result<Types::WriteProgress>::failure(
-                    ResultTypes::Status(ResultTypes::Code::WriteFailed), Types::WriteProgress{.bytesWritten = totalWritten});
+                    ResultTypes::Status(ResultTypes::Code::WriteFailed),
+                    Types::WriteProgress{.bytesWritten = totalWritten});
             }
             totalWritten += reportedBytes;
 
             if(!writeResult.ok())
             {
-                return ResultTypes::Result<Types::WriteProgress>::failure(
-                    writeResult.status(), Types::WriteProgress{.bytesWritten = totalWritten});
+                return ResultTypes::Result<Types::WriteProgress>::failure(writeResult.status(), Types::WriteProgress{.bytesWritten = totalWritten});
             }
 
             if(reportedBytes == 0)
             {
                 return ResultTypes::Result<Types::WriteProgress>::failure(
-                    ResultTypes::Status(ResultTypes::Code::WriteFailed), Types::WriteProgress{.bytesWritten = totalWritten});
+                    ResultTypes::Status(ResultTypes::Code::WriteFailed),
+                    Types::WriteProgress{.bytesWritten = totalWritten});
             }
             bytes = bytes.subspan(reportedBytes);
         }
@@ -698,7 +689,8 @@ namespace GameWIP::IO
         if(Unicode::Utf8::validate(utf8Text).outcome != Unicode::Types::ValidationOutcome::Valid)
         {
             return ResultTypes::Result<Types::WriteProgress>::failure(
-                ResultTypes::Status(ResultTypes::Code::EncodingFailed), Types::WriteProgress{.bytesWritten = 0});
+                ResultTypes::Status(ResultTypes::Code::EncodingFailed),
+                Types::WriteProgress{.bytesWritten = 0});
         }
 
         return writeAllBytes(writer, std::as_bytes(std::span<const char>(utf8Text.data(), utf8Text.size())));

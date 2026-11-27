@@ -22,10 +22,11 @@ namespace GameWIP::TestSupport::Internal::Win32
     {
         NativeInfrastructureFailure(GameWIP::Status::Types::Code failure, std::uint64_t code) noexcept
             : error(failure)
-            , nativeCode(code == 0 ? std::nullopt
-                                   : std::optional<GameWIP::Status::Types::NativeCode>(
-                                         GameWIP::Status::Types::NativeCode{GameWIP::Status::Types::NativeCodeDomain::Win32Error,
-                                                                          static_cast<std::int64_t>(code)}))
+            , nativeCode(
+                  code == 0 ? std::nullopt
+                            : std::optional<GameWIP::Status::Types::NativeCode>(GameWIP::Status::Types::NativeCode{
+                                  GameWIP::Status::Types::NativeCodeDomain::Win32Error,
+                                  static_cast<std::int64_t>(code)}))
         {
         }
 

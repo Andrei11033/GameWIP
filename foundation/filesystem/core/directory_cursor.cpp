@@ -114,8 +114,7 @@ namespace GameWIP::FileSystem
                 }
 
                 ++emittedEntries_;
-                return GameWIP::Status::Types::Result<std::optional<Types::Directory::Entry>>::success(
-                    std::move(candidate.entry));
+                return GameWIP::Status::Types::Result<std::optional<Types::Directory::Entry>>::success(std::move(candidate.entry));
             }
         }
         catch(const std::bad_alloc &)

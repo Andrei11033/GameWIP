@@ -130,14 +130,12 @@ namespace GameWIP::FileSystem::Platform::Win32
         Types::EntryInfo info{};
     };
 
-    template <typename T>
-    [[nodiscard]] Result<T> failure(Status status) noexcept
+    template <typename T> [[nodiscard]] Result<T> failure(Status status) noexcept
     {
         return Result<T>::failure(std::move(status));
     }
 
-    template <typename T>
-    [[nodiscard]] Result<T> failure(ErrorCode code) noexcept
+    template <typename T> [[nodiscard]] Result<T> failure(ErrorCode code) noexcept
     {
         return Result<T>::failure(Status(code));
     }
@@ -275,10 +273,7 @@ namespace GameWIP::FileSystem::Platform::Win32
     /// ------------------------------------------------------------
 
     [[nodiscard]] Result<void> validateExistingEntry(const Types::Path &path, const NativeOpenRequest &request);
-    [[nodiscard]] Result<void> assignFileState(
-        std::unique_ptr<Internal::FileState> &state,
-        UniqueHandle handle,
-        const NativeOpenRequest &request);
+    [[nodiscard]] Result<void> assignFileState(std::unique_ptr<Internal::FileState> &state, UniqueHandle handle, const NativeOpenRequest &request);
     [[nodiscard]] Result<void> seekNativeHandle(HANDLE handle, std::int64_t offset, IO::Types::SeekOrigin origin);
     [[nodiscard]] Result<std::uint64_t> nativePosition(HANDLE handle);
     [[nodiscard]] Result<void> truncateNativeHandle(HANDLE handle, std::uint64_t sizeBytes);
@@ -286,10 +281,7 @@ namespace GameWIP::FileSystem::Platform::Win32
         std::unique_ptr<Internal::FileState> &state,
         const Types::Path &path,
         const NativeOpenRequest &request);
-    [[nodiscard]] Result<void> openNativeFile(
-        std::unique_ptr<Internal::FileState> &state,
-        const Types::Path &path,
-        const NativeOpenRequest &request);
+    [[nodiscard]] Result<void> openNativeFile(std::unique_ptr<Internal::FileState> &state, const Types::Path &path, const NativeOpenRequest &request);
     [[nodiscard]] Result<std::uint64_t> nativeFileSize(HANDLE handle);
     [[nodiscard]] Result<void> unlockNativeFile(Internal::FileLockState &state) noexcept;
 
@@ -312,8 +304,7 @@ namespace GameWIP::FileSystem::Platform::Win32
     [[nodiscard]] Result<Platform::DirectoryCursorEntry> directoryCursorEntry(
         Internal::DirectoryCursorState &state,
         const WIN32_FIND_DATAW &findData);
-    [[nodiscard]] Result<std::unique_ptr<Internal::DirectoryCursorState>> startDirectoryCursor(
-        std::unique_ptr<Internal::DirectoryCursorState> state);
+    [[nodiscard]] Result<std::unique_ptr<Internal::DirectoryCursorState>> startDirectoryCursor(std::unique_ptr<Internal::DirectoryCursorState> state);
     [[nodiscard]] Result<std::unique_ptr<Internal::DirectoryCursorState>> openDirectoryCursorImpl(
         const Types::Path &path,
         Types::SymlinkPolicy symlinkPolicy);
@@ -322,5 +313,7 @@ namespace GameWIP::FileSystem::Platform::Win32
         const Types::Path &path,
         Types::SymlinkPolicy symlinkPolicy);
     [[nodiscard]] Result<std::optional<Platform::DirectoryCursorEntry>> readDirectoryCursorImpl(Internal::DirectoryCursorState &state);
-    [[nodiscard]] Result<std::vector<Types::Directory::Entry>> listDirectoryImpl(const Types::Path &path, const Types::Directory::ListOptions &options);
+    [[nodiscard]] Result<std::vector<Types::Directory::Entry>> listDirectoryImpl(
+        const Types::Path &path,
+        const Types::Directory::ListOptions &options);
 } // namespace GameWIP::FileSystem::Platform::Win32

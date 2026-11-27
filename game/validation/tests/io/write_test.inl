@@ -46,16 +46,19 @@ void testWriteAllBytes(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("writeAllBytes partial failure preserves result", partialFailureResult.hasValue()));
     if(partialFailureResult.hasValue())
     {
-        static_cast<void>(context.expectEq("writeAllBytes partial failure preserves progress", std::size_t{2}, partialFailureResult.value().bytesWritten));
+        static_cast<void>(
+            context.expectEq("writeAllBytes partial failure preserves progress", std::size_t{2}, partialFailureResult.value().bytesWritten));
     }
 
     InvalidWriteCountWriter invalidCountWriter;
     const WriteResult invalidCountResult = IO::writeAllBytes(invalidCountWriter, spanOf(source));
-    static_cast<void>(context.expectEq("writeAllBytes rejects invalid writer byte count", ErrorCode::WriteFailed, invalidCountResult.status().code()));
+    static_cast<void>(
+        context.expectEq("writeAllBytes rejects invalid writer byte count", ErrorCode::WriteFailed, invalidCountResult.status().code()));
     static_cast<void>(context.expectTrue("writeAllBytes invalid count preserves result", invalidCountResult.hasValue()));
     if(invalidCountResult.hasValue())
     {
-        static_cast<void>(context.expectEq("writeAllBytes invalid count preserves prior progress", std::size_t{0}, invalidCountResult.value().bytesWritten));
+        static_cast<void>(
+            context.expectEq("writeAllBytes invalid count preserves prior progress", std::size_t{0}, invalidCountResult.value().bytesWritten));
     }
 
     // Empty input succeeds without calling the writer.
@@ -110,7 +113,8 @@ void testWriteAllText(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("writeAllText malformed UTF-8 preserves result", malformedResult.hasValue()));
     if(malformedResult.hasValue())
     {
-        static_cast<void>(context.expectEq("writeAllText malformed UTF-8 reports zero progress", std::size_t{0}, malformedResult.value().bytesWritten));
+        static_cast<void>(
+            context.expectEq("writeAllText malformed UTF-8 reports zero progress", std::size_t{0}, malformedResult.value().bytesWritten));
     }
     static_cast<void>(context.expectEq("writeAllText malformed UTF-8 never calls writer", std::size_t{0}, malformedWriter.writeCalls()));
 
@@ -121,7 +125,8 @@ void testWriteAllText(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("writeAllText incomplete UTF-8 preserves result", incompleteResult.hasValue()));
     if(incompleteResult.hasValue())
     {
-        static_cast<void>(context.expectEq("writeAllText incomplete UTF-8 reports zero progress", std::size_t{0}, incompleteResult.value().bytesWritten));
+        static_cast<void>(
+            context.expectEq("writeAllText incomplete UTF-8 reports zero progress", std::size_t{0}, incompleteResult.value().bytesWritten));
     }
     static_cast<void>(context.expectEq("writeAllText incomplete UTF-8 never calls writer", std::size_t{0}, incompleteWriter.writeCalls()));
 }

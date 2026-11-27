@@ -200,7 +200,10 @@ function Install-GameWipEditorSelection
 
                 if ($installEditor)
                 {
-                    Install-GameWipEditorIntegration -RepositoryRoot $RepositoryRoot -Extensions $option.Extensions
+                    Install-GameWipEditorIntegration `
+                        -RepositoryRoot $RepositoryRoot `
+                        -Extensions $option.Extensions `
+                        -Update:$Update
                 }
             }
             'visual-studio'

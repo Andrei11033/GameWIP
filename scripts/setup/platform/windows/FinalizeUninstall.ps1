@@ -23,8 +23,8 @@ if (-not (Test-Path -LiteralPath $markerPath))
     exit 0
 }
 
-# Load the shared path validation and link-aware tree removal.
-. (Join-Path $RepositoryRoot 'scripts/lib/Tools.ps1')
+# Load Windows path rules and the shared link-aware tree removal.
+. (Join-Path $RepositoryRoot 'scripts/platform/windows/Tools.ps1')
 . (Join-Path $RepositoryRoot 'scripts/lib/Storage.ps1')
 
 $buildAttributes = Get-GameWipFileSystemAttributes -Path $buildRoot

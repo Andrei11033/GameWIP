@@ -27,10 +27,7 @@ namespace GameWIP::TestSupport
 
         if(diagnostic->nativeCode)
         {
-            formatted += std::format(
-                " (nativeCode={}:{})",
-                nativeCodeDomainName(diagnostic->nativeCode->domain),
-                diagnostic->nativeCode->value);
+            formatted += std::format(" (nativeCode={}:{})", nativeCodeDomainName(diagnostic->nativeCode->domain), diagnostic->nativeCode->value);
         }
 
         if(!diagnostic->message.empty())

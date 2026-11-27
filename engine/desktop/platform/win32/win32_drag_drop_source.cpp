@@ -40,10 +40,11 @@ namespace GameWIP::Desktop::Platform
 
             if((performed & ~knownEffects) != 0 || (native & (native - 1U)) != 0 || (effect & allowed) != effect)
             {
-                return DD::Result::failure(GameWIP::Desktop::Internal::statusFor(
-                    GameWIP::Status::Types::Code::NativeFailure,
-                    E_UNEXPECTED,
-                    GameWIP::Desktop::Internal::NativeCodeDomain::HResult));
+                return DD::Result::failure(
+                    GameWIP::Desktop::Internal::statusFor(
+                        GameWIP::Status::Types::Code::NativeFailure,
+                        E_UNEXPECTED,
+                        GameWIP::Desktop::Internal::NativeCodeDomain::HResult));
             }
 
             const DD::SourceInfo info{native == 0 ? DD::Outcome::Cancelled : DD::Outcome::Dropped, effect};
@@ -58,7 +59,9 @@ namespace GameWIP::Desktop::Platform
         }
 
         /// @brief Materializes and validates every source item before entering OLE.
-        [[nodiscard]] GameWIP::Status::Types::Status prepareSource(const DD::Description &description, std::vector<DataTransfer::PreparedItem> &prepared) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status prepareSource(
+            const DD::Description &description,
+            std::vector<DataTransfer::PreparedItem> &prepared) noexcept
         {
             if(description.items.empty() || !validEffects(description.effects.allowed) ||
                static_cast<unsigned>(description.triggerButton) > static_cast<unsigned>(DD::TriggerButton::Middle))
@@ -660,10 +663,11 @@ namespace GameWIP::Desktop::Platform
             {
                 return droppedSourceResult(performed, description.effects.allowed);
             }
-            return DD::Result::failure(GameWIP::Desktop::Internal::statusFor(
-                GameWIP::Status::Types::Code::NativeFailure,
-                hr,
-                GameWIP::Desktop::Internal::NativeCodeDomain::HResult));
+            return DD::Result::failure(
+                GameWIP::Desktop::Internal::statusFor(
+                    GameWIP::Status::Types::Code::NativeFailure,
+                    hr,
+                    GameWIP::Desktop::Internal::NativeCodeDomain::HResult));
         }
         catch(const std::bad_alloc &)
         {

@@ -45,8 +45,7 @@ namespace GameWIP::FileSystem::Internal
     {
         if(path.empty() || !isValidSymlinkPolicy(symlinkPolicy))
         {
-            return GameWIP::Status::Types::Result<Types::EntryInfo>::failure(
-                GameWIP::Status::Types::Status(ErrorCode::InvalidArgument));
+            return GameWIP::Status::Types::Result<Types::EntryInfo>::failure(GameWIP::Status::Types::Status(ErrorCode::InvalidArgument));
         }
 
         return Platform::queryEntry(path, symlinkPolicy);

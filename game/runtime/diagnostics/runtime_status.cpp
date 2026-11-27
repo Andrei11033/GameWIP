@@ -50,18 +50,16 @@ namespace
     [[nodiscard]] std::string statusMessage(const StatusDetails &status)
     {
         const std::string_view message = status.message.empty() ? std::string_view{"<none>"} : status.message;
-        const std::string native = status.nativeCode.has_value()
-                                       ? std::format("{}:{}", status.nativeDomain, *status.nativeCode)
-                                       : std::string("<none>");
+        const std::string native =
+            status.nativeCode.has_value() ? std::format("{}:{}", status.nativeDomain, *status.nativeCode) : std::string("<none>");
         return std::format("code={}, nativeCode={}, message=\"{}\"", status.code, native, message);
     }
 
     void writeEmergencyDetails(std::string_view action, const StatusDetails &status)
     {
         const std::string details = statusMessage(status);
-        static_cast<void>(GameWIP::Terminal::writeLine(
-            GameWIP::Terminal::Types::Output::Stream::Stderr,
-            std::format("GameWIP: {}: {}", action, details)));
+        static_cast<void>(
+            GameWIP::Terminal::writeLine(GameWIP::Terminal::Types::Output::Stream::Stderr, std::format("GameWIP: {}: {}", action, details)));
     }
 
     void reportFailureDetails(LogArea area, std::string_view action, const StatusDetails &status)
@@ -71,13 +69,8 @@ namespace
         const std::string nativeCode = status.nativeCode.has_value() ? std::to_string(*status.nativeCode) : "none";
 
 #if GAMEWIP_TRACY_ENABLED
-        const std::string profilingMessage = std::format(
-            "{}: {} (code={}, nativeCode={}:{})",
-            action,
-            message,
-            status.code,
-            nativeDomain,
-            nativeCode);
+        const std::string profilingMessage =
+            std::format("{}: {} (code={}, nativeCode={}:{})", action, message, status.code, nativeDomain, nativeCode);
         GameWIP::Profiling::message(profilingMessage);
 #endif
 

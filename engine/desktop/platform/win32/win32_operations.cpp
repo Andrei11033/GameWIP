@@ -36,7 +36,10 @@ namespace GameWIP::Desktop::Platform
         }
 
         /// @brief Converts a logical client rectangle into a DPI-scaled outer frame.
-        [[nodiscard]] GameWIP::Status::Types::Status setOuterRect(WindowState &state, Types::ScreenPosition position, Types::LogicalSize size) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status setOuterRect(
+            WindowState &state,
+            Types::ScreenPosition position,
+            Types::LogicalSize size) noexcept
         {
             const UINT dpi = dpiForWindow(state.platform->handle);
             const Types::PixelSize physicalSize = logicalToPhysicalSize(size, dpi);
@@ -53,7 +56,8 @@ namespace GameWIP::Desktop::Platform
 
             RECT outer{0, 0, static_cast<LONG>(physicalSize.width), static_cast<LONG>(physicalSize.height)};
             LONG_PTR styleValue = 0;
-            GameWIP::Status::Types::Status status = queryWindowLong(state.platform->handle, GWL_STYLE, styleValue, "GetWindowLongPtrW geometry style");
+            GameWIP::Status::Types::Status status =
+                queryWindowLong(state.platform->handle, GWL_STYLE, styleValue, "GetWindowLongPtrW geometry style");
 
             if(!status.ok())
             {
@@ -154,7 +158,8 @@ namespace GameWIP::Desktop::Platform
         const Types::WindowId previous = state.owner;
         WindowState *previousOwnerState = previous.isValid() ? resolveWindowId(previous) : nullptr;
         HWND previousOwnerHandle = previousOwnerState != nullptr && previousOwnerState->platform ? previousOwnerState->platform->handle : nullptr;
-        GameWIP::Status::Types::Status status = setNativeParent(state.platform->handle, ownerState != nullptr ? ownerState->platform->handle : nullptr);
+        GameWIP::Status::Types::Status status =
+            setNativeParent(state.platform->handle, ownerState != nullptr ? ownerState->platform->handle : nullptr);
 
         if(!status.ok())
         {
@@ -202,7 +207,10 @@ namespace GameWIP::Desktop::Platform
 
             if(!utf8ToUtf16(utf8Title, title, nativeCode))
             {
-                return statusFromWin32(unicodeConversionError(nativeCode, GameWIP::Status::Types::Code::InvalidArgument), nativeCode, "convert window title");
+                return statusFromWin32(
+                    unicodeConversionError(nativeCode, GameWIP::Status::Types::Code::InvalidArgument),
+                    nativeCode,
+                    "convert window title");
             }
             std::string cachedTitle(utf8Title);
 

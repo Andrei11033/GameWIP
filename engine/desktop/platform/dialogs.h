@@ -56,7 +56,9 @@ namespace GameWIP::Desktop::Platform
     /// ------------------------------------------------------------
 
     /// @brief Opens a native progress dialog and binds it to its owner thread.
-    [[nodiscard]] GameWIP::Status::Types::Status openProgress(ProgressDialogState &state, const Types::Dialogs::Progress::Description &description) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Status openProgress(
+        ProgressDialogState &state,
+        const Types::Dialogs::Progress::Description &description) noexcept;
     /// @brief Closes a native progress dialog and reports native ownership.
     [[nodiscard]] ProgressCloseResult closeProgress(ProgressDialogState &state) noexcept;
     /// @brief Attempts owner-thread progress cleanup without publishing errors.

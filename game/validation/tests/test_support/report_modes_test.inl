@@ -66,7 +66,8 @@ void testReportModes(TestSupport::Context &context, const std::filesystem::path 
     static_cast<void>(context.expectTrue("Custom console report file read succeeds", customConsoleReport.ok()));
     if(customConsoleReport.ok())
     {
-        static_cast<void>(context.expectContains("Report file remains unstyled", customConsoleReport.value(), "[PASS] [ConsoleWriter] custom output"));
+        static_cast<void>(
+            context.expectContains("Report file remains unstyled", customConsoleReport.value(), "[PASS] [ConsoleWriter] custom output"));
         static_cast<void>(context.expectFalse("Report file contains no terminal escape", customConsoleReport.value().contains('\x1b')));
     }
 

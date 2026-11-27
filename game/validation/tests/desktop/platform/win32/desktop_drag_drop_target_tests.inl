@@ -39,8 +39,10 @@ void testDragDropTargetLifecycle(TestSupport::Context &context)
 
     // Validate region identity and accepted formats.
     std::array<Transfer::FormatView, 1> textFormat{{Transfer::FormatView::text()}};
-    static_cast<void>(
-        context.expectEq("empty target region list is rejected", ErrorCode::InvalidArgument, target.open(window, DD::TargetDescription{}).status().code()));
+    static_cast<void>(context.expectEq(
+        "empty target region list is rejected",
+        ErrorCode::InvalidArgument,
+        target.open(window, DD::TargetDescription{}).status().code()));
     std::array<DD::RegionDescription, 1> emptyFormatRegion{{{DD::RegionId{1}, std::nullopt, {}, DD::EffectPolicy::copy()}}};
     static_cast<void>(context.expectEq(
         "empty accepted format list is rejected",
@@ -160,7 +162,12 @@ void testDragDropTargetLifecycle(TestSupport::Context &context)
         }
         else
         {
-            context.fail("native OLE target lifecycle", std::format("target open returned {}: {}", GameWIP::Status::Types::codeName(open.status().code()), manualStatusDetails(open.status())));
+            context.fail(
+                "native OLE target lifecycle",
+                std::format(
+                    "target open returned {}: {}",
+                    GameWIP::Status::Types::codeName(open.status().code()),
+                    manualStatusDetails(open.status())));
         }
 
         static_cast<void>(window.close());
@@ -196,8 +203,10 @@ void testDragDropTargetLifecycle(TestSupport::Context &context)
         Desktop::Internal::TestHooks::nextDragDropSessionId(target, 0).isValid()));
     static_cast<void>(
         context.expectEq("target reports internal queue", Desktop::Types::Events::StorageKind::Internal, target.eventQueueInfo().storage));
-    static_cast<void>(context.expectEq("second full target is busy", ErrorCode::ResourceBusy, Desktop::DragDropTarget{}.open(window, {}).status().code()));
-    static_cast<void>(context.expectEq("lightweight mode cannot replace full target", ErrorCode::ResourceBusy, window.setFileDropEnabled(true).status().code()));
+    static_cast<void>(
+        context.expectEq("second full target is busy", ErrorCode::ResourceBusy, Desktop::DragDropTarget{}.open(window, {}).status().code()));
+    static_cast<void>(
+        context.expectEq("lightweight mode cannot replace full target", ErrorCode::ResourceBusy, window.setFileDropEnabled(true).status().code()));
 
     // Exercise event coalescing, overflow handling, and retained payload cleanup.
 
@@ -316,7 +325,8 @@ void testDragDropTargetLifecycle(TestSupport::Context &context)
         Win32TestHooks::matchDragDropRegion(target, {}, originalCustomFormat)));
 
     const auto invalidReplacement = target.setRegions(duplicateRegions);
-    static_cast<void>(context.expectEq("invalid replacement is rejected transactionally", ErrorCode::InvalidArgument, invalidReplacement.status().code()));
+    static_cast<void>(
+        context.expectEq("invalid replacement is rejected transactionally", ErrorCode::InvalidArgument, invalidReplacement.status().code()));
     static_cast<void>(
         context.expectEq("failed replacement preserves prior snapshot", std::size_t{1}, Desktop::Internal::TestHooks::dragDropRegionCount(target)));
     static_cast<void>(context.expectTrue("target survives invalid replacement", target.isOpen()));
@@ -325,14 +335,16 @@ void testDragDropTargetLifecycle(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("failed revocation retains an open retryable target", target.isOpen()));
     static_cast<void>(context.expectTrue("target closes on revocation retry", target.close().ok()));
     static_cast<void>(context.expectTrue("lightweight mode enables after target close", window.setFileDropEnabled(true).ok()));
-    static_cast<void>(context.expectEq("full target conflicts with lightweight mode", ErrorCode::ResourceBusy, target.open(window, {}).status().code()));
+    static_cast<void>(
+        context.expectEq("full target conflicts with lightweight mode", ErrorCode::ResourceBusy, target.open(window, {}).status().code()));
     static_cast<void>(context.expectTrue("lightweight mode disables before full target registration", window.setFileDropEnabled(false).ok()));
 
     // Check external queue ownership and deferred owner-thread cleanup.
 
     // Verify owner-thread enforcement and parent destruction.
     std::array<DD::Event, 2> externalStorage;
-    const GameWIP::Status::Types::Result<void> externalOpen = target.open(window, DD::TargetDescription{regions}, DD::QueueConfiguration::borrowed(externalStorage));
+    const GameWIP::Status::Types::Result<void> externalOpen =
+        target.open(window, DD::TargetDescription{regions}, DD::QueueConfiguration::borrowed(externalStorage));
 
     if(!context.expectTrue("target reopens with external queue", externalOpen.ok()))
     {

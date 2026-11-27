@@ -51,7 +51,10 @@ namespace GameWIP::FileSystem
     /// Size and attributes
     /// ------------------------------------------------------------
 
-    GameWIP::Status::Types::Result<void> resizeFile(const Types::Path &path, std::uint64_t sizeBytes, const Types::File::ResizeOptions &options) noexcept
+    GameWIP::Status::Types::Result<void> resizeFile(
+        const Types::Path &path,
+        std::uint64_t sizeBytes,
+        const Types::File::ResizeOptions &options) noexcept
     {
         try
         {

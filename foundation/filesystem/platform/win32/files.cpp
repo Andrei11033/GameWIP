@@ -249,11 +249,11 @@ namespace GameWIP::FileSystem::Platform
             if(ReadFile(nativeHandle(state), destination.data(), requestSize, &bytesRead, nullptr) == FALSE)
             {
                 return Result<IO::Types::ReadProgress>::failure(
-                    makeLastErrorStatus(ErrorCode::ReadFailed), IO::Types::ReadProgress{.bytesRead = bytesRead});
+                    makeLastErrorStatus(ErrorCode::ReadFailed),
+                    IO::Types::ReadProgress{.bytesRead = bytesRead});
             }
 
-            return Result<IO::Types::ReadProgress>::success(
-                IO::Types::ReadProgress{.bytesRead = bytesRead, .endOfStream = bytesRead < requestSize});
+            return Result<IO::Types::ReadProgress>::success(IO::Types::ReadProgress{.bytesRead = bytesRead, .endOfStream = bytesRead < requestSize});
         }
         catch(const std::bad_alloc &)
         {
@@ -286,7 +286,8 @@ namespace GameWIP::FileSystem::Platform
             if(WriteFile(nativeHandle(state), bytes.data(), requestSize, &bytesWritten, nullptr) == FALSE)
             {
                 return Result<IO::Types::WriteProgress>::failure(
-                    makeLastErrorStatus(ErrorCode::WriteFailed), IO::Types::WriteProgress{.bytesWritten = bytesWritten});
+                    makeLastErrorStatus(ErrorCode::WriteFailed),
+                    IO::Types::WriteProgress{.bytesWritten = bytesWritten});
             }
 
             return Result<IO::Types::WriteProgress>::success(IO::Types::WriteProgress{.bytesWritten = bytesWritten});

@@ -132,8 +132,10 @@ void testTextAndStyleOutput(TestSupport::Context &context)
     Hooks::clearCapturedOutput(Terminal::Types::Output::Stream::Stdout);
     styledOptions.styleMode = Terminal::Types::Style::Mode::Required;
     Hooks::forceNextOutputPreparationFailure(IOErrorCode::NativeFailure);
-    static_cast<void>(
-        context.expectEq("forced preparation failure propagates", ErrorCode::NativeFailure, Terminal::writeText("fail", styledOptions).status().code()));
+    static_cast<void>(context.expectEq(
+        "forced preparation failure propagates",
+        ErrorCode::NativeFailure,
+        Terminal::writeText("fail", styledOptions).status().code()));
     static_cast<void>(
         context.expectTrue("forced unsupported style writes nothing", Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout).empty()));
 
@@ -152,8 +154,10 @@ void testTextAndStyleOutput(TestSupport::Context &context)
         context.expectEq("formatted print capture", std::string{"value 42"}, Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout)));
 
     Hooks::clearCapturedOutput(Terminal::Types::Output::Stream::Stdout);
-    static_cast<void>(
-        context.expectEq("formatted print failure returns status", ErrorCode::InvalidArgument, Terminal::print("{}", TerminalThrowingFormat{}).status().code()));
+    static_cast<void>(context.expectEq(
+        "formatted print failure returns status",
+        ErrorCode::InvalidArgument,
+        Terminal::print("{}", TerminalThrowingFormat{}).status().code()));
     static_cast<void>(
         context.expectTrue("formatted print failure writes nothing", Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout).empty()));
 

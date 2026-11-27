@@ -82,8 +82,7 @@ void testShellValidation(TestSupport::Context &context)
 
     // Validate notifications, Jump Lists, and registration inputs.
     Desktop::NotificationCenter notifications;
-    static_cast<void>(
-        context.expectEq("closed notification publication is rejected", ErrorCode::NotOpen, notifications.publish({}).status().code()));
+    static_cast<void>(context.expectEq("closed notification publication is rejected", ErrorCode::NotOpen, notifications.publish({}).status().code()));
 
     const std::filesystem::path executable = L"C:\\Windows\\System32\\notepad.exe";
     const std::array<ShellTypes::LaunchArgumentView, 1> placeholders{ShellTypes::LaunchPlaceholder::SelectedPath};
@@ -163,8 +162,10 @@ void testShellNativeLifetimes(TestSupport::Context &context)
         static_cast<void>(context.expectTrue("taskbar binding reports open", taskbar.isOpen()));
         static_cast<void>(context.expectEq("taskbar binding retains Window identity", window.id(), taskbar.windowId()));
         Desktop::TaskbarItem secondTaskbar;
-        static_cast<void>(
-            context.expectEq("one taskbar binding is allowed per Window lifetime", ErrorCode::AlreadyExists, secondTaskbar.open(window, {}).status().code()));
+        static_cast<void>(context.expectEq(
+            "one taskbar binding is allowed per Window lifetime",
+            ErrorCode::AlreadyExists,
+            secondTaskbar.open(window, {}).status().code()));
         static_cast<void>(context.expectEq(
             "taskbar rejects a non-normalized progress fraction",
             ErrorCode::InvalidArgument,
@@ -221,7 +222,9 @@ void testShellNativeLifetimes(TestSupport::Context &context)
 
     if(!trayStatus.ok())
     {
-        context.skip("tray native lifetime", std::format("native tray publication returned {}", GameWIP::Status::Types::codeName(trayStatus.status().code())));
+        context.skip(
+            "tray native lifetime",
+            std::format("native tray publication returned {}", GameWIP::Status::Types::codeName(trayStatus.status().code())));
     }
     else
     {
@@ -246,7 +249,9 @@ void testShellNativeLifetimes(TestSupport::Context &context)
 
     if(!queuedEmptyTrayStatus.ok())
     {
-        context.skip("empty tray queue binding", std::format("native tray publication returned {}", GameWIP::Status::Types::codeName(queuedEmptyTrayStatus.status().code())));
+        context.skip(
+            "empty tray queue binding",
+            std::format("native tray publication returned {}", GameWIP::Status::Types::codeName(queuedEmptyTrayStatus.status().code())));
     }
     else
     {
@@ -272,13 +277,16 @@ void testShellNativeLifetimes(TestSupport::Context &context)
 
     if(!notificationStatus.ok())
     {
-        context.skip("notification native lifetime", std::format("notification center returned {}", GameWIP::Status::Types::codeName(notificationStatus.status().code())));
+        context.skip(
+            "notification native lifetime",
+            std::format("notification center returned {}", GameWIP::Status::Types::codeName(notificationStatus.status().code())));
     }
     else
     {
         static_cast<void>(context.expectTrue("notification center reports open", notifications.isOpen()));
         static_cast<void>(context.expectTrue("notification center retains its event queue", notifications.hasEventQueue()));
-        static_cast<void>(context.expectEq("bound notification queue cannot close early", ErrorCode::ResourceBusy, notificationQueue.close().status().code()));
+        static_cast<void>(
+            context.expectEq("bound notification queue cannot close early", ErrorCode::ResourceBusy, notificationQueue.close().status().code()));
 
         NotificationTypes::Description basicDescription;
         basicDescription.title = "GameWIP shell validation";
@@ -287,12 +295,15 @@ void testShellNativeLifetimes(TestSupport::Context &context)
 
         if(!published.ok())
         {
-            context.skip("basic notification publication", std::format("notification service returned {}", GameWIP::Status::Types::codeName(published.status().code())));
+            context.skip(
+                "basic notification publication",
+                std::format("notification service returned {}", GameWIP::Status::Types::codeName(published.status().code())));
         }
         else
         {
             static_cast<void>(context.expectTrue("basic notification generates an identity", published.value().isValid()));
-            static_cast<void>(context.expectTrue("basic notification update succeeds", notifications.update(published.value(), basicDescription).ok()));
+            static_cast<void>(
+                context.expectTrue("basic notification update succeeds", notifications.update(published.value(), basicDescription).ok()));
             static_cast<void>(context.expectTrue("basic notification dismissal succeeds", notifications.dismiss(published.value()).ok()));
             static_cast<void>(context.expectEq(
                 "dismissed notification identity is no longer accepted",

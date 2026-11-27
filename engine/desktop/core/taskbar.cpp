@@ -231,7 +231,10 @@ namespace GameWIP::Desktop
         }
     }
 
-    GameWIP::Status::Types::Result<void> TaskbarItem::open(Window &window, const Types::Taskbar::Description &description, ShellEventQueue &eventQueue) noexcept
+    GameWIP::Status::Types::Result<void> TaskbarItem::open(
+        Window &window,
+        const Types::Taskbar::Description &description,
+        ShellEventQueue &eventQueue) noexcept
     {
         // Validate the Window and reject duplicate taskbar bindings.
         if(state_ != nullptr)

@@ -132,8 +132,8 @@ struct ManualDragDropCapture
 
     POINT pointer{};
     RECT client{};
-    return GetCursorPos(&pointer) != FALSE && ScreenToClient(native.value().window, &pointer) != FALSE && GetClientRect(native.value().window, &client) != FALSE &&
-           PtInRect(&client, pointer) != FALSE;
+    return GetCursorPos(&pointer) != FALSE && ScreenToClient(native.value().window, &pointer) != FALSE &&
+           GetClientRect(native.value().window, &client) != FALSE && PtInRect(&client, pointer) != FALSE;
 }
 
 struct ManualDragDropRun
@@ -221,8 +221,8 @@ ManualDragDropRun runManualDragDropSource(
                     "Attempt {}: {} | effect={} ({}) | {}\r\n{}\r\nRelease the button, then drag again to retry. The last attempt "
                     "is checked.",
                     run.attempts,
-                    !run.attempted                   ? "Waiting"
-                    : !run.result.ok()               ? "Failed"
+                    !run.attempted                                                             ? "Waiting"
+                    : !run.result.ok()                                                         ? "Failed"
                     : run.result.value().outcome == Desktop::Types::DragDrop::Outcome::Dropped ? "Dropped"
                                                                                                : "Cancelled",
                     effectName(run.result.hasValue() ? run.result.value().effect : Desktop::Types::DragDrop::Effect::None),

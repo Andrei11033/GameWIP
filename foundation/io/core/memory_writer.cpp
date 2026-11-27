@@ -22,7 +22,10 @@ namespace GameWIP::IO
         /// @param sourceOffset Byte offset of the source range in destination.
         /// @param sourceSize Number of source bytes to append.
         /// @return Success, SizeLimitExceeded for a representational limit, or OutOfMemory for allocation failure.
-        [[nodiscard]] ResultTypes::Result<void> appendAliasedBytes(std::vector<std::byte> &destination, std::size_t sourceOffset, std::size_t sourceSize) noexcept
+        [[nodiscard]] ResultTypes::Result<void> appendAliasedBytes(
+            std::vector<std::byte> &destination,
+            std::size_t sourceOffset,
+            std::size_t sourceSize) noexcept
         {
             const auto oldSize = destination.size();
 
@@ -79,7 +82,8 @@ namespace GameWIP::IO
         if(!open_)
         {
             return ResultTypes::Result<Types::WriteProgress>::failure(
-                ResultTypes::Status(ResultTypes::Code::NotOpen), Types::WriteProgress{.bytesWritten = 0});
+                ResultTypes::Status(ResultTypes::Code::NotOpen),
+                Types::WriteProgress{.bytesWritten = 0});
         }
 
         if(bytes.empty())
@@ -91,7 +95,8 @@ namespace GameWIP::IO
         if(bytes.size() > bytes_.max_size() - oldSize)
         {
             return ResultTypes::Result<Types::WriteProgress>::failure(
-                ResultTypes::Status(ResultTypes::Code::SizeLimitExceeded), Types::WriteProgress{.bytesWritten = 0});
+                ResultTypes::Status(ResultTypes::Code::SizeLimitExceeded),
+                Types::WriteProgress{.bytesWritten = 0});
         }
 
         try
@@ -110,7 +115,8 @@ namespace GameWIP::IO
                 if(!appendStatus.ok())
                 {
                     return ResultTypes::Result<Types::WriteProgress>::failure(
-                        std::move(appendStatus).status(), Types::WriteProgress{.bytesWritten = 0});
+                        std::move(appendStatus).status(),
+                        Types::WriteProgress{.bytesWritten = 0});
                 }
 
                 return ResultTypes::Result<Types::WriteProgress>::success({.bytesWritten = bytes.size()});
@@ -123,17 +129,20 @@ namespace GameWIP::IO
         catch(const std::bad_alloc &)
         {
             return ResultTypes::Result<Types::WriteProgress>::failure(
-                ResultTypes::Status(ResultTypes::Code::OutOfMemory), Types::WriteProgress{.bytesWritten = 0});
+                ResultTypes::Status(ResultTypes::Code::OutOfMemory),
+                Types::WriteProgress{.bytesWritten = 0});
         }
         catch(const std::length_error &)
         {
             return ResultTypes::Result<Types::WriteProgress>::failure(
-                ResultTypes::Status(ResultTypes::Code::SizeLimitExceeded), Types::WriteProgress{.bytesWritten = 0});
+                ResultTypes::Status(ResultTypes::Code::SizeLimitExceeded),
+                Types::WriteProgress{.bytesWritten = 0});
         }
         catch(...)
         {
             return ResultTypes::Result<Types::WriteProgress>::failure(
-                ResultTypes::Status(ResultTypes::Code::Unknown), Types::WriteProgress{.bytesWritten = 0});
+                ResultTypes::Status(ResultTypes::Code::Unknown),
+                Types::WriteProgress{.bytesWritten = 0});
         }
     }
 

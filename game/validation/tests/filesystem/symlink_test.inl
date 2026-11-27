@@ -48,7 +48,8 @@ void testSymlinkPolicies(TestSupport::Context &context, const std::filesystem::p
         const auto strictReaderOpen = strictReader.open(
             finalFileLink,
             FileSystem::Types::File::ReaderOpenOptions{.symlinkPolicy = FileSystem::Types::SymlinkPolicy::DoNotFollow});
-        static_cast<void>(context.expectEq("DoNotFollow file open rejects final symlink", ErrorCode::InvalidArgument, strictReaderOpen.status().code()));
+        static_cast<void>(
+            context.expectEq("DoNotFollow file open rejects final symlink", ErrorCode::InvalidArgument, strictReaderOpen.status().code()));
 
         FileSystem::FileReader finalReader;
         const auto finalReaderOpen = finalReader.open(
@@ -59,17 +60,20 @@ void testSymlinkPolicies(TestSupport::Context &context, const std::filesystem::p
 
         const auto removeFinalLinkTarget =
             FileSystem::removeFile(finalFileLink, FileSystem::Types::RemoveOptions{.symlinkPolicy = FileSystem::Types::SymlinkPolicy::FollowFinal});
-        static_cast<void>(context.expectEq("FollowFinal remove final symlink is unsupported", ErrorCode::Unsupported, removeFinalLinkTarget.status().code()));
+        static_cast<void>(
+            context.expectEq("FollowFinal remove final symlink is unsupported", ErrorCode::Unsupported, removeFinalLinkTarget.status().code()));
 
         const auto moveFinalLinkTarget = FileSystem::movePath(
             finalFileLink,
             root / "symlinks" / "moved-through-final-link.txt",
             FileSystem::Types::MoveOptions{.symlinkPolicy = FileSystem::Types::SymlinkPolicy::FollowFinal});
-        static_cast<void>(context.expectEq("FollowFinal move final symlink is unsupported", ErrorCode::Unsupported, moveFinalLinkTarget.status().code()));
+        static_cast<void>(
+            context.expectEq("FollowFinal move final symlink is unsupported", ErrorCode::Unsupported, moveFinalLinkTarget.status().code()));
 
         const auto finalLinkStillExists = FileSystem::isSymlink(finalFileLink);
         static_cast<void>(context.expectTrue("unsupported final symlink mutation preserves link query", finalLinkStillExists.ok()));
-        static_cast<void>(context.expectTrue("unsupported final symlink mutation preserves link", finalLinkStillExists.ok() && finalLinkStillExists.value()));
+        static_cast<void>(
+            context.expectTrue("unsupported final symlink mutation preserves link", finalLinkStillExists.ok() && finalLinkStillExists.value()));
     }
 
     // Check traversal through an intermediate directory link.
@@ -79,21 +83,26 @@ void testSymlinkPolicies(TestSupport::Context &context, const std::filesystem::p
 
         const auto followAllThroughIntermediate = FileSystem::isRegularFile(pathThroughIntermediate, followAll);
         static_cast<void>(context.expectTrue("FollowAll allows intermediate symlink", followAllThroughIntermediate.ok()));
-        static_cast<void>(context.expectTrue("FollowAll reaches file through intermediate symlink", followAllThroughIntermediate.ok() && followAllThroughIntermediate.value()));
+        static_cast<void>(context.expectTrue(
+            "FollowAll reaches file through intermediate symlink",
+            followAllThroughIntermediate.ok() && followAllThroughIntermediate.value()));
 
         const auto noFollowThroughIntermediate = FileSystem::isRegularFile(pathThroughIntermediate, doNotFollow);
         static_cast<void>(
             context.expectEq("DoNotFollow rejects intermediate symlink", ErrorCode::PermissionDenied, noFollowThroughIntermediate.status().code()));
 
         const auto followFinalThroughIntermediate = FileSystem::isRegularFile(pathThroughIntermediate, followFinal);
-        static_cast<void>(
-            context.expectEq("FollowFinal rejects intermediate symlink", ErrorCode::PermissionDenied, followFinalThroughIntermediate.status().code()));
+        static_cast<void>(context.expectEq(
+            "FollowFinal rejects intermediate symlink",
+            ErrorCode::PermissionDenied,
+            followFinalThroughIntermediate.status().code()));
 
         const auto strictWrite = FileSystem::writeAllText(
             pathThroughIntermediate,
             "blocked",
             FileSystem::Types::File::WriteOptions{.symlinkPolicy = FileSystem::Types::SymlinkPolicy::DoNotFollow});
-        static_cast<void>(context.expectEq("DoNotFollow write rejects intermediate symlink", ErrorCode::PermissionDenied, strictWrite.status().code()));
+        static_cast<void>(
+            context.expectEq("DoNotFollow write rejects intermediate symlink", ErrorCode::PermissionDenied, strictWrite.status().code()));
 
         const auto strictListing = FileSystem::listDirectory(
             intermediateDirectoryLink,

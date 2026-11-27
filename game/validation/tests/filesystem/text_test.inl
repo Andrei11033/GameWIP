@@ -60,7 +60,8 @@ void testTextContracts(TestSupport::Context &context, const std::filesystem::pat
 
     const auto invalidAppend = FileSystem::appendText(file, malformed);
     static_cast<void>(context.expectEq("appendText rejects malformed UTF-8", ErrorCode::EncodingFailed, invalidAppend.status().code()));
-    static_cast<void>(context.expectTrue("invalid append reports zero progress", invalidAppend.hasValue() && invalidAppend.value().bytesWritten == 0));
+    static_cast<void>(
+        context.expectTrue("invalid append reports zero progress", invalidAppend.hasValue() && invalidAppend.value().bytesWritten == 0));
     expectFileText(context, "invalid append preserves content", file, "preserved");
 
     const std::filesystem::path missingAppend = root / "invalid-append-parent" / "file.txt";

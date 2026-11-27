@@ -109,17 +109,17 @@ void testMutationCopyMoveAndRemoval(TestSupport::Context &context, const std::fi
     static_cast<void>(context.expectTrue("write deep tree leaf succeeds", FileSystem::writeAllText(deepest / "leaf.txt", "x").ok()));
     const auto removedDeepTree = FileSystem::removeDirectoryTree(deepTree);
     static_cast<void>(context.expectTrue("removeDirectoryTree handles deep tree", removedDeepTree.ok()));
-    static_cast<void>(
-        context.expectTrue("removeDirectoryTree deep count includes root levels and leaf",
-                           removedDeepTree.hasValue() && removedDeepTree.value() == kDeepDirectoryDepth + 2));
+    static_cast<void>(context.expectTrue(
+        "removeDirectoryTree deep count includes root levels and leaf",
+        removedDeepTree.hasValue() && removedDeepTree.value() == kDeepDirectoryDepth + 2));
 
     // Check entry limits before and during recursive removal.
     const std::filesystem::path zeroLimitTree = directory / "zero-limit-tree";
     static_cast<void>(context.expectTrue("create zero-limit tree succeeds", FileSystem::createDirectories(zeroLimitTree).ok()));
-    static_cast<void>(
-        context.expectTrue("write zero-limit tree file succeeds", FileSystem::writeAllText(zeroLimitTree / "file.txt", "x").ok()));
+    static_cast<void>(context.expectTrue("write zero-limit tree file succeeds", FileSystem::writeAllText(zeroLimitTree / "file.txt", "x").ok()));
     const auto zeroLimitRemoval = FileSystem::removeDirectoryTree(zeroLimitTree, FileSystem::Types::Directory::RemoveTreeOptions{.maxEntries = 0});
-    static_cast<void>(context.expectEq("zero remove limit reports SizeLimitExceeded", ErrorCode::SizeLimitExceeded, zeroLimitRemoval.status().code()));
+    static_cast<void>(
+        context.expectEq("zero remove limit reports SizeLimitExceeded", ErrorCode::SizeLimitExceeded, zeroLimitRemoval.status().code()));
     static_cast<void>(context.expectTrue("zero remove limit removes nothing", zeroLimitRemoval.hasValue() && zeroLimitRemoval.value() == 0));
     expectPredicate(context, "zero remove limit preserves root", FileSystem::isDirectory(zeroLimitTree), true);
     static_cast<void>(context.expectTrue("zero remove limit cleanup succeeds", FileSystem::removeDirectoryTree(zeroLimitTree).ok()));
@@ -150,8 +150,10 @@ void testMutationCopyMoveAndRemoval(TestSupport::Context &context, const std::fi
     constexpr std::uint64_t kPartialRemovalLimit = 5;
     const auto partialRemoval =
         FileSystem::removeDirectoryTree(wideTree, FileSystem::Types::Directory::RemoveTreeOptions{.maxEntries = kPartialRemovalLimit});
-    static_cast<void>(context.expectEq("partial tree removal reports SizeLimitExceeded", ErrorCode::SizeLimitExceeded, partialRemoval.status().code()));
-    static_cast<void>(context.expectTrue("partial tree removal honors exact limit", partialRemoval.hasValue() && partialRemoval.value() == kPartialRemovalLimit));
+    static_cast<void>(
+        context.expectEq("partial tree removal reports SizeLimitExceeded", ErrorCode::SizeLimitExceeded, partialRemoval.status().code()));
+    static_cast<void>(
+        context.expectTrue("partial tree removal honors exact limit", partialRemoval.hasValue() && partialRemoval.value() == kPartialRemovalLimit));
     expectPredicate(context, "partial tree removal preserves root", FileSystem::isDirectory(wideTree), true);
     static_cast<void>(context.expectTrue("partial tree removal cleanup succeeds", FileSystem::removeDirectoryTree(wideTree).ok()));
 }

@@ -29,7 +29,8 @@ gamewip_require_setup_powershell()
     fi
 
     if gamewip_has_argument -Preview "$@"; then
-        printf 'PowerShell 7 is missing; setup preview cannot run until it is installed.\n' >&2
+        printf 'PowerShell %s or newer is required; setup preview cannot install it.\n' \
+            "$GAMEWIP_POWERSHELL_VERSION" >&2
         printf 'Rerun setup.sh interactively to install the managed runtime.\n' >&2
         return 1
     fi
@@ -40,10 +41,12 @@ gamewip_require_setup_powershell()
         printf 'Installing verified PowerShell %s because -Yes was supplied.\n' \
             "$GAMEWIP_POWERSHELL_VERSION" >&2
     elif gamewip_has_argument -NonInteractive "$@" || [[ ! -t 0 ]]; then
-        printf 'PowerShell 7 is required by setup.sh. Rerun interactively or use -Yes to install it.\n' >&2
+        printf 'PowerShell %s or newer is required by setup.sh. Rerun interactively or use -Yes to install it.\n' \
+            "$GAMEWIP_POWERSHELL_VERSION" >&2
         return 1
     else
-        printf 'PowerShell 7 is required by setup.sh.\n' >&2
+        printf 'PowerShell %s or newer is required by setup.sh.\n' \
+            "$GAMEWIP_POWERSHELL_VERSION" >&2
         printf 'Install the verified PowerShell %s runtime under %s/tools/powershell? [y/N] ' \
             "$GAMEWIP_POWERSHELL_VERSION" "${GAMEWIP_STORAGE_ROOT:-build/gamewip}" >&2
 

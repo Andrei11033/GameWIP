@@ -177,8 +177,8 @@ void testPresentationPublication(TestSupport::Context &context)
         Desktop::Internal::TestHooks::presentationPublicationStorage(window)));
 
     Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::NativeCreation);
-    static_cast<void>(context.expectEq(
-        "failed reopen is reported", ErrorCode::OpenFailed, window.open(description, Desktop::Events::owned(4)).status().code()));
+    static_cast<void>(
+        context.expectEq("failed reopen is reported", ErrorCode::OpenFailed, window.open(description, Desktop::Events::owned(4)).status().code()));
     static_cast<void>(context.expectEq("failed reopen exposes closed client size", Desktop::Types::LogicalSize{}, window.clientSize()));
     static_cast<void>(context.expectFalse("failed reopen exposes no candidate monitor", window.currentMonitor().isValid()));
     static_cast<void>(context.expectEq(

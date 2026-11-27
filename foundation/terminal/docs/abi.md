@@ -36,8 +36,10 @@ Internal platform headers and test hooks are not installed.
 
 The public interface exposes C++ standard-library types including `std::string`, `std::string_view`, `std::span`, `std::optional`, `std::stop_token`,
 `std::format_string`, and `std::chrono::milliseconds`. Checked operations report failures through the shared `GameWIP::Status` result types rather
-than exposing a Terminal exception hierarchy. `Session` contains a private `std::unique_ptr` to an incomplete implementation state. Consumers must follow the project
-compiler, language-mode, standard-library, runtime-library, architecture, and build-configuration compatibility policy. See @ref
+than exposing a Terminal exception hierarchy. `Session` contains a private
+`std::unique_ptr` to an incomplete implementation state. Consumers must follow
+the project's compiler, language-mode, standard-library, runtime-library,
+architecture, and build-configuration compatibility policy. See @ref
 project_library_compatibility.
 
 The exact-version package file prevents CMake from treating a different GameWIP release as package-compatible. It does not make arbitrary compiler or
@@ -56,14 +58,16 @@ without exposing implementation layout.
 
 ## Exported template bridges
 
-Public free `print()` and `println()` templates package arguments into `std::format_args` and call exported `GameWIP::Terminal::Internal::vprint()` and
+Public free `print()` and `println()` templates package arguments into
+`std::format_args` and call exported `GameWIP::Terminal::Internal::vprint()` and
 `vprintln()` functions. Session formatting and `OutputBuffer` formatting similarly cross non-template exported member bridges before doing allocating
 work. These bridge symbols are ABI implementation support, not independent formatting APIs. Consumers must call the public templates instead of
 depending on bridge signatures directly.
 
 ## Dependency direction
 
-Terminal publicly depends on Status for operation results and IO for stream types, flush modes, and byte-write progress. Logger depends on Terminal for console
+Terminal publicly depends on Status for operation results and IO for stream
+types, flush modes, and byte-write progress. Logger depends on Terminal for console
 output. Terminal must not depend on Logger or higher-level runtime systems.
 
 ## Test hooks

@@ -58,7 +58,10 @@ namespace GameWIP::Desktop::Platform
 
             if(!utf8ToUtf16(description.title, title, nativeCode) || !utf8ToUtf16(description.body, body, nativeCode))
             {
-                return GameWIP::Desktop::Internal::statusFor(ErrorCode::EncodingFailed, nativeCode, GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
+                return GameWIP::Desktop::Internal::statusFor(
+                    ErrorCode::EncodingFailed,
+                    nativeCode,
+                    GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
             }
 
             if(title.size() >= ARRAYSIZE(NOTIFYICONDATAW{}.szInfoTitle) || body.size() >= ARRAYSIZE(NOTIFYICONDATAW{}.szInfo))
@@ -291,12 +294,18 @@ namespace GameWIP::Desktop::Platform
         }
     }
 
-    GameWIP::Status::Types::Status publishNotification(NotificationCenterState &state, std::uint64_t id, const OwnedNotificationDescription &description) noexcept
+    GameWIP::Status::Types::Status publishNotification(
+        NotificationCenterState &state,
+        std::uint64_t id,
+        const OwnedNotificationDescription &description) noexcept
     {
         return applyNotification(state, id, description, true);
     }
 
-    GameWIP::Status::Types::Status updateNotification(NotificationCenterState &state, std::uint64_t id, const OwnedNotificationDescription &description) noexcept
+    GameWIP::Status::Types::Status updateNotification(
+        NotificationCenterState &state,
+        std::uint64_t id,
+        const OwnedNotificationDescription &description) noexcept
     {
         return applyNotification(state, id, description, false);
     }

@@ -138,39 +138,35 @@ void testFailureInjection(TestSupport::Context &context)
     const std::array pointerRegions{Desktop::Types::LogicalRect{{0, 0}, {16, 16}}};
     Desktop::Internal::TestHooks::failNext(FailurePoint::RegionCopy);
     const Desktop::Types::CustomChromeLayout chromeLayout{.draggableRegions = pointerRegions};
-    static_cast<void>(context.expectEq(
-        "region copy failure is translated",
-        ErrorCode::OutOfMemory,
-        window.setCustomChromeLayout(chromeLayout).status().code()));
+    static_cast<void>(
+        context.expectEq("region copy failure is translated", ErrorCode::OutOfMemory, window.setCustomChromeLayout(chromeLayout).status().code()));
 
     const std::array<std::byte, 4> pixel{std::byte{0x40}, std::byte{0x80}, std::byte{0xC0}, std::byte{0xFF}};
     const std::array iconImages{Desktop::Types::IconImageView{{1, 1}, pixel}};
     Desktop::Internal::TestHooks::failNext(FailurePoint::IconConversion);
-    static_cast<void>(context.expectEq("icon conversion failure is translated", ErrorCode::NativeFailure, window.setIcon(iconImages).status().code()));
+    static_cast<void>(
+        context.expectEq("icon conversion failure is translated", ErrorCode::NativeFailure, window.setIcon(iconImages).status().code()));
     static_cast<void>(context.expectTrue("icon operation recovers after failure", window.setIcon(iconImages).ok()));
     static_cast<void>(window.clearIcon());
 
     Desktop::Internal::TestHooks::failNext(FailurePoint::Cursor);
-    static_cast<void>(
-        context.expectEq(
-            "cursor failure is translated",
-            ErrorCode::NativeFailure,
-            window.setCursorMode(Desktop::Types::CursorMode::Confined).status().code()));
+    static_cast<void>(context.expectEq(
+        "cursor failure is translated",
+        ErrorCode::NativeFailure,
+        window.setCursorMode(Desktop::Types::CursorMode::Confined).status().code()));
     static_cast<void>(context.expectEq("failed cursor update rolls back cache", Desktop::Types::CursorMode::Normal, window.cursorMode()));
 
     // Display and fullscreen failures must restore the prior mode.
     Desktop::Internal::TestHooks::failNext(FailurePoint::MonitorQuery);
-    static_cast<void>(
-        context.expectEq(
-            "monitor query failure is translated",
-            GameWIP::Status::Types::Code::StatFailed,
-            Desktop::Display::getPrimaryMonitor().status().code()));
+    static_cast<void>(context.expectEq(
+        "monitor query failure is translated",
+        GameWIP::Status::Types::Code::StatFailed,
+        Desktop::Display::getPrimaryMonitor().status().code()));
     Desktop::Internal::TestHooks::failNext(FailurePoint::DisplayEnumeration);
-    static_cast<void>(
-        context.expectEq(
-            "display enumeration failure is translated",
-            GameWIP::Status::Types::Code::StatFailed,
-            Desktop::Display::getMonitors().status().code()));
+    static_cast<void>(context.expectEq(
+        "display enumeration failure is translated",
+        GameWIP::Status::Types::Code::StatFailed,
+        Desktop::Display::getMonitors().status().code()));
 
     const Desktop::Types::Display::MonitorId monitor = window.currentMonitor();
     static_cast<void>(context.expectTrue(
@@ -204,8 +200,10 @@ void testFailureInjection(TestSupport::Context &context)
         static_cast<void>(SendMessageW(callbackHandle.value().window, WM_SHOWWINDOW, FALSE, 0));
         Desktop::Internal::TestHooks::failNext(FailurePoint::Cursor);
         static_cast<void>(SendMessageW(callbackHandle.value().window, WM_SHOWWINDOW, TRUE, 0));
-        static_cast<void>(
-            context.expectEq("genuine callback failure is returned by the next pump", ErrorCode::NativeFailure, Desktop::Events::poll().status().code()));
+        static_cast<void>(context.expectEq(
+            "genuine callback failure is returned by the next pump",
+            ErrorCode::NativeFailure,
+            Desktop::Events::poll().status().code()));
         static_cast<void>(SendMessageW(callbackHandle.value().window, WM_SHOWWINDOW, FALSE, 0));
     }
 
@@ -263,8 +261,10 @@ void testThreadingContracts(TestSupport::Context &context)
 
     const Desktop::Types::Events::PumpResult wakeResult = Desktop::Events::wait(std::chrono::milliseconds{100});
     static_cast<void>(context.expectTrue("owner pump receives cross-thread wake", wakeResult.ok() && !wakeResult.value().timedOut));
-    static_cast<void>(
-        context.expectEq("reentrant event pump is rejected", ErrorCode::ResourceBusy, Desktop::Internal::TestHooks::pumpReentrantly().status().code()));
+    static_cast<void>(context.expectEq(
+        "reentrant event pump is rejected",
+        ErrorCode::ResourceBusy,
+        Desktop::Internal::TestHooks::pumpReentrantly().status().code()));
     static_cast<void>(context.expectTrue("threading fixture closes", window.close().ok()));
 }
 
@@ -302,8 +302,7 @@ void testExceptionalLifetime(TestSupport::Context &context)
             Desktop::Types::LifetimeState::NativeDestroyedPendingFinalize,
             unexpected.lifetimeState()));
         static_cast<void>(
-            context.expectEq(
-                "mutation while pending finalize reports NotOpen", ErrorCode::NotOpen, unexpected.setTitle("unused").status().code()));
+            context.expectEq("mutation while pending finalize reports NotOpen", ErrorCode::NotOpen, unexpected.setTitle("unused").status().code()));
         static_cast<void>(
             context.expectEq("reopen before finalization is rejected", ErrorCode::AlreadyOpen, unexpected.open(description).status().code()));
         static_cast<void>(context.expectEq(

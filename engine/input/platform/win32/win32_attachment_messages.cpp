@@ -18,10 +18,7 @@
 
 namespace GameWIP::Input::Platform::Win32
 {
-    GameWIP::Status::Types::Result<bool> Attachment::handleMessage(
-        std::uint32_t message,
-        std::uint64_t wParam,
-        std::int64_t lParam) noexcept
+    GameWIP::Status::Types::Result<bool> Attachment::handleMessage(std::uint32_t message, std::uint64_t wParam, std::int64_t lParam) noexcept
     {
         bool handled = false;
         const GameWIP::Status::Types::Status operationStatus = handleMessageStatus(message, wParam, lParam, handled);

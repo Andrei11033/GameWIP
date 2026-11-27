@@ -526,7 +526,8 @@ namespace GameWIP::Desktop::Platform
                 }
                 RECT desiredOuter{0, 0, static_cast<LONG>(desiredClient.width), static_cast<LONG>(desiredClient.height)};
                 LONG_PTR styleValue = 0;
-                GameWIP::Status::Types::Status styleStatus = queryWindowLong(window, GWL_STYLE, styleValue, "GetWindowLongPtrW failed during DPI transition");
+                GameWIP::Status::Types::Status styleStatus =
+                    queryWindowLong(window, GWL_STYLE, styleValue, "GetWindowLongPtrW failed during DPI transition");
                 LONG_PTR extendedStyleValue = 0;
                 GameWIP::Status::Types::Status extendedStyleStatus =
                     queryWindowLong(window, GWL_EXSTYLE, extendedStyleValue, "GetWindowLongPtrW failed during DPI transition");

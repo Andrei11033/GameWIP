@@ -294,7 +294,10 @@ namespace GameWIP::Desktop::Platform
         }
 
         /// @brief Returns the original transition failure unless rollback also failed.
-        [[nodiscard]] GameWIP::Status::Types::Status failWithRollback(WindowState &state, ModeSnapshot &snapshot, GameWIP::Status::Types::Status failure) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status failWithRollback(
+            WindowState &state,
+            ModeSnapshot &snapshot,
+            GameWIP::Status::Types::Status failure) noexcept
         {
             GameWIP::Status::Types::Status rollback = restoreModeSnapshot(state, snapshot);
             return rollback.ok() ? std::move(failure) : std::move(rollback);

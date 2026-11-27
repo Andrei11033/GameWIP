@@ -28,9 +28,8 @@ void testFileHelpers(TestSupport::Context &context, const std::filesystem::path 
     static_cast<void>(context.expectFalse("fileContains missing file has no result value", missingContains.hasValue()));
 
     const TestSupport::Types::BoolResult existingDirectoryResult = TestSupport::fileExists(existingDirectory);
-    static_cast<void>(context.expectTrue(
-        "createDirectories produces an inspectable directory",
-        existingDirectoryResult.ok() && existingDirectoryResult.value()));
+    static_cast<void>(
+        context.expectTrue("createDirectories produces an inspectable directory", existingDirectoryResult.ok() && existingDirectoryResult.value()));
 
     const TestSupport::Types::TextResult readResult = TestSupport::readTextFile(path);
     static_cast<void>(context.expectTrue("readTextFile succeeds", readResult.ok()));
@@ -81,8 +80,7 @@ void testFileHelpers(TestSupport::Context &context, const std::filesystem::path 
         const TestSupport::Types::BoolResult firstExists = TestSupport::fileExists(firstTemporaryPath);
         static_cast<void>(context.expectTrue("ScopedTemporaryDirectory creates its directory", firstExists.ok() && firstExists.value()));
         const TestSupport::Types::BoolResult artifactExists = TestSupport::fileExists(firstTemporaryPath / "nested" / "artifact.txt");
-        static_cast<void>(
-            context.expectTrue("ScopedTemporaryDirectory supports nested artifacts", artifactExists.ok() && artifactExists.value()));
+        static_cast<void>(context.expectTrue("ScopedTemporaryDirectory supports nested artifacts", artifactExists.ok() && artifactExists.value()));
         static_cast<void>(context.expectNe("ScopedTemporaryDirectory paths are unique", firstTemporaryPath, secondTemporaryPath));
     }
     const TestSupport::Types::BoolResult firstRemoved = TestSupport::fileExists(firstTemporaryPath);
@@ -208,7 +206,8 @@ void testUtf8TextFileContracts(TestSupport::Context &context, const std::filesys
         malformedNoSideEffect.status().code()));
     const TestSupport::Types::BoolResult malformedParentExists = TestSupport::fileExists(malformedParent);
     static_cast<void>(context.expectTrue("malformed rejection parent inspection succeeds", malformedParentExists.ok()));
-    static_cast<void>(context.expectFalse("malformed rejection does not create parent directory", malformedParentExists.ok() && malformedParentExists.value()));
+    static_cast<void>(
+        context.expectFalse("malformed rejection does not create parent directory", malformedParentExists.ok() && malformedParentExists.value()));
 
     const std::filesystem::path incompleteParent = root / "utf8" / "incomplete-not-created";
     const TestSupport::Types::Result<void> incompleteNoSideEffect = TestSupport::writeTextFile(incompleteParent / "bad.txt", incomplete);
@@ -218,5 +217,6 @@ void testUtf8TextFileContracts(TestSupport::Context &context, const std::filesys
         incompleteNoSideEffect.status().code()));
     const TestSupport::Types::BoolResult incompleteParentExists = TestSupport::fileExists(incompleteParent);
     static_cast<void>(context.expectTrue("incomplete rejection parent inspection succeeds", incompleteParentExists.ok()));
-    static_cast<void>(context.expectFalse("incomplete rejection does not create parent directory", incompleteParentExists.ok() && incompleteParentExists.value()));
+    static_cast<void>(
+        context.expectFalse("incomplete rejection does not create parent directory", incompleteParentExists.ok() && incompleteParentExists.value()));
 }

@@ -97,9 +97,8 @@ namespace
     void logDisplayQueryFailure(Display::MonitorId monitor, std::string_view query, const GameWIP::Status::Types::Status &status)
     {
         const GameWIP::Status::Types::Diagnostic *diagnostic = status.diagnostic();
-        const std::string_view message = diagnostic != nullptr && !diagnostic->message.empty()
-                                             ? std::string_view{diagnostic->message}
-                                             : std::string_view{"<none>"};
+        const std::string_view message =
+            diagnostic != nullptr && !diagnostic->message.empty() ? std::string_view{diagnostic->message} : std::string_view{"<none>"};
         Logger::Record fields = Logger::record()
                                     .field("monitor_id", monitor.value)
                                     .field("query", query)
@@ -110,10 +109,7 @@ namespace
             fields.field("native_code_domain", GameWIP::Status::Types::nativeCodeDomainName(diagnostic->nativeCode->domain))
                 .field("native_code", diagnostic->nativeCode->value);
         }
-        Logger::warn(
-            Logging::Area::Display,
-            std::move(fields),
-            "Display query failed");
+        Logger::warn(Logging::Area::Display, std::move(fields), "Display query failed");
     }
 
     void addModeFields(
@@ -274,9 +270,7 @@ namespace GameWIP::Game
 
         Logger::debug(
             Logging::Area::Display,
-            Logger::record()
-                .field("connected_display_count", monitors.value().size())
-                .field("enumeration_complete", monitors.ok()),
+            Logger::record().field("connected_display_count", monitors.value().size()).field("enumeration_complete", monitors.ok()),
             monitors.ok() ? "Connected displays enumerated" : "Connected displays partially enumerated");
         const bool logDebug = Logger::shouldLog(Logger::Types::Level::Debug, Logging::Area::Display);
         const bool logTrace = Logger::shouldLog(Logger::Types::Level::Trace, Logging::Area::Display);

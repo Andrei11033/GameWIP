@@ -782,7 +782,10 @@ namespace GameWIP::Terminal::Platform
 
                 if(written == 0)
                 {
-                    return GameWIP::Terminal::Internal::backendStatus(ErrorCode::WriteFailed, 0, "WriteConsoleW accepted no characters before completing terminal output.");
+                    return GameWIP::Terminal::Internal::backendStatus(
+                        ErrorCode::WriteFailed,
+                        0,
+                        "WriteConsoleW accepted no characters before completing terminal output.");
                 }
                 totalWritten += written;
             }
@@ -812,7 +815,10 @@ namespace GameWIP::Terminal::Platform
                 if(written == 0)
                 {
                     return {
-                        .status = GameWIP::Terminal::Internal::backendStatus(ErrorCode::PartialWrite, 0, "WriteFile accepted no bytes before completing terminal output."),
+                        .status = GameWIP::Terminal::Internal::backendStatus(
+                            ErrorCode::PartialWrite,
+                            0,
+                            "WriteFile accepted no bytes before completing terminal output."),
                         .bytesWritten = totalWritten};
                 }
 
@@ -825,7 +831,8 @@ namespace GameWIP::Terminal::Platform
         /// @brief Writes UTF-8 bytes unchanged to a redirected handle.
         [[nodiscard]] GameWIP::Status::Types::Status writeFileText(HANDLE handle, std::string_view text)
         {
-            const GameWIP::Terminal::Internal::ByteWriteResult result = writeFileBytes(handle, std::as_bytes(std::span<const char>(text.data(), text.size())));
+            const GameWIP::Terminal::Internal::ByteWriteResult result =
+                writeFileBytes(handle, std::as_bytes(std::span<const char>(text.data(), text.size())));
             return result.status();
         }
 
@@ -1557,7 +1564,10 @@ namespace GameWIP::Terminal::Platform
             if(timeout.count() >= 0 && fileType(handle) != FILE_TYPE_PIPE)
             {
                 return {
-                    .status = GameWIP::Terminal::Internal::backendStatus(ErrorCode::Unsupported, 0, "Finite reads are supported only for redirected Win32 pipe input."),
+                    .status = GameWIP::Terminal::Internal::backendStatus(
+                        ErrorCode::Unsupported,
+                        0,
+                        "Finite reads are supported only for redirected Win32 pipe input."),
                     .outcome = ReadOutcome::Completed,
                     .bytes = {}};
             }
@@ -1649,7 +1659,10 @@ namespace GameWIP::Terminal::Platform
         /// @brief Moves the largest complete UTF-8 prefix within the limit and leaves unread bytes pending.
         /// @details Returning SizeLimitExceeded when even one complete code point cannot fit prevents callers from ever
         /// receiving a partial UTF-8 encoding.
-        [[nodiscard]] GameWIP::Status::Types::Status copyTruncatedUtf8Prefix(std::string &outText, PendingInputBuffer &pendingBytes, std::size_t maxBytes)
+        [[nodiscard]] GameWIP::Status::Types::Status copyTruncatedUtf8Prefix(
+            std::string &outText,
+            PendingInputBuffer &pendingBytes,
+            std::size_t maxBytes)
         {
             const Utf8Prefix prefix = utf8Prefix(pendingBytes.view(), maxBytes);
 
@@ -1660,7 +1673,10 @@ namespace GameWIP::Terminal::Platform
 
             if(prefix.bytes == 0 && prefix.stoppedByMax)
             {
-                return GameWIP::Terminal::Internal::backendStatus(ErrorCode::SizeLimitExceeded, 0, "Terminal read maxReturnedBytes is too small for the next UTF-8 code point.");
+                return GameWIP::Terminal::Internal::backendStatus(
+                    ErrorCode::SizeLimitExceeded,
+                    0,
+                    "Terminal read maxReturnedBytes is too small for the next UTF-8 code point.");
             }
             outText.assign(pendingBytes.data(), prefix.bytes);
             pendingBytes.consume(prefix.bytes);
@@ -1703,7 +1719,8 @@ namespace GameWIP::Terminal::Platform
             {
                 if(!validUtf8(line))
                 {
-                    result.status = GameWIP::Terminal::Internal::backendStatus(ErrorCode::EncodingFailed, 0, "Terminal line input is not valid UTF-8.");
+                    result.status =
+                        GameWIP::Terminal::Internal::backendStatus(ErrorCode::EncodingFailed, 0, "Terminal line input is not valid UTF-8.");
                     return;
                 }
                 pendingBytes.consume(ending.offset + ending.length);
@@ -1946,7 +1963,10 @@ namespace GameWIP::Terminal::Platform
     {
         if(amount > kMaxVtParameter)
         {
-            return GameWIP::Terminal::Internal::backendStatus(ErrorCode::InvalidArgument, 0, "Terminal cursor movement exceeds the Win32 VT parameter limit.");
+            return GameWIP::Terminal::Internal::backendStatus(
+                ErrorCode::InvalidArgument,
+                0,
+                "Terminal cursor movement exceeds the Win32 VT parameter limit.");
         }
 
         return GameWIP::Status::Types::Status{};
@@ -1956,7 +1976,10 @@ namespace GameWIP::Terminal::Platform
     {
         if(position.row >= kMaxVtParameter || position.column >= kMaxVtParameter)
         {
-            return GameWIP::Terminal::Internal::backendStatus(ErrorCode::InvalidArgument, 0, "Terminal cursor position exceeds the Win32 VT coordinate limit.");
+            return GameWIP::Terminal::Internal::backendStatus(
+                ErrorCode::InvalidArgument,
+                0,
+                "Terminal cursor position exceeds the Win32 VT coordinate limit.");
         }
 
         return GameWIP::Status::Types::Status{};
@@ -1966,7 +1989,10 @@ namespace GameWIP::Terminal::Platform
     {
         if(lines > kMaxVtParameter)
         {
-            return GameWIP::Terminal::Internal::backendStatus(ErrorCode::InvalidArgument, 0, "Terminal scroll amount exceeds the Win32 VT parameter limit.");
+            return GameWIP::Terminal::Internal::backendStatus(
+                ErrorCode::InvalidArgument,
+                0,
+                "Terminal scroll amount exceeds the Win32 VT parameter limit.");
         }
 
         return GameWIP::Status::Types::Status{};
@@ -2021,10 +2047,11 @@ namespace GameWIP::Terminal::Platform
 
         if(!isConsoleHandle(handle))
         {
-            return InputModeSnapshotResult::failure(GameWIP::Terminal::Internal::backendStatus(
-                ErrorCode::Unsupported,
-                0,
-                "Terminal input mode is available only for real console input streams."));
+            return InputModeSnapshotResult::failure(
+                GameWIP::Terminal::Internal::backendStatus(
+                    ErrorCode::Unsupported,
+                    0,
+                    "Terminal input mode is available only for real console input streams."));
         }
 
         DWORD mode = 0;
@@ -2046,7 +2073,10 @@ namespace GameWIP::Terminal::Platform
     {
         if(mode.echoInput && !mode.lineBuffered)
         {
-            return GameWIP::Terminal::Internal::backendStatus(ErrorCode::InvalidArgument, 0, "Win32 console echo input requires line-buffered input.");
+            return GameWIP::Terminal::Internal::backendStatus(
+                ErrorCode::InvalidArgument,
+                0,
+                "Win32 console echo input requires line-buffered input.");
         }
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
@@ -2082,7 +2112,10 @@ namespace GameWIP::Terminal::Platform
 
         if(!isConsoleHandle(handle))
         {
-            return GameWIP::Terminal::Internal::backendStatus(ErrorCode::Unsupported, 0, "Terminal input mode is available only for real console input streams.");
+            return GameWIP::Terminal::Internal::backendStatus(
+                ErrorCode::Unsupported,
+                0,
+                "Terminal input mode is available only for real console input streams.");
         }
 
         DWORD consoleMode = 0;
@@ -2163,7 +2196,10 @@ namespace GameWIP::Terminal::Platform
 
         if(!isConsoleHandle(handle))
         {
-            return GameWIP::Terminal::Internal::backendStatus(ErrorCode::Unsupported, 0, "Terminal input mode is available only for real console input streams.");
+            return GameWIP::Terminal::Internal::backendStatus(
+                ErrorCode::Unsupported,
+                0,
+                "Terminal input mode is available only for real console input streams.");
         }
 
         if(!snapshot.hasNativeMode || snapshot.nativeMode > std::numeric_limits<DWORD>::max())
@@ -2219,7 +2255,10 @@ namespace GameWIP::Terminal::Platform
 
         if(!isConsoleHandle(handle))
         {
-            result.status = GameWIP::Terminal::Internal::backendStatus(ErrorCode::Unsupported, 0, "Terminal size is available only for real console output streams.");
+            result.status = GameWIP::Terminal::Internal::backendStatus(
+                ErrorCode::Unsupported,
+                0,
+                "Terminal size is available only for real console output streams.");
             return result;
         }
 
@@ -2288,7 +2327,10 @@ namespace GameWIP::Terminal::Platform
 
         if(!isConsoleHandle(handle))
         {
-            result.status = GameWIP::Terminal::Internal::backendStatus(ErrorCode::Unsupported, 0, "Cursor position is available only for real console output streams.");
+            result.status = GameWIP::Terminal::Internal::backendStatus(
+                ErrorCode::Unsupported,
+                0,
+                "Cursor position is available only for real console output streams.");
             return result;
         }
 
@@ -2351,7 +2393,10 @@ namespace GameWIP::Terminal::Platform
 
         if(!isConsoleHandle(handle))
         {
-            result.status = GameWIP::Terminal::Internal::backendStatus(ErrorCode::Unsupported, 0, "Managed line rendering requires a real console output stream.");
+            result.status = GameWIP::Terminal::Internal::backendStatus(
+                ErrorCode::Unsupported,
+                0,
+                "Managed line rendering requires a real console output stream.");
             return result;
         }
 
@@ -2397,7 +2442,10 @@ namespace GameWIP::Terminal::Platform
         if(position.column > static_cast<std::uint32_t>(std::numeric_limits<SHORT>::max()) ||
            position.row > static_cast<std::uint32_t>(std::numeric_limits<SHORT>::max()))
         {
-            return GameWIP::Terminal::Internal::backendStatus(ErrorCode::InvalidArgument, 0, "Managed line rendering cursor position exceeds Win32 limits.");
+            return GameWIP::Terminal::Internal::backendStatus(
+                ErrorCode::InvalidArgument,
+                0,
+                "Managed line rendering cursor position exceeds Win32 limits.");
         }
 
         const HANDLE handle = outputHandle(stream);
@@ -2409,7 +2457,10 @@ namespace GameWIP::Terminal::Platform
 
         if(!isConsoleHandle(handle))
         {
-            return GameWIP::Terminal::Internal::backendStatus(ErrorCode::Unsupported, 0, "Managed line rendering requires a real console output stream.");
+            return GameWIP::Terminal::Internal::backendStatus(
+                ErrorCode::Unsupported,
+                0,
+                "Managed line rendering requires a real console output stream.");
         }
 
         const COORD nativePosition{static_cast<SHORT>(position.column), static_cast<SHORT>(position.row)};
@@ -2492,7 +2543,10 @@ namespace GameWIP::Terminal::Platform
 
         if(!isConsoleHandle(handle))
         {
-            result.status = GameWIP::Terminal::Internal::backendStatus(ErrorCode::Unsupported, 0, "Structured event input requires a real Win32 console input stream.");
+            result.status = GameWIP::Terminal::Internal::backendStatus(
+                ErrorCode::Unsupported,
+                0,
+                "Structured event input requires a real Win32 console input stream.");
             return result;
         }
 
@@ -2578,7 +2632,10 @@ namespace GameWIP::Terminal::Platform
 
         if(options.maxReturnedBytes == 0)
         {
-            result.status = GameWIP::Terminal::Internal::backendStatus(ErrorCode::InvalidArgument, 0, "Terminal text read maxReturnedBytes must be greater than zero.");
+            result.status = GameWIP::Terminal::Internal::backendStatus(
+                ErrorCode::InvalidArgument,
+                0,
+                "Terminal text read maxReturnedBytes must be greater than zero.");
             return result;
         }
         const std::size_t maxBytes = clampedMaxBytes(options.maxReturnedBytes);
@@ -2644,7 +2701,10 @@ namespace GameWIP::Terminal::Platform
             {
                 if(!state.pendingBytes.empty() && chunk.outcome == ReadOutcome::EndOfStream)
                 {
-                    result.status = GameWIP::Terminal::Internal::backendStatus(ErrorCode::EncodingFailed, 0, "Terminal input ended in the middle of a UTF-8 code point.");
+                    result.status = GameWIP::Terminal::Internal::backendStatus(
+                        ErrorCode::EncodingFailed,
+                        0,
+                        "Terminal input ended in the middle of a UTF-8 code point.");
                     result.outcome = chunk.outcome;
                     return result;
                 }
@@ -2662,7 +2722,10 @@ namespace GameWIP::Terminal::Platform
 
         if(options.maxReturnedBytes == 0)
         {
-            result.status = GameWIP::Terminal::Internal::backendStatus(ErrorCode::InvalidArgument, 0, "Terminal line read maxReturnedBytes must be greater than zero.");
+            result.status = GameWIP::Terminal::Internal::backendStatus(
+                ErrorCode::InvalidArgument,
+                0,
+                "Terminal line read maxReturnedBytes must be greater than zero.");
             return result;
         }
         const std::size_t maxBytes = clampedMaxBytes(options.maxReturnedBytes);
@@ -2713,7 +2776,8 @@ namespace GameWIP::Terminal::Platform
                 {
                     if(!validUtf8(state.pendingBytes.view()))
                     {
-                        result.status = GameWIP::Terminal::Internal::backendStatus(ErrorCode::EncodingFailed, 0, "Terminal line input is not valid UTF-8.");
+                        result.status =
+                            GameWIP::Terminal::Internal::backendStatus(ErrorCode::EncodingFailed, 0, "Terminal line input is not valid UTF-8.");
                     }
                     else
                     {
@@ -2747,7 +2811,8 @@ namespace GameWIP::Terminal::Platform
                 {
                     if(!validUtf8(state.pendingBytes.view()))
                     {
-                        result.status = GameWIP::Terminal::Internal::backendStatus(ErrorCode::EncodingFailed, 0, "Terminal line input is not valid UTF-8.");
+                        result.status =
+                            GameWIP::Terminal::Internal::backendStatus(ErrorCode::EncodingFailed, 0, "Terminal line input is not valid UTF-8.");
                         result.outcome = chunk.outcome;
                         return result;
                     }
@@ -2849,10 +2914,9 @@ namespace GameWIP::Terminal::Platform
 
         if(isConsoleHandle(handle))
         {
-            return GameWIP::Status::Types::Result<IO::Types::WriteProgress>::failure(GameWIP::Terminal::Internal::backendStatus(
-                ErrorCode::Unsupported,
-                0,
-                "Byte output is unsupported for real Windows console streams."), {.bytesWritten = 0});
+            return GameWIP::Status::Types::Result<IO::Types::WriteProgress>::failure(
+                GameWIP::Terminal::Internal::backendStatus(ErrorCode::Unsupported, 0, "Byte output is unsupported for real Windows console streams."),
+                {.bytesWritten = 0});
         }
 
         return writeFileBytes(handle, bytes);

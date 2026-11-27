@@ -41,7 +41,12 @@ namespace
         if(!result.ok())
         {
             const auto *diagnostic = result.status().diagnostic();
-            context.fail(name, std::format("existence query failed: code={} detail={}", static_cast<int>(result.status().code()), diagnostic == nullptr ? "" : diagnostic->message));
+            context.fail(
+                name,
+                std::format(
+                    "existence query failed: code={} detail={}",
+                    static_cast<int>(result.status().code()),
+                    diagnostic == nullptr ? "" : diagnostic->message));
             return;
         }
 
@@ -104,15 +109,15 @@ namespace
 
         if(commitPaused)
         {
-            static_cast<void>(
-                context.expectTrue("source can be recreated after commit", FileSystem::writeAllText(commitSource, "replacement").ok()));
+            static_cast<void>(context.expectTrue("source can be recreated after commit", FileSystem::writeAllText(commitSource, "replacement").ok()));
             static_cast<void>(context.expectTrue("destination can be removed after commit", FileSystem::removeFile(commitDestination).ok()));
         }
 
         FileSystem::Internal::TestHooks::Win32::releaseMovePause();
         commitThread.join();
 
-        static_cast<void>(context.expectTrue("native commit remains successful after namespace mutation", committedResult.has_value() && committedResult->ok()));
+        static_cast<void>(
+            context.expectTrue("native commit remains successful after namespace mutation", committedResult.has_value() && committedResult->ok()));
         const auto recreatedSource = FileSystem::readAllText(commitSource);
         static_cast<void>(context.expectTrue("recreated source query succeeds", recreatedSource.ok()));
         if(recreatedSource.ok())

@@ -114,7 +114,9 @@ namespace GameWIP::TestSupport::Internal
 
             if(!report_ || !report_.is_open())
             {
-                disableReport("report output failed while writing", GameWIP::Status::Types::Status(GameWIP::Status::Types::Code::FileOperationFailed));
+                disableReport(
+                    "report output failed while writing",
+                    GameWIP::Status::Types::Status(GameWIP::Status::Types::Code::FileOperationFailed));
             }
         }
     }

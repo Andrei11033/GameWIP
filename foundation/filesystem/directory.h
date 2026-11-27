@@ -150,27 +150,34 @@ namespace GameWIP::FileSystem
     /// @param path Directory path.
     /// @param options Existing-directory and symlink traversal behavior.
     /// @return Success or a validation, conflict, permission, or directory-creation failure status.
-    [[nodiscard]] GameWIP::Status::Types::Result<void> createDirectory(const Types::Path &path, const Types::Directory::CreateOptions &options = {}) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<void> createDirectory(
+        const Types::Path &path,
+        const Types::Directory::CreateOptions &options = {}) noexcept;
 
     /// @brief Creates a directory and any missing parent directories.
     /// @param path Directory path.
     /// @param options Existing-directory and symlink traversal behavior.
     /// @return Success or a validation, conflict, permission, or directory-creation failure status.
-    [[nodiscard]] GameWIP::Status::Types::Result<void> createDirectories(const Types::Path &path, const Types::Directory::CreateOptions &options = {}) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<void> createDirectories(
+        const Types::Path &path,
+        const Types::Directory::CreateOptions &options = {}) noexcept;
 
     /// @brief Lists direct children of a directory in backend/native order.
     /// @param path Directory path.
     /// @param options Filtering, symlink, hidden-entry, and entry-limit behavior.
     /// @return Collected accepted child entries and final status. Filtering precedes maxEntries counting; an additional
     /// matching child beyond the accepted limit returns SizeLimitExceeded with the partial entries retained.
-    [[nodiscard]] GameWIP::Status::Types::Result<std::vector<Types::Directory::Entry>>
-    listDirectory(const Types::Path &path, const Types::Directory::ListOptions &options = {}) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<std::vector<Types::Directory::Entry>> listDirectory(
+        const Types::Path &path,
+        const Types::Directory::ListOptions &options = {}) noexcept;
 
     /// @brief Removes one empty directory.
     /// @param path Directory path.
     /// @param options Missing-target and symlink behavior.
     /// @return Success, DirectoryNotEmpty, or another validation, lookup, type, permission, or removal failure status.
-    [[nodiscard]] GameWIP::Status::Types::Result<void> removeEmptyDirectory(const Types::Path &path, const Types::RemoveOptions &options = {}) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<void> removeEmptyDirectory(
+        const Types::Path &path,
+        const Types::RemoveOptions &options = {}) noexcept;
 
     /// @brief Recursively removes a directory tree without following discovered symlinked directories.
     /// @details Drive and UNC share roots are containers: their contents are removed, but the root remains.

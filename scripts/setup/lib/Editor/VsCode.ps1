@@ -44,24 +44,12 @@ function Get-GameWipEditorFailure
                 }
                 $workflowPackagePath = Join-Path $RepositoryRoot 'scripts/setup/editor/gamewip-workflows/package.json'
                 $workflowPackage = Get-Content -LiteralPath $workflowPackagePath -Raw | ConvertFrom-Json
-                $expectedWorkflowExtension = "$($workflowPackage.publisher).$($workflowPackage.name)@$($workflowPackage.version)"
-                $extensionQuery = Invoke-GameWipProcess `
-                    -FilePath $codePath `
-                    -Arguments @('--list-extensions', '--show-versions') `
-                    -OutputMode LogOnly `
-                    -TimeoutSeconds 30
+                $workflowExtensionId = "$($workflowPackage.publisher).$($workflowPackage.name)"
+                $workflowExtensionPath = Join-Path $extensionRoot "$workflowExtensionId-$($workflowPackage.version)"
 
-                if ($extensionQuery.ExitCode -ne 0)
+                if (-not (Test-Path -LiteralPath $workflowExtensionPath -PathType Container))
                 {
-                    $failures.Add("Visual Studio Code extension discovery failed with exit code $($extensionQuery.ExitCode).")
-                    continue
-                }
-
-                $installedExtensions = @($extensionQuery.Stdout)
-
-                if ($installedExtensions -notcontains $expectedWorkflowExtension)
-                {
-                    $failures.Add("The required GameWIP VS Code workflow extension is missing: $expectedWorkflowExtension")
+                    $failures.Add("The required GameWIP VS Code workflow extension is missing: $workflowExtensionId@$($workflowPackage.version)")
                 }
 
                 # Confirm that the managed keybinding block is present.
@@ -102,7 +90,8 @@ function Install-GameWipEditorIntegration
 {
     param(
         [Parameter(Mandatory = $true)][string]$RepositoryRoot,
-        [Parameter(Mandatory = $true)][string[]]$Extensions
+        [Parameter(Mandatory = $true)][string[]]$Extensions,
+        [switch]$Update
     )
 
     $codePath = Resolve-GameWipSetupCommand -Name 'code'
@@ -112,18 +101,29 @@ function Install-GameWipEditorIntegration
         throw 'Visual Studio Code is unavailable; editor integration cannot be applied.'
     }
 
-    # Install declared marketplace extensions and record new ownership.
+    $extensionRoot = Get-GameWipVsCodeExtensionRoot
+    $installedExtensionDirectories = @(
+        Get-ChildItem -LiteralPath $extensionRoot -Directory -ErrorAction SilentlyContinue
+    )
+
+    # Install missing marketplace extensions and record new ownership.
     foreach ($extension in $Extensions)
     {
-        Write-Host "  Checking Visual Studio Code extension: $extension"
-        $extensionQuery = Invoke-GameWipProcess -FilePath $codePath -Arguments @('--list-extensions') -OutputMode LogOnly -TimeoutSeconds 30
+        $installedExtension = $installedExtensionDirectories |
+            Where-Object {
+                $_.Name -ieq $extension -or
+                $_.Name.StartsWith("$extension-", [System.StringComparison]::OrdinalIgnoreCase)
+            } |
+            Select-Object -First 1
+        $installedBefore = $null -ne $installedExtension
 
-        if ($extensionQuery.ExitCode -ne 0)
+        if ($installedBefore -and -not $Update)
         {
-            throw "Visual Studio Code extension discovery failed with exit code $($extensionQuery.ExitCode)."
+            Write-Host "  Ready: Visual Studio Code extension $extension"
+            continue
         }
 
-        $installedBefore = @($extensionQuery.Stdout) -contains $extension
+        Write-Host "  Installing Visual Studio Code extension: $extension"
         Invoke-GameWipSetupNative -FilePath $codePath -ArgumentList @('--install-extension', $extension, '--force') | Out-Null
 
         if (-not $installedBefore)
@@ -141,29 +141,21 @@ function Install-GameWipEditorIntegration
         throw 'Editor integration requires an initialized GameWIP operation-temp directory.'
     }
 
-    $vsixPath = Join-Path $Script:OperationContext.Temp 'gamewip-workflows.vsix'
-    Invoke-GameWipVsCodeExtensionPackaging -ExtensionSource $source -Destination $vsixPath
     $extensionId = "$($package.publisher).$($package.name)"
-    Write-Host "  Installing Visual Studio Code extension package: $vsixPath"
-    Invoke-GameWipSetupNative -FilePath $codePath -ArgumentList @('--install-extension', $vsixPath, '--force') | Out-Null
+    $workflowExtensionPath = Join-Path $extensionRoot "$extensionId-$($package.version)"
 
-    # Verify the installed extension version before adding keybindings.
-    $extensionQuery = Invoke-GameWipProcess `
-        -FilePath $codePath `
-        -Arguments @('--list-extensions', '--show-versions') `
-        -OutputMode LogOnly `
-        -TimeoutSeconds 30
-
-    if ($extensionQuery.ExitCode -ne 0)
+    if ($Update -or -not (Test-Path -LiteralPath $workflowExtensionPath -PathType Container))
     {
-        throw "Visual Studio Code extension verification failed with exit code $($extensionQuery.ExitCode)."
+        $vsixPath = Join-Path $Script:OperationContext.Temp 'gamewip-workflows.vsix'
+        Invoke-GameWipVsCodeExtensionPackaging -ExtensionSource $source -Destination $vsixPath
+        Write-Host "  Installing Visual Studio Code extension package: $vsixPath"
+        Invoke-GameWipSetupNative -FilePath $codePath -ArgumentList @('--install-extension', $vsixPath, '--force') | Out-Null
     }
 
-    $installedExtensions = @($extensionQuery.Stdout)
-
-    if (-not ($installedExtensions | Where-Object { $_ -eq "$extensionId@$($package.version)" }))
+    # Verify the installed extension version before adding keybindings.
+    if (-not (Test-Path -LiteralPath $workflowExtensionPath -PathType Container))
     {
-        throw "Visual Studio Code did not report the expected extension after installation: $extensionId@$($package.version)"
+        throw "Visual Studio Code did not install the expected workflow extension: $extensionId@$($package.version)"
     }
 
     Install-GameWipVsCodeKeybinding -ExtensionSource $source

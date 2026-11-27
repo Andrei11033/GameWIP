@@ -57,7 +57,10 @@ namespace GameWIP::Desktop::Platform
             {
                 if(!utf8ToUtf16(literal->text, text, nativeCode))
                 {
-                    return GameWIP::Desktop::Internal::statusFor(ErrorCode::EncodingFailed, nativeCode, GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
+                    return GameWIP::Desktop::Internal::statusFor(
+                        ErrorCode::EncodingFailed,
+                        nativeCode,
+                        GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
                 }
                 return GameWIP::Status::Types::Status{};
             }
@@ -74,7 +77,10 @@ namespace GameWIP::Desktop::Platform
                 {
                     if(!utf8ToUtf16(uri->uri, text, nativeCode))
                     {
-                        return GameWIP::Desktop::Internal::statusFor(ErrorCode::EncodingFailed, nativeCode, GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
+                        return GameWIP::Desktop::Internal::statusFor(
+                            ErrorCode::EncodingFailed,
+                            nativeCode,
+                            GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
                     }
                     return GameWIP::Status::Types::Status{};
                 }

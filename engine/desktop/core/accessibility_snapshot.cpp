@@ -293,7 +293,8 @@ namespace GameWIP::Desktop::Accessibility
     {
         if(generation == 0)
         {
-            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::InvalidArgument));
+            return GameWIP::Status::Types::Result<void>::failure(
+                GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::InvalidArgument));
         }
 
         try
@@ -315,7 +316,8 @@ namespace GameWIP::Desktop::Accessibility
     {
         if(root == 0)
         {
-            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::InvalidArgument));
+            return GameWIP::Status::Types::Result<void>::failure(
+                GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::InvalidArgument));
         }
 
         try
@@ -345,19 +347,22 @@ namespace GameWIP::Desktop::Accessibility
 
         if(limitsValidation.value().issue == A::ValidationIssue::InvalidLimits || node.id == 0)
         {
-            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::InvalidArgument));
+            return GameWIP::Status::Types::Result<void>::failure(
+                GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::InvalidArgument));
         }
 
         try
         {
             if(state_ && state_->nodes.size() >= limits_.maximumNodes)
             {
-                return GameWIP::Status::Types::Result<void>::failure(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::SizeLimitExceeded));
+                return GameWIP::Status::Types::Result<void>::failure(
+                    GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::SizeLimitExceeded));
             }
 
             if(state_ && state_->nodeIds.contains(node.id))
             {
-                return GameWIP::Status::Types::Result<void>::failure(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::InvalidArgument));
+                return GameWIP::Status::Types::Result<void>::failure(
+                    GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::InvalidArgument));
             }
 
             // Check per-node and aggregate copy budgets before deep-copying views.
@@ -365,7 +370,8 @@ namespace GameWIP::Desktop::Accessibility
 
             if(!boundedNode(node, limits_, bytes))
             {
-                return GameWIP::Status::Types::Result<void>::failure(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::SizeLimitExceeded));
+                return GameWIP::Status::Types::Result<void>::failure(
+                    GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::SizeLimitExceeded));
             }
             auto owned = std::make_shared<Internal::OwnedAccessibilityNode>(node);
 
@@ -396,7 +402,8 @@ namespace GameWIP::Desktop::Accessibility
         }
         catch(...)
         {
-            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::SizeLimitExceeded));
+            return GameWIP::Status::Types::Result<void>::failure(
+                GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::SizeLimitExceeded));
         }
     }
 

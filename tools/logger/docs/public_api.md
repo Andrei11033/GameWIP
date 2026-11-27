@@ -14,7 +14,9 @@ metadata, `logger/message_format.h` for message-color helpers,
 
 - `Level`: `Trace`, `Debug`, `Info`, `Warn`, `Error`, `Fatal`.
 - `OutputMode`: `None`, `Console`, `File`, `Both`.
-- `Init::Result`: shared operation status plus optional lifecycle details, including outcome, adjustments, requested/effective output, and recovered setup failure.
+- `Init::Result`: shared operation status plus optional lifecycle details,
+  including outcome, adjustments, requested/effective output, and recovered
+  setup failure.
 - `FlushResult`: shared operation status plus `Completed`/`TimedOut` details.
 - `Report::Result`: shared operation status plus `Completed`/`TimedOut` and `None`/`Partial`/`Complete` delivery details.
 - `Health::Snapshot`: coherent current health and compact last-failure metadata.

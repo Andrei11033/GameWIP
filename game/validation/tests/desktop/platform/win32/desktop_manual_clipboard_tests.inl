@@ -173,7 +173,7 @@ void testManualClipboard(TestSupport::Context &context, const GameWIP::Test::Des
             GameWIP::Test::Internal::pathToUtf8(context, bitmapFile, "format clipboard bitmap path")),
         [&]
         {
-        paintManualImagePreview(window, image);
+            paintManualImagePreview(window, image);
         });
 
     if(imageCopied == TestSupport::Types::Reporting::ManualAnswer::Yes)

@@ -113,9 +113,8 @@ namespace GameWIP::TestSupport::Platform
 
                 using GameWIP::Status::Types::NativeCode;
                 using GameWIP::Status::Types::NativeCodeDomain;
-                return EnvironmentReadResult::failure(Internal::failureStatus(
-                    GameWIP::Status::Types::Code::EnvironmentFailed,
-                    NativeCode{NativeCodeDomain::Win32Error, readError}));
+                return EnvironmentReadResult::failure(
+                    Internal::failureStatus(GameWIP::Status::Types::Code::EnvironmentFailed, NativeCode{NativeCodeDomain::Win32Error, readError}));
             }
 
             std::wstring value(requiredSize, L'\0');
@@ -126,9 +125,10 @@ namespace GameWIP::TestSupport::Platform
             {
                 using GameWIP::Status::Types::NativeCode;
                 using GameWIP::Status::Types::NativeCodeDomain;
-                return EnvironmentReadResult::failure(Internal::failureStatus(
-                    GameWIP::Status::Types::Code::EnvironmentFailed,
-                    NativeCode{NativeCodeDomain::Win32Error, GetLastError()}));
+                return EnvironmentReadResult::failure(
+                    Internal::failureStatus(
+                        GameWIP::Status::Types::Code::EnvironmentFailed,
+                        NativeCode{NativeCodeDomain::Win32Error, GetLastError()}));
             }
 
             value.resize(copied);

@@ -384,14 +384,11 @@ namespace GameWIP::Game
 
         const Runtime::Options options = Runtime::readOptions(argc, argv);
         const Logger::Types::Init::Result loggerInit = Runtime::initializeLogger(options);
-        if(
-            !loggerInit.ok() ||
-            loggerInit.value().outcome != Logger::Types::Init::Outcome::Started)
+        if(!loggerInit.ok() || loggerInit.value().outcome != Logger::Types::Init::Outcome::Started)
         {
             Runtime::reportLoggerInitializationFailure(loggerInit);
-            return loggerInit.hasValue() && loggerInit.value().outcome == Logger::Types::Init::Outcome::Started
-                       ? Runtime::finishRuntime(EXIT_FAILURE)
-                       : EXIT_FAILURE;
+            return loggerInit.hasValue() && loggerInit.value().outcome == Logger::Types::Init::Outcome::Started ? Runtime::finishRuntime(EXIT_FAILURE)
+                                                                                                                : EXIT_FAILURE;
         }
 
         Runtime::logLoggerStartup(options);

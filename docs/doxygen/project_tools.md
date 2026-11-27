@@ -19,6 +19,7 @@ Tool version requirements are declared in `project-tools.json` and mirrored here
 <!-- prettier-ignore -->
 | Tool | Version | Provider |
 | --- | --- | --- |
+| PowerShell | 7.7.0 or newer | verified GitHub release |
 | LLVM-MinGW | 20261104 | verified GitHub release |
 | Zig | 0.17.1 | verified archive |
 | Ruff | 0.17.1 | verified GitHub release |
@@ -81,9 +82,9 @@ Tools managed directly by GameWIP default to:
 build/gamewip/tools/managed/
   bin/
   tools/
+    powershell/
   npm/
   python/
-  powershell/
 ```
 
 Versioned directory archives live under `tools/<tool>/<version>` and expose

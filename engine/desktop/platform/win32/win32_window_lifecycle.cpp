@@ -36,7 +36,10 @@ namespace GameWIP::Desktop::Platform
 
             if(context == nullptr || AreDpiAwarenessContextsEqual(context, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) == FALSE)
             {
-                return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::Unsupported, 0, "Window requires a Per-Monitor-V2-aware executable manifest");
+                return GameWIP::Desktop::Internal::statusFor(
+                    GameWIP::Status::Types::Code::Unsupported,
+                    0,
+                    "Window requires a Per-Monitor-V2-aware executable manifest");
             }
             const auto capabilitiesResult = getCapabilities();
 
@@ -49,12 +52,18 @@ namespace GameWIP::Desktop::Platform
 
             if(description.transparentFramebuffer && !capabilities.supports(Types::Capability::TransparentFramebuffer))
             {
-                return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::Unsupported, 0, "transparentFramebuffer requires Windows 11 build 26100 or newer");
+                return GameWIP::Desktop::Internal::statusFor(
+                    GameWIP::Status::Types::Code::Unsupported,
+                    0,
+                    "transparentFramebuffer requires Windows 11 build 26100 or newer");
             }
 
             if(description.backdropEffect != Types::BackdropEffect::None && !capabilities.supports(Types::Capability::SystemBackdrop))
             {
-                return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::Unsupported, 0, "system backdrop effects require Windows 11 build 22621 or newer");
+                return GameWIP::Desktop::Internal::statusFor(
+                    GameWIP::Status::Types::Code::Unsupported,
+                    0,
+                    "system backdrop effects require Windows 11 build 22621 or newer");
             }
 
             // Allocate owner-thread state and acquire the process-wide Window class.
@@ -432,7 +441,8 @@ namespace GameWIP::Desktop::Platform
                 if(IsWindowEnabled(state.platform->handle) != (state.interactionEnabled ? TRUE : FALSE))
                 {
                     return Internal::result(
-                        statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, ERROR_FUNCTION_FAILED, "EnableWindow close rollback"), false);
+                        statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, ERROR_FUNCTION_FAILED, "EnableWindow close rollback"),
+                        false);
                 }
             }
 
@@ -450,7 +460,8 @@ namespace GameWIP::Desktop::Platform
                 if(IsWindowEnabled(state.platform->handle) != (state.interactionEnabled ? TRUE : FALSE))
                 {
                     return Internal::result(
-                        statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, ERROR_FUNCTION_FAILED, "EnableWindow close rollback"), false);
+                        statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, ERROR_FUNCTION_FAILED, "EnableWindow close rollback"),
+                        false);
                 }
             }
 
@@ -469,7 +480,8 @@ namespace GameWIP::Desktop::Platform
                 if(IsWindowEnabled(state.platform->handle) != (state.interactionEnabled ? TRUE : FALSE))
                 {
                     return Internal::result(
-                        statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, ERROR_FUNCTION_FAILED, "EnableWindow close rollback"), false);
+                        statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, ERROR_FUNCTION_FAILED, "EnableWindow close rollback"),
+                        false);
                 }
             }
 
@@ -626,8 +638,7 @@ namespace GameWIP::Desktop::Native::Win32
 
         if(state == nullptr || !state->platform)
         {
-            return GameWIP::Status::Types::Result<HandleView>::failure(
-                GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::NotOpen));
+            return GameWIP::Status::Types::Result<HandleView>::failure(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::NotOpen));
         }
 
         if(!Platform::ownedByCurrentThread(*state))
@@ -639,8 +650,7 @@ namespace GameWIP::Desktop::Native::Win32
 
         if(handles.window == nullptr)
         {
-            return GameWIP::Status::Types::Result<HandleView>::failure(
-                GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::NotOpen));
+            return GameWIP::Status::Types::Result<HandleView>::failure(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::NotOpen));
         }
 
         return GameWIP::Status::Types::Result<HandleView>::success(

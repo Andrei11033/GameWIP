@@ -1,13 +1,20 @@
 @page status Status
 
-`GameWIP::Status` provides the shared outcome and result types for fallible operations. It has no platform or library dependencies.
+`GameWIP::Status` provides shared operation outcomes and results. It has no
+platform or library dependencies.
 
 ## Outcomes and diagnostics
 
-`Status::Types::Code` is the portable outcome used for decisions. `Status::Types::Status::ok()` is true only for `Code::Success`.
-Codes such as `EndOfStream`, `Cancelled`, `TimedOut`, `WouldBlock`, and `DestinationTooSmall` describe operation outcomes; callers decide whether those outcomes are errors in their context.
+`Status::Types::Code` is the portable outcome used for decisions.
+`Status::Types::Status::ok()` is true only for `Code::Success`. Codes such as
+`EndOfStream`, `Cancelled`, `TimedOut`, `WouldBlock`, and `DestinationTooSmall`
+describe outcomes; callers decide whether they are errors in context.
 
-Native codes and diagnostic text are optional details. Native values include a `NativeCodeDomain` and never replace the portable code. Messages must be UTF-8, are not validated, and are not stable for parsing. Code-only statuses allocate no diagnostic storage; requested diagnostic objects are immutable and shared when copied. If detail allocation fails, the portable code remains and the detail is omitted.
+Native codes and diagnostic text are optional details. Native values include a
+`NativeCodeDomain` and never replace the portable code. Messages are UTF-8,
+unvalidated, and unstable for parsing. Code-only statuses allocate no
+diagnostic storage. Requested details are immutable and shared when copied. If
+detail allocation fails, the portable code remains and the detail is omitted.
 
 ```cpp
 using GameWIP::Status::Types::Code;
@@ -27,7 +34,11 @@ const Status diagnosed = Status::withDiagnostic(
 
 ## Results
 
-Use `Result<T>` when an operation can fail and returns a value; use `Result<void>` when it returns no payload. `Result<T>::ok()` requires both a successful status and a value. A failed result may retain partial data, so check `hasValue()` before accessing `value()` when handling partial progress. Accessing an absent value terminates.
+Use `Result<T>` when an operation can fail and returns a value; use
+`Result<void>` when it returns no payload. `Result<T>::ok()` requires both a
+successful status and a value. A failed result may retain partial data, so
+check `hasValue()` before accessing `value()`. Accessing an absent value
+terminates.
 
 ```cpp
 using GameWIP::Status::Types::Result;
@@ -39,7 +50,9 @@ if(!result.ok() && result.hasValue())
 }
 ```
 
-`Result<void>::ok()` reflects its status. Result objects store the operation status and optional payload directly; payload storage and allocation behavior depend on `T`.
+`Result<void>::ok()` reflects its status. Results store the operation status
+and optional payload directly; payload storage and allocation behavior depend
+on `T`.
 
 ## Dependency boundary
 

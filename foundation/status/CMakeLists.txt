@@ -14,9 +14,11 @@ add_library(GameWIP::Status ALIAS Status)
 
 target_sources(
     Status
-    INTERFACE FILE_SET public_headers TYPE HEADERS BASE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/.." FILES
-        "${CMAKE_CURRENT_SOURCE_DIR}/status.h"
-        "${CMAKE_CURRENT_SOURCE_DIR}/result.h"
+    INTERFACE
+        FILE_SET public_headers
+            TYPE HEADERS
+            BASE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/.."
+            FILES "${CMAKE_CURRENT_SOURCE_DIR}/status.h" "${CMAKE_CURRENT_SOURCE_DIR}/result.h"
 )
 
 target_include_directories(Status INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/..> $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)

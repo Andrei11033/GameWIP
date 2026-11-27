@@ -16,7 +16,9 @@
 namespace GameWIP::Desktop::Platform
 {
     /// @brief Maps a native text-conversion code to the portable encoding failure vocabulary.
-    [[nodiscard]] GameWIP::Status::Types::Code unicodeConversionError(DWORD nativeCode, GameWIP::Status::Types::Code malformedEncodingFallback) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Code unicodeConversionError(
+        DWORD nativeCode,
+        GameWIP::Status::Types::Code malformedEncodingFallback) noexcept;
 
     /// @brief Converts strict UTF-8 to UTF-16 while returning the native conversion code.
     [[nodiscard]] bool utf8ToUtf16(std::string_view text, std::wstring &output, DWORD &nativeCode);

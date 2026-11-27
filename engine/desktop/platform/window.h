@@ -99,8 +99,12 @@ namespace GameWIP::Desktop::Platform
     [[nodiscard]] GameWIP::Status::Types::Status centerOn(WindowState &state, Types::Display::MonitorId monitor) noexcept;
     [[nodiscard]] GameWIP::Status::Types::Status setSizeLimits(WindowState &state, const Types::SizeLimits &limits) noexcept;
     [[nodiscard]] GameWIP::Status::Types::Status setAspectRatio(WindowState &state, std::optional<Types::AspectRatio> ratio) noexcept;
-    [[nodiscard]] GameWIP::Status::Types::Result<Types::ScreenPosition> clientToScreen(const WindowState &state, Types::LogicalPosition position) noexcept;
-    [[nodiscard]] GameWIP::Status::Types::Result<Types::LogicalPosition> screenToClient(const WindowState &state, Types::ScreenPosition position) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<Types::ScreenPosition> clientToScreen(
+        const WindowState &state,
+        Types::LogicalPosition position) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<Types::LogicalPosition> screenToClient(
+        const WindowState &state,
+        Types::ScreenPosition position) noexcept;
 
     /// ------------------------------------------------------------
     /// Visibility, mode, style, and cursor controls

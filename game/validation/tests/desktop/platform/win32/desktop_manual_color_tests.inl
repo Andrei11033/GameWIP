@@ -78,7 +78,8 @@ void testManualHdrAndAdvancedColor(TestSupport::Context &context, const GameWIP:
 
     if(windowInfo.ok())
     {
-        static_cast<void>(context.expectEq("Window display-color monitor matches current monitor", window.currentMonitor(), windowInfo.value().monitor));
+        static_cast<void>(
+            context.expectEq("Window display-color monitor matches current monitor", window.currentMonitor(), windowInfo.value().monitor));
     }
 
     const TestSupport::Types::Reporting::ManualAnswer toggle = recordManualCheck(

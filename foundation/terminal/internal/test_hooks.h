@@ -287,14 +287,16 @@ namespace GameWIP::Terminal::Internal::TestHooks
     /// @brief Forces the next output-capability query to fail with code.
     TERMINAL_TEST_EXPORT void forceNextOutputCapabilityFailure(GameWIP::Status::Types::Code code = GameWIP::Status::Types::Code::StatFailed) noexcept;
     /// @brief Forces the next output-preparation attempt to fail with code.
-    TERMINAL_TEST_EXPORT void forceNextOutputPreparationFailure(GameWIP::Status::Types::Code code = GameWIP::Status::Types::Code::NativeFailure) noexcept;
+    TERMINAL_TEST_EXPORT void forceNextOutputPreparationFailure(
+        GameWIP::Status::Types::Code code = GameWIP::Status::Types::Code::NativeFailure) noexcept;
     /// @brief Forces the next internal input-mode capture/set/restore operation to fail with code.
     TERMINAL_TEST_EXPORT void forceNextInputModeFailure(GameWIP::Status::Types::Code code = GameWIP::Status::Types::Code::NativeFailure) noexcept;
     /// @brief Forces the next input read to fail with code.
     TERMINAL_TEST_EXPORT void forceNextReadFailure(GameWIP::Status::Types::Code code = GameWIP::Status::Types::Code::ReadFailed) noexcept;
     /// @brief Forces the next native input endpoint identity lookup to fail.
     /// @details The hook is one-shot and reports the configured portable code; reset() clears it.
-    TERMINAL_TEST_EXPORT void forceNextEndpointIdentityFailure(GameWIP::Status::Types::Code code = GameWIP::Status::Types::Code::NativeFailure) noexcept;
+    TERMINAL_TEST_EXPORT void forceNextEndpointIdentityFailure(
+        GameWIP::Status::Types::Code code = GameWIP::Status::Types::Code::NativeFailure) noexcept;
     /// @brief Forces the next native cancellation-event reset to fail.
     /// @details The hook is one-shot and reports a native operation failure; reset() clears it.
     TERMINAL_TEST_EXPORT void forceNextCancellationResetFailure() noexcept;

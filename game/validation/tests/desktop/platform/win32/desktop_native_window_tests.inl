@@ -82,8 +82,11 @@ void testHiddenNativeWindow(TestSupport::Context &context)
     {
         RECT ignoredWindowedSuggestion{17, 23, 657, 503};
         const UINT currentDpi = GetDpiForWindow(handle.value().window);
-        static_cast<void>(
-            SendMessageW(handle.value().window, WM_DPICHANGED, MAKEWPARAM(currentDpi, currentDpi), reinterpret_cast<LPARAM>(&ignoredWindowedSuggestion)));
+        static_cast<void>(SendMessageW(
+            handle.value().window,
+            WM_DPICHANGED,
+            MAKEWPARAM(currentDpi, currentDpi),
+            reinterpret_cast<LPARAM>(&ignoredWindowedSuggestion)));
         RECT fullscreenRect{};
         const bool fullscreenRectResolved = GetWindowRect(handle.value().window, &fullscreenRect) != FALSE;
         static_cast<void>(context.expectTrue("borderless bounds remain queryable after DPI notification", fullscreenRectResolved));
@@ -179,15 +182,19 @@ void testHiddenNativeWindow(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("interaction re-enable succeeds", owner.setUserInteractionEnabled(true).ok()));
 
     // Check resize and control constraints.
-    static_cast<void>(
-        context.expectEq("resize cannot be disabled while maximize remains enabled", ErrorCode::InvalidArgument, owner.setResizable(false).status().code()));
+    static_cast<void>(context.expectEq(
+        "resize cannot be disabled while maximize remains enabled",
+        ErrorCode::InvalidArgument,
+        owner.setResizable(false).status().code()));
     Desktop::Types::Controls controls = owner.controls();
     controls.maximizable = false;
     static_cast<void>(context.expectTrue("maximize is explicitly disabled", owner.setControls(controls).ok()));
     static_cast<void>(context.expectTrue("resize can then be disabled", owner.setResizable(false).ok()));
     controls.maximizable = true;
-    static_cast<void>(
-        context.expectEq("maximize cannot be enabled while resize is disabled", ErrorCode::InvalidArgument, owner.setControls(controls).status().code()));
+    static_cast<void>(context.expectEq(
+        "maximize cannot be enabled while resize is disabled",
+        ErrorCode::InvalidArgument,
+        owner.setControls(controls).status().code()));
     controls.maximizable = false;
     controls.closable = false;
     controls.minimizable = false;
@@ -306,8 +313,8 @@ void testHiddenNativeWindow(TestSupport::Context &context)
     }
     else
     {
-        static_cast<void>(context.expectEq(
-            "unsupported transparent framebuffer is rejected before open", ErrorCode::Unsupported, alphaStatus.status().code()));
+        static_cast<void>(
+            context.expectEq("unsupported transparent framebuffer is rejected before open", ErrorCode::Unsupported, alphaStatus.status().code()));
         static_cast<void>(context.expectFalse("unsupported alpha request creates no HWND", alphaWindow.isOpen()));
     }
 }
@@ -337,9 +344,8 @@ void testInitialMonitorGeometry(TestSupport::Context &context)
             }
             else
             {
-                description.windowed.placement.position = Desktop::Types::ScreenPosition{
-                    monitor.workArea.position.x + 80,
-                    monitor.workArea.position.y + 80};
+                description.windowed.placement.position =
+                    Desktop::Types::ScreenPosition{monitor.workArea.position.x + 80, monitor.workArea.position.y + 80};
             }
 
             Desktop::Window window;

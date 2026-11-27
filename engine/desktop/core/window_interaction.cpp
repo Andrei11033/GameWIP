@@ -414,7 +414,6 @@ namespace GameWIP::Desktop
     GameWIP::Status::Types::Result<Types::LogicalPosition> Window::cursorPosition() const noexcept
     {
         GameWIP::Status::Types::Status status = requireState(state_.get());
-        return status.ok() ? Platform::cursorPosition(*state_)
-                           : GameWIP::Status::Types::Result<Types::LogicalPosition>::failure(status);
+        return status.ok() ? Platform::cursorPosition(*state_) : GameWIP::Status::Types::Result<Types::LogicalPosition>::failure(status);
     }
 } // namespace GameWIP::Desktop

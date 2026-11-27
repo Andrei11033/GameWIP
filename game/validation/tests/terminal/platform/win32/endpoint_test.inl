@@ -142,7 +142,8 @@ void testInputEndpointReplacement(TestSupport::Context &context)
 
     // Detaching stdin clears endpoint-owned decoder state.
     static_cast<void>(context.expectTrue("detach stdin", SetStdHandle(STD_INPUT_HANDLE, nullptr) != FALSE));
-    static_cast<void>(context.expectEq("detached stdin reports NotOpen after state reset", StatusCode::NotOpen, Terminal::readText().status().code()));
+    static_cast<void>(
+        context.expectEq("detached stdin reports NotOpen after state reset", StatusCode::NotOpen, Terminal::readText().status().code()));
 
     static_cast<void>(SetStdHandle(STD_INPUT_HANDLE, originalInput));
     CloseHandle(replacementRead);

@@ -182,9 +182,7 @@ namespace GameWIP::FileSystem::Platform
         }
     }
 
-    Result<std::vector<Types::Directory::Entry>> listDirectory(
-        const Types::Path &path,
-        const Types::Directory::ListOptions &options) noexcept
+    Result<std::vector<Types::Directory::Entry>> listDirectory(const Types::Path &path, const Types::Directory::ListOptions &options) noexcept
     {
         try
         {
@@ -205,9 +203,7 @@ namespace GameWIP::FileSystem::Platform
         }
     }
 
-    Result<std::unique_ptr<Internal::DirectoryCursorState>> openDirectoryCursor(
-        const Types::Path &path,
-        Types::SymlinkPolicy symlinkPolicy) noexcept
+    Result<std::unique_ptr<Internal::DirectoryCursorState>> openDirectoryCursor(const Types::Path &path, Types::SymlinkPolicy symlinkPolicy) noexcept
     {
         try
         {

@@ -421,6 +421,5 @@ GameWIP::Status::Types::Result<void> GameWIP::Logger::writeDebugOutput(LogLevel 
     {
         return GameWIP::Status::Types::Result<void>::failure(makeStatus(ErrorCode::EncodingFailed));
     }
-    return GameWIP::Logger::Internal::Core::resultFromStatus(
-        GameWIP::Logger::Internal::Core::writeDebugOutputInternal(level, source, message));
+    return GameWIP::Logger::Internal::Core::resultFromStatus(GameWIP::Logger::Internal::Core::writeDebugOutputInternal(level, source, message));
 }

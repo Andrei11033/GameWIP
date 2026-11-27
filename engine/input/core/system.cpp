@@ -158,8 +158,8 @@ namespace GameWIP::Input
 
         if(impl_->open)
         {
-            return Internal::result(impl_->ownerThread == std::this_thread::get_id() ? status(StatusCode::AlreadyOpen)
-                                                                                     : status(StatusCode::ResourceBusy));
+            return Internal::result(
+                impl_->ownerThread == std::this_thread::get_id() ? status(StatusCode::AlreadyOpen) : status(StatusCode::ResourceBusy));
         }
 
         // Validate queue capacities before allocating session state.

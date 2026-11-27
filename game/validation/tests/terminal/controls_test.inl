@@ -179,7 +179,8 @@ void testControls(TestSupport::Context &context)
         Terminal::getOutputCapabilities(invalidOutputStream).status().code()));
 
     const std::string oversizedTitle(255, 'x');
-    static_cast<void>(context.expectEq("title rejects values beyond VT limit", ErrorCode::InvalidArgument, Terminal::setTitle(oversizedTitle).status().code()));
+    static_cast<void>(
+        context.expectEq("title rejects values beyond VT limit", ErrorCode::InvalidArgument, Terminal::setTitle(oversizedTitle).status().code()));
 
     Hooks::forceNextFlushFailure(IOErrorCode::FlushFailed);
     static_cast<void>(context.expectEq(

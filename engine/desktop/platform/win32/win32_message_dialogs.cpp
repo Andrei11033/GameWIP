@@ -45,15 +45,14 @@ namespace GameWIP::Desktop::Platform
         [[nodiscard]] MessageDialogResult sharedResult(MessageDialogOperation operation)
         {
             Types::Dialogs::Message::Selection selection{operation.outcome, operation.button};
-            const bool hasPartialValue = operation.outcome == Types::Dialogs::Outcome::Accepted ||
-                                         operation.button != Types::Dialogs::Message::Button::None;
+            const bool hasPartialValue =
+                operation.outcome == Types::Dialogs::Outcome::Accepted || operation.button != Types::Dialogs::Message::Button::None;
             return Internal::resultWithPartial(std::move(operation.status), std::move(selection), hasPartialValue);
         }
 
         [[nodiscard]] PromptDialogResult sharedResult(PromptDialogOperation operation)
         {
-            Types::Dialogs::Prompt::Selection selection{
-                operation.outcome, operation.button, operation.option, operation.checkBoxChecked};
+            Types::Dialogs::Prompt::Selection selection{operation.outcome, operation.button, operation.option, operation.checkBoxChecked};
             const bool hasPartialValue = operation.outcome == Types::Dialogs::Outcome::Accepted || operation.button.has_value() ||
                                          operation.option.has_value() || operation.checkBoxChecked.has_value();
             return Internal::resultWithPartial(std::move(operation.status), std::move(selection), hasPartialValue);

@@ -193,7 +193,8 @@ namespace GameWIP::Desktop
         /// A failed publication leaves no usable notification identity.
         /// @param description Borrowed complete notification content and policy.
         /// @return Publication status and generated identity on success.
-        [[nodiscard]] GameWIP::Status::Types::Result<Types::Shell::NotificationId> publish(const Types::Notifications::Description &description) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<Types::Shell::NotificationId> publish(
+            const Types::Notifications::Description &description) noexcept;
 
         /// @brief Replaces a previously published notification snapshot.
         /// @details The notification identity remains unchanged. A description containing actions
@@ -202,7 +203,9 @@ namespace GameWIP::Desktop
         /// @param id Published notification identity owned by this center.
         /// @param description Borrowed replacement content and policy.
         /// @return Success, NotFound for an unknown identity, or a validation, ownership, queue, allocation, or native failure.
-        [[nodiscard]] GameWIP::Status::Types::Result<void> update(Types::Shell::NotificationId id, const Types::Notifications::Description &description) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> update(
+            Types::Shell::NotificationId id,
+            const Types::Notifications::Description &description) noexcept;
 
         /// @brief Dismisses one published notification programmatically.
         /// @param id Published notification identity owned by this center.

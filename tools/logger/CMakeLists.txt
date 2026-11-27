@@ -82,7 +82,11 @@ target_compile_definitions(
     INTERFACE $<BUILD_INTERFACE:LOGGER_INTERNAL_TEST_HOOKS=$<BOOL:${LOGGER_ENABLE_TEST_HOOKS}>>
 )
 
-target_link_libraries(Logger PUBLIC Status PRIVATE IO FileSystem Terminal Unicode $<BUILD_INTERFACE:GameWIPBase>)
+target_link_libraries(
+    Logger
+    PUBLIC Status
+    PRIVATE IO FileSystem Terminal Unicode $<BUILD_INTERFACE:GameWIPBase>
+)
 
 # ------------------------------------------------------------
 # Output, documentation, and installation

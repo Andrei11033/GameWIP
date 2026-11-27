@@ -103,7 +103,10 @@ void testInitResultModel(TestContext &context)
 
     Logger::Types::Config invalidFieldLayout = makeConsoleConfig();
     invalidFieldLayout.fieldLayout = static_cast<Logger::FieldLayout>(99);
-    context.expectEq("invalid field layout rejected", Logger::init(invalidFieldLayout).status().code(), GameWIP::Status::Types::Code::InvalidArgument);
+    context.expectEq(
+        "invalid field layout rejected",
+        Logger::init(invalidFieldLayout).status().code(),
+        GameWIP::Status::Types::Code::InvalidArgument);
 
     Logger::Types::Config invalidLayout = makeConsoleConfig();
     invalidLayout.layout = {"unknown {placeholder}"};
@@ -118,11 +121,17 @@ void testInitResultModel(TestContext &context)
 
     Logger::Types::Config emptyTimestampFormat = makeConsoleConfig();
     emptyTimestampFormat.timestampFormat = {};
-    context.expectEq("empty timestamp format rejected", Logger::init(emptyTimestampFormat).status().code(), GameWIP::Status::Types::Code::InvalidArgument);
+    context.expectEq(
+        "empty timestamp format rejected",
+        Logger::init(emptyTimestampFormat).status().code(),
+        GameWIP::Status::Types::Code::InvalidArgument);
 
     Logger::Types::Config invalidAlignment = makeConsoleConfig();
     invalidAlignment.layout = {"{area:aligned}"};
-    context.expectEq("legacy area-only alignment syntax rejected", Logger::init(invalidAlignment).status().code(), GameWIP::Status::Types::Code::InvalidArgument);
+    context.expectEq(
+        "legacy area-only alignment syntax rejected",
+        Logger::init(invalidAlignment).status().code(),
+        GameWIP::Status::Types::Code::InvalidArgument);
 
     Logger::Types::Config invalidAutomaticWidth = makeConsoleConfig();
     invalidAutomaticWidth.layout = {"{message:<auto}"};
@@ -148,11 +157,17 @@ void testInitResultModel(TestContext &context)
     const std::string invalidUtf8{"\xC3\x28", 2};
     Logger::Types::Config invalidDirectory = makeConsoleConfig();
     invalidDirectory.logDirectory = invalidUtf8;
-    context.expectEq("invalid UTF-8 directory rejected", Logger::init(invalidDirectory).status().code(), GameWIP::Status::Types::Code::EncodingFailed);
+    context.expectEq(
+        "invalid UTF-8 directory rejected",
+        Logger::init(invalidDirectory).status().code(),
+        GameWIP::Status::Types::Code::EncodingFailed);
 
     Logger::Types::Config invalidLayoutEncoding = makeConsoleConfig();
     invalidLayoutEncoding.layout = {invalidUtf8};
-    context.expectEq("invalid UTF-8 layout rejected", Logger::init(invalidLayoutEncoding).status().code(), GameWIP::Status::Types::Code::EncodingFailed);
+    context.expectEq(
+        "invalid UTF-8 layout rejected",
+        Logger::init(invalidLayoutEncoding).status().code(),
+        GameWIP::Status::Types::Code::EncodingFailed);
 
     Logger::Types::Config invalidTimestampEncoding = makeConsoleConfig();
     invalidTimestampEncoding.timestampFormat = invalidUtf8;
@@ -170,7 +185,10 @@ void testInitResultModel(TestContext &context)
     std::array invalidColorSources{Logger::Types::SourceDefinition{1, "InvalidColor", invalidColorValue}};
     Logger::Types::Config invalidColorConfig = makeConsoleConfig();
     invalidColorConfig.sources = invalidColorSources;
-    context.expectEq("invalid source color rejected", Logger::init(invalidColorConfig).status().code(), GameWIP::Status::Types::Code::InvalidArgument);
+    context.expectEq(
+        "invalid source color rejected",
+        Logger::init(invalidColorConfig).status().code(),
+        GameWIP::Status::Types::Code::InvalidArgument);
 }
 
 void testFileFallbackAndSetupStatus(TestContext &context)

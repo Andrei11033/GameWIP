@@ -175,7 +175,10 @@ namespace GameWIP::Desktop::Internal::TestHooks::Win32
         return Win32Backend::destroyNativeProgressDialog(Internal::ProgressDialogAccess::state(dialog));
     }
 
-    GameWIP::Status::Types::Status simulateProgressDialogDpiChange(ProgressDialog &dialog, NativePixelRect suggestedBounds, std::uint32_t dpi) noexcept
+    GameWIP::Status::Types::Status simulateProgressDialogDpiChange(
+        ProgressDialog &dialog,
+        NativePixelRect suggestedBounds,
+        std::uint32_t dpi) noexcept
     {
         return Win32Backend::simulateProgressDialogDpiChange(Internal::ProgressDialogAccess::state(dialog), suggestedBounds, dpi);
     }

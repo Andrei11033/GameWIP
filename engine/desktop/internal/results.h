@@ -45,8 +45,7 @@ namespace GameWIP::Desktop::Internal
 
     [[nodiscard]] inline GameWIP::Status::Types::Result<void> result(Status status) noexcept
     {
-        return status.ok() ? GameWIP::Status::Types::Result<void>::success()
-                           : GameWIP::Status::Types::Result<void>::failure(std::move(status));
+        return status.ok() ? GameWIP::Status::Types::Result<void>::success() : GameWIP::Status::Types::Result<void>::failure(std::move(status));
     }
 
     template <typename Value> [[nodiscard]] GameWIP::Status::Types::Result<Value> result(Status status, Value value)
@@ -55,8 +54,7 @@ namespace GameWIP::Desktop::Internal
                            : GameWIP::Status::Types::Result<Value>::failure(std::move(status), std::move(value));
     }
 
-    template <typename Value>
-    [[nodiscard]] GameWIP::Status::Types::Result<Value> resultWithPartial(Status status, Value value, bool retainPartial)
+    template <typename Value> [[nodiscard]] GameWIP::Status::Types::Result<Value> resultWithPartial(Status status, Value value, bool retainPartial)
     {
         if(status.ok())
         {

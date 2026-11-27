@@ -268,6 +268,22 @@ function Assert-GameWipProjectToolConfig
                         throw "Tool '$($toolInfo.id)' text reference '$($reference.path)' pattern must contain exactly one literal {version} token."
                     }
                 }
+                'releaseAsset'
+                {
+                    if ($toolInfo.provider.kind -ne 'githubRelease' -or
+                        -not $toolInfo.provider.assets.ContainsKey([string]$reference.assetKey) -or
+                        [string]$reference.assetField -notin @('archive', 'sha256'))
+                    {
+                        throw "Tool '$($toolInfo.id)' release-asset reference '$($reference.path)' does not match a declared GitHub asset."
+                    }
+
+                    $tokenCount = [regex]::Matches([string]$reference.pattern, [regex]::Escape('{value}')).Count
+
+                    if ($tokenCount -ne 1)
+                    {
+                        throw "Tool '$($toolInfo.id)' release-asset reference '$($reference.path)' pattern must contain exactly one literal {value} token."
+                    }
+                }
                 'cmakeMinimum'
                 {
                     if ($reference.Contains('pattern'))

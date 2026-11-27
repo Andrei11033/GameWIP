@@ -217,7 +217,7 @@ namespace GameWIP::Logger::Types
             OutputMode effectiveOutput = OutputMode::None; ///< Usable normal sinks.
 
             // Most recent failure
-            FailureSource lastFailureSource = FailureSource::None;          ///< Most recent failed channel.
+            FailureSource lastFailureSource = FailureSource::None;        ///< Most recent failed channel.
             Status::Types::Code lastError = Status::Types::Code::Success; ///< Most recent portable error.
             std::optional<Status::Types::NativeCode> lastNativeCode{};    ///< Associated backend-native error.
 

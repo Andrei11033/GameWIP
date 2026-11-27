@@ -64,7 +64,9 @@ namespace GameWIP::Desktop::Platform
         }
 
         /// @brief Applies taskbar progress state through the COM taskbar interface.
-        [[nodiscard]] GameWIP::Status::Types::Status applyTaskbarProgress(TaskbarNative &native, const std::optional<Types::Shell::Progress> &progress) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status applyTaskbarProgress(
+            TaskbarNative &native,
+            const std::optional<Types::Shell::Progress> &progress) noexcept
         {
             ApartmentLease apartment;
 

@@ -104,7 +104,8 @@ void testFileAndFolderDialogs(TestSupport::Context &context)
     const auto outOfRangeNativeFilter = Desktop::Dialogs::openFile(open);
     if(context.expectTrue("out-of-range native filter selection succeeds", outOfRangeNativeFilter.ok()))
     {
-        static_cast<void>(context.expectFalse("out-of-range native filter is not invented", outOfRangeNativeFilter.value().selectedFilterIndex.has_value()));
+        static_cast<void>(
+            context.expectFalse("out-of-range native filter is not invented", outOfRangeNativeFilter.value().selectedFilterIndex.has_value()));
     }
 
     FileDialogs::OpenDescription allFiles;

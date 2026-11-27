@@ -78,7 +78,10 @@ namespace GameWIP::Desktop::Platform
 
             if(!utf8ToUtf16(task.title, title, nativeCode))
             {
-                return GameWIP::Desktop::Internal::statusFor(ErrorCode::EncodingFailed, nativeCode, GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
+                return GameWIP::Desktop::Internal::statusFor(
+                    ErrorCode::EncodingFailed,
+                    nativeCode,
+                    GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
             }
 
             ComPtr<IPropertyStore> properties;
@@ -110,7 +113,10 @@ namespace GameWIP::Desktop::Platform
 
             if(!utf8ToUtf16(task.description, description, nativeCode))
             {
-                return GameWIP::Desktop::Internal::statusFor(ErrorCode::EncodingFailed, nativeCode, GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
+                return GameWIP::Desktop::Internal::statusFor(
+                    ErrorCode::EncodingFailed,
+                    nativeCode,
+                    GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
             }
 
             result = out->SetDescription(description.c_str());
@@ -300,7 +306,10 @@ namespace GameWIP::Desktop::Platform
                 {
                     if(!utf8ToUtf16(uri->uri, recent, nativeCode))
                     {
-                        return GameWIP::Desktop::Internal::statusFor(ErrorCode::EncodingFailed, nativeCode, GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
+                        return GameWIP::Desktop::Internal::statusFor(
+                            ErrorCode::EncodingFailed,
+                            nativeCode,
+                            GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
                     }
                 }
                 else
@@ -358,7 +367,10 @@ namespace GameWIP::Desktop::Platform
 
                 if(!utf8ToUtf16(category.label, label, nativeCode))
                 {
-                    return GameWIP::Desktop::Internal::statusFor(ErrorCode::EncodingFailed, nativeCode, GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
+                    return GameWIP::Desktop::Internal::statusFor(
+                        ErrorCode::EncodingFailed,
+                        nativeCode,
+                        GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
                 }
 
                 GameWIP::Status::Types::Status status = appendJumpTasks(list.get(), label, category.tasks);

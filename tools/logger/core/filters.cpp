@@ -420,7 +420,8 @@ GameWIP::Status::Types::Result<void> GameWIP::Logger::setLevelFilter(Types::Leve
 
     if(bit == 0)
     {
-        return GameWIP::Status::Types::Result<void>::failure(GameWIP::Logger::Internal::Core::makeStatus(GameWIP::Status::Types::Code::InvalidArgument));
+        return GameWIP::Status::Types::Result<void>::failure(
+            GameWIP::Logger::Internal::Core::makeStatus(GameWIP::Status::Types::Code::InvalidArgument));
     }
 
     try
