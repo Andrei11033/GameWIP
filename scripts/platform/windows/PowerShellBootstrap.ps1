@@ -116,7 +116,7 @@ if ($null -eq $assetProperty)
 }
 $asset = $assetProperty.Value
 $managedRuntime = Join-Path $managedToolsRoot (Join-Path ([string]$powerShellTool.provider.managedDirectory) `
-        (Join-Path ([string]$powerShellTool.requiredVersion) ([string]$powerShellTool.detection.command + '.exe')))
+    (Join-Path ([string]$powerShellTool.requiredVersion) ([string]$powerShellTool.detection.command + '.exe')))
 $managedMarker = Join-Path (Split-Path -Parent $managedRuntime) '.gamewip-tool.json'
 
 function Get-GameWipPowerShellVersion

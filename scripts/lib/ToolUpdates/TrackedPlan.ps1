@@ -9,7 +9,7 @@ function Get-GameWipReferenceTexts
         [hashtable]$Tool,
         [string]$OldVersion,
         [string]$NewVersion,
-        $ReleaseMetadata
+        $ProviderMetadata
     )
 
     if ($Reference.kind -eq 'path')
@@ -39,7 +39,7 @@ function Get-GameWipReferenceTexts
         $assetKey = [string]$Reference.assetKey
         $assetField = [string]$Reference.assetField
         $oldValue = [string]$Tool.provider.assets[$assetKey][$assetField]
-        $newValue = [string]$ReleaseMetadata.Assets[$assetKey][$assetField]
+        $newValue = [string]$ProviderMetadata.Assets[$assetKey][$assetField]
 
         if ([string]::IsNullOrWhiteSpace($newValue))
         {
@@ -83,9 +83,9 @@ function Get-GameWipTrackedToolMutationPlan
                     -Summary "Unable to resolve the complete update plan for '$($tool.id)'." `
                     -Details "$($item.Query.State): $($item.Query.Reason)" `
                     -SuggestedActions @(
-                        'Retry after restoring provider/network availability.',
-                        'Use tools check-updates to inspect provider state without mutation.'
-                    ))
+                    'Retry after restoring provider/network availability.',
+                    'Use tools check-updates to inspect provider state without mutation.'
+                ))
         }
 
         if ($tool.capabilities.checkLatest -and $item.Query.State -eq 'unsupported' -and $tool.versionPolicy -eq 'exact')
@@ -103,7 +103,7 @@ function Get-GameWipTrackedToolMutationPlan
         $registryTool = $registryTool[0]
 
         $updatePin = $tool.versionPolicy -eq 'exact' -or
-            ($tool.capabilities.Contains('updatePin') -and [bool]$tool.capabilities.updatePin)
+        ($tool.capabilities.Contains('updatePin') -and [bool]$tool.capabilities.updatePin)
 
         if ($updatePin -and $item.Latest -and $item.Latest -ne $tool.requiredVersion)
         {
@@ -131,7 +131,7 @@ function Get-GameWipTrackedToolMutationPlan
                     -Tool $tool `
                     -OldVersion $oldVersion `
                     -NewVersion $newVersion `
-                    -ReleaseMetadata $item.ReleaseMetadata
+                    -ProviderMetadata $item.ProviderMetadata
                 $expectedCount = if ($reference.Contains('expectedCount'))
                 {
                     [int]$reference.expectedCount
@@ -170,38 +170,42 @@ function Get-GameWipTrackedToolMutationPlan
             $registryTool.requiredVersion = $newVersion
             $updatedToolIds[[string]$tool.id] = $true
 
-            if ($tool.provider.kind -eq 'githubRelease')
+            if ($tool.provider.kind -in @('githubRelease', 'archive'))
             {
-                if ($item.Query.State -ne 'resolved' -or $null -eq $item.ReleaseMetadata)
+                if ($item.Query.State -ne 'resolved' -or $null -eq $item.ProviderMetadata)
                 {
-                    throw "Complete verified release metadata is required for '$($tool.id)' $newVersion."
+                    throw "Complete verified asset metadata is required for '$($tool.id)' $newVersion."
                 }
-                $oldReleaseTag = [string]$registryTool.provider.releaseTag
-                $newReleaseTag = [string]$item.ReleaseMetadata.Tag
 
-                if ($oldReleaseTag -ne $newReleaseTag)
+                if ($tool.provider.kind -eq 'githubRelease')
                 {
-                    $registryMutations.Add(@{
-                            toolId = [string]$tool.id
-                            path = @('provider', 'releaseTag')
-                            expected = $oldReleaseTag
-                            value = $newReleaseTag
-                        }) | Out-Null
+                    $oldReleaseTag = [string]$registryTool.provider.releaseTag
+                    $newReleaseTag = [string]$item.ProviderMetadata.Tag
 
-                    $descriptions.Add(
-                        "scripts/config/project-tools.json: $($tool.id).provider.releaseTag $oldReleaseTag -> $newReleaseTag"
-                    ) | Out-Null
+                    if ($oldReleaseTag -ne $newReleaseTag)
+                    {
+                        $registryMutations.Add(@{
+                                toolId = [string]$tool.id
+                                path = @('provider', 'releaseTag')
+                                expected = $oldReleaseTag
+                                value = $newReleaseTag
+                            }) | Out-Null
+
+                        $descriptions.Add(
+                            "scripts/config/project-tools.json: $($tool.id).provider.releaseTag $oldReleaseTag -> $newReleaseTag"
+                        ) | Out-Null
+                    }
+                    $registryTool.provider.releaseTag = $item.ProviderMetadata.Tag
                 }
-                $registryTool.provider.releaseTag = $item.ReleaseMetadata.Tag
 
-                # Keep each registered archive and digest in sync with the release.
+                # Keep each registered archive and digest in sync with its provider.
                 foreach ($key in @($tool.provider.assets.Keys))
                 {
-                    $plannedAsset = $item.ReleaseMetadata.Assets[$key]
+                    $plannedAsset = $item.ProviderMetadata.Assets[$key]
 
                     if ($null -eq $plannedAsset)
                     {
-                        throw "Planned release metadata for '$($tool.id)' is missing '$key'."
+                        throw "Planned asset metadata for '$($tool.id)' is missing '$key'."
                     }
                     foreach ($field in @('archive', 'sha256'))
                     {

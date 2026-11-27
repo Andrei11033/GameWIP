@@ -121,6 +121,181 @@ function Get-GameWipGitHubReleaseQuery
     return New-GameWipToolQueryResult -State resolved -Provider githubRelease -Version $version -Attempts $http.Attempts -Metadata $metadata
 }
 
+function Get-GameWipArchiveIndexLatestQuery
+{
+    param([Parameter(Mandatory = $true)][hashtable]$Tool)
+
+    if (-not $Tool.provider.Contains('latestIndex'))
+    {
+        return New-GameWipToolQueryResult `
+            -State unsupported `
+            -Provider archive `
+            -Version $null `
+            -Reason 'archive provider has no latest-version index'
+    }
+
+    $indexInfo = $Tool.provider.latestIndex
+    $http = Invoke-GameWipHttpJson -Uri ([string]$indexInfo.url)
+
+    if ($http.State -ne 'resolved')
+    {
+        return New-GameWipToolQueryResult `
+            -State unavailable `
+            -Provider archiveIndex `
+            -Version $null `
+            -Reason $http.Reason `
+            -Attempts $http.Attempts
+    }
+
+    if ($null -eq $http.Value)
+    {
+        return New-GameWipToolQueryResult `
+            -State invalidResponse `
+            -Provider archiveIndex `
+            -Version $null `
+            -Reason 'version index was empty' `
+            -Attempts $http.Attempts
+    }
+
+    # Select the newest stable semantic version; prerelease index entries are ignored.
+    $releases = [System.Collections.Generic.List[object]]::new()
+
+    foreach ($property in $http.Value.PSObject.Properties)
+    {
+        if ($property.Name -notmatch '^\d+\.\d+\.\d+$')
+        {
+            continue
+        }
+
+        $releases.Add([pscustomobject]@{
+                Version = [version]$property.Name
+                Entry = $property.Value
+            }) | Out-Null
+    }
+
+    if ($releases.Count -eq 0)
+    {
+        return New-GameWipToolQueryResult `
+            -State invalidResponse `
+            -Provider archiveIndex `
+            -Version $null `
+            -Reason 'version index contains no stable semantic versions' `
+            -Attempts $http.Attempts
+    }
+
+    $release = $releases | Sort-Object -Property Version -Descending | Select-Object -First 1
+    $version = [string]$release.Entry.version
+
+    if ($version -ne [string]$release.Version)
+    {
+        return New-GameWipToolQueryResult `
+            -State invalidResponse `
+            -Provider archiveIndex `
+            -Version $null `
+            -Reason 'latest stable entry has a mismatched version field' `
+            -Attempts $http.Attempts
+    }
+
+    # Accept only verified archives from the declared download origin.
+    $indexUri = [uri][string]$indexInfo.url
+    $baseUri = [uri][string]$Tool.provider.baseUrl
+    $downloadPrefix = $baseUri.AbsolutePath.TrimEnd('/') + "/$version/"
+    $assets = @{}
+
+    foreach ($assetKey in @($Tool.provider.assets.Keys))
+    {
+        $indexKey = [string]$indexInfo.assetKeys[$assetKey]
+        $releaseAssetProperty = $release.Entry.PSObject.Properties[$indexKey]
+        if ($null -eq $releaseAssetProperty)
+        {
+            return New-GameWipToolQueryResult `
+                -State integrityUnavailable `
+                -Provider archiveIndex `
+                -Version $version `
+                -Reason "latest index has no archive entry for '$assetKey'" `
+                -Attempts $http.Attempts
+        }
+
+        $releaseAsset = $releaseAssetProperty.Value
+        $tarball = [string]$releaseAsset.tarball
+        $sha256 = [string]$releaseAsset.shasum
+        $assetUri = $null
+        $validUri = [uri]::TryCreate($tarball, [UriKind]::Absolute, [ref]$assetUri)
+
+        if (-not $validUri -or
+            $assetUri.Scheme -ne 'https' -or
+            $assetUri.Host -ne $indexUri.Host -or
+            -not $assetUri.AbsolutePath.StartsWith($downloadPrefix, [StringComparison]::Ordinal) -or
+            $sha256 -notmatch '^[0-9a-f]{64}$')
+        {
+            return New-GameWipToolQueryResult `
+                -State integrityUnavailable `
+                -Provider archiveIndex `
+                -Version $version `
+                -Reason "latest index lacks a trusted archive and SHA-256 for '$assetKey'" `
+                -Attempts $http.Attempts
+        }
+
+        $archive = [uri]::UnescapeDataString([IO.Path]::GetFileName($assetUri.AbsolutePath))
+
+        if ([string]::IsNullOrWhiteSpace($archive) -or $archive -notmatch '(?i)\.(zip|tar\.gz|tar\.xz)$')
+        {
+            return New-GameWipToolQueryResult `
+                -State invalidResponse `
+                -Provider archiveIndex `
+                -Version $version `
+                -Reason "latest index has an invalid archive name for '$assetKey'" `
+                -Attempts $http.Attempts
+        }
+
+        $assets[$assetKey] = @{ archive = $archive; sha256 = $sha256 }
+    }
+
+    $metadata = [pscustomobject]@{ Version = $version; Assets = $assets }
+    return New-GameWipToolQueryResult `
+        -State resolved `
+        -Provider archiveIndex `
+        -Version $version `
+        -Attempts $http.Attempts `
+        -Metadata $metadata
+}
+
+function Get-GameWipExternalLatestVersionQuery
+{
+    param([Parameter(Mandatory = $true)][hashtable]$Tool)
+
+    $latestVersion = $Tool.provider.latestVersion
+    $http = Invoke-GameWipHttpRead -Uri ([string]$latestVersion.url)
+
+    if ($http.State -ne 'resolved')
+    {
+        return New-GameWipToolQueryResult `
+            -State unavailable `
+            -Provider external `
+            -Version $null `
+            -Reason $http.Reason `
+            -Attempts $http.Attempts
+    }
+
+    $match = [regex]::Match([string]$http.Value.Content, [string]$latestVersion.pattern)
+
+    if (-not $match.Success -or $match.Groups.Count -lt 2)
+    {
+        return New-GameWipToolQueryResult `
+            -State invalidResponse `
+            -Provider external `
+            -Version $null `
+            -Reason 'upstream version page did not match its declared pattern' `
+            -Attempts $http.Attempts
+    }
+
+    return New-GameWipToolQueryResult `
+        -State resolved `
+        -Provider external `
+        -Version $match.Groups[1].Value `
+        -Attempts $http.Attempts
+}
+
 function Get-GameWipToolLatestQuery
 {
     param([Parameter(Mandatory = $true)][hashtable]$Tool)
@@ -139,6 +314,11 @@ function Get-GameWipToolLatestQuery
         'githubRelease'
         {
             return Get-GameWipGitHubReleaseQuery -Tool $Tool
+        }
+
+        'archive'
+        {
+            return Get-GameWipArchiveIndexLatestQuery -Tool $Tool
         }
 
         'python'
@@ -188,11 +368,29 @@ function Get-GameWipToolLatestQuery
         # Package-manager queries are implemented by the active host platform.
         'msys2'
         {
+            if (-not (Test-GameWipWindowsHost))
+            {
+                return New-GameWipToolQueryResult `
+                    -State unsupported `
+                    -Provider msys2 `
+                    -Version $null `
+                    -Reason 'MSYS2 package queries are available only on Windows'
+            }
+
             return Get-GameWipMsys2ToolLatestQuery -Tool $Tool
         }
 
         'winget'
         {
+            if (-not (Test-GameWipWindowsHost))
+            {
+                return New-GameWipToolQueryResult `
+                    -State unsupported `
+                    -Provider winget `
+                    -Version $null `
+                    -Reason 'WinGet queries are available only on Windows'
+            }
+
             return Get-GameWipWingetToolLatestQuery -Tool $Tool
         }
 
@@ -221,6 +419,31 @@ function Get-GameWipToolLatestQuery
         }
         'external'
         {
+            if ($Tool.provider.Contains('latestVersion'))
+            {
+                return Get-GameWipExternalLatestVersionQuery -Tool $Tool
+            }
+
+            if ($Tool.provider.Contains('latestQuery'))
+            {
+                switch ([string]$Tool.provider.latestQuery.kind)
+                {
+                    'msys2PackageUpdates'
+                    {
+                        if (-not (Test-GameWipWindowsHost))
+                        {
+                            return New-GameWipToolQueryResult `
+                                -State unsupported `
+                                -Provider msys2 `
+                                -Version $null `
+                                -Reason 'MSYS2 updates are available only on Windows'
+                        }
+
+                        return Get-GameWipMsys2SystemUpdatesQuery -Tool $Tool
+                    }
+                }
+            }
+
             return New-GameWipToolQueryResult -State unsupported -Provider external -Version $null -Reason 'external provider has no updater'
         }
         default

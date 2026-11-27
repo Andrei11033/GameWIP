@@ -119,7 +119,7 @@ namespace GameWIP::Test
         const TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::Internal::RunnerHelpers::makeReportingOptions(options);
 
         TestSupport::Runner runner(reportOptions);
-        runner.info("Unicode library target: strict UTF-8/UTF-16 primitives and Unicode 17.0.0 extended grapheme boundaries");
+        runner.info("Unicode library target: strict UTF-8/UTF-16 primitives and Unicode 18.0.0 extended grapheme boundaries");
 
         runner.runSuite("Unicode version and scalar predicates", testVersionAndScalarPredicates);
         runner.runSuite("Unicode UTF-8 codec and validation", testUtf8CodecAndValidation);

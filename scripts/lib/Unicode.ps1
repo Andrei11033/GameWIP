@@ -316,9 +316,9 @@ function Invoke-GameWipUnicodeVerify
                 -Summary "Unicode $($paths.Version) generated data differs from the tracked table." `
                 -Details "Generated candidate: $($paths.TemporaryHeader)" `
                 -SuggestedActions @(
-                    'Review the generated candidate.',
-                    "Regenerate intentionally with '.\gamewip.bat unicode regenerate'."
-                ))
+                'Review the generated candidate.',
+                "Regenerate intentionally with '.\gamewip.bat unicode regenerate'."
+            ))
     }
 
     Write-GameWipUnicodeState `
@@ -345,7 +345,7 @@ function Invoke-GameWipUnicodeRegenerate
 
     # Leave the tracked table untouched when its bytes already match.
     $tableAlreadyMatches = (Test-Path -LiteralPath $paths.CheckedInHeader) -and
-        (Test-GameWipFilesEqual -First $paths.CheckedInHeader -Second $paths.TemporaryHeader)
+    (Test-GameWipFilesEqual -First $paths.CheckedInHeader -Second $paths.TemporaryHeader)
 
     if ($tableAlreadyMatches)
     {

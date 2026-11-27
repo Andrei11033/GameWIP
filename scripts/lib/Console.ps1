@@ -191,9 +191,9 @@ function Assert-GameWipInteractiveConsole
                 -Code 'interactive-console-required' `
                 -Summary "$Purpose requires an interactive console." `
                 -SuggestedActions @(
-                    'Use the corresponding explicit CLI command instead of an interactive menu.',
-                    'Do not pipe or redirect stdin for interactive helper flows.'
-                ))
+                'Use the corresponding explicit CLI command instead of an interactive menu.',
+                'Do not pipe or redirect stdin for interactive helper flows.'
+            ))
     }
 }
 

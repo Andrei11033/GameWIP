@@ -1,7 +1,7 @@
 /// @file grapheme_test.inl
 /// @brief Focused Unicode grapheme tests.
 
-/// @brief Verifies Unicode 17 grapheme rules with targeted rule-oriented examples and error paths.
+/// @brief Verifies Unicode 18 grapheme rules with targeted rule-oriented examples and error paths.
 void testTargetedGraphemeBoundaries(TestSupport::Context &context)
 {
     // Exercise representative extended grapheme rules.
@@ -21,6 +21,11 @@ void testTargetedGraphemeBoundaries(TestSupport::Context &context)
         context,
         "Indic conjunct GB9c",
         graphemeFixture({{static_cast<char32_t>(0x0915), static_cast<char32_t>(0x094D), static_cast<char32_t>(0x0915)}}));
+    expectGraphemeFixture(context, "Indic linker GB9c", graphemeFixture({{static_cast<char32_t>(0x094D), static_cast<char32_t>(0x0915)}}));
+    expectGraphemeFixture(
+        context,
+        "Indic linker extender GB9c",
+        graphemeFixture({{static_cast<char32_t>(0x094D), static_cast<char32_t>(0x0308), static_cast<char32_t>(0x0915)}}));
     expectGraphemeFixture(
         context,
         "emoji ZWJ GB11",
@@ -109,14 +114,14 @@ void testTargetedGraphemeBoundaries(TestSupport::Context &context)
     static_cast<void>(context.expectEq("empty grapheme cursor previous outcome", BoundaryOutcome::AtBeginning, cursor.previous().outcome));
 }
 
-/// @brief Executes the official Unicode 17 GraphemeBreakTest cases when versioned source data is available.
+/// @brief Executes the official Unicode 18 GraphemeBreakTest cases when versioned source data is available.
 void testOfficialGraphemeConformance(TestSupport::Context &context)
 {
     const std::optional<std::filesystem::path> conformancePath = findGraphemeBreakTestFile();
 
     if(!conformancePath.has_value())
     {
-        constexpr std::string_view reason = "Unicode 17.0.0 GraphemeBreakTest.txt is not cached. Run the helper's unicode verify action "
+        constexpr std::string_view reason = "Unicode 18.0.0 GraphemeBreakTest.txt is not cached. Run the helper's unicode verify action "
                                             "or set GAMEWIP_UNICODE_GRAPHEME_BREAK_TEST.";
 
         if(std::getenv("GAMEWIP_REQUIRE_UNICODE_CONFORMANCE_TESTS") != nullptr)
@@ -153,7 +158,7 @@ void testOfficialGraphemeConformance(TestSupport::Context &context)
     {
         ++lineNumber;
 
-        if(line.contains("GraphemeBreakTest-17.0.0.txt"))
+        if(line.contains("GraphemeBreakTest-18.0.0.txt"))
         {
             versionConfirmed = true;
         }
@@ -194,7 +199,7 @@ void testOfficialGraphemeConformance(TestSupport::Context &context)
 
     if(!versionConfirmed)
     {
-        context.fail("official Unicode grapheme conformance data", "file does not declare GraphemeBreakTest-17.0.0.txt");
+        context.fail("official Unicode grapheme conformance data", "file does not declare GraphemeBreakTest-18.0.0.txt");
         return;
     }
 
@@ -206,5 +211,5 @@ void testOfficialGraphemeConformance(TestSupport::Context &context)
 
     context.info(std::format("Unicode grapheme conformance source: {}", conformancePathText));
     context.info(std::format("Unicode grapheme conformance cases={} code-point offsets={} directions=2", caseCount, checkedOffsets));
-    context.pass("all official Unicode 17.0.0 GraphemeBreakTest cases pass forward and backward traversal");
+    context.pass("all official Unicode 18.0.0 GraphemeBreakTest cases pass forward and backward traversal");
 }

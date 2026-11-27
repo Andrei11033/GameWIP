@@ -29,8 +29,8 @@ function Test-GameWipLinuxTracyExecutable
         }
 
         $executeModes = [IO.UnixFileMode]::UserExecute -bor
-            [IO.UnixFileMode]::GroupExecute -bor
-            [IO.UnixFileMode]::OtherExecute
+        [IO.UnixFileMode]::GroupExecute -bor
+        [IO.UnixFileMode]::OtherExecute
 
         return ([IO.File]::GetUnixFileMode($Path) -band $executeModes) -ne 0
     }

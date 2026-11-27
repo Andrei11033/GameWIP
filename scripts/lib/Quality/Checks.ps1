@@ -390,9 +390,9 @@ function Invoke-GameWipQualityCheck
                 -Summary "$($failed.Count) quality check(s) failed." `
                 -Details (($failed | ForEach-Object { "$($_.Name): $($_.Error)" }) -join "`n") `
                 -SuggestedActions @(
-                    'Fix every failure listed in the quality summary.',
-                    "Use '-FailFast' only when debugging one check at a time."
-                ))
+                'Fix every failure listed in the quality summary.',
+                "Use '-FailFast' only when debugging one check at a time."
+            ))
     }
 }
 

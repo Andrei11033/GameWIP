@@ -1168,7 +1168,7 @@
   "defaultRuntimeCommand": "game-dev",
   "defaultBuildPreset": "test",
   "unicode": {
-    "version": "17.0.0",
+    "version": "18.0.0",
     "generatedHeader": "foundation\\unicode\\internal\\generated\\unicode_properties.h",
     "ucdUrlTemplate": "https://www.unicode.org/Public/{0}/ucd/UCD.zip",
     "requiredFiles": [

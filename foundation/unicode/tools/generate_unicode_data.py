@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the compact Unicode 17 grapheme-property trie used by GameWIP.
+"""Generate the compact Unicode 18 grapheme-property trie used by GameWIP.
 
 The script consumes an unpacked Unicode Character Database directory. It never
 runs as part of an ordinary configure, build, test, package, or consumer flow.
@@ -12,8 +12,9 @@ from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
-UNICODE_VERSION = "17.0.0"
-EMOJI_VERSION = "17.0"
+UNICODE_VERSION = "18.0.0"
+UNICODE_VERSION_MAJOR, UNICODE_VERSION_MINOR, UNICODE_VERSION_PATCH = map(int, UNICODE_VERSION.split("."))
+EMOJI_VERSION = ".".join(UNICODE_VERSION.split(".")[:2])
 MAX_CODE_POINT = 0x10FFFF
 CODE_POINT_COUNT = MAX_CODE_POINT + 1
 MIN_BLOCK_SHIFT = 5
@@ -83,7 +84,7 @@ def parse_arguments() -> argparse.Namespace:
         "--ucd-dir",
         type=Path,
         required=True,
-        help="Path to the unpacked Unicode 17.0.0 ucd directory.",
+        help=f"Path to the unpacked Unicode {UNICODE_VERSION} ucd directory.",
     )
     parser.add_argument(
         "--output",
@@ -285,9 +286,9 @@ def render_header(trie: GeneratedTrie) -> str:
 
 namespace GameWIP::Unicode::Internal::Generated
 {{
-    inline constexpr std::uint8_t kUnicodeVersionMajor = 17;
-    inline constexpr std::uint8_t kUnicodeVersionMinor = 0;
-    inline constexpr std::uint8_t kUnicodeVersionPatch = 0;
+    inline constexpr std::uint8_t kUnicodeVersionMajor = {UNICODE_VERSION_MAJOR};
+    inline constexpr std::uint8_t kUnicodeVersionMinor = {UNICODE_VERSION_MINOR};
+    inline constexpr std::uint8_t kUnicodeVersionPatch = {UNICODE_VERSION_PATCH};
 
     inline constexpr std::size_t kBlockShift = {trie.block_shift};
     inline constexpr std::size_t kBlockSize = {block_size};

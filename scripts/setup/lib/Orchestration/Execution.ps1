@@ -151,50 +151,50 @@ function Invoke-GameWipSetupOperation
         -SuppressReceipt:$Quiet `
         -SuppressOutput:$Quiet `
         -ScriptBlock {
-            # Run read-only actions without creating a mutation plan.
-            if ($SelectedAction -in @('help', 'list', 'check'))
-            {
-                Invoke-GameWipSetupActionBody -SelectedAction $SelectedAction
-                return
-            }
+        # Run read-only actions without creating a mutation plan.
+        if ($SelectedAction -in @('help', 'list', 'check'))
+        {
+            Invoke-GameWipSetupActionBody -SelectedAction $SelectedAction
+            return
+        }
 
-            if ($SelectedAction -eq 'uninstall')
-            {
-                # Uninstall owns its confirmation so inventory is always printed first.
-                Invoke-GameWipSetupActionBody -SelectedAction uninstall
-                return
-            }
+        if ($SelectedAction -eq 'uninstall')
+        {
+            # Uninstall owns its confirmation so inventory is always printed first.
+            Invoke-GameWipSetupActionBody -SelectedAction uninstall
+            return
+        }
 
-            # Gather the selected action's approval plan.
-            if ($SelectedAction -in @('full', 'repair', 'update'))
-            {
-                Show-GameWipSetupSizeEstimate
-            }
+        # Gather the selected action's approval plan.
+        if ($SelectedAction -in @('full', 'repair', 'update'))
+        {
+            Show-GameWipSetupSizeEstimate
+        }
 
-            if ($SelectedAction -in @('full', 'repair', 'update', 'msys2', 'tool'))
-            {
-                Select-GameWipExistingMsys2
-            }
+        if ($SelectedAction -in @('full', 'repair', 'update', 'msys2', 'tool'))
+        {
+            Select-GameWipExistingMsys2
+        }
 
-            $null = Get-GameWipSetupState
-            $setupStateNeedsRepair = $script:SetupStateReadStatus -in @('needs-repair', 'corrupt')
-            $plan = @(Get-GameWipSetupPlan -SelectedAction $SelectedAction)
+        $null = Get-GameWipSetupState
+        $setupStateNeedsRepair = $script:SetupStateReadStatus -in @('needs-repair', 'corrupt')
+        $plan = @(Get-GameWipSetupPlan -SelectedAction $SelectedAction)
 
+        if ($setupStateNeedsRepair)
+        {
+            $plan += 'Update the disposable setup ownership state in build/gamewip.'
+            Add-GameWipOperationWarning -Message "Setup state requires repair: $script:SetupStateReadError"
+        }
+
+        # Apply the plan and repair disposable state before the requested work.
+        Invoke-GameWipMutation -Summary $actionInfo.Description -Risk ([string]$actionInfo.Risk) -Plan $plan -Body {
             if ($setupStateNeedsRepair)
             {
-                $plan += 'Update the disposable setup ownership state in build/gamewip.'
-                Add-GameWipOperationWarning -Message "Setup state requires repair: $script:SetupStateReadError"
+                $null = Repair-GameWipSetupState
+                Add-GameWipOperationChange -Message 'Normalized setup ownership state.'
             }
 
-            # Apply the plan and repair disposable state before the requested work.
-            Invoke-GameWipMutation -Summary $actionInfo.Description -Risk ([string]$actionInfo.Risk) -Plan $plan -Body {
-                if ($setupStateNeedsRepair)
-                {
-                    $null = Repair-GameWipSetupState
-                    Add-GameWipOperationChange -Message 'Normalized setup ownership state.'
-                }
-
-                Invoke-GameWipSetupActionBody -SelectedAction $SelectedAction
-            } | Out-Null
-        }
+            Invoke-GameWipSetupActionBody -SelectedAction $SelectedAction
+        } | Out-Null
+    }
 }

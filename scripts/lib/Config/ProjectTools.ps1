@@ -211,12 +211,78 @@ function Assert-GameWipProjectToolConfig
                         throw "Archive tool '$($toolInfo.id)' has invalid verified asset metadata for '$assetKey'."
                     }
                 }
+
+                if ($toolInfo.provider.Contains('latestIndex'))
+                {
+                    $latestIndex = $toolInfo.provider.latestIndex
+                    $indexUri = $null
+                    $baseUri = $null
+
+                    if (-not [uri]::TryCreate([string]$latestIndex.url, [UriKind]::Absolute, [ref]$indexUri) -or
+                        -not [uri]::TryCreate([string]$toolInfo.provider.baseUrl, [UriKind]::Absolute, [ref]$baseUri) -or
+                        $indexUri.Scheme -ne 'https' -or
+                        $indexUri.Host -ne $baseUri.Host)
+                    {
+                        throw "Archive tool '$($toolInfo.id)' must use an HTTPS version index on its download host."
+                    }
+
+                    foreach ($assetKey in @($toolInfo.provider.assets.Keys))
+                    {
+                        if (-not $latestIndex.assetKeys.ContainsKey([string]$assetKey) -or
+                            [string]::IsNullOrWhiteSpace([string]$latestIndex.assetKeys[$assetKey]))
+                        {
+                            throw "Archive tool '$($toolInfo.id)' has no latest-index key for '$assetKey'."
+                        }
+                    }
+                }
             }
             'winget'
             {
                 if (-not $toolInfo.provider.Contains('package'))
                 {
                     throw "WinGet tool '$($toolInfo.id)' must declare its package."
+                }
+            }
+            'external'
+            {
+                if ($toolInfo.provider.Contains('latestVersion') -and $toolInfo.provider.Contains('latestQuery'))
+                {
+                    throw "External tool '$($toolInfo.id)' must declare one latest-version query method."
+                }
+
+                if ($toolInfo.provider.Contains('latestVersion'))
+                {
+                    $latestVersion = $toolInfo.provider.latestVersion
+                    $latestUri = $null
+
+                    if (-not [uri]::TryCreate([string]$latestVersion.url, [UriKind]::Absolute, [ref]$latestUri) -or
+                        $latestUri.Scheme -ne 'https')
+                    {
+                        throw "External tool '$($toolInfo.id)' latest-version URL must use HTTPS."
+                    }
+                    $pattern = [string]$latestVersion.pattern
+
+                    try
+                    {
+                        $regex = [regex]::new($pattern)
+                    }
+
+                    catch
+                    {
+                        throw "External tool '$($toolInfo.id)' has an invalid latest-version pattern: $($_.Exception.Message)"
+                    }
+
+                    if ($regex.GetGroupNumbers().Count -lt 2)
+                    {
+                        throw "External tool '$($toolInfo.id)' latest-version pattern must capture the version."
+                    }
+                }
+
+                if ($toolInfo.provider.Contains('latestQuery') -and
+                    ([string]$toolInfo.provider.latestQuery.kind -ne 'msys2PackageUpdates' -or
+                        [string]$toolInfo.provider.hostPlatform -ne 'windows'))
+                {
+                    throw "External tool '$($toolInfo.id)' has an unsupported latest-query declaration."
                 }
             }
         }

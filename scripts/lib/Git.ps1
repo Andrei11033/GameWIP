@@ -84,11 +84,11 @@ function Invoke-GameWipGitFetch
         -Risk local `
         -Plan @('git fetch --all --prune') `
         -Body {
-            Invoke-GameWipNative `
-                -Name 'git-fetch-prune' `
-                -FilePath 'git' `
-                -Arguments @('-C', $RepositoryRoot, 'fetch', '--all', '--prune')
-        }
+        Invoke-GameWipNative `
+            -Name 'git-fetch-prune' `
+            -FilePath 'git' `
+            -Arguments @('-C', $RepositoryRoot, 'fetch', '--all', '--prune')
+    }
 
     if ($PassThru)
     {
@@ -168,11 +168,11 @@ function Invoke-GameWipBranchSwitch
         -Risk local `
         -Plan @((ConvertTo-GameWipNativeCommandLine -FilePath git -Arguments $gitArguments)) `
         -Body {
-            Invoke-GameWipNative `
-                -Name "git-switch-$selected" `
-                -FilePath git `
-                -Arguments $gitArguments
-        } |
+        Invoke-GameWipNative `
+            -Name "git-switch-$selected" `
+            -FilePath git `
+            -Arguments $gitArguments
+    } |
         Out-Null
     Show-GameWipGitStatus
 }
@@ -197,15 +197,15 @@ function Invoke-GameWipCurrentBranchUpdate
         -Risk local `
         -Plan @('Fetch/prune remotes.', "git merge --ff-only $upstream") `
         -Body {
-            Invoke-GameWipNative `
-                -Name 'git-fetch-prune' `
-                -FilePath git `
-                -Arguments @('-C', $RepositoryRoot, 'fetch', '--all', '--prune')
-            Invoke-GameWipNative `
-                -Name "git-update-$branch" `
-                -FilePath git `
-                -Arguments @('-C', $RepositoryRoot, 'merge', '--ff-only', $upstream)
-        } |
+        Invoke-GameWipNative `
+            -Name 'git-fetch-prune' `
+            -FilePath git `
+            -Arguments @('-C', $RepositoryRoot, 'fetch', '--all', '--prune')
+        Invoke-GameWipNative `
+            -Name "git-update-$branch" `
+            -FilePath git `
+            -Arguments @('-C', $RepositoryRoot, 'merge', '--ff-only', $upstream)
+    } |
         Out-Null
 }
 
@@ -273,11 +273,11 @@ function Invoke-GameWipCurrentBranchPush
         -Plan @((ConvertTo-GameWipNativeCommandLine -FilePath git -Arguments $gitArguments)) `
         -TypedPhrase "push $branch" `
         -Body {
-            Invoke-GameWipNative `
-                -Name "git-push-$branch" `
-                -FilePath git `
-                -Arguments $gitArguments
-        } |
+        Invoke-GameWipNative `
+            -Name "git-push-$branch" `
+            -FilePath git `
+            -Arguments $gitArguments
+    } |
         Out-Null
 }
 
@@ -338,22 +338,22 @@ function Invoke-GameWipBranchCleanup
         -Risk destructive `
         -Plan $plan `
         -Body {
-            foreach ($branch in $merged)
-            {
-                Invoke-GameWipNative `
-                    -Name "git-delete-$branch" `
-                    -FilePath git `
-                    -Arguments @('-C', $RepositoryRoot, 'branch', '-d', $branch)
-            }
+        foreach ($branch in $merged)
+        {
+            Invoke-GameWipNative `
+                -Name "git-delete-$branch" `
+                -FilePath git `
+                -Arguments @('-C', $RepositoryRoot, 'branch', '-d', $branch)
+        }
 
-            foreach ($branch in $gone)
-            {
-                Invoke-GameWipNative `
-                    -Name "git-force-delete-$branch" `
-                    -FilePath git `
-                    -Arguments @('-C', $RepositoryRoot, 'branch', '-D', $branch)
-            }
-        } |
+        foreach ($branch in $gone)
+        {
+            Invoke-GameWipNative `
+                -Name "git-force-delete-$branch" `
+                -FilePath git `
+                -Arguments @('-C', $RepositoryRoot, 'branch', '-D', $branch)
+        }
+    } |
         Out-Null
 }
 

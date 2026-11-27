@@ -108,7 +108,7 @@ original caller-provided offset.
 
 `isScalarValue()` accepts values from `U+0000` through `U+10FFFF` except `U+D800` through `U+DFFF`.
 
-`getStandardVersion()` reports the Unicode Standard version used by generated property data and grapheme segmentation. The current result is `17.0.0`.
+`getStandardVersion()` reports the Unicode Standard version used by generated property data and grapheme segmentation. The current result is `18.0.0`.
 
 ## UTF-8 operations
 
@@ -144,7 +144,7 @@ traversal validates the scalar ending at the offset. Malformed or incomplete UTF
 
 ### Grapheme boundaries
 
-`nextGraphemeBoundary()` and `previousGraphemeBoundary()` implement Unicode 17.0.0 default extended grapheme-cluster traversal using the library's
+`nextGraphemeBoundary()` and `previousGraphemeBoundary()` implement Unicode 18.0.0 default extended grapheme-cluster traversal using the library's
 pinned generated properties.
 
 The implementation is the Unicode default algorithm; it does not apply CLDR or locale-specific grapheme tailoring.

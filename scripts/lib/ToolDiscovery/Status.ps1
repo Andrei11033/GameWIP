@@ -57,7 +57,7 @@ function Get-GameWipDetectedTool
     $selected = $candidates[0]
     $version = Get-GameWipToolCandidateVersion -Tool $Tool -Path $selected.Path
     $usesPackageQueryHost = $Tool.provider.kind -in @('python', 'npm') -and
-        [string]$Tool.detection.command -ne [string]$Tool.provider.package
+    [string]$Tool.detection.command -ne [string]$Tool.provider.package
 
     if ($usesPackageQueryHost -and $null -eq $version)
     {

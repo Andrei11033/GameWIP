@@ -97,8 +97,8 @@ function Get-GameWipToolCandidateVersion
 
     # Validate the marker for tools installed from managed archives.
     $isManagedArchive = $Tool.provider.kind -in @('githubRelease', 'archive') -and
-        $Tool.provider.Contains('installMode') -and
-        $Tool.provider.installMode -eq 'directoryArchive'
+    $Tool.provider.Contains('installMode') -and
+    $Tool.provider.installMode -eq 'directoryArchive'
 
     if ($isManagedArchive)
     {
@@ -106,7 +106,7 @@ function Get-GameWipToolCandidateVersion
         $toolRoot = Join-Path (Get-GameWipManagedToolRoot) (Join-Path ([string]$Tool.provider.managedDirectory) ([string]$Tool.requiredVersion))
         $binaryDirectory = Join-Path $toolRoot ([string]$Tool.provider.binaryDirectory)
         $binaryRoot = [IO.Path]::GetFullPath($binaryDirectory).TrimEnd([IO.Path]::DirectorySeparatorChar) +
-            [IO.Path]::DirectorySeparatorChar
+        [IO.Path]::DirectorySeparatorChar
         $candidatePath = [IO.Path]::GetFullPath($Path)
         $pathComparison = Get-GameWipPathComparison
 

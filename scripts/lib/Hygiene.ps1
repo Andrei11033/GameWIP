@@ -321,9 +321,9 @@ function Invoke-GameWipHygieneClangTidy
                 -Summary 'The hygiene audit requires Python and run-clang-tidy.' `
                 -Details 'The configured analysis toolchain is incomplete.' `
                 -SuggestedActions @(
-                    "$(Get-GameWipProjectHelperCommand) tool status",
-                    "$(Get-GameWipSetupHelperCommand) repair"
-                ))
+                "$(Get-GameWipProjectHelperCommand) tool status",
+                "$(Get-GameWipSetupHelperCommand) repair"
+            ))
     }
 
     $preset = [string]$HygieneConfig.AnalyzePreset
@@ -551,9 +551,9 @@ function Invoke-GameWipHygieneAudit
                     -Summary "$($proven.Count) proven hygiene finding(s) require review." `
                     -Details 'The complete finding report is retained in the operation artifacts.' `
                     -SuggestedActions @(
-                        'Review each PROVEN finding.',
-                        'Fix or centrally explain only after confirming the evidence.'
-                    ))
+                    'Review each PROVEN finding.',
+                    'Fix or centrally explain only after confirming the evidence.'
+                ))
         }
     }
 }

@@ -20,8 +20,8 @@ function Show-GameWipGitWorkspaceMenu
                 Invoke-GameWipInteractiveOperation `
                     -Label 'git-status' `
                     -Body {
-                        Invoke-GameWipGitAction -Name status
-                    } |
+                    Invoke-GameWipGitAction -Name status
+                } |
                     Out-Null
             }
 
@@ -30,8 +30,8 @@ function Show-GameWipGitWorkspaceMenu
                 Invoke-GameWipInteractiveOperation `
                     -Label 'git-log' `
                     -Body {
-                        Invoke-GameWipGitAction -Name log
-                    } |
+                    Invoke-GameWipGitAction -Name log
+                } |
                     Out-Null
             }
 
@@ -40,8 +40,8 @@ function Show-GameWipGitWorkspaceMenu
                 Invoke-GameWipInteractiveOperation `
                     -Label 'git-fetch' `
                     -Body {
-                        Invoke-GameWipGitAction -Name fetch
-                    } |
+                    Invoke-GameWipGitAction -Name fetch
+                } |
                     Out-Null
             }
 
@@ -50,8 +50,8 @@ function Show-GameWipGitWorkspaceMenu
                 Invoke-GameWipInteractiveOperation `
                     -Label 'git-switch' `
                     -Body {
-                        Invoke-GameWipGitAction -Name switch
-                    } |
+                    Invoke-GameWipGitAction -Name switch
+                } |
                     Out-Null
             }
 
@@ -60,8 +60,8 @@ function Show-GameWipGitWorkspaceMenu
                 Invoke-GameWipInteractiveOperation `
                     -Label 'git-create' `
                     -Body {
-                        Invoke-GameWipGitAction -Name create
-                    } |
+                    Invoke-GameWipGitAction -Name create
+                } |
                     Out-Null
             }
 
@@ -70,8 +70,8 @@ function Show-GameWipGitWorkspaceMenu
                 Invoke-GameWipInteractiveOperation `
                     -Label 'git-update' `
                     -Body {
-                        Invoke-GameWipGitAction -Name update
-                    } |
+                    Invoke-GameWipGitAction -Name update
+                } |
                     Out-Null
             }
 
@@ -80,8 +80,8 @@ function Show-GameWipGitWorkspaceMenu
                 Invoke-GameWipInteractiveOperation `
                     -Label 'git-push' `
                     -Body {
-                        Invoke-GameWipGitAction -Name push
-                    } |
+                    Invoke-GameWipGitAction -Name push
+                } |
                     Out-Null
             }
 
@@ -90,8 +90,8 @@ function Show-GameWipGitWorkspaceMenu
                 Invoke-GameWipInteractiveOperation `
                     -Label 'git-cleanup' `
                     -Body {
-                        Invoke-GameWipGitAction -Name cleanup
-                    } |
+                    Invoke-GameWipGitAction -Name cleanup
+                } |
                     Out-Null
             }
         }
@@ -116,8 +116,8 @@ function Show-GameWipGitHubWorkflowsMenu
                 Invoke-GameWipInteractiveOperation `
                     -Label 'workflow-list' `
                     -Body {
-                        Invoke-GameWipWorkflowAction -Name list
-                    } |
+                    Invoke-GameWipWorkflowAction -Name list
+                } |
                     Out-Null
             }
 
@@ -126,8 +126,8 @@ function Show-GameWipGitHubWorkflowsMenu
                 Invoke-GameWipInteractiveOperation `
                     -Label 'workflow-status' `
                     -Body {
-                        Invoke-GameWipWorkflowAction -Name status
-                    } |
+                    Invoke-GameWipWorkflowAction -Name status
+                } |
                     Out-Null
             }
 
@@ -143,8 +143,8 @@ function Show-GameWipGitHubWorkflowsMenu
                     Invoke-GameWipInteractiveOperation `
                         -Label "workflow-$workflow" `
                         -Body {
-                            Invoke-GameWipWorkflowAction -Name run -WorkflowId $workflow
-                        } |
+                        Invoke-GameWipWorkflowAction -Name run -WorkflowId $workflow
+                    } |
                         Out-Null
                 }
             }
@@ -170,8 +170,8 @@ function Show-GameWipUnicodeDataMenu
                 Invoke-GameWipInteractiveOperation `
                     -Label 'unicode-status' `
                     -Body {
-                        Show-GameWipUnicodeStatus
-                    } |
+                    Show-GameWipUnicodeStatus
+                } |
                     Out-Null
             }
 
@@ -180,20 +180,20 @@ function Show-GameWipUnicodeDataMenu
                 Invoke-GameWipInteractiveOperation `
                     -Label 'unicode-verify' `
                     -Body {
-                        Invoke-GameWipMutation `
-                            -Summary 'Verify reproducible Unicode generated data.' `
-                            -Risk local `
-                            -Plan @(
-                                'Verify/download pinned Unicode input in the owned cache.'
-                                'Generate and format an operation-owned candidate.'
-                                'Compare the candidate with the checked-in table.'
-                            ) `
-                            -Body {
-                                Invoke-GameWipUnicodeVerify
-                            } |
-                            Out-Null
+                    Invoke-GameWipMutation `
+                        -Summary 'Verify reproducible Unicode generated data.' `
+                        -Risk local `
+                        -Plan @(
+                        'Verify/download pinned Unicode input in the owned cache.'
+                        'Generate and format an operation-owned candidate.'
+                        'Compare the candidate with the checked-in table.'
+                    ) `
+                        -Body {
+                        Invoke-GameWipUnicodeVerify
                     } |
-                    Out-Null
+                        Out-Null
+                    } |
+                        Out-Null
             }
 
             'unicode-regenerate'
@@ -201,20 +201,20 @@ function Show-GameWipUnicodeDataMenu
                 Invoke-GameWipInteractiveOperation `
                     -Label 'unicode-regenerate' `
                     -Body {
-                        Invoke-GameWipMutation `
-                            -Summary 'Regenerate the tracked Unicode property table.' `
-                            -Risk tracked `
-                            -Plan @(
-                                'Download/verify pinned UCD inputs.'
-                                'Generate and format candidate.'
-                                'Replace tracked table only when content differs.'
-                            ) `
-                            -Body {
-                                Invoke-GameWipUnicodeRegenerate
-                            } |
-                            Out-Null
+                    Invoke-GameWipMutation `
+                        -Summary 'Regenerate the tracked Unicode property table.' `
+                        -Risk tracked `
+                        -Plan @(
+                        'Download/verify pinned UCD inputs.'
+                        'Generate and format candidate.'
+                        'Replace tracked table only when content differs.'
+                    ) `
+                        -Body {
+                        Invoke-GameWipUnicodeRegenerate
                     } |
-                    Out-Null
+                        Out-Null
+                    } |
+                        Out-Null
             }
         }
     }
@@ -238,8 +238,8 @@ function Show-GameWipRunHistoryMenu
                 Invoke-GameWipInteractiveOperation `
                     -Label 'history-list' `
                     -Body {
-                        Show-GameWipRunList
-                    } |
+                    Show-GameWipRunList
+                } |
                     Out-Null
             }
 
@@ -248,8 +248,8 @@ function Show-GameWipRunHistoryMenu
                 Invoke-GameWipInteractiveOperation `
                     -Label 'history-show-latest' `
                     -Body {
-                        Show-GameWipRun -Selector latest
-                    } |
+                    Show-GameWipRun -Selector latest
+                } |
                     Out-Null
             }
 
@@ -258,8 +258,8 @@ function Show-GameWipRunHistoryMenu
                 Invoke-GameWipInteractiveOperation `
                     -Label 'history-clean' `
                     -Body {
-                        Invoke-GameWipRunCleanup -Selector all
-                    } |
+                    Invoke-GameWipRunCleanup -Selector all
+                } |
                     Out-Null
             }
         }
@@ -284,8 +284,8 @@ function Show-GameWipDependencyMenu
                 Invoke-GameWipInteractiveOperation `
                     -Label 'deps-check' `
                     -Body {
-                        Test-GameWipDependencyCache -ThrowOnFailure | Out-Null
-                    } |
+                    Test-GameWipDependencyCache -ThrowOnFailure | Out-Null
+                } |
                     Out-Null
             }
 
@@ -294,8 +294,8 @@ function Show-GameWipDependencyMenu
                 Invoke-GameWipInteractiveOperation `
                     -Label 'deps-prepare' `
                     -Body {
-                        Invoke-GameWipDependencyPreparationOperation
-                    } |
+                    Invoke-GameWipDependencyPreparationOperation
+                } |
                     Out-Null
             }
         }

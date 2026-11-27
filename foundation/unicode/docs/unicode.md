@@ -3,7 +3,7 @@
 `GameWIP::Unicode` is the platform-neutral Unicode text-processing library and GameWIP's sole maintained encoding-conversion authority. Use its
 caller-backed measure/convert APIs; platform backends bridge the resulting code units to native representations at their boundary.
 
-It provides strict UTF-8 and UTF-16 scalar operations, validation and conversion, UTF-8 code-point traversal, and Unicode 17.0.0 default extended
+It provides strict UTF-8 and UTF-16 scalar operations, validation and conversion, UTF-8 code-point traversal, and Unicode 18.0.0 default extended
 grapheme-cluster traversal, including caller-backed indexed grapheme traversal for repeated movement. UTF-8 is the canonical public text representation;
 UTF-16 is an explicit bridge for boundaries that require it.
 
@@ -46,7 +46,7 @@ and progress guarantees callers can rely on, and which policies intentionally re
 - Conversion writes only complete encoded scalars, appends no terminator, preserves completed progress, and leaves destination elements after the
   reported written extent untouched.
 - Overlapping conversion source and destination ranges are rejected before output is written.
-- UTF-8 grapheme traversal implements Unicode 17.0.0 default extended grapheme-cluster rules using checked-in generated property data.
+- UTF-8 grapheme traversal implements Unicode 18.0.0 default extended grapheme-cluster rules using checked-in generated property data.
 - Stateless grapheme queries restart from the nearest provably safe local boundary when possible instead of always reconstructing context from byte 0.
 - `Utf8::GraphemeCursor` indexes into caller-owned storage once, then supports constant-time forward/backward stepping and constant-time suffix-index
   discard without implementation-owned allocation.

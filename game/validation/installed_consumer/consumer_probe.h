@@ -68,7 +68,7 @@ namespace
 #elif defined(GAMEWIP_CONSUMER_Unicode)
         const GameWIP::Unicode::Types::Version version = GameWIP::Unicode::getStandardVersion();
         const GameWIP::Unicode::Types::Utf8::EncodeResult encoded = GameWIP::Unicode::Utf8::encodeScalar(static_cast<char32_t>(0x1F600));
-        const bool expectedVersion = version.major == 17 && version.minor == 0 && version.patch == 0;
+        const bool expectedVersion = version.major == 18 && version.minor == 0 && version.patch == 0;
         const bool encodedNonBmpScalar = encoded.outcome == GameWIP::Unicode::Types::EncodeOutcome::Encoded && encoded.byteCount == 4;
         return expectedVersion && encodedNonBmpScalar ? 0 : 1;
 #elif defined(GAMEWIP_CONSUMER_IO)

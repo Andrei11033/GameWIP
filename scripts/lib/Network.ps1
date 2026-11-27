@@ -280,10 +280,10 @@ function Invoke-GameWipHttpRead
             }
             $delaySeconds = [Math]::Min(8, [Math]::Pow(2, $attempt - 1))
             $retryMessage = '  retry {0}/{1} in {2}s: {3}' -f `
-                ($attempt + 1),
-                $MaxAttempts,
-                $delaySeconds,
-                $_.Exception.Message
+            ($attempt + 1),
+            $MaxAttempts,
+            $delaySeconds,
+            $_.Exception.Message
             Write-GameWipHost $retryMessage -ForegroundColor Yellow
             Start-Sleep -Seconds $delaySeconds
         }

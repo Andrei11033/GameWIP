@@ -21,8 +21,8 @@ function Show-GameWipToolUpdatesMenu
                 Invoke-GameWipInteractiveOperation `
                     -Label 'tool-plan' `
                     -Body {
-                        Show-GameWipToolUpdatePlan -Plan @(Get-GameWipToolUpdatePlan -ToolId all)
-                    } |
+                    Show-GameWipToolUpdatePlan -Plan @(Get-GameWipToolUpdatePlan -ToolId all)
+                } |
                     Out-Null
             }
 
@@ -31,10 +31,10 @@ function Show-GameWipToolUpdatesMenu
                 $id = Read-GameWipNamedChoice `
                     -Prompt 'Tool(s) to preview' `
                     -Choices @(
-                        $ProjectTools.tools |
-                            Where-Object { $_.capabilities.update } |
-                            ForEach-Object { $_.id }
-                    ) `
+                    $ProjectTools.tools |
+                        Where-Object { $_.capabilities.update } |
+                        ForEach-Object { $_.id }
+                ) `
                     -Default all `
                     -AllowMultiple
 
@@ -43,8 +43,8 @@ function Show-GameWipToolUpdatesMenu
                     Invoke-GameWipInteractiveOperation `
                         -Label "tool-preview-$($id -join '-')" `
                         -Body {
-                            Invoke-GameWipToolUpdate -ToolId $id -PreviewOnly
-                        } |
+                        Invoke-GameWipToolUpdate -ToolId $id -PreviewOnly
+                    } |
                         Out-Null
                 }
             }
@@ -54,10 +54,10 @@ function Show-GameWipToolUpdatesMenu
                 $id = Read-GameWipNamedChoice `
                     -Prompt 'Tool(s) to update' `
                     -Choices @(
-                        $ProjectTools.tools |
-                            Where-Object { $_.capabilities.update } |
-                            ForEach-Object { $_.id }
-                    ) `
+                    $ProjectTools.tools |
+                        Where-Object { $_.capabilities.update } |
+                        ForEach-Object { $_.id }
+                ) `
                     -Default all `
                     -AllowMultiple
 
@@ -68,8 +68,8 @@ function Show-GameWipToolUpdatesMenu
                     Invoke-GameWipInteractiveOperation `
                         -Label "tool-update-$($id -join '-')" `
                         -Body {
-                            Invoke-GameWipToolUpdate -ToolId $id
-                        } |
+                        Invoke-GameWipToolUpdate -ToolId $id
+                    } |
                         Out-Null
                 }
             }
@@ -95,8 +95,8 @@ function Show-GameWipToolsMenu
                 Invoke-GameWipInteractiveOperation `
                     -Label 'ready' `
                     -Body {
-                        Test-GameWipProjectReadiness -ThrowOnFailure | Out-Null
-                    } |
+                    Test-GameWipProjectReadiness -ThrowOnFailure | Out-Null
+                } |
                     Out-Null
             }
 
@@ -105,8 +105,8 @@ function Show-GameWipToolsMenu
                 Invoke-GameWipInteractiveOperation `
                     -Label 'tool-status' `
                     -Body {
-                        Show-GameWipToolStatus
-                    } |
+                    Show-GameWipToolStatus
+                } |
                     Out-Null
             }
 

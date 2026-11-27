@@ -86,7 +86,10 @@
         "homepage": "https://www.msys2.org/",
         "hostPlatform": "windows",
         "managedPath": "usr/bin/bash.exe",
-        "bootstrap": "msys2BaseArchive"
+        "bootstrap": "msys2BaseArchive",
+        "latestQuery": {
+          "kind": "msys2PackageUpdates"
+        }
       },
       "versionPolicy": "managed",
       "detection": {
@@ -96,7 +99,7 @@
       },
       "capabilities": {
         "detectInstalled": true,
-        "checkLatest": false,
+        "checkLatest": true,
         "update": false
       },
       "references": []
@@ -165,7 +168,7 @@
       "provider": {
         "kind": "githubRelease",
         "repository": "mstorsjo/llvm-mingw",
-        "releaseTag": "20261104",
+        "releaseTag": "20261117",
         "installMode": "directoryArchive",
         "managedDirectory": "tools/llvm-mingw",
         "binaryDirectory": "bin",
@@ -190,13 +193,13 @@
         ],
         "assets": {
           "windows-amd64": {
-            "archive": "llvm-mingw-20261104-ucrt-x86_64.zip",
-            "sha256": "552191b5754c49a5a20723276a6fc56541ea1922c4c50b7b669022333fc1b40f",
+            "archive": "llvm-mingw-20261117-ucrt-x86_64.zip",
+            "sha256": "4d002e330a0f703625aa5ccbc37e96f8f824413e163bfc7336774aabd2c3a412",
             "format": "archive"
           },
           "linux-amd64": {
-            "archive": "llvm-mingw-20261104-ucrt-ubuntu-22.04-x86_64.tar.xz",
-            "sha256": "919380403de87dca3c581c2053230cd298af5e891286628ba0613b7fed370926",
+            "archive": "llvm-mingw-20261117-ucrt-ubuntu-22.04-x86_64.tar.xz",
+            "sha256": "e7a15a49a2ea95e9f3d8a9d0cfabe5052a4b10fb4777cc54de5a8c27b64bb701",
             "format": "archive",
             "validationFiles": [
               "bin/x86_64-w64-mingw32-clang",
@@ -218,8 +221,8 @@
             ]
           },
           "linux-arm64": {
-            "archive": "llvm-mingw-20261104-ucrt-ubuntu-22.04-aarch64.tar.xz",
-            "sha256": "595e95bdffabfc62559fe26e30bdfbccf277cbaed4902793555015ee47306b94",
+            "archive": "llvm-mingw-20261117-ucrt-ubuntu-22.04-aarch64.tar.xz",
+            "sha256": "6d9442ead9ace3b3e4c3389bfef69f93f873305e0705e6cc60978ac895320872",
             "format": "archive",
             "validationFiles": [
               "bin/x86_64-w64-mingw32-clang",
@@ -243,7 +246,7 @@
         }
       },
       "versionPolicy": "exact",
-      "requiredVersion": "20261104",
+      "requiredVersion": "20261117",
       "detection": {
         "command": "x86_64-w64-mingw32-clang++",
         "versionArguments": ["--version"],
@@ -275,6 +278,15 @@
         "binaryDirectory": ".",
         "compiler": "zig",
         "cmakeToolchain": "GameWIPZig.cmake",
+        "latestIndex": {
+          "url": "https://ziglang.org/download/index.json",
+          "assetKeys": {
+            "windows-amd64": "x86_64-windows",
+            "windows-arm64": "aarch64-windows",
+            "linux-amd64": "x86_64-linux",
+            "linux-arm64": "aarch64-linux"
+          }
+        },
         "assets": {
           "windows-amd64": {
             "archive": "zig-x86_64-windows-0.17.1.zip",
@@ -307,7 +319,7 @@
       },
       "capabilities": {
         "detectInstalled": true,
-        "checkLatest": false,
+        "checkLatest": true,
         "update": true
       },
       "references": [
@@ -573,24 +585,24 @@
       "provider": {
         "kind": "githubRelease",
         "repository": "astral-sh/ruff",
-        "releaseTag": "0.17.1",
+        "releaseTag": "0.17.6",
         "assets": {
           "windows-amd64": {
             "archive": "ruff-x86_64-pc-windows-msvc.zip",
-            "sha256": "a841fb7e59680508b9394bfea32e369b3907cc6620a491c65d8d1f479498db82"
+            "sha256": "00c5d5793d308e8575b16b7303527110dd49bd02d46db0a8668b0eefdca14c2e"
           },
           "linux-amd64": {
             "archive": "ruff-x86_64-unknown-linux-gnu.tar.gz",
-            "sha256": "a293ac937715ae6fb6b64da86761598379e6149f40fbc00fde9ba8a2a562ac65"
+            "sha256": "94b33791f48cd54ab35ad673a443a5c001d3e6d87effeaba9899070b700d45f3"
           },
           "linux-arm64": {
             "archive": "ruff-aarch64-unknown-linux-gnu.tar.gz",
-            "sha256": "d3ead1f0ed779e777a034ccd9286be6bd9bd3cdaba732ff9797f8288a283e9e2"
+            "sha256": "d4eea36ee6228f6c6bbcf0aea4ebf66fe0e595eedc6cffe628d7b8ba3623390f"
           }
         }
       },
       "versionPolicy": "exact",
-      "requiredVersion": "0.17.1",
+      "requiredVersion": "0.17.6",
       "detection": {
         "command": "ruff",
         "versionArguments": ["--version"],
@@ -735,7 +747,7 @@
         ]
       },
       "versionPolicy": "exact",
-      "requiredVersion": "10.13.0",
+      "requiredVersion": "10.16.0",
       "detection": {
         "command": "eslint",
         "versionArguments": ["--version"],
@@ -765,12 +777,12 @@
         "dependencies": [
           {
             "package": "prettier-plugin-powershell",
-            "version": "2.2.0"
+            "version": "2.2.1"
           }
         ]
       },
       "versionPolicy": "exact",
-      "requiredVersion": "3.9.10",
+      "requiredVersion": "3.10.1",
       "detection": {
         "command": "prettier",
         "versionArguments": ["--version"],
@@ -799,7 +811,7 @@
         "package": "markdownlint-cli2"
       },
       "versionPolicy": "exact",
-      "requiredVersion": "0.24.0",
+      "requiredVersion": "0.24.2",
       "detection": {
         "command": "markdownlint-cli2",
         "versionArguments": ["--version"],
@@ -921,7 +933,7 @@
       "detection": {
         "command": "git",
         "versionArguments": ["--version"],
-        "versionPattern": "git version ([0-9.]+)"
+        "versionPattern": "git version ([0-9]+\\.[0-9]+\\.[0-9]+)(?:\\.windows\\.[0-9]+)?"
       },
       "capabilities": {
         "detectInstalled": true,
@@ -936,7 +948,11 @@
       "category": "data",
       "provider": {
         "kind": "external",
-        "homepage": "https://www.unicode.org/versions/"
+        "homepage": "https://www.unicode.org/versions/",
+        "latestVersion": {
+          "url": "https://www.unicode.org/Public/UCD/latest/ReadMe.txt",
+          "pattern": "(?im)^This directory contains final data files and charts for version ([0-9]+\\.[0-9]+\\.[0-9]+)"
+        }
       },
       "versionPolicy": "informational",
       "detection": {
@@ -951,7 +967,7 @@
       },
       "capabilities": {
         "detectInstalled": true,
-        "checkLatest": false,
+        "checkLatest": true,
         "update": false
       },
       "references": [

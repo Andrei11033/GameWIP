@@ -145,9 +145,9 @@ function Invoke-GameWipNative
                 -Code 'native-timeout' `
                 -Summary "$Name timed out after $TimeoutSeconds second(s)." `
                 -SuggestedActions @(
-                    'Inspect the retained step log.',
-                    'Rerun the focused operation after resolving the underlying stall.'
-                ) `
+                'Inspect the retained step log.',
+                'Rerun the focused operation after resolving the underlying stall.'
+            ) `
                 -LogPath $step.LogPath)
     }
 
@@ -157,9 +157,9 @@ function Invoke-GameWipNative
                 -Code 'native-failed' `
                 -Summary "$Name failed with exit code $($result.ExitCode)." `
                 -SuggestedActions @(
-                    'Inspect the retained step log.',
-                    'Rerun the smallest focused GameWIP command that reproduces the failure.'
-                ) `
+                'Inspect the retained step log.',
+                'Rerun the smallest focused GameWIP command that reproduces the failure.'
+            ) `
                 -LogPath $step.LogPath)
     }
 

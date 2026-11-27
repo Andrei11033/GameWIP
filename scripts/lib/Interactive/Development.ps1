@@ -132,8 +132,8 @@ function Show-GameWipDevelopmentMenu
                 Invoke-GameWipInteractiveOperation `
                     -Label 'target' `
                     -Body {
-                        Invoke-GameWipBuildTargetSelection -NonInteractive:$NonInteractive
-                    } |
+                    Invoke-GameWipBuildTargetSelection -NonInteractive:$NonInteractive
+                } |
                     Out-Null
             }
 
@@ -151,19 +151,19 @@ function Show-GameWipDevelopmentMenu
                     Invoke-GameWipInteractiveOperation `
                         -Label "configure-$preset" `
                         -Body {
-                            Invoke-GameWipMutation `
-                                -Summary "Configure preset '$preset'." `
-                                -Risk local `
-                                -Plan @(
-                                    "Recreate '$buildDirectory' when -CleanBuild is active."
-                                    "Configure preset '$preset' in '$buildDirectory'."
-                                ) `
-                                -Body {
-                                    Invoke-GameWipConfigurePreset -Name $preset -Fresh:$Fresh
-                                } |
-                                Out-Null
+                        Invoke-GameWipMutation `
+                            -Summary "Configure preset '$preset'." `
+                            -Risk local `
+                            -Plan @(
+                            "Recreate '$buildDirectory' when -CleanBuild is active."
+                            "Configure preset '$preset' in '$buildDirectory'."
+                        ) `
+                            -Body {
+                            Invoke-GameWipConfigurePreset -Name $preset -Fresh:$Fresh
                         } |
-                        Out-Null
+                            Out-Null
+                        } |
+                            Out-Null
                 }
             }
 
@@ -181,20 +181,20 @@ function Show-GameWipDevelopmentMenu
                     Invoke-GameWipInteractiveOperation `
                         -Label "build-$preset" `
                         -Body {
-                            Invoke-GameWipMutation `
-                                -Summary "Build preset '$preset'." `
-                                -Risk local `
-                                -Plan @(
-                                    "Recreate '$buildDirectory' when -CleanBuild is active."
-                                    'Ensure configuration if missing.'
-                                    "Build '$buildDirectory'."
-                                ) `
-                                -Body {
-                                    Invoke-GameWipBuildPreset -Name $preset -Fresh:$Fresh
-                                } |
-                                Out-Null
+                        Invoke-GameWipMutation `
+                            -Summary "Build preset '$preset'." `
+                            -Risk local `
+                            -Plan @(
+                            "Recreate '$buildDirectory' when -CleanBuild is active."
+                            'Ensure configuration if missing.'
+                            "Build '$buildDirectory'."
+                        ) `
+                            -Body {
+                            Invoke-GameWipBuildPreset -Name $preset -Fresh:$Fresh
                         } |
-                        Out-Null
+                            Out-Null
+                        } |
+                            Out-Null
                 }
             }
 
@@ -203,8 +203,8 @@ function Show-GameWipDevelopmentMenu
                 Invoke-GameWipInteractiveOperation `
                     -Label 'runtime' `
                     -Body {
-                        Invoke-GameWipRuntimeCommandWizard -NoBuild:$NoBuild
-                    } |
+                    Invoke-GameWipRuntimeCommandWizard -NoBuild:$NoBuild
+                } |
                     Out-Null
             }
 
@@ -213,20 +213,20 @@ function Show-GameWipDevelopmentMenu
                 Invoke-GameWipInteractiveOperation `
                     -Label 'doc' `
                     -Body {
-                        Invoke-GameWipMutation `
-                            -Summary 'Build generated documentation.' `
-                            -Risk local `
-                            -Plan @(
-                                'Configure docs preset.'
-                                'Build Doxygen documentation.'
-                            ) `
-                            -Body {
-                                Invoke-GameWipConfigurePreset -Name docs
-                                Invoke-GameWipBuildTarget -Name docs -Target docs
-                            } |
-                            Out-Null
+                    Invoke-GameWipMutation `
+                        -Summary 'Build generated documentation.' `
+                        -Risk local `
+                        -Plan @(
+                        'Configure docs preset.'
+                        'Build Doxygen documentation.'
+                    ) `
+                        -Body {
+                        Invoke-GameWipConfigurePreset -Name docs
+                        Invoke-GameWipBuildTarget -Name docs -Target docs
                     } |
-                    Out-Null
+                        Out-Null
+                    } |
+                        Out-Null
             }
         }
     }

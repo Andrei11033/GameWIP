@@ -80,13 +80,13 @@ function Invoke-GameWipToolUpdate
             "$($_.Tool.id): install/verify $version"
         })
     $planLines = @($installPlanLines) +
-        @($trackedPlan.Descriptions) +
-        @('Format maintained files with the updated tools, then run the quality gate.')
+    @($trackedPlan.Descriptions) +
+    @('Format maintained files with the updated tools, then run the quality gate.')
 
     if (-not (Confirm-GameWipMutation `
-            -Summary 'Apply the complete project-tool update plan?' `
-            -Risk machine `
-            -Plan $planLines))
+                -Summary 'Apply the complete project-tool update plan?' `
+                -Risk machine `
+                -Plan $planLines))
     {
         Write-Host 'Project-tool update cancelled; no changes were made.'
         return

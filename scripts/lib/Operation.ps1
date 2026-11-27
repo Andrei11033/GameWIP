@@ -21,8 +21,8 @@ function Write-GameWipHost
     $noColorVariable = Get-Variable -Name NoColor -Scope Script -ErrorAction SilentlyContinue
     $plainPresentation = (
         ($null -ne $operationContextVariable -and
-            $null -ne $operationContextVariable.Value -and
-            [bool]$operationContextVariable.Value.NoColor) -or
+        $null -ne $operationContextVariable.Value -and
+        [bool]$operationContextVariable.Value.NoColor) -or
         ($null -ne $noColorVariable -and [bool]$noColorVariable.Value)
     )
 
@@ -96,9 +96,9 @@ function Enter-GameWipOperationLock
                     -Summary 'Another GameWIP helper operation is already running.' `
                     -Details 'Setup and project-helper operations are serialized so checks cannot observe partially updated tools or build state.' `
                     -SuggestedActions @(
-                        'Wait for the other helper operation to finish, then rerun this command.',
-                        'Inspect the other terminal or its retained run log for progress.'
-                    ))
+                    'Wait for the other helper operation to finish, then rerun this command.',
+                    'Inspect the other terminal or its retained run log for progress.'
+                ))
         }
     }
 

@@ -20,14 +20,14 @@ Tool version requirements are declared in `project-tools.json` and mirrored here
 | Tool | Version | Provider |
 | --- | --- | --- |
 | PowerShell | 7.7.0 or newer | verified GitHub release |
-| LLVM-MinGW | 20261104 | verified GitHub release |
+| LLVM-MinGW | 20261117 | verified GitHub release |
 | Zig | 0.17.1 | verified archive |
-| Ruff | 0.17.1 | verified GitHub release |
+| Ruff | 0.17.6 | verified GitHub release |
 | Gersemi | 0.29.2 | verified GitHub release |
 | yamllint | 1.38.0 | Python |
-| ESLint | 10.13.0 | npm |
-| Prettier | 3.9.10 | npm |
-| markdownlint-cli2 | 0.24.0 | npm |
+| ESLint | 10.16.0 | npm |
+| Prettier | 3.10.1 | npm |
+| markdownlint-cli2 | 0.24.2 | npm |
 | PSScriptAnalyzer | 1.25.0 | PowerShell Gallery |
 | actionlint | 1.7.12 | verified GitHub release |
 | jsonschema | 4.26.0 | Python (minimum) |
@@ -126,6 +126,9 @@ explicitly declares its repository path.
 `gamewip.bat tool check-updates` is online and read-only. It resolves
 all requested latest versions, including versioned provider dependencies,
 without changing tracked files or installed software.
+It also checks Zig's stable archive index, Unicode's latest UCD marker, and
+MSYS2's cached package database. The MSYS2 result may be stale; `setup.bat update`
+refreshes the databases and applies the full rolling upgrade.
 
 `gamewip.bat tool update <id|all>` discovers upstream state and builds the plan
 before persistent mutation. `-Preview` runs discovery, planning, tracked
@@ -167,6 +170,9 @@ the previous managed state if replacement fails. If every selected declaration
 and installation is current, the update is a true no-op: it neither stages
 tracked files nor reinstalls an identical tool. The command never commits or
 pushes.
+Archive-index updates advance the exact pin and all declared archive names and
+checksums together. Unicode data uses the dedicated `unicode verify` and
+`unicode regenerate` workflow.
 
 `setup.bat update` has a different role. It performs the MSYS2 `pacman -Syu`
 environment update, updates other compatible package-manager software and

@@ -294,6 +294,25 @@
           "type": "string",
           "minLength": 1
         },
+        "latestIndex": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["url", "assetKeys"],
+          "properties": {
+            "url": {
+              "type": "string",
+              "format": "uri"
+            },
+            "assetKeys": {
+              "type": "object",
+              "minProperties": 1,
+              "additionalProperties": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
         "assets": {
           "type": "object",
           "minProperties": 1,
@@ -349,6 +368,31 @@
         },
         "bootstrap": {
           "enum": ["msys2BaseArchive"]
+        },
+        "latestQuery": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind"],
+          "properties": {
+            "kind": {
+              "const": "msys2PackageUpdates"
+            }
+          }
+        },
+        "latestVersion": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["url", "pattern"],
+          "properties": {
+            "url": {
+              "type": "string",
+              "format": "uri"
+            },
+            "pattern": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
         }
       }
     },

@@ -17,7 +17,7 @@ function Show-GameWipToolList
             $toolInfo.category, `
             $toolInfo.provider.kind, `
             $toolInfo.versionPolicy, `
-            ($capabilities -join ',')
+        ($capabilities -join ',')
         Write-Host $toolRow
     }
 }

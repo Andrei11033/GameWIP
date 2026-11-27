@@ -70,19 +70,19 @@ function Get-GameWipSetupPlan
             if (Test-GameWipWindowsHost)
             {
                 return @(Get-GameWipMsys2SetupPlan) +
-                    @('Repair declared project tools.') +
-                    @(Get-GameWipWindowsHostInstallPlan) +
-                    @('Prepare or reuse the locked dependency cache.') +
-                    @(Get-GameWipEditorInstallPlan) +
-                    @('Build the matching Tracy profiler.') +
-                    @('Verify complete environment.')
+                @('Repair declared project tools.') +
+                @(Get-GameWipWindowsHostInstallPlan) +
+                @('Prepare or reuse the locked dependency cache.') +
+                @(Get-GameWipEditorInstallPlan) +
+                @('Build the matching Tracy profiler.') +
+                @('Verify complete environment.')
             }
 
             return @(Get-GameWipSetupLinuxPlan) +
-                @('Repair declared project tools.', 'Prepare or reuse the locked dependency cache.') +
-                @(Get-GameWipEditorInstallPlan) +
-                @('Build the matching Tracy profiler.') +
-                @('Verify the selected environment.')
+            @('Repair declared project tools.', 'Prepare or reuse the locked dependency cache.') +
+            @(Get-GameWipEditorInstallPlan) +
+            @('Build the matching Tracy profiler.') +
+            @('Verify the selected environment.')
         }
 
         'update'
@@ -90,19 +90,19 @@ function Get-GameWipSetupPlan
             if (Test-GameWipWindowsHost)
             {
                 return @(Get-GameWipMsys2SetupPlan -Update) +
-                    @('Install or update declared project tools.') +
-                    @(Get-GameWipWindowsHostInstallPlan) +
-                    @('Fast-forward repository.', 'Prepare or refresh dependencies for the updated lock file.') +
-                    @(Get-GameWipEditorInstallPlan) +
-                    @('Build the matching Tracy profiler.') +
-                    @('Verify complete environment.')
+                @('Install or update declared project tools.') +
+                @(Get-GameWipWindowsHostInstallPlan) +
+                @('Fast-forward repository.', 'Prepare or refresh dependencies for the updated lock file.') +
+                @(Get-GameWipEditorInstallPlan) +
+                @('Build the matching Tracy profiler.') +
+                @('Verify complete environment.')
             }
 
             return @(Get-GameWipSetupLinuxPlan) +
-                @('Update declared project tools.', 'Fast-forward repository.', 'Prepare or refresh dependencies for the updated lock file.') +
-                @(Get-GameWipEditorInstallPlan) +
-                @('Build the matching Tracy profiler.') +
-                @('Verify the selected environment.')
+            @('Update declared project tools.', 'Fast-forward repository.', 'Prepare or refresh dependencies for the updated lock file.') +
+            @(Get-GameWipEditorInstallPlan) +
+            @('Build the matching Tracy profiler.') +
+            @('Verify the selected environment.')
         }
 
         'deps'

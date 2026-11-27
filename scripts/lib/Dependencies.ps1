@@ -289,9 +289,9 @@ function Invoke-GameWipDependencyPreparation
                     -Summary 'Timed out waiting for the dependency cache preparation lock.' `
                     -Details "Another dependency preparation process may still be active: $lockPath" `
                     -SuggestedActions @(
-                        'Wait for the other dependency preparation operation to finish, then retry.',
-                        'Inspect the retained helper run log if the lock remains unavailable.'
-                    ))
+                    'Wait for the other dependency preparation operation to finish, then retry.',
+                    'Inspect the retained helper run log if the lock remains unavailable.'
+                ))
         }
 
         $arguments = @(

@@ -20,8 +20,8 @@ function Show-GameWipQualityMenu
                 Invoke-GameWipInteractiveOperation `
                     -Label 'quality-check' `
                     -Body {
-                        Invoke-GameWipQuality -Mode check
-                    } |
+                    Invoke-GameWipQuality -Mode check
+                } |
                     Out-Null
             }
 
@@ -30,20 +30,20 @@ function Show-GameWipQualityMenu
                 Invoke-GameWipInteractiveOperation `
                     -Label 'quality-fix' `
                     -Body {
-                        Invoke-GameWipMutation `
-                            -Summary 'Validate quality tools, apply deterministic formatters, and normalize LF line endings.' `
-                            -Risk tracked `
-                            -Plan @(
-                                'Validate every tool required by the quality workflow before mutation.'
-                                'Format maintained sources/configuration and normalize maintained text to LF.'
-                                'Run the complete quality gate.'
-                            ) `
-                            -Body {
-                                Invoke-GameWipQuality -Mode fix
-                            } |
-                            Out-Null
+                    Invoke-GameWipMutation `
+                        -Summary 'Validate quality tools, apply deterministic formatters, and normalize LF line endings.' `
+                        -Risk tracked `
+                        -Plan @(
+                        'Validate every tool required by the quality workflow before mutation.'
+                        'Format maintained sources/configuration and normalize maintained text to LF.'
+                        'Run the complete quality gate.'
+                    ) `
+                        -Body {
+                        Invoke-GameWipQuality -Mode fix
                     } |
-                    Out-Null
+                        Out-Null
+                    } |
+                        Out-Null
             }
 
             'quality-status'
@@ -51,8 +51,8 @@ function Show-GameWipQualityMenu
                 Invoke-GameWipInteractiveOperation `
                     -Label 'quality-status' `
                     -Body {
-                        Show-GameWipQualityCoverageStatus
-                    } |
+                    Show-GameWipQualityCoverageStatus
+                } |
                     Out-Null
             }
 
@@ -61,8 +61,8 @@ function Show-GameWipQualityMenu
                 Invoke-GameWipInteractiveOperation `
                     -Label 'format-check' `
                     -Body {
-                        Invoke-GameWipFormat -Mode check
-                    } |
+                    Invoke-GameWipFormat -Mode check
+                } |
                     Out-Null
             }
 
@@ -71,16 +71,16 @@ function Show-GameWipQualityMenu
                 Invoke-GameWipInteractiveOperation `
                     -Label 'format-apply' `
                     -Body {
-                        Invoke-GameWipMutation `
-                            -Summary 'Apply C/C++ formatting.' `
-                            -Risk tracked `
-                            -Plan @('Rewrite maintained C/C++ files with repository clang-format.') `
-                            -Body {
-                                Invoke-GameWipFormat -Mode apply
-                            } |
-                            Out-Null
+                    Invoke-GameWipMutation `
+                        -Summary 'Apply C/C++ formatting.' `
+                        -Risk tracked `
+                        -Plan @('Rewrite maintained C/C++ files with repository clang-format.') `
+                        -Body {
+                        Invoke-GameWipFormat -Mode apply
                     } |
-                    Out-Null
+                        Out-Null
+                    } |
+                        Out-Null
             }
 
             'analyze'
@@ -88,20 +88,20 @@ function Show-GameWipQualityMenu
                 Invoke-GameWipInteractiveOperation `
                     -Label 'analyze' `
                     -Body {
-                        Invoke-GameWipMutation `
-                            -Summary 'Run C++ static analysis.' `
-                            -Risk local `
-                            -Plan @(
-                                'Configure analyze preset.'
-                                'Build analyze preset.'
-                            ) `
-                            -Body {
-                                Invoke-GameWipConfigurePreset -Name analyze
-                                Invoke-GameWipBuildPreset -Name analyze
-                            } |
-                            Out-Null
+                    Invoke-GameWipMutation `
+                        -Summary 'Run C++ static analysis.' `
+                        -Risk local `
+                        -Plan @(
+                        'Configure analyze preset.'
+                        'Build analyze preset.'
+                    ) `
+                        -Body {
+                        Invoke-GameWipConfigurePreset -Name analyze
+                        Invoke-GameWipBuildPreset -Name analyze
                     } |
-                    Out-Null
+                        Out-Null
+                    } |
+                        Out-Null
             }
 
             'links'
@@ -109,8 +109,8 @@ function Show-GameWipQualityMenu
                 Invoke-GameWipInteractiveOperation `
                     -Label 'links' `
                     -Body {
-                        Invoke-GameWipMarkdownLink
-                    } |
+                    Invoke-GameWipMarkdownLink
+                } |
                     Out-Null
             }
         }

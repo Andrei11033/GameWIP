@@ -130,8 +130,16 @@ try
 {
     Set-Item -Path function:Invoke-GameWipProcess -Value {
         param([string]$FilePath, [string[]]$Arguments, [hashtable]$Environment, [string]$OutputMode, [int]$TimeoutSeconds)
-        $null = $FilePath, $Arguments, $Environment, $OutputMode, $TimeoutSeconds
-        return [pscustomobject]@{ ExitCode = 0; Stdout = @('0.17.1'); Stderr = @() }
+        $null = $Arguments, $Environment, $OutputMode, $TimeoutSeconds
+        $stdout = if ([IO.Path]::GetFileNameWithoutExtension($FilePath) -eq 'git')
+        {
+            @('git version 2.55.0.windows.5')
+        }
+        else
+        {
+            @('0.17.1')
+        }
+        return [pscustomobject]@{ ExitCode = 0; Stdout = $stdout; Stderr = @() }
     }
 
     $zigTool = Get-GameWipProjectTool -Id zig
@@ -148,6 +156,22 @@ try
     if ($externalZigVersion -ne [string]$zigTool.requiredVersion)
     {
         throw "An exact system Zig install was not accepted for reuse: '$externalZigVersion'."
+    }
+
+    $gitTool = Get-GameWipProjectTool -Id git
+    $externalGitPath = Join-Path ([IO.Path]::GetTempPath()) $(if (Test-GameWipWindowsHost)
+        {
+            'external-git/git.exe'
+        }
+        else
+        {
+            'external-git/git'
+        })
+    $externalGitVersion = Get-GameWipToolCandidateVersion -Tool $gitTool -Path $externalGitPath
+
+    if ($externalGitVersion -ne '2.55.0')
+    {
+        throw "Git version parsing did not remove the Windows build suffix: '$externalGitVersion'."
     }
 }
 
@@ -1234,6 +1258,186 @@ if (Test-GameWipWindowsHost)
     }
 }
 
+# Latest-version queries use verified provider data and keep rolling updates informational.
+$latestQueryFunctionNames = @(
+    'Invoke-GameWipHttpJson',
+    'Invoke-GameWipHttpRead',
+    'Test-GameWipWindowsHost',
+    'Get-GameWipMsys2Root',
+    'Invoke-GameWipProcess'
+)
+$originalLatestQueryFunctions = @{}
+$msysRoot = $null
+$script:ZigIndexFixtureEmpty = $false
+
+foreach ($name in $latestQueryFunctionNames)
+{
+    $originalLatestQueryFunctions[$name] = (Get-Command -Name $name).ScriptBlock
+}
+
+try
+{
+    # Zig checks the newest stable version and all declared archive checksums.
+    $zigTool = Get-GameWipProjectTool -Id 'zig'
+    $zigIndexFixture = [ordered]@{ master = [pscustomobject]@{ version = '0.18.0-dev.10+fixture' } }
+
+    foreach ($version in @('0.17.1', '0.17.2'))
+    {
+        $release = [ordered]@{ version = $version }
+
+        foreach ($assetKey in @($zigTool.provider.assets.Keys))
+        {
+            $indexKey = [string]$zigTool.provider.latestIndex.assetKeys[$assetKey]
+            $archive = ([string]$zigTool.provider.assets[$assetKey].archive).Replace([string]$zigTool.requiredVersion, $version)
+            $release[$indexKey] = [pscustomobject]@{
+                tarball = "https://ziglang.org/download/$version/$archive"
+                shasum = ('a' * 64)
+            }
+        }
+        $zigIndexFixture[$version] = [pscustomobject]$release
+    }
+    $script:ZigIndexFixture = [pscustomobject]$zigIndexFixture
+
+    Set-Item -Path function:Invoke-GameWipHttpJson -Value {
+        param([string]$Uri, [hashtable]$Headers)
+        $null = $Headers
+
+        if ($Uri -ne 'https://ziglang.org/download/index.json')
+        {
+            throw "Unexpected Zig latest-version URL '$Uri'."
+        }
+
+        if ($script:ZigIndexFixtureEmpty)
+        {
+            return [pscustomobject]@{ State = 'resolved'; Value = $null; Attempts = 1; Reason = '' }
+        }
+
+        return [pscustomobject]@{ State = 'resolved'; Value = $script:ZigIndexFixture; Attempts = 1; Reason = '' }
+    }
+
+    $zigQuery = Get-GameWipToolLatestQuery -Tool $zigTool
+
+    if ($zigQuery.State -ne 'resolved' -or
+        $zigQuery.Version -ne '0.17.2' -or
+        $zigQuery.Metadata.Assets.Count -ne $zigTool.provider.assets.Count -or
+        $zigQuery.Metadata.Assets['linux-arm64'].sha256 -ne ('a' * 64))
+    {
+        throw 'Zig latest-version query did not select the newest stable release and all verified assets.'
+    }
+
+    $script:ZigIndexFixtureEmpty = $true
+    $emptyZigQuery = Get-GameWipToolLatestQuery -Tool $zigTool
+    $script:ZigIndexFixtureEmpty = $false
+
+    if ($emptyZigQuery.State -ne 'invalidResponse')
+    {
+        throw 'Zig latest-version query did not reject an empty index response.'
+    }
+
+    $script:ZigIndexFixture.'0.17.2'.'x86_64-windows'.tarball = 'https://example.test/zig.zip'
+    $untrustedZigQuery = Get-GameWipToolLatestQuery -Tool $zigTool
+
+    if ($untrustedZigQuery.State -ne 'integrityUnavailable')
+    {
+        throw 'Zig latest-version query accepted an archive outside its declared download host.'
+    }
+
+    # Unicode version detection reads the official UCD release marker.
+    Set-Item -Path function:Invoke-GameWipHttpRead -Value {
+        param([string]$Uri, [hashtable]$Headers, [int]$MaxAttempts, [int]$TimeoutSeconds)
+        $null = $Headers, $MaxAttempts, $TimeoutSeconds
+
+        if ($Uri -ne 'https://www.unicode.org/Public/UCD/latest/ReadMe.txt')
+        {
+            throw "Unexpected Unicode latest-version URL '$Uri'."
+        }
+
+        return [pscustomobject]@{
+            State = 'resolved'
+            Value = [pscustomobject]@{ Content = 'This directory contains final data files and charts for version 18.0.0 of the Unicode Character Database.' }
+            Attempts = 1
+            Reason = ''
+        }
+    }
+
+    $unicodeQuery = Get-GameWipToolLatestQuery -Tool (Get-GameWipProjectTool -Id 'unicode')
+
+    if ($unicodeQuery.State -ne 'resolved' -or $unicodeQuery.Version -ne '18.0.0')
+    {
+        throw 'Unicode latest-version query did not read the official data-version marker.'
+    }
+
+    # MSYS2 update checks report cached package upgrades without changing packages.
+    $msysRoot = Join-Path (Get-GameWipStorageAreaPath -Area temp) ('msys2-query-' + [guid]::NewGuid().ToString('N'))
+    $bashPath = Join-Path $msysRoot 'usr\bin\bash.exe'
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $bashPath) | Out-Null
+    [IO.File]::WriteAllText($bashPath, 'fixture')
+    $script:Msys2QueryRoot = $msysRoot
+    $script:Msys2QueryProcessResult = [pscustomobject]@{
+        ExitCode = 0
+        Stdout = @('mingw-w64-ucrt-x86_64-cmake 4.5.0-1 -> 4.5.1-1')
+        Stderr = @()
+        TimedOut = $false
+        Cancelled = $false
+    }
+
+    Set-Item -Path function:Test-GameWipWindowsHost -Value { return $true }
+    Set-Item -Path function:Get-GameWipMsys2Root -Value { return $script:Msys2QueryRoot }
+    Set-Item -Path function:Invoke-GameWipProcess -Value {
+        param([string]$FilePath, [string[]]$Arguments, [string]$OutputMode, [int]$TimeoutSeconds)
+        $null = $FilePath, $Arguments, $OutputMode, $TimeoutSeconds
+        return $script:Msys2QueryProcessResult
+    }
+
+    $msys2Query = Get-GameWipToolLatestQuery -Tool (Get-GameWipProjectTool -Id 'msys2')
+
+    if ($msys2Query.State -ne 'resolved' -or
+        $msys2Query.Metadata.Count -ne 1 -or
+        $msys2Query.Metadata.Packages[0].Available -ne '4.5.1-1')
+    {
+        throw 'MSYS2 update query did not parse cached package upgrades.'
+    }
+
+    $script:Msys2QueryProcessResult = [pscustomobject]@{
+        ExitCode = 1
+        Stdout = @()
+        Stderr = @()
+        TimedOut = $false
+        Cancelled = $false
+    }
+    $noMsys2Updates = Get-GameWipToolLatestQuery -Tool (Get-GameWipProjectTool -Id 'msys2')
+
+    if ($noMsys2Updates.State -ne 'resolved' -or $noMsys2Updates.Metadata.Count -ne 0)
+    {
+        throw 'MSYS2 update query did not treat an empty pacman result as up to date.'
+    }
+
+    # Windows package providers are unavailable to Linux query plans.
+    Set-Item -Path function:Test-GameWipWindowsHost -Value { return $false }
+    $unsupportedMsys2Query = Get-GameWipToolLatestQuery -Tool (Get-GameWipProjectTool -Id 'cmake')
+    $unsupportedWingetQuery = Get-GameWipToolLatestQuery -Tool (Get-GameWipProjectTool -Id 'git')
+
+    if ($unsupportedMsys2Query.State -ne 'unsupported' -or $unsupportedWingetQuery.State -ne 'unsupported')
+    {
+        throw 'Windows package queries were not reported as unsupported on Linux.'
+    }
+}
+
+finally
+{
+    # Restore provider functions and remove temporary fixtures.
+    foreach ($name in $latestQueryFunctionNames)
+    {
+        Set-Item -Path "function:$name" -Value $originalLatestQueryFunctions[$name]
+    }
+
+    if ($msysRoot -and (Test-Path -LiteralPath $msysRoot))
+    {
+        Remove-Item -LiteralPath $msysRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
+    Remove-Variable -Name ZigIndexFixture, ZigIndexFixtureEmpty, Msys2QueryRoot, Msys2QueryProcessResult -Scope Script -ErrorAction SilentlyContinue
+}
+
 $conflictingBuildPolicyRejected = $false
 
 try
@@ -2276,6 +2480,21 @@ try
                 detection = ConvertTo-GameWipHashtable -Value $commonDetection
                 capabilities = ConvertTo-GameWipHashtable -Value $commonCapabilities
                 references = @()
+            },
+            @{
+                id = 'archive'; name = 'Archive'; category = 'compiler'; versionPolicy = 'exact'; requiredVersion = '1.0.0'
+                provider = @{
+                    kind = 'archive'; baseUrl = 'https://example.test/download'; installMode = 'directoryArchive'
+                    managedDirectory = 'tools/archive'; binaryDirectory = '.'; compiler = 'archive'; cmakeToolchain = 'Archive.cmake'
+                    assets = @{
+                        'windows-amd64' = @{
+                            archive = 'archive-1.0.0-windows.zip'; sha256 = ('e' * 64); validationFiles = @('archive.exe')
+                        }
+                    }
+                }
+                detection = ConvertTo-GameWipHashtable -Value $commonDetection
+                capabilities = ConvertTo-GameWipHashtable -Value $commonCapabilities
+                references = @()
             }
         )
     }
@@ -2292,24 +2511,33 @@ try
     $plan = @(
         [pscustomobject]@{
             Tool = $testRegistry.tools[0]; Latest = '1.1.0'; LatestDependencies = @{ 'alpha-dependency' = '4.1.0' }
-            Query = [pscustomobject]@{ State = 'resolved'; Reason = '' }; ReleaseMetadata = $null
+            Query = [pscustomobject]@{ State = 'resolved'; Reason = '' }; ProviderMetadata = $null
         },
         [pscustomobject]@{
             Tool = $testRegistry.tools[1]; Latest = '2.1.0'; LatestDependencies = @{}
-            Query = [pscustomobject]@{ State = 'resolved'; Reason = '' }; ReleaseMetadata = $null
+            Query = [pscustomobject]@{ State = 'resolved'; Reason = '' }; ProviderMetadata = $null
         },
         [pscustomobject]@{
             Tool = $testRegistry.tools[2]; Latest = '3.1.0'; LatestDependencies = @{}
-            Query = [pscustomobject]@{ State = 'resolved'; Reason = '' }; ReleaseMetadata = $null
+            Query = [pscustomobject]@{ State = 'resolved'; Reason = '' }; ProviderMetadata = $null
         },
         [pscustomobject]@{
             Tool = $testRegistry.tools[3]; Latest = '5.1.0'; LatestDependencies = @{}
             Query = [pscustomobject]@{ State = 'resolved'; Reason = '' }
-            ReleaseMetadata = @{
+            ProviderMetadata = @{
                 Tag = 'v5.1.0'
                 Assets = @{
                     'windows-amd64' = @{ archive = 'release_5.1.0_windows.zip'; sha256 = ('c' * 64) }
                     'linux-amd64' = @{ archive = 'release_5.1.0_linux.tar.gz'; sha256 = ('d' * 64) }
+                }
+            }
+        },
+        [pscustomobject]@{
+            Tool = $testRegistry.tools[4]; Latest = '2.0.0'; LatestDependencies = @{}
+            Query = [pscustomobject]@{ State = 'resolved'; Reason = '' }
+            ProviderMetadata = @{
+                Assets = @{
+                    'windows-amd64' = @{ archive = 'archive-2.0.0-windows.zip'; sha256 = ('f' * 64) }
                 }
             }
         }
@@ -2346,7 +2574,10 @@ try
             'release:requiredVersion',
             'release:provider.releaseTag',
             'release:provider.assets.windows-amd64.archive',
-            'release:provider.assets.windows-amd64.sha256'
+            'release:provider.assets.windows-amd64.sha256',
+            'archive:requiredVersion',
+            'archive:provider.assets.windows-amd64.archive',
+            'archive:provider.assets.windows-amd64.sha256'
         ))
     {
         if ($mutationTargets -notcontains $expectedTarget)
@@ -2357,7 +2588,10 @@ try
 
     $stagedRegistrySource = [string]$trackedPlan.Files[$testRegistryPath]
 
-    if ($stagedRegistrySource -notmatch '"requiredVersion":\s+"1\.1\.0"' -or $stagedRegistrySource -notmatch '"version":\s+"4\.1\.0"')
+    if ($stagedRegistrySource -notmatch '"requiredVersion":\s+"1\.1\.0"' -or
+        $stagedRegistrySource -notmatch '"version":\s+"4\.1\.0"' -or
+        $stagedRegistrySource -notmatch '"requiredVersion":\s+"2\.0\.0"' -or
+        $stagedRegistrySource -notmatch '"archive":\s+"archive-2\.0\.0-windows\.zip"')
     {
         throw 'Structured registry mutations did not stage planned exact/dependency versions.'
     }
@@ -2370,7 +2604,7 @@ try
     {
         Get-GameWipTrackedToolMutationPlan -Plan @([pscustomobject]@{
                 Tool = $badReferenceTool; Latest = '1.1.0'; LatestDependencies = @{}
-                Query = [pscustomobject]@{ State = 'resolved'; Reason = '' }; ReleaseMetadata = $null
+                Query = [pscustomobject]@{ State = 'resolved'; Reason = '' }; ProviderMetadata = $null
             }) | Out-Null
     }
 
@@ -2386,7 +2620,7 @@ try
 
     $noOpPlan = Get-GameWipTrackedToolMutationPlan -Plan @([pscustomobject]@{
             Tool = $testRegistry.tools[1]; Latest = '2.0.0'; LatestDependencies = @{}
-            Query = [pscustomobject]@{ State = 'resolved'; Reason = '' }; ReleaseMetadata = $null
+            Query = [pscustomobject]@{ State = 'resolved'; Reason = '' }; ProviderMetadata = $null
         })
 
     if ($noOpPlan.RegistryMutations.Count -ne 0 -or $noOpPlan.Files.Count -ne 0)

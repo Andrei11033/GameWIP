@@ -65,10 +65,10 @@ function Invoke-GameWipToolEnsure
         $compatibility = $toolStatus.Compatibility
         $providerOk = Test-GameWipDetectedToolFromDeclaredProvider -Tool $tool -Detected $detected
         $reuseExternal = $tool.capabilities.Contains('reuseCompatibleExternal') -and
-            [bool]$tool.capabilities.reuseCompatibleExternal
+        [bool]$tool.capabilities.reuseCompatibleExternal
         $providerRepairRequired = -not $providerOk -and
-            -not $reuseExternal -and
-            $tool.provider.kind -in @('python', 'npm', 'powershellGallery', 'githubRelease')
+        -not $reuseExternal -and
+        $tool.provider.kind -in @('python', 'npm', 'powershellGallery', 'githubRelease')
         $action = if (-not $detected.Installed)
         {
             'install'
@@ -204,9 +204,9 @@ function Invoke-GameWipToolEnsure
         if ($item.Action -eq 'install' -and
             $item.Tool.provider.kind -eq 'winget' -and
             -not (Confirm-GameWipExternalInstall `
-                -Name ([string]$item.Tool.name) `
-                -Provider WinGet `
-                -Package ([string]$item.Tool.provider.package)))
+                    -Name ([string]$item.Tool.name) `
+                    -Provider WinGet `
+                    -Package ([string]$item.Tool.provider.package)))
         {
             $skippedTools.Add([pscustomobject]@{ Id = [string]$item.Tool.id; Reason = 'host installation declined' }) | Out-Null
             Add-GameWipOperationPreserved -Message "Left $($item.Tool.name) uninstalled after the WinGet prompt was declined."

@@ -84,7 +84,7 @@ function Get-GameWipToolUpdatePlan
                 Latest = $query.Version
                 LatestDependencies = $latestDependencies
                 DependencyQueries = $dependencyQueries
-                ReleaseMetadata = $query.Metadata
+                ProviderMetadata = $query.Metadata
             }) | Out-Null
     }
 
@@ -100,6 +100,15 @@ function Show-GameWipToolUpdatePlan
 
     foreach ($item in $Plan)
     {
+        $metadataKind = if ($null -ne $item.Query.Metadata)
+        {
+            $item.Query.Metadata.PSObject.Properties['Kind']
+        }
+        else
+        {
+            $null
+        }
+        $rollingPackages = $null -ne $metadataKind -and $metadataKind.Value -eq 'packageUpdates'
         $required = if ($item.Tool.Contains('requiredVersion'))
         {
             $item.Tool.requiredVersion
@@ -108,7 +117,18 @@ function Show-GameWipToolUpdatePlan
         {
             '-'
         }
-        $latestDisplay = if ($item.Query.State -eq 'resolved')
+        $latestDisplay = if ($rollingPackages)
+        {
+            if ($item.Query.Metadata.Count -eq 0)
+            {
+                'none found'
+            }
+            else
+            {
+                "$($item.Query.Metadata.Count) packages"
+            }
+        }
+        elseif ($item.Query.State -eq 'resolved')
         {
             $item.Latest
         }
@@ -118,7 +138,11 @@ function Show-GameWipToolUpdatePlan
         }
         $required = [string]$required
         $latestDisplay = [string]$latestDisplay
-        $installedDisplay = if ($item.Installed)
+        $installedDisplay = if ($rollingPackages)
+        {
+            'rolling'
+        }
+        elseif ($item.Installed)
         {
             [string]$item.Installed
         }
@@ -141,10 +165,21 @@ function Show-GameWipToolUpdatePlan
         {
             $latestDisplay = $latestDisplay.Substring(0, 17) + '...'
         }
-        $latestSemantic = if ($item.Query.State -eq 'resolved')
+        $latestSemantic = if ($rollingPackages)
+        {
+            if ($item.Query.Metadata.Count -eq 0)
+            {
+                'Success'
+            }
+            else
+            {
+                'Accent'
+            }
+        }
+        elseif ($item.Query.State -eq 'resolved')
         {
             $updatesPin = $item.Tool.versionPolicy -eq 'exact' -or
-                ($item.Tool.capabilities.Contains('updatePin') -and [bool]$item.Tool.capabilities.updatePin)
+            ($item.Tool.capabilities.Contains('updatePin') -and [bool]$item.Tool.capabilities.updatePin)
             $hasActionableDifference = if ($updatesPin -and $item.Tool.Contains('requiredVersion'))
             {
                 [string]$item.Latest -ne [string]$item.Tool.requiredVersion
@@ -184,12 +219,36 @@ function Show-GameWipToolUpdatePlan
         }
         Write-Host ' ' -NoNewline
         Write-GameWipSemanticText -Object ('{0,-20}' -f $latestDisplay) -Semantic $latestSemantic -NoNewline
-        Write-Host (' {0}' -f $item.Tool.provider.kind)
+        $providerDisplay = if ($rollingPackages)
+        {
+            'MSYS2/pacman'
+        }
+        else
+        {
+            [string]$item.Tool.provider.kind
+        }
+        Write-Host (' {0}' -f $providerDisplay)
 
         if (-not [string]::IsNullOrWhiteSpace([string]$item.Query.Reason))
         {
             $details.Add("$($item.Tool.id): $($item.Query.Reason)") | Out-Null
         }
+
+        if ($rollingPackages -and $item.Query.Metadata.Count -ne 0)
+        {
+            $packageDetails = @($item.Query.Metadata.Packages | Select-Object -First 8 | ForEach-Object {
+                    "$($_.Name) $($_.Installed) -> $($_.Available)"
+                })
+            $remainingPackageCount = [int]$item.Query.Metadata.Count - $packageDetails.Count
+            $packageSummary = $packageDetails -join ', '
+
+            if ($remainingPackageCount -gt 0)
+            {
+                $packageSummary += ", and $remainingPackageCount more"
+            }
+            $details.Add("MSYS2 updates: $packageSummary") | Out-Null
+        }
+
         $dependencies = if ($item.Tool.provider.Contains('dependencies'))
         {
             @($item.Tool.provider.dependencies)

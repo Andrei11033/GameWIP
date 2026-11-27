@@ -5,10 +5,10 @@
 /// Conformance data helpers
 /// ------------------------------------------------------------
 
-/// @brief Resolves the official Unicode 17 grapheme conformance file from explicit or GameWIP cache paths.
+/// @brief Resolves the official Unicode 18 grapheme conformance file from explicit or GameWIP cache paths.
 std::optional<std::filesystem::path> findGraphemeBreakTestFile()
 {
-    constexpr std::string_view relativePath = "17.0.0/ucd/auxiliary/GraphemeBreakTest.txt";
+    constexpr std::string_view relativePath = "18.0.0/ucd/auxiliary/GraphemeBreakTest.txt";
 
     // Check an explicit fixture override first.
     if(const char *explicitPath = std::getenv("GAMEWIP_UNICODE_GRAPHEME_BREAK_TEST"); explicitPath != nullptr && *explicitPath != '\0')

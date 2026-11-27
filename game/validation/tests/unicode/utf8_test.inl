@@ -10,7 +10,7 @@ void testVersionAndScalarPredicates(TestSupport::Context &context)
 {
     // Confirm the Unicode data version.
     const Unicode::Types::Version version = Unicode::getStandardVersion();
-    static_cast<void>(context.expectEq("Unicode major version", std::uint8_t{17}, version.major));
+    static_cast<void>(context.expectEq("Unicode major version", std::uint8_t{18}, version.major));
     static_cast<void>(context.expectEq("Unicode minor version", std::uint8_t{0}, version.minor));
     static_cast<void>(context.expectEq("Unicode patch version", std::uint8_t{0}, version.patch));
 

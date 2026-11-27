@@ -38,7 +38,7 @@ function Test-GameWipToolPlanRequiresInstall
 
     $providerOk = Test-GameWipDetectedToolFromDeclaredProvider -Tool $installTool -Detected $currentStatus.Detected
     $reuseExternal = $installTool.capabilities.Contains('reuseCompatibleExternal') -and
-        [bool]$installTool.capabilities.reuseCompatibleExternal
+    [bool]$installTool.capabilities.reuseCompatibleExternal
 
     if (-not $providerOk -and -not $reuseExternal)
     {

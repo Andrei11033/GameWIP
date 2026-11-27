@@ -1,5 +1,5 @@
 /// @file grapheme.cpp
-/// @brief Unicode 17.0.0 default extended grapheme-cluster boundary traversal.
+/// @brief Unicode 18.0.0 default extended grapheme-cluster boundary traversal.
 
 #include "unicode/unicode.h"
 #include "unicode/internal/encoding.h"
@@ -25,7 +25,6 @@ namespace GameWIP::Unicode::Internal::Grapheme
         enum class IndicSequenceState : std::uint8_t
         {
             None,
-            Consonant,
             Linked,
         };
 
@@ -46,16 +45,16 @@ namespace GameWIP::Unicode::Internal::Grapheme
             /// @brief Incorporates one decoded scalar into the rule context.
             void consume(const UnicodeInternal::UnicodeProperties &properties) noexcept
             {
-                // Track Indic conjunct context.
+                // Track the preceding GB9c linker sequence.
                 switch(properties.indicConjunctBreak)
                 {
                 case UnicodeInternal::IndicConjunctBreakClass::Consonant:
-                    indic = IndicSequenceState::Consonant;
+                    indic = IndicSequenceState::None;
                     break;
                 case UnicodeInternal::IndicConjunctBreakClass::Extend:
                     break;
                 case UnicodeInternal::IndicConjunctBreakClass::Linker:
-                    indic = indic == IndicSequenceState::None ? IndicSequenceState::None : IndicSequenceState::Linked;
+                    indic = IndicSequenceState::Linked;
                     break;
                 case UnicodeInternal::IndicConjunctBreakClass::None:
                     indic = IndicSequenceState::None;
@@ -99,7 +98,7 @@ namespace GameWIP::Unicode::Internal::Grapheme
                    value == UnicodeInternal::GraphemeBreakClass::LF;
         }
 
-        /// @brief Applies the ordered Unicode 17 extended grapheme-cluster rules at one boundary.
+        /// @brief Applies the ordered Unicode 18 extended grapheme-cluster rules at one boundary.
         [[nodiscard]] bool shouldBreak(
             const UnicodeInternal::UnicodeProperties &previous,
             const UnicodeInternal::UnicodeProperties &current,

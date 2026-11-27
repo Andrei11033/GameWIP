@@ -80,7 +80,7 @@ void testGeneratedPropertyData(TestSupport::Context &context)
     using Unicode::Internal::IndicConjunctBreakClass;
 
     // Check generated version and table shape.
-    static_cast<void>(context.expectEq("generated major version", std::uint8_t{17}, Generated::kUnicodeVersionMajor));
+    static_cast<void>(context.expectEq("generated major version", std::uint8_t{18}, Generated::kUnicodeVersionMajor));
     static_cast<void>(context.expectEq("generated minor version", std::uint8_t{0}, Generated::kUnicodeVersionMinor));
     static_cast<void>(context.expectEq("generated patch version", std::uint8_t{0}, Generated::kUnicodeVersionPatch));
     static_cast<void>(context.expectEq("generated block size", std::size_t{1} << Generated::kBlockShift, Generated::kBlockSize));

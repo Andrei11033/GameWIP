@@ -295,14 +295,14 @@ function Invoke-GameWipManualWorkflow
         -Plan @($dispatchCommand, 'The dispatched run is a shared GitHub resource.') `
         -TypedPhrase $phrase `
         -Body {
-            Assert-GameWipGitHubCli
-            $dispatchState.PreviousIds = @(Get-GameWipWorkflowRunId -WorkflowFile $workflowInfo.File)
-            $dispatchState.DispatchedAfter = (Get-Date).ToUniversalTime()
-            Invoke-GameWipNative `
-                -Name "workflow-dispatch-$WorkflowId" `
-                -FilePath gh `
-                -Arguments $resolved.Arguments
-        }
+        Assert-GameWipGitHubCli
+        $dispatchState.PreviousIds = @(Get-GameWipWorkflowRunId -WorkflowFile $workflowInfo.File)
+        $dispatchState.DispatchedAfter = (Get-Date).ToUniversalTime()
+        Invoke-GameWipNative `
+            -Name "workflow-dispatch-$WorkflowId" `
+            -FilePath gh `
+            -Arguments $resolved.Arguments
+    }
 
     if (-not $applied)
     {
