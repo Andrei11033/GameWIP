@@ -4,7 +4,7 @@ Unicode validation covers the public contracts, generated property data, officia
 grapheme conformance, package boundaries, sanitizers, static analysis, and
 diagnostic benchmarks.
 
-Examples use Windows PowerShell and the Windows x64 output paths. On Linux, pass
+Examples use Windows PowerShell and the Windows AMD64 output paths. On Linux, pass
 the same helper arguments to `bash ./gamewip.sh`; set environment variables with
 Bash syntax and use the selected target's output path for executables.
 
@@ -164,7 +164,7 @@ Build benchmark registration and run the Unicode family:
 
 ```powershell
 .\gamewip.bat bench
-.\build\windows-x64\benchmark\GameWIPBenchmarks.exe --benchmark_filter=BM_Unicode
+.\build\windows-amd64\benchmark\GameWIPBenchmarks.exe --benchmark_filter=BM_Unicode
 ```
 
 The Unicode benchmark family covers representative UTF-8 decoding, validation, scalar encoding, sequential and table-wide scattered property lookup,

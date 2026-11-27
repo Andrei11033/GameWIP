@@ -1,4 +1,4 @@
-# LLVM-MinGW UCRT toolchain for Windows x64 and ARM64 targets.
+# LLVM-MinGW UCRT toolchain for Windows AMD64 and ARM64 targets.
 
 list(
     APPEND CMAKE_TRY_COMPILE_PLATFORM_VARIABLES

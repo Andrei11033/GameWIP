@@ -4,7 +4,7 @@ GameWIP uses CMake presets to keep development, testing, benchmarking,
 profiling, coverage, analysis, documentation, and release builds separate.
 Native CMake builds use `build/<preset>`. The helper uses
 `build/<target>/<preset>` for Windows and Linux targets so their caches stay
-separate. Zig provides Linux x64 and ARM64 compiler targets on both Windows and
+separate. Zig provides Linux AMD64 and ARM64 compiler targets on both Windows and
 Linux hosts. Full project builds wait for Linux platform backends.
 
 The default CMake install prefix is `<build-tree>/install`. Set
@@ -53,7 +53,7 @@ on `PATH`. Direct commands below use the default MSYS2 root. Set
 `GAMEWIP_MSYS2_ROOT` to an absolute path when using an existing installation or
 when the storage root has changed. The Windows helper uses the selected
 LLVM-MinGW target;
-AddressSanitizer is available for x64, but not ARM64.
+AddressSanitizer is available for AMD64, but not ARM64.
 
 CMake selects the dependency-cache default when it first creates the build
 cache. If the storage root later changes, set `GAMEWIP_DEPENDENCY_CACHE_DIR`
@@ -61,7 +61,7 @@ to the desired cache path.
 
 ## Common workflow
 
-From PowerShell at the repository root, the helper defaults to Windows x64,
+From PowerShell at the repository root, the helper defaults to Windows AMD64,
 selects LLVM-MinGW, and configures the preset when needed:
 
 ```powershell
@@ -81,15 +81,15 @@ Select Windows ARM64 with:
 Target selection is stored under `<storage-root>/state` (default
 `build/gamewip/state`); each target uses its own preset trees.
 
-Select Linux x64 or ARM64 from either host:
+Select Linux AMD64 or ARM64 from either host:
 
 ```powershell
-.\gamewip.bat target -TargetPlatform linux -TargetArchitecture x64
+.\gamewip.bat target -TargetPlatform linux -TargetArchitecture amd64
 .\gamewip.bat target -TargetPlatform linux -TargetArchitecture arm64
 ```
 
 ```bash
-bash ./gamewip.sh target -TargetPlatform linux -TargetArchitecture x64
+bash ./gamewip.sh target -TargetPlatform linux -TargetArchitecture amd64
 bash ./gamewip.sh target -TargetPlatform linux -TargetArchitecture arm64
 ```
 
@@ -97,7 +97,7 @@ The target selection and compiler are ready for Linux backend work. Project
 configuration stops when it reaches a library without a Linux backend.
 
 The helper does not configure an ARM64 emulator. Run ARM64 executables on an
-ARM64 Windows host; on x64 Windows, select x64 before running CTest.
+ARM64 Windows host; on AMD64 Windows, select AMD64 before running CTest.
 
 From MSYS2 UCRT64 Bash, configure and build one preset:
 
@@ -174,7 +174,7 @@ restore CMake build trees across runs.
 
 Direct CMake builds use the host platform and architecture unless a target is
 selected before compiler detection. Set `GAMEWIP_TARGET_PLATFORM` to `windows`
-or `linux` and `GAMEWIP_TARGET_ARCHITECTURE` to `x64` or `arm64`. The helper
+or `linux` and `GAMEWIP_TARGET_ARCHITECTURE` to `amd64` or `arm64`. The helper
 keeps each target in a separate build tree. `GAMEWIP_LLVM_MINGW_ROOT` and
 `GAMEWIP_ZIG_ROOT` can select existing toolchain directories.
 
@@ -202,10 +202,10 @@ are for CI; see `CMakePresets.json`.
 
 ### Print runtime version information
 
-For the helper's default Windows x64 target:
+For the helper's default Windows AMD64 target:
 
 ```powershell
-.\build\windows-x64\dev\GameWIP.exe --version
+.\build\windows-amd64\dev\GameWIP.exe --version
 ```
 
 Direct CMake builds place the executable at `build/dev/GameWIP.exe`. The
@@ -232,7 +232,7 @@ ctest --preset asan
 ```
 
 Or use the PowerShell helper, which uses the selected Windows target and starts
-a fresh build. AddressSanitizer supports x64 only:
+a fresh build. AddressSanitizer supports AMD64 only:
 
 ```powershell
 .\gamewip.bat asan

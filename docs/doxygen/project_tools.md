@@ -89,7 +89,7 @@ build/gamewip/tools/managed/
 
 Versioned directory archives live under `tools/<tool>/<version>` and expose
 their declared binary directory to tool discovery. LLVM-MinGW supplies the
-Windows x64 and ARM64 targets; Zig supplies Linux x64 and ARM64 targets from
+Windows AMD64 and ARM64 targets; Zig supplies Linux AMD64 and ARM64 targets from
 Windows or Linux. Matching system Zig versions are reused. Target selection and
 compiler setup are documented in @ref project_build.
 

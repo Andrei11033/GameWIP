@@ -61,7 +61,7 @@ policy.
 | `tool` | List tools, report status, check upstream versions, install or repair declared versions, or update reviewed pins. |
 | `links` | Run the maintained Markdown-link checker. |
 | `deps` | Check or prepare the shared pinned dependency cache. |
-| `target` | Select the Windows or Linux build platform and x64 or ARM64 architecture. |
+| `target` | Select the Windows or Linux build platform and AMD64 or ARM64 architecture. |
 | `config` | Configure one visible CMake preset. |
 | `build` | Ensure configuration and build one preset. |
 | `test` | Ensure prerequisites and run one CTest preset. |
@@ -74,7 +74,7 @@ policy.
 | `doc` | Build generated documentation. |
 | `analyze` | Run the supported C++ static-analysis preset. |
 | `cov` | Run the coverage validation workflow. |
-| `asan` | Run AddressSanitizer for the selected Windows target; x64 only. |
+| `asan` | Run AddressSanitizer for the selected Windows target; AMD64 only. |
 | `ubsan` | Run UndefinedBehaviorSanitizer for the selected Windows target. |
 | `bench` | Measure, dry-run, list, or compare benchmarks. |
 | `history` | List, inspect, or clean owned helper run history. |
@@ -117,9 +117,9 @@ formatter is required.
 .\gamewip.bat deps check
 .\gamewip.bat deps prepare
 .\gamewip.bat target
-.\gamewip.bat target -TargetPlatform windows -TargetArchitecture x64
+.\gamewip.bat target -TargetPlatform windows -TargetArchitecture amd64
 .\gamewip.bat target -TargetPlatform windows -TargetArchitecture arm64
-.\gamewip.bat target -TargetPlatform linux -TargetArchitecture x64
+.\gamewip.bat target -TargetPlatform linux -TargetArchitecture amd64
 .\gamewip.bat target -TargetPlatform linux -TargetArchitecture arm64
 .\gamewip.bat config test
 .\gamewip.bat build test

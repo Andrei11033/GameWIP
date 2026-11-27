@@ -31,20 +31,20 @@ Windows target (see @ref project_build for target selection and all presets):
 
 ```powershell
 .\gamewip.bat build dev
-.\build\windows-x64\dev\GameWIP.exe
+.\build\windows-amd64\dev\GameWIP.exe
 ```
 
-The helper defaults to Windows x64. Windows ARM64 uses
+The helper defaults to Windows AMD64. Windows ARM64 uses
 `build/windows-arm64/dev/GameWIP.exe`.
 
 Linux can cross-build either Windows target with the same helper commands:
 
 ```bash
-bash ./gamewip.sh target -TargetPlatform windows -TargetArchitecture x64
+bash ./gamewip.sh target -TargetPlatform windows -TargetArchitecture amd64
 bash ./gamewip.sh build dev
 ```
 
-The helper also selects Linux x64 and ARM64 compiler targets on Windows and
+The helper also selects Linux AMD64 and ARM64 compiler targets on Windows and
 Linux. Full project configuration waits for Linux platform backends.
 
 From MSYS2 UCRT64 Bash, the equivalent direct commands are:

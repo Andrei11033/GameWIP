@@ -170,7 +170,7 @@ function Assert-GameWipSelectedTargetRunnable
     {
         'x64'
         {
-            'x64'
+            'amd64'
         }
         'arm64'
         {

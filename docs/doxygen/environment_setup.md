@@ -113,22 +113,22 @@ aliases.
 Linux uses the same help aliases with `bash ./setup.sh`. Setup can integrate an
 existing VS Code installation but does not install VS Code.
 
-The project tool registry pins LLVM-MinGW for Windows x64 and ARM64 builds and
-Zig for Linux x64 and ARM64 targets. Windows setup stores MSYS2 and managed
+The project tool registry pins LLVM-MinGW for Windows AMD64 and ARM64 builds and
+Zig for Linux AMD64 and ARM64 targets. Windows setup stores MSYS2 and managed
 tools under the configured roots; Linux stores verified CMake, LLVM-MinGW, and
 Zig tools under the managed-tools root.
 
 Select a Windows build target on Linux, then configure and build it:
 
 ```bash
-bash ./gamewip.sh target -TargetPlatform windows -TargetArchitecture x64
+bash ./gamewip.sh target -TargetPlatform windows -TargetArchitecture amd64
 bash ./gamewip.sh config dev
 bash ./gamewip.sh build dev
 ```
 
 Choose `arm64` to produce Windows ARM64 binaries.
 
-To select a Linux target, use `linux` with either `x64` or `arm64`. The helper
+To select a Linux target, use `linux` with either `amd64` or `arm64`. The helper
 uses Zig on Windows and Linux; full project configuration waits for Linux
 platform backends.
 

@@ -72,10 +72,10 @@ Assert-GameWipBuildTargetConfig
 $linuxTargets = @($BuildTargets.targets | Where-Object platform -eq 'linux')
 $linuxTargetIds = @($linuxTargets | ForEach-Object { [string]$_.id })
 
-if (($linuxTargetIds -join '|') -cne 'linux-x64|linux-arm64' -or
+if (($linuxTargetIds -join '|') -cne 'linux-amd64|linux-arm64' -or
     @($linuxTargets | Where-Object { $_.backend -ne 'linux' -or $_.toolchain -ne 'zig' }).Count -ne 0)
 {
-    throw 'Linux x64 and ARM64 targets must use the Linux backend and Zig toolchain.'
+    throw 'Linux AMD64 and ARM64 targets must use the Linux backend and Zig toolchain.'
 }
 
 $linuxReadinessToolIds = @(Get-GameWipProjectReadinessToolIds -Target $linuxTargets[0])
@@ -153,7 +153,7 @@ try
     }
 
     New-Item -ItemType File -Path (Join-Path $zigPreflightRoot 'lib/std/std.zig') | Out-Null
-    Set-Item -Path function:Get-GameWipSelectedBuildTarget -Value { return @{ platform = 'linux'; architecture = 'x64'; toolchain = 'zig' } }
+    Set-Item -Path function:Get-GameWipSelectedBuildTarget -Value { return @{ platform = 'linux'; architecture = 'amd64'; toolchain = 'zig' } }
     Set-Item -Path function:Test-GameWipWindowsHost -Value { return $false }
     Set-Item -Path function:Get-GameWipProjectTool -Value {
         param([string]$Id)
@@ -188,7 +188,7 @@ $savedRuntimeTarget = (Get-Command Get-GameWipSelectedBuildTarget).ScriptBlock
 
 try
 {
-    Set-Item -Path function:Get-GameWipSelectedBuildTarget -Value { return @{ platform = 'windows'; architecture = 'x64' } }
+    Set-Item -Path function:Get-GameWipSelectedBuildTarget -Value { return @{ platform = 'windows'; architecture = 'amd64' } }
     $gameCommand = Get-GameWipProjectCommand -Id game-dev
     $runtimeArguments = @(New-GameWipRuntimeArguments `
             -Command $gameCommand `
@@ -298,7 +298,7 @@ try
 {
     Set-Item -Path function:Test-GameWipWindowsHost -Value { return $false }
     Set-Item -Path function:Get-GameWipBuildDirectory -Value { param([string]$PresetName) return 'C:\gamewip-target-build' }
-    Set-Item -Path function:Get-GameWipSelectedBuildTarget -Value { return @{ platform = 'linux'; architecture = 'x64'; toolchain = 'zig' } }
+    Set-Item -Path function:Get-GameWipSelectedBuildTarget -Value { return @{ platform = 'linux'; architecture = 'amd64'; toolchain = 'zig' } }
     Set-Item -Path function:Get-GameWipPathComparison -Value { return [StringComparison]::Ordinal }
     $caseMismatchCommand = @{ BuildPreset = 'dev'; Executable = 'build/DEV/GameWIP.exe' }
     $resolvedCaseMismatch = Resolve-GameWipProjectExecutable -Command $caseMismatchCommand
@@ -1085,8 +1085,8 @@ try
 
     # Verify both target toolchain definitions.
     foreach ($target in @(
-            [pscustomobject]@{ id = 'windows-x64'; platform = 'windows'; architecture = 'x64'; toolchain = 'llvm-mingw' }
-            [pscustomobject]@{ id = 'linux-x64'; platform = 'linux'; architecture = 'x64'; toolchain = 'zig' }
+            [pscustomobject]@{ id = 'windows-amd64'; platform = 'windows'; architecture = 'amd64'; toolchain = 'llvm-mingw' }
+            [pscustomobject]@{ id = 'linux-amd64'; platform = 'linux'; architecture = 'amd64'; toolchain = 'zig' }
         ))
     {
         $Script:ConfigureArgumentTarget = $target

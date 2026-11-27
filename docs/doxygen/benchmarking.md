@@ -43,7 +43,7 @@ Print the complete option set for the pinned Google Benchmark executable without
 running a measurement:
 
 ```powershell
-.\build\windows-x64\benchmark\GameWIPBenchmarks.exe --help
+.\build\windows-amd64\benchmark\GameWIPBenchmarks.exe --help
 ```
 
 That generated help is the reference for direct third-party runner flags. This

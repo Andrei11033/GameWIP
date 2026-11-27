@@ -76,11 +76,11 @@ Use the utility forms to inspect the executable without initializing validation,
 Logger, Desktop, or runtime services:
 
 ```powershell
-.\build\windows-x64\dev\GameWIP.exe --help
-.\build\windows-x64\dev\GameWIP.exe --version
+.\build\windows-amd64\dev\GameWIP.exe --help
+.\build\windows-amd64\dev\GameWIP.exe --version
 ```
 
-These paths use the helper's default Windows x64 target. Direct CMake builds use
+These paths use the helper's default Windows AMD64 target. Direct CMake builds use
 `build/dev`; the helper uses `build/<target>/dev`.
 
 | Argument | Availability | Behavior |

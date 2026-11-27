@@ -1,4 +1,4 @@
-# Zig toolchain for Linux x64 and ARM64 targets.
+# Zig toolchain for Linux AMD64 and ARM64 targets.
 
 list(
     APPEND CMAKE_TRY_COMPILE_PLATFORM_VARIABLES

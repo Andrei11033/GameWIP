@@ -26,7 +26,7 @@ function(gamewip_get_host_architecture output_variable)
     endif()
 
     if(host_processor MATCHES "^(amd64|x86_64|x64)$")
-        set(host_architecture "x64")
+        set(host_architecture "amd64")
     elseif(host_processor MATCHES "^(arm64|aarch64)$")
         set(host_architecture "arm64")
     else()
@@ -40,7 +40,7 @@ function(gamewip_prepare_target)
     set(GAMEWIP_TARGET_PLATFORM "native" CACHE STRING "GameWIP build target platform")
     set_property(CACHE GAMEWIP_TARGET_PLATFORM PROPERTY STRINGS native windows linux)
     set(GAMEWIP_TARGET_ARCHITECTURE "native" CACHE STRING "GameWIP build target architecture")
-    set_property(CACHE GAMEWIP_TARGET_ARCHITECTURE PROPERTY STRINGS native x64 arm64)
+    set_property(CACHE GAMEWIP_TARGET_ARCHITECTURE PROPERTY STRINGS native amd64 arm64)
 
     if(GAMEWIP_TARGET_PLATFORM STREQUAL "native" AND GAMEWIP_TARGET_ARCHITECTURE STREQUAL "native")
         return()
@@ -80,7 +80,7 @@ function(gamewip_prepare_target)
         message(
             FATAL_ERROR
             "AddressSanitizer is not available for Windows ARM64 with LLVM-MinGW. "
-            "Select Windows x64 or disable GAMEWIP_ENABLE_ADDRESS_SANITIZER."
+            "Select Windows AMD64 or disable GAMEWIP_ENABLE_ADDRESS_SANITIZER."
         )
     endif()
 
@@ -139,7 +139,7 @@ function(gamewip_prepare_target)
     # Select the verified toolchain archive for this host architecture.
     if(CMAKE_HOST_WIN32)
         gamewip_get_host_architecture(gamewip_host_architecture)
-        if(gamewip_host_architecture STREQUAL "x64")
+        if(gamewip_host_architecture STREQUAL "amd64")
             set(gamewip_host_asset_key "windows-amd64")
         elseif(gamewip_host_architecture STREQUAL "arm64")
             set(gamewip_host_asset_key "windows-arm64")
@@ -149,7 +149,7 @@ function(gamewip_prepare_target)
     elseif(CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
         gamewip_get_host_architecture(gamewip_host_architecture)
 
-        if(gamewip_host_architecture STREQUAL "x64")
+        if(gamewip_host_architecture STREQUAL "amd64")
             set(gamewip_host_asset_key "linux-amd64")
         elseif(gamewip_host_architecture STREQUAL "arm64")
             set(gamewip_host_asset_key "linux-arm64")

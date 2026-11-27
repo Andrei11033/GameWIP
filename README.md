@@ -8,7 +8,7 @@
 GameWIP is an early-stage C++23 sandbox game project about player-built
 vehicles, structures, weapons, components, and meaningful destruction.
 
-The game currently targets Windows 11. The helpers can select Linux x64 and
+The game currently targets Windows 11. The helpers can select Linux AMD64 and
 ARM64 compiler targets from Windows or Linux; full Linux builds await Linux
 platform backends. GameWIP is pre-1.0; active work is tracked in the
 [R01 milestone](https://github.com/Andrei11033/GameWIP/milestone/176) and the
@@ -35,22 +35,22 @@ Linux setup supports Ubuntu, Debian, and CachyOS. If PowerShell 7 is missing,
 [development environment guide](docs/doxygen/environment_setup.md).
 
 The `dev` preset is the main build target.
-In PowerShell, the helper defaults to Windows x64 and keeps each target in its own build tree:
+In PowerShell, the helper defaults to Windows AMD64 and keeps each target in its own build tree:
 
 ```powershell
-.\gamewip.bat target -TargetPlatform windows -TargetArchitecture x64
+.\gamewip.bat target -TargetPlatform windows -TargetArchitecture amd64
 .\gamewip.bat build dev
-.\build\windows-x64\dev\GameWIP.exe
+.\build\windows-amd64\dev\GameWIP.exe
 ```
 
-Use `arm64` instead of `x64` to cross-compile for Windows ARM64. Setup installs
+Use `arm64` instead of `amd64` to cross-compile for Windows ARM64. Setup installs
 the pinned LLVM-MinGW toolchain when needed.
 
 On Linux, setup prepares the host tools and both cross-compilers. To build the
-Windows x64 target:
+Windows AMD64 target:
 
 ```bash
-bash ./gamewip.sh target -TargetPlatform windows -TargetArchitecture x64
+bash ./gamewip.sh target -TargetPlatform windows -TargetArchitecture amd64
 bash ./gamewip.sh build dev
 ```
 

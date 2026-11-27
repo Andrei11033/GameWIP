@@ -15,7 +15,7 @@ project_benchmarking. Library-specific test coverage and approved hooks remain d
 
 Configure and build validation with CMake presets, then run it through CTest.
 Direct CMake commands use `build/<preset>`. The helper uses
-`build/<target>/<preset>` and defaults to `windows-x64`:
+`build/<target>/<preset>` and defaults to `windows-amd64`:
 
 ```powershell
 cmake --preset test
@@ -54,14 +54,14 @@ launches.
 
 ## Commands
 
-Executable examples below use the helper's default Windows x64 target. For Linux
-x64, use `./build/linux-x64/test/GameWIPTests` in place of
-`build/windows-x64/test/GameWIPTests.exe`. Direct CMake builds use `build/test`.
+Executable examples below use the helper's default Windows AMD64 target. For Linux
+AMD64, use `./build/linux-amd64/test/GameWIPTests` in place of
+`build/windows-amd64/test/GameWIPTests.exe`. Direct CMake builds use `build/test`.
 
 Run all modules directly:
 
 ```powershell
-.\build\windows-x64\test\GameWIPTests.exe
+.\build\windows-amd64\test\GameWIPTests.exe
 ```
 
 CTest registers one entry per correctness module so failures remain focused and
@@ -78,7 +78,7 @@ they are deliberately not performance thresholds.
 Run one module and retain a focused report:
 
 ```powershell
-.\build\windows-x64\test\GameWIPTests.exe `
+.\build\windows-amd64\test\GameWIPTests.exe `
   --test-module=filesystem `
   --test-report=logs/validation/filesystem_test_report.txt
 ```
@@ -91,28 +91,28 @@ builds write under `build/test/logs/validation`; helper builds write under
 Disable the retained report for quick local iteration:
 
 ```powershell
-.\build\windows-x64\test\GameWIPTests.exe --test-module=logger --no-test-report
+.\build\windows-amd64\test\GameWIPTests.exe --test-module=logger --no-test-report
 ```
 
 Mirror complete suite output to stdout:
 
 ```powershell
-.\build\windows-x64\test\GameWIPTests.exe --test-module=logger --verbose-tests --no-test-report
+.\build\windows-amd64\test\GameWIPTests.exe --test-module=logger --verbose-tests --no-test-report
 ```
 
 Run all modules except one project module:
 
 ```powershell
-.\build\windows-x64\test\GameWIPTests.exe --skip-test-module=terminal
+.\build\windows-amd64\test\GameWIPTests.exe --skip-test-module=terminal
 ```
 
 Run opt-in manual checks:
 
 ```powershell
-.\build\windows-x64\test\GameWIPTests.exe --test-module=test_support --manual-tests
-.\build\windows-x64\test\GameWIPTests.exe --test-module=terminal --manual-tests
-.\build\windows-x64\test\GameWIPTests.exe --test-module=logger --manual-tests
-.\build\windows-x64\test\GameWIPTests.exe --test-module=desktop --manual-tests
+.\build\windows-amd64\test\GameWIPTests.exe --test-module=test_support --manual-tests
+.\build\windows-amd64\test\GameWIPTests.exe --test-module=terminal --manual-tests
+.\build\windows-amd64\test\GameWIPTests.exe --test-module=logger --manual-tests
+.\build\windows-amd64\test\GameWIPTests.exe --test-module=desktop --manual-tests
 ```
 
 Each selected module owns its manual scenarios. The Desktop module groups the full visible, shell, DPI, cursor, fullscreen, topology, HDR, and
