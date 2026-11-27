@@ -87,11 +87,10 @@ The target includes:
 `clang-tidy` processes used by the target and defaults to `4`.
 
 The VS Code workspace disables the C/C++ extension's integrated clang-tidy
-runner. Workspace IntelliSense uses the GCC-backed `dev` compilation database,
-while supported static analysis uses the Clang-backed `analyze` database.
-Mixing the GCC database with the extension's Clang frontend can produce false
-diagnostics in GCC standard-library and intrinsic headers. Run the
-`GameWIP: Analyze` task for editor-integrated static analysis output.
+runner. Workspace IntelliSense can select a configured target's `dev`
+compilation database; supported static analysis uses the Clang-backed `analyze`
+database. Run the `GameWIP: Analyze` task for editor-integrated static analysis
+output.
 
 Run one C++ check target when investigating a focused failure:
 

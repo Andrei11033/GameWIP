@@ -6,19 +6,17 @@
 
 function Get-GameWipQualityToolchain
 {
-    $requiredToolIds = @(
-        'python',
-        'clang-format',
-        'ruff',
-        'psscriptanalyzer',
-        'eslint',
-        'prettier',
-        'gersemi',
-        'yamllint',
-        'markdownlint-cli2',
-        'actionlint',
-        'jsonschema'
-    )
+    param([AllowNull()]$ScopeInfo = $null)
+
+    $requiredToolIds = if ($null -ne $ScopeInfo)
+    {
+        (Get-GameWipQualityCheckPlan -ScopeInfo $ScopeInfo).Tools
+    }
+    else
+    {
+        (Get-GameWipQualityCheckPlan -ScopeInfo ([pscustomobject]@{ UseChanged = $false })).Tools
+    }
+
     $helperCommand = Get-GameWipProjectHelperCommand
     # The common checker also validates provider dependencies, such as npm
     # plugins, before quality mutates any maintained file.
@@ -66,12 +64,12 @@ function Invoke-GameWipQualityCheck
 
     if ($ScopeInfo.Expanded)
     {
-        Write-GameWipOperationEvent -Phase plan -Severity info -Message 'A quality policy/configuration file changed; expanding quality scope to the complete maintained worktree.'
+        Write-GameWipOperationEvent -Phase plan -Severity info -Message 'A quality policy file or maintained path deletion changed; expanding quality checks to the complete maintained worktree.'
     }
 
     if ($null -eq $Tools)
     {
-        $Tools = Get-GameWipQualityToolchain
+        $Tools = Get-GameWipQualityToolchain -ScopeInfo $ScopeInfo
     }
     $tools = $Tools
 
@@ -96,7 +94,12 @@ function Invoke-GameWipQualityCheck
 
     # Resolve shared tool paths once for all check actions.
     $nodePath = Get-GameWipNpmManagedModuleRoot
-    $prettierPluginArguments = Get-GameWipPrettierPluginArguments
+    $prettierPluginArguments = @()
+
+    if ($fileSelection.Prettier.Count -ne 0 -or $specialJsonFiles.Count -ne 0)
+    {
+        $prettierPluginArguments = Get-GameWipPrettierPluginArguments
+    }
     $python = (Resolve-GameWipPython).Path
     $managedPython = Get-GameWipPythonEnvironmentInterpreterPath -Root (Join-Path (Get-GameWipManagedToolRoot) 'python')
 
@@ -308,6 +311,9 @@ function Invoke-GameWipQualityCheck
             Body = { Invoke-GameWipMarkdownLink }
         }
     )
+
+    $checkPlan = Get-GameWipQualityCheckPlan -ScopeInfo $ScopeInfo
+    $checks = @($checks | Where-Object { $checkPlan.Checks -contains $_.Name })
 
     # Execute the catalog in order and retain each result for one summary.
     $results = [System.Collections.Generic.List[object]]::new()

@@ -1,1 +1,1 @@
-gamewip_add_platform_backend(TARGET GameWIPTestModules ROOT "${CMAKE_CURRENT_SOURCE_DIR}")
+gamewip_add_platform_backend(TARGET "${GAMEWIP_CURRENT_TEST_MODULE_TARGET}" ROOT "${CMAKE_CURRENT_SOURCE_DIR}")

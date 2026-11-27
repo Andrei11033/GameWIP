@@ -38,8 +38,19 @@ function(gamewip_add_test_module)
         message(FATAL_ERROR "gamewip_add_test_module requires NAME and SOURCES.")
     endif()
 
-    target_sources(GameWIPTestModules PRIVATE ${MODULE_SOURCES})
-    target_link_libraries(GameWIPTestModules PRIVATE ${MODULE_LINK_LIBRARIES})
+    set(gamewip_test_module_target "GameWIPTestModule_${MODULE_NAME}")
+
+    if(TARGET "${gamewip_test_module_target}")
+        message(FATAL_ERROR "Validation module target already exists: ${gamewip_test_module_target}")
+    endif()
+
+    add_library("${gamewip_test_module_target}" OBJECT ${MODULE_SOURCES})
+    target_compile_features("${gamewip_test_module_target}" PRIVATE cxx_std_23)
+    target_include_directories("${gamewip_test_module_target}" PRIVATE "${PROJECT_SOURCE_DIR}/game")
+    target_link_libraries("${gamewip_test_module_target}" PRIVATE GameWIPValidationProcess Terminal ${MODULE_LINK_LIBRARIES})
+    set_property(TARGET "${gamewip_test_module_target}" PROPERTY GAMEWIP_VALIDATION_MODULE_NAME "${MODULE_NAME}")
+    set_property(GLOBAL APPEND PROPERTY GAMEWIP_VALIDATION_MODULE_TARGETS "${gamewip_test_module_target}")
+    set(GAMEWIP_CURRENT_TEST_MODULE_TARGET "${gamewip_test_module_target}" PARENT_SCOPE)
 
     if(GAMEWIP_BUILD_TESTS)
         add_test(

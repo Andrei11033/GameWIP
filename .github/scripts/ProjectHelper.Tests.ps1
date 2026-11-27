@@ -69,6 +69,45 @@ Assert-GameWipProjectToolConfig
 Assert-GameWipHygieneConfig
 Assert-GameWipBuildTargetConfig
 
+$workspaceSettings = Get-Content (Join-Path $repositoryRoot '.vscode/settings.json') -Raw | ConvertFrom-Json
+$compileCommandPaths = @($workspaceSettings.'C_Cpp.default.compileCommands')
+$expectedCompileCommandPaths = @($BuildTargets.targets | ForEach-Object { "`${workspaceFolder}/build/$($_.id)/dev/compile_commands.json" })
+
+if (($compileCommandPaths -join '|') -cne ($expectedCompileCommandPaths -join '|'))
+{
+    throw 'VS Code IntelliSense must list every target dev compilation database in target order.'
+}
+
+$qualityScopeManifest = Join-Path (Get-GameWipStorageAreaPath -Area temp) ('quality-scope-' + [guid]::NewGuid().ToString('N') + '.json')
+
+try
+{
+    # Deleted maintained paths expand checks; excluded paths remain out of scope.
+    $manifest = @{ changed_files = @('docs/removed-page.md', 'external/vendor.cpp') } | ConvertTo-Json -Depth 3
+    [IO.File]::WriteAllText($qualityScopeManifest, $manifest, [Text.UTF8Encoding]::new($false))
+    $qualityScope = Get-GameWipQualityScope -ChangedFilesPath $qualityScopeManifest
+
+    if (-not $qualityScope.Expanded -or $qualityScope.UseChanged -or
+        $qualityScope.Files -notcontains 'docs/removed-page.md' -or $qualityScope.Files -contains 'external/vendor.cpp')
+    {
+        throw 'Quality scope must expand for deleted maintained paths and exclude third-party paths.'
+    }
+
+    $manifest = @{ changed_files = @('external/vendor.cpp') } | ConvertTo-Json -Depth 3
+    [IO.File]::WriteAllText($qualityScopeManifest, $manifest, [Text.UTF8Encoding]::new($false))
+    $qualityScope = Get-GameWipQualityScope -ChangedFilesPath $qualityScopeManifest
+
+    if ($qualityScope.Expanded -or $qualityScope.Files.Count -ne 0)
+    {
+        throw 'Third-party-only changes must not expand or enter the maintained quality scope.'
+    }
+}
+
+finally
+{
+    Remove-Item -LiteralPath $qualityScopeManifest -Force -ErrorAction SilentlyContinue
+}
+
 $linuxTargets = @($BuildTargets.targets | Where-Object platform -eq 'linux')
 $linuxTargetIds = @($linuxTargets | ForEach-Object { [string]$_.id })
 
@@ -364,7 +403,7 @@ if ($CommandConfig.ActionOptions.unicode -notcontains 'ClangFormatPath')
     throw 'Unicode operations must accept the clang-format override.'
 }
 
-foreach ($requiredOption in @('SkipBuild', 'CleanBuild', 'NameFilter', 'MinimumTime', 'OutputPath', 'BaselinePath', 'CandidatePath', 'RunCount', 'WorkerCount', 'PassThroughArgs', 'BuildBeforeRun', 'LogLevel', 'InputDebug', 'InputDevices', 'WindowEvents', 'InputBackends', 'ChangedOnly', 'FailOnFindings', 'UseCallerTemp', 'UnicodeDataPath', 'ItemNumber'))
+foreach ($requiredOption in @('SkipBuild', 'CleanBuild', 'NameFilter', 'MinimumTime', 'OutputPath', 'BaselinePath', 'CandidatePath', 'RunCount', 'WorkerCount', 'PassThroughArgs', 'BuildBeforeRun', 'LogLevel', 'InputDebug', 'InputDevices', 'WindowEvents', 'InputBackends', 'ChangedOnly', 'ChangedFilesPath', 'FailOnFindings', 'UseCallerTemp', 'UnicodeDataPath', 'ItemNumber'))
 {
     if (@($CommandConfig.Options | Where-Object Id -eq $requiredOption).Count -ne 1)
     {

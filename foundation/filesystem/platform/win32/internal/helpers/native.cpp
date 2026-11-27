@@ -2,6 +2,8 @@
 /// @brief Win32 FileSystem native handle ownership and cleanup.
 
 #include "filesystem/platform/win32/internal/helpers.h"
+#include "filesystem/platform/win32/internal/test_hooks.h"
+
 #include "base/platform/win32/dynamic_library.h"
 
 #include <atomic>

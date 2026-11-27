@@ -1,5 +1,5 @@
 target_sources(
-    GameWIPTestModules
+    "${GAMEWIP_CURRENT_TEST_MODULE_TARGET}"
     PRIVATE
         # Accessibility validation
         accessibility_test.cpp
@@ -82,6 +82,6 @@ target_sources(
 )
 
 target_link_libraries(
-    GameWIPTestModules
+    "${GAMEWIP_CURRENT_TEST_MODULE_TARGET}"
     PRIVATE shell32 ole32 oleaut32 uiautomationcore uuid
 )

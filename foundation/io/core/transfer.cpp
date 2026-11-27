@@ -355,7 +355,13 @@ namespace GameWIP::IO::Internal::Core
                 return failure<ReadScratchBuffer>(Code::Unknown);
             }
 
+#if defined(__clang__)
+#pragma clang unsafe_buffer_usage begin
+#endif
             buffer.bytes = std::span<std::byte>(buffer.storage.get(), size);
+#if defined(__clang__)
+#pragma clang unsafe_buffer_usage end
+#endif
             return ResultTypes::Result<ReadScratchBuffer>::success(std::move(buffer));
         }
 

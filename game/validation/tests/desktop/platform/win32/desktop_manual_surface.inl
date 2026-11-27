@@ -80,12 +80,13 @@ void paintManualValidationSurface(const Desktop::Window &window, ManualSurfaceLa
             DEFAULT_PITCH | FF_DONTCARE,
             nullptr);
         HGDIOBJ previousFont = nullptr;
+        const HGDIOBJ gdiError = reinterpret_cast<HGDIOBJ>(static_cast<INT_PTR>(-1));
 
         if(font != nullptr)
         {
             previousFont = SelectObject(device, font);
 
-            if(previousFont == nullptr || previousFont == HGDI_ERROR)
+            if(previousFont == nullptr || previousFont == gdiError)
             {
                 DeleteObject(font);
                 font = nullptr;
@@ -102,7 +103,7 @@ void paintManualValidationSurface(const Desktop::Window &window, ManualSurfaceLa
         SetTextColor(device, color);
         DrawTextW(device, text.data(), static_cast<int>(text.size()), &rect, format | DT_NOPREFIX);
 
-        if(previousFont != nullptr && previousFont != HGDI_ERROR)
+        if(previousFont != nullptr && previousFont != gdiError)
         {
             SelectObject(device, previousFont);
         }

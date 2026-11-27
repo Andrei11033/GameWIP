@@ -109,7 +109,7 @@ function Get-GameWipQualityFileSelections
         Get-GameWipCMakeFile -Files $files
     }
     $yamlFiles = Select-GameWipQualityFile -Files $files -Extensions @('.yml', '.yaml')
-    $markdownFiles = Select-GameWipQualityFile -Files $files -Extensions @('.md')
+    $markdownFiles = Select-GameWipQualityFile -Files $files -Extensions @('.md', '.markdown', '.dox')
 
     return [pscustomobject]@{
         UseChangedScope = $useChangedScope
@@ -126,6 +126,115 @@ function Get-GameWipQualityFileSelections
         CMake = @($cmakeFiles)
         Yaml = @($yamlFiles)
         Markdown = @($markdownFiles)
+    }
+}
+
+function Get-GameWipQualityCheckPlan
+{
+    param([Parameter(Mandatory = $true)]$ScopeInfo)
+
+    $allChecks = @(
+        'clang-format', 'ruff lint', 'ruff format', 'PowerShell', 'ESLint', 'Prettier',
+        'Prettier special JSON', 'Gersemi', 'yamllint', 'actionlint', 'markdownlint',
+        'JSON Schema', 'quality ownership', 'helper standardization', 'repository standards',
+        'repository standards tests', 'documentation standards', 'Markdown links'
+    )
+    $allTools = @(
+        'python', 'clang-format', 'ruff', 'psscriptanalyzer', 'eslint', 'prettier', 'gersemi',
+        'yamllint', 'markdownlint-cli2', 'actionlint', 'jsonschema'
+    )
+
+    if (-not $ScopeInfo.UseChanged)
+    {
+        return [pscustomobject]@{
+            Checks = $allChecks
+            Tools = $allTools
+        }
+    }
+
+    $files = @($ScopeInfo.Files | ForEach-Object { ([string]$_).Replace('\', '/') })
+    $selection = Get-GameWipQualityFileSelections -ScopeInfo $ScopeInfo
+    $checks = [System.Collections.Generic.List[string]]::new()
+    $tools = [System.Collections.Generic.List[string]]::new()
+
+    # Select language and format checks from changed file types.
+    if ($selection.Cpp.Count -ne 0)
+    {
+        $checks.Add('clang-format') | Out-Null
+        $tools.Add('clang-format') | Out-Null
+    }
+    if ($selection.Python.Count -ne 0)
+    {
+        $checks.Add('ruff lint') | Out-Null
+        $checks.Add('ruff format') | Out-Null
+        $tools.Add('ruff') | Out-Null
+    }
+    if ($selection.PowerShell.Count -ne 0)
+    {
+        $checks.Add('PowerShell') | Out-Null
+        $tools.Add('psscriptanalyzer') | Out-Null
+    }
+    if ($selection.JavaScript.Count -ne 0)
+    {
+        $checks.Add('ESLint') | Out-Null
+        $tools.Add('eslint') | Out-Null
+    }
+    if ($selection.Prettier.Count -ne 0)
+    {
+        $checks.Add('Prettier') | Out-Null
+        $tools.Add('prettier') | Out-Null
+    }
+    if ($selection.SpecialJson.Count -ne 0)
+    {
+        $checks.Add('Prettier special JSON') | Out-Null
+        $tools.Add('prettier') | Out-Null
+    }
+    if ($selection.CMake.Count -ne 0)
+    {
+        $checks.Add('Gersemi') | Out-Null
+        $tools.Add('gersemi') | Out-Null
+    }
+    if ($selection.Yaml.Count -ne 0)
+    {
+        $checks.Add('yamllint') | Out-Null
+        $tools.Add('yamllint') | Out-Null
+    }
+    if ($selection.Markdown.Count -ne 0)
+    {
+        $checks.Add('markdownlint') | Out-Null
+        $tools.Add('markdownlint-cli2') | Out-Null
+        $checks.Add('documentation standards') | Out-Null
+        $checks.Add('Markdown links') | Out-Null
+    }
+
+    # Repository-wide contracts run only when their owned files change.
+    if (@($files | Where-Object { [IO.Path]::GetExtension($_).ToLowerInvariant() -in @('.json', '.jsonc') }).Count -ne 0)
+    {
+        $checks.Add('JSON Schema') | Out-Null
+        $tools.Add('jsonschema') | Out-Null
+    }
+    if (@($files | Where-Object { $_ -like '.github/workflows/*.yml' -or $_ -like '.github/workflows/*.yaml' }).Count -ne 0)
+    {
+        $checks.Add('actionlint') | Out-Null
+        $tools.Add('actionlint') | Out-Null
+    }
+    if (@($files | Where-Object { $_.StartsWith('scripts/', (Get-GameWipPathComparison)) -or $_.StartsWith('.github/scripts/', (Get-GameWipPathComparison)) }).Count -ne 0)
+    {
+        $checks.Add('helper standardization') | Out-Null
+    }
+    if (@($files | Where-Object { $_.StartsWith('.github/scripts/', (Get-GameWipPathComparison)) -and [IO.Path]::GetExtension($_).ToLowerInvariant() -eq '.py' }).Count -ne 0)
+    {
+        $checks.Add('repository standards tests') | Out-Null
+    }
+
+    # Ownership and baseline standards protect every maintained-file change.
+    $checks.Add('quality ownership') | Out-Null
+    $checks.Add('repository standards') | Out-Null
+    $tools.Add('python') | Out-Null
+
+    return [pscustomobject]@{
+        Checks = @($checks | Sort-Object -Unique)
+        Tools = @($tools | Sort-Object -Unique)
     }
 }
 
@@ -149,9 +258,19 @@ function Test-GameWipQualityPolicyChange
 
 function Get-GameWipQualityScope
 {
-    param([switch]$Changed)
+    param(
+        [switch]$Changed,
+        [string]$ChangedFilesPath
+    )
 
-    if (-not $Changed)
+    if ($Changed -and -not [string]::IsNullOrWhiteSpace($ChangedFilesPath))
+    {
+        throw 'Use either -ChangedOnly or -ChangedFilesPath, not both.'
+    }
+
+    $manifestProvided = -not [string]::IsNullOrWhiteSpace($ChangedFilesPath)
+
+    if (-not $Changed -and -not $manifestProvided)
     {
         return [pscustomobject]@{
             Requested = $false
@@ -161,8 +280,68 @@ function Get-GameWipQualityScope
         }
     }
 
-    $files = @(Get-GameWipChangedRepositoryFile)
-    $expanded = Test-GameWipQualityPolicyChange -Files $files
+    if ($manifestProvided)
+    {
+        $manifestFullPath = [IO.Path]::GetFullPath($ChangedFilesPath)
+
+        if (-not (Test-Path -LiteralPath $manifestFullPath -PathType Leaf))
+        {
+            throw "Changed-file manifest was not found: $ChangedFilesPath"
+        }
+
+        try
+        {
+            $manifest = [IO.File]::ReadAllText($manifestFullPath, [Text.Encoding]::UTF8) | ConvertFrom-Json
+        }
+        catch
+        {
+            throw "Could not read the changed-file manifest: $ChangedFilesPath"
+        }
+
+        $changedFilesProperty = if ($null -eq $manifest)
+        {
+            $null
+        }
+        else
+        {
+            $manifest.PSObject.Properties['changed_files']
+        }
+
+        if ($null -eq $changedFilesProperty -or $changedFilesProperty.Value -isnot [System.Collections.IEnumerable] -or
+            $changedFilesProperty.Value -is [string])
+        {
+            throw "Changed-file manifest has no 'changed_files' array: $ChangedFilesPath"
+        }
+
+        $files = @(
+            foreach ($entry in $changedFilesProperty.Value)
+            {
+                $relativePath = ([string]$entry).Replace('\', '/')
+
+                if ([string]::IsNullOrWhiteSpace($relativePath) -or [IO.Path]::IsPathRooted($relativePath) -or
+                    @($relativePath.Split('/')) -contains '..')
+                {
+                    throw "Changed-file manifest contains an invalid repository path: '$entry'"
+                }
+
+                $relativePath
+            }
+        ) | Sort-Object -Unique
+    }
+    else
+    {
+        $files = @(Get-GameWipChangedRepositoryFile)
+    }
+
+    $files = @($files | Where-Object { $_ -notmatch '^(?:external|build|install|docs/releases)/' })
+    $removedFiles = @($files | Where-Object { -not (Test-Path -LiteralPath (Join-Path $RepositoryRoot $_) -PathType Leaf) })
+    $expanded = (Test-GameWipQualityPolicyChange -Files $files) -or $removedFiles.Count -ne 0
+
+    if (-not $expanded)
+    {
+        $files = @($files | Where-Object { Test-Path -LiteralPath (Join-Path $RepositoryRoot $_) -PathType Leaf })
+    }
+
     return [pscustomobject]@{
         Requested = $true
         UseChanged = -not $expanded

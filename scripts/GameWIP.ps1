@@ -42,6 +42,7 @@ param(
     [switch]$Offline,
     [switch]$FailFast,
     [switch]$ChangedOnly,
+    [string]$ChangedFilesPath,
     [switch]$FailOnFindings,
     [switch]$Json,
     [switch]$UseCallerTemp,
@@ -310,7 +311,7 @@ $result = Invoke-GameWipOperation `
                             'Apply deterministic formatter changes and normalize maintained text to LF.',
                             'Run all independent quality checks and aggregate failures.'
                         ) `
-                        -Body { Invoke-GameWipQuality -Mode fix -FailFast:$FailFast -Changed:$Changed } |
+                        -Body { Invoke-GameWipQuality -Mode fix -FailFast:$FailFast -Changed:$Changed -ChangedFilesPath $ChangedFilesPath } |
                         Out-Null
                 }
                 elseif ($verb -eq 'status')
@@ -361,7 +362,7 @@ $result = Invoke-GameWipOperation `
                 }
                 else
                 {
-                    Invoke-GameWipQuality -Mode check -FailFast:$FailFast -Changed:$Changed
+                    Invoke-GameWipQuality -Mode check -FailFast:$FailFast -Changed:$Changed -ChangedFilesPath $ChangedFilesPath
                 }
             }
 

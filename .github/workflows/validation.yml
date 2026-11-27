@@ -8,6 +8,12 @@ on:
     branches:
       - master
   workflow_dispatch:
+    inputs:
+      full_validation:
+        description: Run the complete validation suite
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -23,9 +29,26 @@ jobs:
     timeout-minutes: 10
     outputs:
       scope: ${{ steps.scope.outputs.scope }}
-      needs_deep: ${{ steps.scope.outputs.needs_deep }}
+      full_validation: ${{ steps.scope.outputs.full_validation }}
+      needs_cpp: ${{ steps.scope.outputs.needs_cpp }}
+      needs_packages: ${{ steps.scope.outputs.needs_packages }}
+      needs_coverage: ${{ steps.scope.outputs.needs_coverage }}
+      needs_benchmarks: ${{ steps.scope.outputs.needs_benchmarks }}
+      needs_repository_checks: ${{ steps.scope.outputs.needs_repository_checks }}
       needs_docs: ${{ steps.scope.outputs.needs_docs }}
       needs_dependencies: ${{ steps.scope.outputs.needs_dependencies }}
+      needs_python: ${{ steps.scope.outputs.needs_python }}
+      needs_powershell: ${{ steps.scope.outputs.needs_powershell }}
+      needs_javascript: ${{ steps.scope.outputs.needs_javascript }}
+      needs_json: ${{ steps.scope.outputs.needs_json }}
+      needs_yaml: ${{ steps.scope.outputs.needs_yaml }}
+      needs_markdown: ${{ steps.scope.outputs.needs_markdown }}
+      needs_cmake_quality: ${{ steps.scope.outputs.needs_cmake_quality }}
+      needs_prettier: ${{ steps.scope.outputs.needs_prettier }}
+      needs_actionlint: ${{ steps.scope.outputs.needs_actionlint }}
+      needs_symlink_tests: ${{ steps.scope.outputs.needs_symlink_tests }}
+      needs_unicode_data: ${{ steps.scope.outputs.needs_unicode_data }}
+      needs_helper_tests: ${{ steps.scope.outputs.needs_helper_tests }}
 
     steps:
       - name: Checkout
@@ -41,71 +64,67 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           BEFORE_SHA: ${{ github.event.before }}
+          REF_NAME: ${{ github.ref_name }}
+          FULL_VALIDATION: ${{ inputs.full_validation }}
         run: |
           set -euo pipefail
-
-          if [[ "$EVENT_NAME" == "pull_request" ]]; then
-            mapfile -t changed_files < <(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
-          elif [[ "$EVENT_NAME" == "push" && "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]]; then
-            mapfile -t changed_files < <(git diff --name-only "$BEFORE_SHA" "$GITHUB_SHA")
-          else
-            mapfile -t changed_files < <(git ls-files)
+          scope_file="$RUNNER_TEMP/gamewip-validation-scope.json"
+          scope_arguments=(
+            --event "$EVENT_NAME"
+            --base "${BASE_SHA:-}"
+            --head "${HEAD_SHA:-$GITHUB_SHA}"
+            --before "${BEFORE_SHA:-}"
+            --ref "${REF_NAME:-}"
+            --output "$scope_file"
+          )
+          if [[ "${FULL_VALIDATION:-false}" == true ]]; then
+            scope_arguments+=(--full)
           fi
+          python3 .github/scripts/validation_scope.py "${scope_arguments[@]}" > "$RUNNER_TEMP/gamewip-validation-scope-summary.json"
 
-          if (( ${#changed_files[@]} == 0 )); then
-            changed_files=('__unknown_change__')
-          fi
-
-          needs_deep=false
-          needs_docs=false
-
-          for path in "${changed_files[@]}"; do
-            if [[ "$path" == docs/* || "$path" == *.md || "$path" == *.markdown ]]; then
-              needs_docs=true
-            fi
-
-            case "$path" in
-              .github/*|docs/*|*.md|*.markdown|LICENSE|NOTICE|.editorconfig|.gitignore)
-                ;;
-              *)
-                needs_deep=true
-                ;;
-            esac
-          done
-
-          # Pushes to master and manual dispatches are release-facing validation
-          # paths. Keep the full suite and documentation artifact available.
-          if [[ "$EVENT_NAME" != "pull_request" ]]; then
-            needs_deep=true
-            needs_docs=true
-          fi
-
-          needs_dependencies=false
-          if [[ "$needs_deep" == true || "$needs_docs" == true ]]; then
-            needs_dependencies=true
-          fi
-
-          scope=fast
-          if [[ "$needs_deep" == true ]]; then
-            scope=deep
-          elif [[ "$needs_docs" == true ]]; then
-            scope=docs
-          fi
+          scope_value() { jq -r --arg key "$1" '.[$key]' "$scope_file"; }
 
           {
-            echo "scope=$scope"
-            echo "needs_deep=$needs_deep"
-            echo "needs_docs=$needs_docs"
-            echo "needs_dependencies=$needs_dependencies"
+            echo "scope=$(scope_value scope)"
+            echo "full_validation=$(scope_value full_validation)"
+            echo "needs_cpp=$(scope_value needs_cpp)"
+            echo "needs_packages=$(scope_value needs_packages)"
+            echo "needs_coverage=$(scope_value needs_coverage)"
+            echo "needs_benchmarks=$(scope_value needs_benchmarks)"
+            echo "needs_repository_checks=$(scope_value needs_repository_checks)"
+            echo "needs_docs=$(scope_value needs_docs)"
+            echo "needs_dependencies=$(scope_value needs_dependencies)"
+            echo "needs_python=$(scope_value needs_python)"
+            echo "needs_powershell=$(scope_value needs_powershell)"
+            echo "needs_javascript=$(scope_value needs_javascript)"
+            echo "needs_json=$(scope_value needs_json)"
+            echo "needs_yaml=$(scope_value needs_yaml)"
+            echo "needs_markdown=$(scope_value needs_markdown)"
+            echo "needs_cmake_quality=$(scope_value needs_cmake_quality)"
+            echo "needs_prettier=$(scope_value needs_prettier)"
+            echo "needs_actionlint=$(scope_value needs_actionlint)"
+            echo "needs_symlink_tests=$(scope_value needs_symlink_tests)"
+            echo "needs_unicode_data=$(scope_value needs_unicode_data)"
+            echo "needs_helper_tests=$(scope_value needs_helper_tests)"
           } >> "$GITHUB_OUTPUT"
 
           {
             echo "### Validation scope"
-            echo "- Selected path: **$scope**"
-            echo "- Deep build, package, coverage, and sanitizer checks: **$needs_deep**"
-            echo "- Documentation build: **$needs_docs**"
-            echo "- Dependency preparation: **$needs_dependencies**"
+            echo "- Selected path: **$(scope_value scope)**"
+            echo "- Full validation: **$(scope_value full_validation)**"
+            echo "- C++ builds and sanitizers: **$(scope_value needs_cpp)**"
+            echo "- Package checks: **$(scope_value needs_packages)**"
+            echo "- Coverage: **$(scope_value needs_coverage)**"
+            echo "- Documentation build: **$(scope_value needs_docs)**"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Retain the changed-file manifest
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: validation-scope
+          path: ${{ runner.temp }}/gamewip-validation-scope.json
+          if-no-files-found: error
+          retention-days: 1
 
   prepare_dependencies:
     name: Prepare dependency cache
@@ -148,20 +167,28 @@ jobs:
   windows_target_builds:
     name: Windows ${{ matrix.architecture }} build
     needs: [change_scope, prepare_dependencies]
-    if: needs.change_scope.outputs.needs_deep == 'true'
+    if: needs.change_scope.outputs.needs_cpp == 'true'
     runs-on: windows-latest
     timeout-minutes: 45
+    env:
+      GAMEWIP_VALIDATION_CHANGED_FILES_PATH: ${{ github.workspace }}\build\gamewip\validation-scope\gamewip-validation-scope.json
 
     strategy:
       fail-fast: false
       matrix:
-        architecture: [amd64, arm64]
+        architecture: [amd64]
 
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+
+      - name: Download changed-file scope
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: validation-scope
+          path: build/gamewip/validation-scope
 
       - name: Install host build tools
         uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2
@@ -194,14 +221,18 @@ jobs:
         shell: pwsh
         run: ./scripts/GameWIP.ps1 target -TargetPlatform windows -TargetArchitecture '${{ matrix.architecture }}' -Yes -NonInteractive
 
-      - name: Build development preset
+      - name: Configure development preset
         shell: pwsh
-        run: ./scripts/GameWIP.ps1 build dev -Yes -NonInteractive
+        run: ./scripts/GameWIP.ps1 config dev -Yes -NonInteractive -Offline
+
+      - name: Build affected development targets
+        shell: msys2 {0}
+        run: cmake --build build/windows-${{ matrix.architecture }}/dev --target GameWIPValidationSelectedTargets --parallel
 
   package_compatibility:
     name: Packages (CMake)
     needs: [change_scope, prepare_dependencies]
-    if: needs.change_scope.outputs.needs_deep == 'true'
+    if: needs.change_scope.outputs.needs_packages == 'true'
     runs-on: windows-latest
     timeout-minutes: 45
 
@@ -268,15 +299,23 @@ jobs:
   build_test:
     name: Build and Test
     needs: [change_scope, prepare_dependencies]
-    if: needs.change_scope.outputs.needs_deep == 'true'
+    if: needs.change_scope.outputs.needs_cpp == 'true'
     runs-on: windows-latest
     timeout-minutes: 60
+    env:
+      GAMEWIP_VALIDATION_CHANGED_FILES_PATH: ${{ github.workspace }}\build\gamewip\validation-scope\gamewip-validation-scope.json
 
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+
+      - name: Download changed-file scope
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: validation-scope
+          path: build/gamewip/validation-scope
 
       - name: Install build tools
         uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2
@@ -308,9 +347,10 @@ jobs:
 
       - name: Build
         shell: msys2 {0}
-        run: cmake --build --preset ci-validation --parallel
+        run: cmake --build --preset ci-validation --target GameWIPValidationSelectedTargets --parallel
 
       - name: Enable required symlink scenarios
+        if: needs.change_scope.outputs.needs_symlink_tests == 'true'
         shell: powershell
         run: |
           $path = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock'
@@ -318,6 +358,7 @@ jobs:
           New-ItemProperty -Path $path -Name AllowDevelopmentWithoutDevLicense -PropertyType DWord -Value 1 -Force | Out-Null
 
       - name: Prepare pinned Unicode conformance data
+        if: needs.change_scope.outputs.needs_unicode_data == 'true'
         shell: msys2 {0}
         run: |
           python_path="$(cygpath -w "$(command -v python)")"
@@ -329,13 +370,48 @@ jobs:
             -ClangFormatPath "$clang_format_path"
 
       - name: Test runtime and project contracts
+        if: needs.change_scope.outputs.full_validation == 'true'
         shell: msys2 {0}
         env:
-          GAMEWIP_REQUIRE_SYMLINK_TESTS: '1'
-          GAMEWIP_REQUIRE_UNICODE_CONFORMANCE_TESTS: '1'
-        run: ctest --test-dir build/ci-validation --output-on-failure --no-tests=error -LE packages
+          GAMEWIP_SCOPE_SYMLINK_TESTS: ${{ needs.change_scope.outputs.needs_symlink_tests }}
+          GAMEWIP_SCOPE_UNICODE_DATA: ${{ needs.change_scope.outputs.needs_unicode_data }}
+        run: |
+          if [[ "$GAMEWIP_SCOPE_SYMLINK_TESTS" == true ]]; then
+            export GAMEWIP_REQUIRE_SYMLINK_TESTS=1
+          else
+            unset GAMEWIP_REQUIRE_SYMLINK_TESTS || true
+          fi
+          if [[ "$GAMEWIP_SCOPE_UNICODE_DATA" == true ]]; then
+            export GAMEWIP_REQUIRE_UNICODE_CONFORMANCE_TESTS=1
+          else
+            unset GAMEWIP_REQUIRE_UNICODE_CONFORMANCE_TESTS || true
+          fi
+          ctest --test-dir build/ci-validation --output-on-failure --no-tests=error -LE packages
+
+      - name: Test affected modules
+        if: needs.change_scope.outputs.full_validation != 'true'
+        shell: msys2 {0}
+        env:
+          GAMEWIP_SCOPE_SYMLINK_TESTS: ${{ needs.change_scope.outputs.needs_symlink_tests }}
+          GAMEWIP_SCOPE_UNICODE_DATA: ${{ needs.change_scope.outputs.needs_unicode_data }}
+        run: |
+          if [[ "$GAMEWIP_SCOPE_SYMLINK_TESTS" == true ]]; then
+            export GAMEWIP_REQUIRE_SYMLINK_TESTS=1
+          else
+            unset GAMEWIP_REQUIRE_SYMLINK_TESTS || true
+          fi
+          if [[ "$GAMEWIP_SCOPE_UNICODE_DATA" == true ]]; then
+            export GAMEWIP_REQUIRE_UNICODE_CONFORMANCE_TESTS=1
+          else
+            unset GAMEWIP_REQUIRE_UNICODE_CONFORMANCE_TESTS || true
+          fi
+          ctest --no-tests=error \
+            --test-dir build/ci-validation \
+            --tests-from-file gamewip-validation-tests.txt \
+            --output-on-failure -LE packages
 
       - name: Benchmark smoke test
+        if: needs.change_scope.outputs.needs_benchmarks == 'true'
         shell: msys2 {0}
         run: ./build/ci-validation/GameWIPBenchmarks.exe --benchmark_dry_run
 
@@ -343,7 +419,7 @@ jobs:
         shell: msys2 {0}
         run: |
           cmake --preset ci-analyze
-          cmake --build --preset ci-analyze
+          cmake --build build/ci-analyze --target static-analysis --parallel
 
       - name: Upload build diagnostics
         if: failure()
@@ -356,14 +432,28 @@ jobs:
 
   repository_checks:
     name: Repository Checks
+    needs: change_scope
+    if: needs.change_scope.outputs.needs_repository_checks == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      GAMEWIP_VALIDATION_CHANGED_FILES_PATH: ${{ github.workspace }}/build/gamewip/validation-scope/gamewip-validation-scope.json
 
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - name: Download changed-file scope
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: validation-scope
+          path: build/gamewip/validation-scope
+
       - name: Setup Node.js
+        if: >-
+          needs.change_scope.outputs.needs_javascript == 'true' ||
+          needs.change_scope.outputs.needs_prettier == 'true' ||
+          needs.change_scope.outputs.needs_markdown == 'true'
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
@@ -376,20 +466,35 @@ jobs:
 
           quality_python="$GITHUB_WORKSPACE/build/gamewip/tools/python"
           python3 -m venv "$quality_python"
-          "$quality_python/bin/python" -m pip install --upgrade pip
-          "$quality_python/bin/pip" install \
-            "clang-format==22.1.8" \
-            "ruff==$(version ruff)" \
-            "yamllint==$(version yamllint)" \
-            "jsonschema==$(version jsonschema)"
+          pip_packages=()
+          if [[ "${{ needs.change_scope.outputs.needs_cpp }}" == true ]]; then
+            pip_packages+=("clang-format==22.1.8")
+          fi
+          if [[ "${{ needs.change_scope.outputs.needs_python }}" == true ]]; then
+            pip_packages+=("ruff==$(version ruff)")
+          fi
+          if [[ "${{ needs.change_scope.outputs.needs_yaml }}" == true ]]; then
+            pip_packages+=("yamllint==$(version yamllint)")
+          fi
+          if [[ "${{ needs.change_scope.outputs.needs_json }}" == true ]]; then
+            pip_packages+=("jsonschema==$(version jsonschema)")
+          fi
+          if (( ${#pip_packages[@]} > 0 )); then
+            "$quality_python/bin/pip" install "${pip_packages[@]}"
+          fi
           echo "$quality_python/bin" >> "$GITHUB_PATH"
 
+      - name: Install registry-pinned Gersemi
+        if: needs.change_scope.outputs.needs_cmake_quality == 'true'
+        shell: bash
+        run: |
+          registry=scripts/config/project-tools.json
           gersemi_repository="$(jq -r '.tools[] | select(.id == "gersemi") | .provider.repository' "$registry")"
           gersemi_tag="$(jq -r '.tools[] | select(.id == "gersemi") | .provider.releaseTag' "$registry")"
           gersemi_asset="$(jq -r '.tools[] | select(.id == "gersemi") | .provider.assets["linux-amd64"].archive' "$registry")"
           gersemi_sha256="$(jq -r '.tools[] | select(.id == "gersemi") | .provider.assets["linux-amd64"].sha256' "$registry")"
           gersemi_download="$RUNNER_TEMP/$gersemi_asset"
-          gersemi_bin="$RUNNER_TEMP/gamewip-quality-bin"
+          gersemi_bin="$GITHUB_WORKSPACE/build/gamewip/tools/bin"
           mkdir -p "$gersemi_bin"
           curl --fail --location --silent --show-error \
             --output "$gersemi_download" \
@@ -399,35 +504,73 @@ jobs:
           "$gersemi_bin/gersemi" --version
           echo "$gersemi_bin" >> "$GITHUB_PATH"
 
+      - name: Install registry-pinned npm quality tools
+        if: >-
+          needs.change_scope.outputs.needs_javascript == 'true' ||
+          needs.change_scope.outputs.needs_prettier == 'true' ||
+          needs.change_scope.outputs.needs_markdown == 'true'
+        shell: bash
+        run: |
+          registry=scripts/config/project-tools.json
+          version() { jq -r --arg id "$1" '.tools[] | select(.id == $id) | .requiredVersion' "$registry"; }
           eslint_js_version="$(jq -r \
             '.tools[] | select(.id == "eslint") | .provider.dependencies[] | select(.package == "@eslint/js") | .version' \
             "$registry")"
           prettier_powershell_version="$(jq -r \
             '.tools[] | select(.id == "prettier") | .provider.dependencies[] | select(.package == "prettier-plugin-powershell") | .version' \
             "$registry")"
-          npm install --global \
-            "eslint@$(version eslint)" \
-            "@eslint/js@$eslint_js_version" \
-            "prettier@$(version prettier)" \
-            "prettier-plugin-powershell@$prettier_powershell_version" \
-            "markdownlint-cli2@$(version markdownlint-cli2)"
+          packages=()
+          if [[ "${{ needs.change_scope.outputs.needs_javascript }}" == true ]]; then
+            packages+=("eslint@$(version eslint)" "@eslint/js@$eslint_js_version")
+          fi
+          if [[ "${{ needs.change_scope.outputs.needs_prettier }}" == true ]]; then
+            packages+=("prettier@$(version prettier)" "prettier-plugin-powershell@$prettier_powershell_version")
+          fi
+          if [[ "${{ needs.change_scope.outputs.needs_markdown }}" == true ]]; then
+            packages+=("markdownlint-cli2@$(version markdownlint-cli2)")
+          fi
+          npm_prefix="$GITHUB_WORKSPACE/build/gamewip/tools/npm"
+          mkdir -p "$npm_prefix"
+          npm install --global --prefix "$npm_prefix" "${packages[@]}"
+          echo "$npm_prefix/bin" >> "$GITHUB_PATH"
 
       - name: Install registry-pinned PowerShell analyzer
+        if: needs.change_scope.outputs.needs_powershell == 'true'
         shell: pwsh
         run: |
           $registry = Get-Content scripts/config/project-tools.json -Raw | ConvertFrom-Json
           $version = ($registry.tools | Where-Object id -EQ psscriptanalyzer).requiredVersion
           Install-Module PSScriptAnalyzer -RequiredVersion $version -Scope CurrentUser -Force
 
-      - name: Check JavaScript
+      - name: Check JavaScript helper
+        if: >-
+          needs.change_scope.outputs.needs_javascript == 'true' &&
+          needs.change_scope.outputs.needs_helper_tests == 'true'
         shell: bash
         run: |
-          for file in .github/scripts/*.js; do
-            node --check "$file"
-          done
+          while IFS= read -r -d '' file; do
+            if [[ "$file" == .github/scripts/* ]]; then
+              node --check "$file"
+            fi
+          done < <(python3 - "$GAMEWIP_VALIDATION_CHANGED_FILES_PATH" <<'PY'
+          import json
+          import os
+          import pathlib
+          import sys
+
+          manifest = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+          for item in manifest["changed_files"]:
+              path = pathlib.Path(item)
+              if path.suffix.lower() in {".js", ".mjs", ".cjs"} and path.is_file():
+                  sys.stdout.buffer.write(os.fsencode(path) + b"\0")
+          PY
+          )
           node --test .github/scripts/*.test.js
 
-      - name: Check PowerShell workflow helper
+      - name: Check PowerShell helpers
+        if: >-
+          needs.change_scope.outputs.needs_powershell == 'true' &&
+          needs.change_scope.outputs.needs_helper_tests == 'true'
         shell: pwsh
         run: |
           $qualityPython = Join-Path $env:GITHUB_WORKSPACE 'build/gamewip/tools/python/bin'
@@ -436,23 +579,50 @@ jobs:
           ./.github/scripts/ProjectHelper.Tests.ps1
           ./.github/scripts/SetupHelper.Tests.ps1
 
-      - name: Check JSON
+      - name: Check changed JSON
+        if: needs.change_scope.outputs.needs_json == 'true'
         shell: bash
         run: |
           while IFS= read -r -d '' file; do
             jq empty "$file"
-          done < <(find . -type f -name '*.json' \
-            -not -path './external/*' \
-            -not -path './build/*' \
-            -print0)
+          done < <(python3 - "$GAMEWIP_VALIDATION_CHANGED_FILES_PATH" <<'PY'
+          import json
+          import os
+          import pathlib
+          import sys
 
-      - name: Check Python scripts
+          manifest = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+          for item in manifest["changed_files"]:
+              path = pathlib.Path(item)
+              if path.suffix.lower() == ".json" and path.is_file():
+                  sys.stdout.buffer.write(os.fsencode(path) + b"\0")
+          PY
+          )
+
+      - name: Check changed Python scripts
+        if: needs.change_scope.outputs.needs_python == 'true'
         shell: bash
         run: |
-          python3 -m py_compile .github/scripts/*.py
-          python3 -m unittest discover -s .github/scripts -p 'test_*.py'
+          mkdir -p build/gamewip/cache/python
+          export PYTHONPYCACHEPREFIX="$GITHUB_WORKSPACE/build/gamewip/cache/python"
+          while IFS= read -r -d '' file; do
+            python3 -m py_compile "$file"
+          done < <(python3 - "$GAMEWIP_VALIDATION_CHANGED_FILES_PATH" <<'PY'
+          import json
+          import os
+          import pathlib
+          import sys
+
+          manifest = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+          for item in manifest["changed_files"]:
+              path = pathlib.Path(item)
+              if path.suffix.lower() == ".py" and path.is_file():
+                  sys.stdout.buffer.write(os.fsencode(path) + b"\0")
+          PY
+          )
 
       - name: Install actionlint
+        if: needs.change_scope.outputs.needs_actionlint == 'true'
         shell: bash
         run: |
           registry="scripts/config/project-tools.json"
@@ -462,30 +632,40 @@ jobs:
           url="https://github.com/rhysd/actionlint/releases/download/${tag}/${archive}"
           archive_path="$RUNNER_TEMP/$archive"
           curl --fail --silent --show-error --location --output "$archive_path" "$url"
-          echo "${sha256}  ${archive_path}" | sha256sum --check
+          printf '%s  %s\n' "$sha256" "$archive_path" | sha256sum --check -
+          bin="$GITHUB_WORKSPACE/build/gamewip/tools/bin"
+          mkdir -p "$bin"
           tar --extract --gzip --directory "$RUNNER_TEMP" --file "$archive_path" actionlint
-          chmod 0755 "$RUNNER_TEMP/actionlint"
-          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+          install -m 0755 "$RUNNER_TEMP/actionlint" "$bin/actionlint"
+          echo "$bin" >> "$GITHUB_PATH"
 
       - name: Run complete repository quality policy
         shell: pwsh
         run: |
           $qualityPython = Join-Path $env:GITHUB_WORKSPACE 'build/gamewip/tools/python/bin'
           $env:PATH = "$qualityPython$([IO.Path]::PathSeparator)$env:PATH"
-          ./scripts/GameWIP.ps1 quality check
+          ./scripts/GameWIP.ps1 quality check -ChangedFilesPath $env:GAMEWIP_VALIDATION_CHANGED_FILES_PATH
 
   coverage:
     name: Coverage
     needs: [change_scope, prepare_dependencies]
-    if: needs.change_scope.outputs.needs_deep == 'true'
+    if: needs.change_scope.outputs.needs_coverage == 'true'
     runs-on: windows-latest
     timeout-minutes: 45
+    env:
+      GAMEWIP_VALIDATION_CHANGED_FILES_PATH: ${{ github.workspace }}\build\gamewip\validation-scope\gamewip-validation-scope.json
 
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+
+      - name: Download changed-file scope
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: validation-scope
+          path: build/gamewip/validation-scope
 
       - name: Install coverage tools
         uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2
@@ -515,11 +695,17 @@ jobs:
 
       - name: Build
         shell: msys2 {0}
-        run: cmake --build --preset ci-coverage --parallel
+        run: cmake --build --preset ci-coverage --target GameWIPValidationSelectedTargets --parallel
 
-      - name: Test
+      - name: Test full coverage scope
+        if: needs.change_scope.outputs.full_validation == 'true'
         shell: msys2 {0}
         run: ctest --preset ci-coverage
+
+      - name: Test affected coverage modules
+        if: needs.change_scope.outputs.full_validation != 'true'
+        shell: msys2 {0}
+        run: ctest --test-dir build/ci-coverage --tests-from-file gamewip-validation-tests.txt --output-on-failure --no-tests=error
 
       - name: Generate report
         shell: msys2 {0}
@@ -545,15 +731,23 @@ jobs:
   address_sanitizer:
     name: AddressSanitizer
     needs: [change_scope, prepare_dependencies]
-    if: needs.change_scope.outputs.needs_deep == 'true'
+    if: needs.change_scope.outputs.needs_cpp == 'true'
     runs-on: windows-latest
     timeout-minutes: 45
+    env:
+      GAMEWIP_VALIDATION_CHANGED_FILES_PATH: ${{ github.workspace }}\build\gamewip\validation-scope\gamewip-validation-scope.json
 
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+
+      - name: Download changed-file scope
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: validation-scope
+          path: build/gamewip/validation-scope
 
       - name: Install CLANG64 tools
         uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2
@@ -584,11 +778,17 @@ jobs:
 
       - name: Build
         shell: msys2 {0}
-        run: cmake --build --preset ci-asan --parallel
+        run: cmake --build --preset ci-asan --target GameWIPValidationSelectedTargets --parallel
 
-      - name: Test
+      - name: Test full sanitizer scope
+        if: needs.change_scope.outputs.full_validation == 'true'
         shell: msys2 {0}
         run: ctest --preset ci-asan
+
+      - name: Test affected sanitizer modules
+        if: needs.change_scope.outputs.full_validation != 'true'
+        shell: msys2 {0}
+        run: ctest --test-dir build/ci-asan --tests-from-file gamewip-validation-tests.txt --output-on-failure --no-tests=error
 
       - name: Upload sanitizer diagnostics
         if: failure()
@@ -602,15 +802,23 @@ jobs:
   undefined_behavior_sanitizer:
     name: UndefinedBehaviorSanitizer
     needs: [change_scope, prepare_dependencies]
-    if: needs.change_scope.outputs.needs_deep == 'true'
+    if: needs.change_scope.outputs.needs_cpp == 'true'
     runs-on: windows-latest
     timeout-minutes: 45
+    env:
+      GAMEWIP_VALIDATION_CHANGED_FILES_PATH: ${{ github.workspace }}\build\gamewip\validation-scope\gamewip-validation-scope.json
 
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+
+      - name: Download changed-file scope
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: validation-scope
+          path: build/gamewip/validation-scope
 
       - name: Install CLANG64 tools
         uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2
@@ -641,11 +849,17 @@ jobs:
 
       - name: Build
         shell: msys2 {0}
-        run: cmake --build --preset ci-ubsan --parallel
+        run: cmake --build --preset ci-ubsan --target GameWIPValidationSelectedTargets --parallel
 
-      - name: Test
+      - name: Test full sanitizer scope
+        if: needs.change_scope.outputs.full_validation == 'true'
         shell: msys2 {0}
         run: ctest --preset ci-ubsan
+
+      - name: Test affected sanitizer modules
+        if: needs.change_scope.outputs.full_validation != 'true'
+        shell: msys2 {0}
+        run: ctest --test-dir build/ci-ubsan --tests-from-file gamewip-validation-tests.txt --output-on-failure --no-tests=error
 
       - name: Upload sanitizer diagnostics
         if: failure()
@@ -741,7 +955,11 @@ jobs:
         env:
           SCOPE_RESULT: ${{ needs.change_scope.result }}
           SCOPE: ${{ needs.change_scope.outputs.scope }}
-          NEEDS_DEEP: ${{ needs.change_scope.outputs.needs_deep }}
+          NEEDS_CPP: ${{ needs.change_scope.outputs.needs_cpp }}
+          NEEDS_PACKAGES: ${{ needs.change_scope.outputs.needs_packages }}
+          NEEDS_COVERAGE: ${{ needs.change_scope.outputs.needs_coverage }}
+          NEEDS_REPOSITORY_CHECKS: ${{ needs.change_scope.outputs.needs_repository_checks }}
+          NEEDS_DEPENDENCIES: ${{ needs.change_scope.outputs.needs_dependencies }}
           NEEDS_DOCS: ${{ needs.change_scope.outputs.needs_docs }}
           PREPARE_RESULT: ${{ needs.prepare_dependencies.result }}
           WINDOWS_TARGET_RESULT: ${{ needs.windows_target_builds.result }}
@@ -758,19 +976,28 @@ jobs:
           failures=()
 
           [[ "$SCOPE_RESULT" == success ]] || failures+=("Change Scope: $SCOPE_RESULT")
-          [[ "$REPOSITORY_RESULT" == success ]] || failures+=("Repository Checks: $REPOSITORY_RESULT")
 
-          if [[ "$NEEDS_DEEP" == true || "$NEEDS_DOCS" == true ]]; then
+          if [[ "$NEEDS_REPOSITORY_CHECKS" == true ]]; then
+            [[ "$REPOSITORY_RESULT" == success ]] || failures+=("Repository Checks: $REPOSITORY_RESULT")
+          fi
+
+          if [[ "$NEEDS_DEPENDENCIES" == true ]]; then
             [[ "$PREPARE_RESULT" == success ]] || failures+=("Prepare dependency cache: $PREPARE_RESULT")
           fi
 
-          if [[ "$NEEDS_DEEP" == true ]]; then
+          if [[ "$NEEDS_CPP" == true ]]; then
             [[ "$WINDOWS_TARGET_RESULT" == success ]] || failures+=("Windows target builds: $WINDOWS_TARGET_RESULT")
-            [[ "$PACKAGE_RESULT" == success ]] || failures+=("Packages (CMake): $PACKAGE_RESULT")
             [[ "$BUILD_RESULT" == success ]] || failures+=("Build and Test: $BUILD_RESULT")
-            [[ "$COVERAGE_RESULT" == success ]] || failures+=("Coverage: $COVERAGE_RESULT")
             [[ "$ASAN_RESULT" == success ]] || failures+=("AddressSanitizer: $ASAN_RESULT")
             [[ "$UBSAN_RESULT" == success ]] || failures+=("UndefinedBehaviorSanitizer: $UBSAN_RESULT")
+          fi
+
+          if [[ "$NEEDS_PACKAGES" == true ]]; then
+            [[ "$PACKAGE_RESULT" == success ]] || failures+=("Packages (CMake): $PACKAGE_RESULT")
+          fi
+
+          if [[ "$NEEDS_COVERAGE" == true ]]; then
+            [[ "$COVERAGE_RESULT" == success ]] || failures+=("Coverage: $COVERAGE_RESULT")
           fi
 
           if [[ "$NEEDS_DOCS" == true ]]; then

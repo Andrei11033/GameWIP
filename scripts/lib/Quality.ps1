@@ -11,10 +11,11 @@ function Invoke-GameWipQuality
     param(
         [ValidateSet('check', 'fix')][string]$Mode = 'check',
         [switch]$FailFast,
-        [switch]$Changed
+        [switch]$Changed,
+        [string]$ChangedFilesPath
     )
     Initialize-GameWipStorage
-    $scopeInfo = Get-GameWipQualityScope -Changed:$Changed
+    $scopeInfo = Get-GameWipQualityScope -Changed:$Changed -ChangedFilesPath $ChangedFilesPath
     $qualityTools = $null
 
     if ($Mode -eq 'fix')

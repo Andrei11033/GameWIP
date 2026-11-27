@@ -43,6 +43,7 @@ include(GameWIPPlatform)
 include(GameWIPPackage)
 include(GameWIPRuntimeDependencies)
 include(GameWIPValidationModules)
+include(GameWIPValidationScope)
 include(GameWIPCoverage)
 include(GameWIPSanitizers)
 include(GameWIPWarnings)
@@ -134,6 +135,8 @@ add_subdirectory(foundation)
 add_subdirectory(tools)
 add_subdirectory(engine)
 add_subdirectory(game)
+
+gamewip_finalize_validation_scope()
 
 # ------------------------------------------------------------
 # Cross-cutting generated targets

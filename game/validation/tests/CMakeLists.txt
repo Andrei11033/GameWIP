@@ -9,7 +9,7 @@ add_library(GameWIPTestModules OBJECT registry.cpp runner.cpp)
 add_subdirectory(internal)
 target_compile_features(GameWIPTestModules PUBLIC cxx_std_23)
 target_include_directories(GameWIPTestModules PUBLIC "${PROJECT_SOURCE_DIR}/game")
-target_link_libraries(GameWIPTestModules PUBLIC GameWIPValidationProcess PRIVATE Terminal)
+target_link_libraries(GameWIPTestModules PUBLIC GameWIPValidationProcess PRIVATE Terminal TestSupport)
 
 if(GAMEWIP_BUILD_TESTS)
     # ------------------------------------------------------------

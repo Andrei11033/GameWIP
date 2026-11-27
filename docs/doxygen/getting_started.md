@@ -21,8 +21,8 @@ On Ubuntu, Debian, or CachyOS, run:
 bash ./setup.sh
 ```
 
-VS Code users should open `GameWIP.code-workspace`. The setup utility prepares
-the `dev` compilation database used by workspace IntelliSense.
+VS Code users should open `GameWIP.code-workspace`. The C/C++ extension can use
+the `dev` compilation database for each configured build target.
 
 ## Configure, build, and run
 

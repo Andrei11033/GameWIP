@@ -243,6 +243,12 @@
       "description": "Restrict supported quality work to ordinary changed maintained files."
     },
     {
+      "id": "ChangedFilesPath",
+      "kind": "string",
+      "valueName": "path",
+      "description": "Read changed repository paths from a JSON manifest for scoped quality checks."
+    },
+    {
       "id": "FailOnFindings",
       "kind": "switch",
       "description": "Fail optional hygiene audits when they produce proven findings."
@@ -259,7 +265,7 @@
     "workflow": ["WorkflowKind", "ItemNumber", "ReleaseCommit"],
     "unicode": ["PythonPath", "ClangFormatPath", "UnicodeDataPath", "RefreshUnicodeData"],
     "format": ["ClangFormatPath"],
-    "quality": ["PythonPath", "ClangFormatPath", "FailFast", "ChangedOnly", "FailOnFindings"],
+    "quality": ["PythonPath", "ClangFormatPath", "FailFast", "ChangedOnly", "ChangedFilesPath", "FailOnFindings"],
     "tool": ["PythonPath"],
     "links": ["PythonPath"],
     "deps": [],

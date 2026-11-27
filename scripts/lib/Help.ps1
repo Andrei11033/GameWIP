@@ -240,7 +240,7 @@ function Show-GameWipHelp
     Write-Host '  workflow <list|status|run> [workflow-id]'
     Write-Host '  unicode <status|verify|regenerate>'
     Write-Host '  format <check|apply>'
-    Write-Host '  quality <check|fix|status> [-ChangedOnly] [-FailFast]'
+    Write-Host '  quality <check|fix|status> [-ChangedOnly | -ChangedFilesPath <path>] [-FailFast]'
     Write-Host '  quality hygiene [standard|deep|check-id|list|status] [-FailOnFindings]'
     Write-Host '  tool <list|status|check-updates|ensure|update> [tool-id|category|all]'
     Write-Host '  deps <check|prepare>'

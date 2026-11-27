@@ -184,6 +184,7 @@ module implementation.
 | `-CleanBuild` | Before `config`, `build`, `test`, or `bundle`, remove each selected preset's complete build tree and recreate it. Cannot be combined with `-SkipBuild`. |
 | `-FailFast` | Stop the quality gate at the first failed check instead of aggregating independent failures. |
 | `-ChangedOnly` | Restrict supported quality work to ordinary changed maintained files. A changed quality policy expands to the complete maintained scope it can affect. |
+| `-ChangedFilesPath <path>` | Read changed repository paths from a JSON manifest for scoped quality checks. |
 | `-FailOnFindings` | Fail an optional hygiene audit when it produces a `PROVEN` finding. Likely, informational, and centrally explained findings remain report-only. |
 | `-Json` | Emit the final structured operation result as JSON. |
 | `-UseCallerTemp` | Keep the caller's TEMP/TMP instead of using operation-owned helper temp. Validation and benchmark executables still scope their own fixtures beneath the active preset tree. |
