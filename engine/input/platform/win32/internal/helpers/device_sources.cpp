@@ -380,6 +380,7 @@ namespace GameWIP::Input::Platform::Win32
         });
         state.states.push_back({
             .id = id,
+            .reporting = reporting,
             .value = Internal::zeroValue(kind),
             .validity = Types::ValueValidity::Unknown,
         });

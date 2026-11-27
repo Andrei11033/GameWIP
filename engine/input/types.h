@@ -551,10 +551,11 @@ namespace GameWIP::Input::Types
     struct ElementState
     {
         // Current state
-        ElementId id{};                                  ///< Runtime element identity.
-        Value value{};                                   ///< Latest typed value, retained when validity is not Valid.
-        ValueValidity validity = ValueValidity::Unknown; ///< Quality of value.
-        Timestamp lastObservation{};                     ///< Timestamp of the latest source observation.
+        ElementId id{};                                    ///< Runtime element identity.
+        ReportingMode reporting = ReportingMode::Absolute; ///< Whether values replace state or report deltas.
+        Value value{};                                     ///< Latest typed value, retained when validity is not Valid.
+        ValueValidity validity = ValueValidity::Unknown;   ///< Quality of value.
+        Timestamp lastObservation{};                       ///< Timestamp of the latest source observation.
 
         // Interval transitions
         std::uint32_t becameTrueCount = 0;  ///< Boolean false-to-true transitions in the last frame interval.

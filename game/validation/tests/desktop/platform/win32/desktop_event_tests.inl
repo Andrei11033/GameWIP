@@ -23,6 +23,74 @@ void testFixedEventQueue(TestSupport::Context &context)
     static_cast<void>(Desktop::Internal::TestHooks::enqueue(window, Desktop::Types::Events::ClientPositionChanged{{3, 4}}));
     static_cast<void>(context.expectEq("compatible movement coalesces", std::size_t{1}, window.eventQueueInfo().pendingEvents));
 
+    // Coalesce alternating geometry and redraw notifications without crossing lifecycle events.
+    std::array<Desktop::Types::Event, 8> burstStorage;
+    Desktop::Window burstWindow;
+    if(!context.expectTrue("burst queue hook opens", Desktop::Internal::TestHooks::openPortable(burstWindow, burstStorage).ok()))
+    {
+        return;
+    }
+
+    static_cast<void>(Desktop::Internal::TestHooks::enqueue(burstWindow, Desktop::Types::Events::InteractiveMoveResizeStarted{}));
+    static_cast<void>(Desktop::Internal::TestHooks::enqueue(burstWindow, Desktop::Types::Events::ClientPositionChanged{{1, 2}}));
+    static_cast<void>(Desktop::Internal::TestHooks::enqueue(burstWindow, Desktop::Types::Events::RedrawRequested{}));
+    static_cast<void>(Desktop::Internal::TestHooks::enqueue(burstWindow, Desktop::Types::Events::ClientPositionChanged{{3, 4}}));
+    static_cast<void>(Desktop::Internal::TestHooks::enqueue(burstWindow, Desktop::Types::Events::RedrawRequested{}));
+    static_cast<void>(Desktop::Internal::TestHooks::enqueue(burstWindow, Desktop::Types::Events::ClientPositionChanged{{5, 6}}));
+    static_cast<void>(Desktop::Internal::TestHooks::enqueue(burstWindow, Desktop::Types::Events::InteractiveMoveResizeEnded{}));
+    static_cast<void>(
+        context.expectEq("interleaved geometry and redraw events coalesce", std::size_t{4}, burstWindow.eventQueueInfo().pendingEvents));
+
+    Desktop::Types::Event burstStart;
+    Desktop::Types::Event burstPosition;
+    Desktop::Types::Event burstRedraw;
+    Desktop::Types::Event burstEnd;
+    static_cast<void>(context.expectTrue("move start remains first", burstWindow.popEvent(burstStart)));
+    static_cast<void>(
+        context.expectTrue("move start payload remains first", burstStart.getIf<Desktop::Types::Events::InteractiveMoveResizeStarted>() != nullptr));
+    static_cast<void>(context.expectTrue("coalesced position pops", burstWindow.popEvent(burstPosition)));
+    static_cast<void>(context.expectTrue("coalesced redraw pops", burstWindow.popEvent(burstRedraw)));
+    static_cast<void>(context.expectTrue("move end remains last", burstWindow.popEvent(burstEnd)));
+    static_cast<void>(
+        context.expectTrue("move end payload remains last", burstEnd.getIf<Desktop::Types::Events::InteractiveMoveResizeEnded>() != nullptr));
+    const auto *burstMoved = burstPosition.getIf<Desktop::Types::Events::ClientPositionChanged>();
+    static_cast<void>(context.expectTrue("coalesced position keeps its payload type", burstMoved != nullptr));
+    if(burstMoved != nullptr)
+    {
+        static_cast<void>(context.expectEq("coalesced position keeps latest value", Desktop::Types::ScreenPosition{5, 6}, burstMoved->position));
+    }
+    static_cast<void>(
+        context.expectTrue("coalesced redraw keeps its payload type", burstRedraw.getIf<Desktop::Types::Events::RedrawRequested>() != nullptr));
+    static_cast<void>(context.expectTrue(
+        "coalescing preserves earliest slots and sequences",
+        burstStart.sequence == 1 && burstPosition.sequence == 2 && burstRedraw.sequence == 3 && burstEnd.sequence == 4));
+    static_cast<void>(context.expectTrue("burst queue closes", burstWindow.close().ok()));
+
+    // A durable event prevents redraws on either side from coalescing together.
+    std::array<Desktop::Types::Event, 8> barrierStorage;
+    Desktop::Window barrierWindow;
+    if(!context.expectTrue("redraw barrier queue opens", Desktop::Internal::TestHooks::openPortable(barrierWindow, barrierStorage).ok()))
+    {
+        return;
+    }
+    static_cast<void>(Desktop::Internal::TestHooks::enqueue(barrierWindow, Desktop::Types::Events::RedrawRequested{}));
+    static_cast<void>(Desktop::Internal::TestHooks::enqueue(barrierWindow, Desktop::Types::Events::FocusChanged{true}));
+    static_cast<void>(Desktop::Internal::TestHooks::enqueue(barrierWindow, Desktop::Types::Events::RedrawRequested{}));
+    static_cast<void>(Desktop::Internal::TestHooks::enqueue(barrierWindow, Desktop::Types::Events::RedrawRequested{}));
+    static_cast<void>(context.expectEq("redraw coalescing stops at a durable event", std::size_t{3}, barrierWindow.eventQueueInfo().pendingEvents));
+    Desktop::Types::Event redrawBeforeFocus;
+    Desktop::Types::Event focusBarrier;
+    Desktop::Types::Event redrawAfterFocus;
+    static_cast<void>(context.expectTrue("pre-barrier redraw remains", barrierWindow.popEvent(redrawBeforeFocus)));
+    static_cast<void>(context.expectTrue("focus barrier remains", barrierWindow.popEvent(focusBarrier)));
+    static_cast<void>(context.expectTrue("post-barrier redraw remains", barrierWindow.popEvent(redrawAfterFocus)));
+    static_cast<void>(context.expectTrue(
+        "redraws remain on their respective sides of the barrier",
+        redrawBeforeFocus.getIf<Desktop::Types::Events::RedrawRequested>() != nullptr &&
+            focusBarrier.getIf<Desktop::Types::Events::FocusChanged>() != nullptr &&
+            redrawAfterFocus.getIf<Desktop::Types::Events::RedrawRequested>() != nullptr));
+    static_cast<void>(context.expectTrue("redraw barrier queue closes", barrierWindow.close().ok()));
+
     window.clearEvents();
     static_cast<void>(Desktop::Internal::TestHooks::enqueue(
         window,
@@ -78,7 +146,7 @@ void testFixedEventQueue(TestSupport::Context &context)
         static_cast<void>(context.expectEq("coalesced movement keeps latest payload", Desktop::Types::ScreenPosition{5, 6}, moved->position));
     }
     static_cast<void>(context.expectTrue("third retained event pops", window.popEvent(third)));
-    static_cast<void>(context.expectTrue("new noncoalescible event remains", third.getIf<Desktop::Types::Events::RedrawRequested>() != nullptr));
+    static_cast<void>(context.expectTrue("redraw event remains queued", third.getIf<Desktop::Types::Events::RedrawRequested>() != nullptr));
     static_cast<void>(context.expectTrue("retained sequences are increasing", first.sequence < second.sequence && second.sequence < third.sequence));
 
     // Release borrowed payload storage on pop and close.

@@ -109,7 +109,7 @@ request, not an unconditional transfer.
 
 ## Events appear missing
 
-Inspect `eventQueueInfo().droppedEvents`. Geometry and DPI events can coalesce. When full, the queue prefers evicting an older coalescible event; if
+Inspect `eventQueueInfo().droppedEvents`. Geometry, DPI, and redraw events can coalesce. When full, the queue prefers evicting an older coalescible event; if
 it contains only noncoalescible events, a new event other than `Types::Events::NativeDestroyed` is dropped. `NativeDestroyed` evicts the oldest entry
 so unexpected native destruction remains observable. Cached getters remain current even when another notification was dropped.
 

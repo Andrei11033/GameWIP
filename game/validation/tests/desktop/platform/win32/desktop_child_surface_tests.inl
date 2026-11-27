@@ -343,6 +343,43 @@ void testChildSurfaces(TestSupport::Context &context)
     static_cast<void>(
         context.expectEq("net-zero ChildSurface scale transition is not dropped", std::uint64_t{0}, surface.eventQueueInfo().droppedEvents));
 
+    // Keep geometry coalescing on its side of a visibility event.
+    Desktop::ChildSurface barrierSurface;
+    if(context.expectTrue(
+           "visibility barrier fixture opens",
+           barrierSurface.open(parent, {}, Desktop::Types::ChildSurface::QueueConfiguration::owned(8)).ok()))
+    {
+        static_cast<void>(Desktop::Internal::TestHooks::enqueue(barrierSurface, ChildEvents::PositionChanged{{1, 2}}));
+        static_cast<void>(Desktop::Internal::TestHooks::enqueue(barrierSurface, ChildEvents::SizeChanged{{10, 20}}));
+        static_cast<void>(Desktop::Internal::TestHooks::enqueue(barrierSurface, ChildEvents::VisibilityChanged{true}));
+        static_cast<void>(Desktop::Internal::TestHooks::enqueue(barrierSurface, ChildEvents::PositionChanged{{3, 4}}));
+        static_cast<void>(Desktop::Internal::TestHooks::enqueue(barrierSurface, ChildEvents::PositionChanged{{5, 6}}));
+        static_cast<void>(
+            context.expectEq("visibility separates ChildSurface geometry bursts", std::size_t{4}, barrierSurface.eventQueueInfo().pendingEvents));
+        ChildEvent positionBeforeVisibility;
+        ChildEvent sizeBeforeVisibility;
+        ChildEvent visibilityBarrier;
+        ChildEvent positionAfterVisibility;
+        static_cast<void>(context.expectTrue("position before visibility pops first", barrierSurface.popEvent(positionBeforeVisibility)));
+        static_cast<void>(context.expectTrue("size before visibility pops second", barrierSurface.popEvent(sizeBeforeVisibility)));
+        static_cast<void>(context.expectTrue("visibility event remains a barrier", barrierSurface.popEvent(visibilityBarrier)));
+        static_cast<void>(context.expectTrue("coalesced position after visibility pops last", barrierSurface.popEvent(positionAfterVisibility)));
+        const auto *latestChildPosition = positionAfterVisibility.getIf<ChildEvents::PositionChanged>();
+        static_cast<void>(context.expectTrue(
+            "ChildSurface geometry remains separated by visibility",
+            positionBeforeVisibility.getIf<ChildEvents::PositionChanged>() != nullptr &&
+                sizeBeforeVisibility.getIf<ChildEvents::SizeChanged>() != nullptr &&
+                visibilityBarrier.getIf<ChildEvents::VisibilityChanged>() != nullptr && latestChildPosition != nullptr));
+        if(latestChildPosition != nullptr)
+        {
+            static_cast<void>(context.expectEq(
+                "post-visibility position keeps latest value",
+                Desktop::Types::LogicalPosition{5, 6},
+                latestChildPosition->position));
+        }
+        static_cast<void>(context.expectTrue("visibility barrier fixture closes", barrierSurface.close().ok()));
+    }
+
     surface.clearEvents();
     static_cast<void>(surface.setPosition({2, 2}));
     static_cast<void>(surface.show());

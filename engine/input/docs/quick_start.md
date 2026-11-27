@@ -144,6 +144,14 @@ while(appIsRunning)
 }
 ```
 
+`Frame::wasChanged` and `changeCount` count value changes in retained events.
+Identical absolute reports and an initial sample without a known baseline do
+not count; each nonzero relative report does. `componentDelta` returns
+current-minus-prior for absolute values or the accumulated relative delta; it
+is empty when the component or baseline is unavailable, or the difference is
+not representable. A discontinuous frame may be incomplete; `events()` exposes
+its retained reports.
+
 `appIsRunning` represents the application's existing loop condition. Query
 helpers search connected devices by default and return the first match; pass a
 device ID to restrict the search. Selectors filter lookup results by the

@@ -308,9 +308,12 @@ namespace GameWIP::Input
                 destination.textUtf8_.reserve(impl_->configuration.maximumPendingTextBytes);
             }
 
+            destination.reserveChangeSummaryStorage(impl_->states);
+
             // Build frame metadata.
             destination.states_.reserve(impl_->states.size());
             destination.states_ = impl_->states;
+            destination.buildChangeSummaries(impl_->states, impl_->pendingEvents);
             destination.sequence_ = impl_->nextSequence++;
             destination.deviceRevision_ = impl_->deviceRevision;
             destination.capturedAt_ = Types::Clock::now();
@@ -329,11 +332,9 @@ namespace GameWIP::Input
             // Reset transition counters and relative values for the next frame.
             for(Types::ElementState &state : impl_->states)
             {
-                const Types::ElementInfo *info = impl_->findElement(state.id);
-
-                if(info != nullptr && info->reporting == Types::ReportingMode::Relative)
+                if(state.reporting == Types::ReportingMode::Relative)
                 {
-                    state.value = Internal::zeroValue(info->kind);
+                    state.value = Internal::zeroValue(Internal::valueKind(state.value));
                 }
 
                 state.becameTrueCount = 0;

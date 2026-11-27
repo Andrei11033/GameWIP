@@ -155,6 +155,31 @@ namespace GameWIP::Input::Types
         /// @return Numeric component, or no value for a nonnumeric or out-of-range component.
         [[nodiscard]] std::optional<Scalar> component(ComponentId id) const noexcept;
 
+        /// @brief Reports whether an element changed during this frame interval.
+        /// @param id Element ID to inspect.
+        /// @return `true` when at least one observed value change occurred.
+        [[nodiscard]] bool wasChanged(ElementId id) const noexcept;
+
+        /// @brief Returns the number of observed value changes for an element.
+        /// @param id Element ID to inspect.
+        /// @return Change count, or zero when the ID is absent or unchanged.
+        [[nodiscard]] std::uint32_t changeCount(ElementId id) const noexcept;
+
+        /// @brief Reports whether a numeric component changed during this frame interval.
+        /// @param id Component identity and zero-based index.
+        /// @return `true` when at least one observed component change occurred.
+        [[nodiscard]] bool wasChanged(ComponentId id) const noexcept;
+
+        /// @brief Returns the number of observed changes for a numeric component.
+        /// @param id Component identity and zero-based index.
+        /// @return Change count, or zero when the component is absent or unchanged.
+        [[nodiscard]] std::uint32_t changeCount(ComponentId id) const noexcept;
+
+        /// @brief Returns current-minus-prior for absolute values or this frame's accumulated relative delta.
+        /// @param id Component identity and zero-based index.
+        /// @return Component delta, or no value when unavailable or not representable.
+        [[nodiscard]] std::optional<Scalar> componentDelta(ComponentId id) const noexcept;
+
         /// @brief Reports whether a valid boolean element is currently true.
         /// @param id Element ID to inspect.
         /// @return `true` only for a valid boolean value that is true.
@@ -183,6 +208,26 @@ namespace GameWIP::Input::Types
     private:
         friend class GameWIP::Input::System;
 
+        // Change summaries
+
+        struct ElementChangeSummary
+        {
+            std::uint32_t changeCount = 0;
+        };
+
+        struct ComponentChangeSummary
+        {
+            Scalar delta{};
+            std::uint32_t changeCount = 0;
+            bool deltaKnown = false;
+            bool baselineCaptured = false;
+        };
+
+        void reserveChangeSummaryStorage(std::span<const ElementState> states);
+        void buildChangeSummaries(std::span<const ElementState> states, std::span<const Event> events) noexcept;
+
+        [[nodiscard]] const ComponentChangeSummary *componentChange(ComponentId id) const noexcept;
+
         // Capture metadata
         std::uint64_t sequence_ = 0;
         std::uint64_t deviceRevision_ = 0;
@@ -195,5 +240,10 @@ namespace GameWIP::Input::Types
         std::vector<Event> events_{};
         std::vector<RawReport> rawReports_{};
         std::string textUtf8_{};
+
+        // Precomputed interval changes
+        std::vector<ElementChangeSummary> elementChanges_{};
+        std::vector<std::size_t> componentOffsets_{};
+        std::vector<ComponentChangeSummary> componentChanges_{};
     };
 } // namespace GameWIP::Input::Types

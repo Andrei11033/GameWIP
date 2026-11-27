@@ -37,38 +37,6 @@ namespace GameWIP::Input::Synthetic
             return std::find(source.devices.begin(), source.devices.end(), id) != source.devices.end();
         }
 
-        [[nodiscard]] std::size_t componentCount(Types::ValueKind kind) noexcept
-        {
-            switch(kind)
-            {
-            case Types::ValueKind::Vector2I64:
-            case Types::ValueKind::Vector2U64:
-            case Types::ValueKind::Vector2F32:
-            case Types::ValueKind::Vector2F64:
-                return 2;
-            case Types::ValueKind::Vector3I64:
-            case Types::ValueKind::Vector3U64:
-            case Types::ValueKind::Vector3F32:
-            case Types::ValueKind::Vector3F64:
-                return 3;
-            case Types::ValueKind::QuaternionF32:
-            case Types::ValueKind::QuaternionF64:
-                return 4;
-            case Types::ValueKind::Spatial:
-                return 7;
-            case Types::ValueKind::None:
-            case Types::ValueKind::Boolean:
-                return 0;
-            case Types::ValueKind::SignedInteger:
-            case Types::ValueKind::UnsignedInteger:
-            case Types::ValueKind::Float32:
-            case Types::ValueKind::Float64:
-                return 1;
-            }
-
-            return 0;
-        }
-
         [[nodiscard]] Types::Timestamp timestampOrNow(Types::Timestamp timestamp) noexcept
         {
             if(timestamp.receivedAt == Types::Clock::time_point{})
@@ -315,7 +283,7 @@ namespace GameWIP::Input::Synthetic
             if(!descriptionElement.components.empty())
             {
                 // Require component metadata to match the value shape and index order.
-                const std::size_t expectedCount = componentCount(descriptionElement.kind);
+                const std::size_t expectedCount = Internal::componentCount(descriptionElement.kind);
                 if(descriptionElement.components.size() != expectedCount)
                 {
                     return status(Code::InvalidArgument);
@@ -422,7 +390,7 @@ namespace GameWIP::Input::Synthetic
 
                 if(element.components.empty())
                 {
-                    const std::size_t count = componentCount(element.kind);
+                    const std::size_t count = Internal::componentCount(element.kind);
                     element.components.reserve(count);
                     for(std::size_t index = 0; index < count; ++index)
                     {
@@ -433,6 +401,7 @@ namespace GameWIP::Input::Synthetic
                 device.elements.push_back(std::move(element));
                 newStates.push_back({
                     .id = elementId,
+                    .reporting = descriptionElement.reporting,
                     .value = Internal::zeroValue(descriptionElement.kind),
                     .validity = Types::ValueValidity::Unknown,
                 });

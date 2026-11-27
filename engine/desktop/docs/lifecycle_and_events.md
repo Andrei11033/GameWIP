@@ -75,9 +75,9 @@ The same `Window` object may be opened again after finalization.
 ## Queue behavior
 
 The queue is fixed-capacity. `ClientPositionChanged`, `ClientSizeChanged`,
-`FramebufferSizeChanged`, and `ContentScaleChanged` may replace an earlier event
-of the same type within the trailing run of geometry/DPI events. A durable
-event ends that run. Scale changes retain the earliest previous scale/DPI and
+`FramebufferSizeChanged`, `ContentScaleChanged`, and `RedrawRequested` may
+replace an earlier event of the same type within the trailing run of coalescible
+events. A durable event ends that run. Scale changes retain the earliest previous scale/DPI and
 the latest scale/DPI/framebuffer size; a scale change that returns to its
 starting scale and DPI is removed. Replacement keeps the earlier slot and
 sequence number, so a sequence identifies queue insertion rather than the age

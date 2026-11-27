@@ -61,7 +61,8 @@ namespace GameWIP::Desktop::Internal
     {
         using namespace Types::Events;
         return std::holds_alternative<ClientPositionChanged>(data) || std::holds_alternative<ClientSizeChanged>(data) ||
-               std::holds_alternative<FramebufferSizeChanged>(data) || std::holds_alternative<ContentScaleChanged>(data);
+               std::holds_alternative<FramebufferSizeChanged>(data) || std::holds_alternative<ContentScaleChanged>(data) ||
+               std::holds_alternative<RedrawRequested>(data);
     }
 
     /// @brief Enqueues a Window event, preserving durable events when the fixed queue is full.

@@ -149,6 +149,38 @@ namespace GameWIP::Input::Internal
         return static_cast<Types::ValueKind>(value.index());
     }
 
+    std::size_t componentCount(Types::ValueKind kind) noexcept
+    {
+        switch(kind)
+        {
+        case Types::ValueKind::Vector2I64:
+        case Types::ValueKind::Vector2U64:
+        case Types::ValueKind::Vector2F32:
+        case Types::ValueKind::Vector2F64:
+            return 2;
+        case Types::ValueKind::Vector3I64:
+        case Types::ValueKind::Vector3U64:
+        case Types::ValueKind::Vector3F32:
+        case Types::ValueKind::Vector3F64:
+            return 3;
+        case Types::ValueKind::QuaternionF32:
+        case Types::ValueKind::QuaternionF64:
+            return 4;
+        case Types::ValueKind::Spatial:
+            return 7;
+        case Types::ValueKind::SignedInteger:
+        case Types::ValueKind::UnsignedInteger:
+        case Types::ValueKind::Float32:
+        case Types::ValueKind::Float64:
+            return 1;
+        case Types::ValueKind::None:
+        case Types::ValueKind::Boolean:
+            return 0;
+        }
+
+        return 0;
+    }
+
     Types::Value zeroValue(Types::ValueKind kind) noexcept
     {
         switch(kind)
