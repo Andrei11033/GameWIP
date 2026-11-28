@@ -11,6 +11,11 @@ namespace GameWIP::Input::Internal
     /// @return Matching ValueKind.
     [[nodiscard]] Types::ValueKind valueKind(const Types::Value &value) noexcept;
 
+    /// @brief Returns the number of numeric components exposed by a value kind.
+    /// @param kind Value kind to inspect.
+    /// @return Numeric component count, or zero for nonnumeric values.
+    [[nodiscard]] std::size_t componentCount(Types::ValueKind kind) noexcept;
+
     /// @brief Creates the typed neutral value for a public value kind.
     /// @param kind Value kind to initialize.
     /// @return Neutral value of the requested kind, or monostate for ValueKind::None.

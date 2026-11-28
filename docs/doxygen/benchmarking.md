@@ -43,7 +43,7 @@ Print the complete option set for the pinned Google Benchmark executable without
 running a measurement:
 
 ```powershell
-.\build\benchmark\GameWIPBenchmarks.exe --help
+.\build\windows-amd64\benchmark\GameWIPBenchmarks.exe --help
 ```
 
 That generated help is the reference for direct third-party runner flags. This
@@ -146,6 +146,9 @@ Google Benchmark's mean aggregate when present, and reports CPU and real-time
 percentage changes. It is descriptive evidence, not a statistical significance
 test or performance gate.
 
+Iteration rows without a `run_type` field are also accepted when no mean
+aggregate is available.
+
 ### Helper options
 
 | Option | Behavior |
@@ -222,16 +225,21 @@ Meaningful benchmark coverage has a few requirements:
 Logger scenarios report queue, drop, flush, or error counters where necessary,
 so a fast producer result cannot hide lost work.
 
-Benchmark fixtures are created below `build/benchmark/temp` for standalone runs and below the active game preset's `temp` directory for embedded
-runs. The runner scopes and restores `TEMP`, `TMP`, and `TMPDIR`, so fixture and Logger benchmark files do not spill into the host temporary directory.
+Benchmark fixtures are created below the standalone build tree's `temp`
+directory and below the active game build tree's `temp` directory for embedded
+runs. Direct CMake uses `build/native/benchmark`; the helper uses
+`build/<target>/benchmark`. The runner scopes and restores `TEMP`, `TMP`, and
+`TMPDIR`, so fixture and Logger benchmark files do not spill into the host
+temporary directory.
 To compare storage backends, place the applicable preset build tree on the representative local or network volume.
 
 ## Outputs and artifacts
 
-Each helper invocation creates one action-named directory:
+Each helper invocation creates one action-named directory under
+`<storage-root>` (default `build/gamewip`):
 
 ```text
-build/gamewip/runs/<timestamp>_benchmark-run/
+<storage-root>/runs/<timestamp>_benchmark-run/
   summary.txt
   summary.json
   manifest.json

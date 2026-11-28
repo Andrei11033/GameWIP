@@ -12,29 +12,28 @@ the system.
 #include "input/win32.h"
 ```
 
-Link the consumer to `GameWIP::Input`. On Windows, the Win32 attachment observes
-window messages from an existing owner-thread window. On other platforms, the
-optional Win32 API remains linkable but native attachment is unsupported and returns
-`Unsupported`. See @ref project_public_api_contract for unsupported-capability handling.
+Link the consumer to `GameWIP::Input`. The Win32 attachment is implemented by the
+Win32 backend and observes messages from an existing owner-thread window.
 
 ## Windows integration
 
-On Windows, use `GameWIP::Input::Platform::Win32::attachToWindow()` to register Input
-with a `Desktop::Window` in one call. This combines Input attachment and Desktop message
-routing rather than calling `Attachment::attach()` directly on a manual window handle.
+For Desktop integration, link `GameWIP::Input` and `GameWIP::Desktop`. Include
+`desktop/window.h` and use `GameWIP::Input::Platform::Win32::attachToWindow()`
+to connect Input and message routing to an existing `Desktop::Window`.
 
 ```cpp
 #if defined(_WIN32)
+#include "desktop/window.h"
 #include "input/native/desktop_win32.h"
 
 GameWIP::Desktop::Window window;
 GameWIP::Input::System input;
 GameWIP::Input::Platform::Win32::Attachment attachment;
 
-if (window.open(description).ok() && input.open().ok())
+if(window.open().ok() && input.open().ok())
 {
     const auto status = GameWIP::Input::Platform::Win32::attachToWindow(input, attachment, window);
-    if (!status.ok())
+    if(!status.ok())
     {
         static_cast<void>(input.close());
         return 1;
@@ -45,6 +44,17 @@ if (window.open(description).ok() && input.open().ok())
 
 Manual attachment to non-Desktop windows uses `Attachment::attach(input, hwnd)`.
 
+By default, Windows tries each available input backend. Set
+`Configuration::enabledBackends` before `System::open()` to select
+`Win32RawInput`, `Win32Hid`, `XInput`, `GameInput`, `DirectInput`, or
+`Win32WindowMessage`; an empty list disables them all. `Attachment::backends()`
+reports which providers started, were disabled, or were unavailable. A disabled
+provider is not initialized or polled.
+
+The window-message provider supplies a keyboard fallback without physical-device
+identity. Raw Input preserves physical-device identity for keyboard and mouse
+reports.
+
 ## Open and attach
 
 Keep the `System`, `Attachment`, and `Frame` in stable storage. Attach after opening
@@ -53,13 +63,13 @@ run on the same owner thread:
 
 ```cpp
 GameWIP::Input::System input;
-if (!input.open().ok())
+if(!input.open().ok())
 {
     return 1;
 }
 
 GameWIP::Input::Platform::Win32::Attachment attachment;
-if (!attachment.attach(input, hwnd).ok())
+if(!attachment.attach(input, hwnd).ok())
 {
     static_cast<void>(input.close());
     return 2;
@@ -67,7 +77,7 @@ if (!attachment.attach(input, hwnd).ok())
 
 // ... capture loop ...
 
-if (!attachment.detach().ok())
+if(!attachment.detach().ok())
 {
     // Log or handle detach failure
 }
@@ -75,10 +85,11 @@ static_cast<void>(input.close());
 ```
 
 In the window procedure, pass `message`, `wParam`, and `lParam` to
-`Attachment::handleMessage`. Use the caller's normal default-message handling
-when the attachment does not handle a message. Always pass `WM_INPUT` to
-`DefWindowProcW` after processing so Windows can clean up the raw-input handle.
-Capture once per iteration of the application's event or frame loop.
+`Attachment::handleMessage`. Check `ok()` before reading `value()`; use the
+caller's normal default-message handling when the value is `false`. Always pass
+`WM_INPUT` to `DefWindowProcW` after processing so Windows can clean up the
+raw-input handle. Capture once per iteration of the application's event or
+frame loop.
 
 ## Resolve and read controls
 
@@ -86,60 +97,68 @@ Resolve controls from connected device descriptors and retain their element
 IDs for the current open session:
 
 ```cpp
-std::span<const GameWIP::Input::Types::DeviceInfo> devices;
-if (!input.devices(devices).ok())
+const auto devicesResult = input.devices();
+if(!devicesResult.ok())
 {
     return 4;
 }
+const std::span<const GameWIP::Input::Types::DeviceInfo> devices = devicesResult.value();
 
-auto key = GameWIP::Input::Query::findStandard(
-    devices,
-    GameWIP::Input::Standard::Key::W);
+auto key = GameWIP::Input::Query::findStandard(devices, GameWIP::Input::Standard::Key::W);
 ```
 
 Capture into a reusable frame in the application loop, then query its state:
 
 ```cpp
 GameWIP::Input::Types::Frame frame;
-while (appIsRunning)
+while(appIsRunning)
 {
     // Pump the application's window messages and forward them to the attachment.
     const auto capture = input.capture(frame);
-    if (!capture.status.ok())
+    if(!capture.ok())
     {
         break;
     }
 
     bool refreshBindings = false;
-    for (const GameWIP::Input::Types::Event &event : frame.events())
+    for(const GameWIP::Input::Types::Event &event : frame.events())
     {
         refreshBindings |= event.kind == GameWIP::Input::Types::EventKind::DeviceConnected ||
                            event.kind == GameWIP::Input::Types::EventKind::DeviceDisconnected ||
                            event.kind == GameWIP::Input::Types::EventKind::DeviceChanged;
     }
-    if (refreshBindings)
+    if(refreshBindings)
     {
-        if (!input.devices(devices).ok())
+        const auto updatedDevices = input.devices();
+        if(!updatedDevices.ok())
         {
             break;
         }
-        key = GameWIP::Input::Query::findStandard(
-            devices,
-            GameWIP::Input::Standard::Key::W);
+        key = GameWIP::Input::Query::findStandard(updatedDevices.value(), GameWIP::Input::Standard::Key::W);
     }
 
-    if (key && frame.isDown(*key))
+    if(key && frame.isDown(*key))
     {
         // Move forward.
     }
 }
 ```
 
-`appIsRunning` represents the application's existing loop condition. An
-unfiltered query selects the first matching connected control. Pass a device
-ID to target a specific device. Use `Query::findElementByPersistentKey` for
-producer-defined binding keys, or `Query::findHid` for HID controls outside
-the standard vocabulary. Runtime IDs are valid only for the current open session.
+`Frame::wasChanged` and `changeCount` count value changes in retained events.
+Identical absolute reports and an initial sample without a known baseline do
+not count; each nonzero relative report does. `componentDelta` returns
+current-minus-prior for absolute values or the accumulated relative delta; it
+is empty when the component or baseline is unavailable, or the difference is
+not representable. A discontinuous frame may be incomplete; `events()` exposes
+its retained reports.
+
+`appIsRunning` represents the application's existing loop condition. Query
+helpers search connected devices by default and return the first match; pass a
+device ID to restrict the search. Selectors filter lookup results by the
+criteria supplied, not the live controls captured by a backend. Controls
+outside the standard vocabulary remain available through HID identities or
+producer-defined persistent keys. Runtime IDs are valid only for the current
+open session.
 
 ## Mice and pointer position
 
@@ -152,22 +171,19 @@ window-level pointer device, separate from the per-device mouse controls.
 
 ## Synthetic observations
 
-Include `input/synthetic.h` only for deterministic tests or explicit
-software-produced devices. `Source::setAbsoluteValue` replaces an absolute
-value, while `Source::addRelativeDelta` adds a delta to a relative element for
-the current frame. `Source::setValue` remains available when the reporting
-mode is determined by the descriptor. Synthetic sources should be detached
-before their `System` closes, although the API safely detects a closed or
-destroyed session.
+Include `input/synthetic.h` for deterministic tests or explicit software input.
+Attach a `Synthetic::Source` before publishing values or text, and detach it
+before its `System` closes. `Source::setAbsoluteValue` replaces an absolute
+value, while `Source::addRelativeDelta` adds a delta for the current frame.
+`Source::setValue` uses the reporting mode in the element descriptor.
 
-Include `input/synthetic.h` and attach a `Synthetic::Source` before publishing
-software-generated text. Use `attachment.surfaceId()` to target the attached
-Win32 window; other synthetic surfaces may use any nonzero application-defined
+For text, use `attachment.surfaceId()` to target the attached Win32 window.
+Other synthetic surfaces may use any nonzero application-defined
 `Types::SurfaceId`.
 
 ```cpp
 const auto surface = attachment.surfaceId();
-if (surface.isValid())
+if(surface.isValid())
 {
     static_cast<void>(source.commitText(surface, "Hello"));
 }

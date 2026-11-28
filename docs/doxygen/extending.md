@@ -29,18 +29,31 @@ verification commands that were run.
 
 Place low-level runtime libraries under `foundation/` and diagnostics or development-support libraries under `tools/`.
 
-Use this default structure:
+Use this as a starting shape, not a required set of folders. Each source area
+is optional when the library does not need it. Folder purposes and CMake
+ownership are defined in @ref project_structure.
 
 ```text
 <area>/<name>/
   CMakeLists.txt
-  <name>.h
-  core/
-  internal/
-  platform/
+  <public-header>.h
+  core/                         # optional
+    CMakeLists.txt
+  internal/                     # optional
+    CMakeLists.txt
+    helpers/                    # optional
+      CMakeLists.txt
+  native/                       # optional
+    CMakeLists.txt
+  detail/                       # optional
+    CMakeLists.txt
+  platform/                     # optional
+    CMakeLists.txt
     <platform-id>/
-      platform.cmake
+      CMakeLists.txt
       <platform-id>_<feature>.cpp
+  cmake/                        # optional
+  tools/                        # optional
   docs/
     <name>.md
     quick_start.md
@@ -72,7 +85,8 @@ Use `PRIVATE` dependencies for implementation-only requirements.
 
 ## Public API integration
 
-A public API is any installed symbol, type, macro, option, result type, or supported behavior that external consumers may use.
+A public API is any installed symbol, type, macro, option, result type, or
+supported behavior that external consumers may use.
 
 A public API change must be reflected in all relevant parts of the project:
 
@@ -131,6 +145,8 @@ Create modules under:
 game/validation/tests/<module>/
 ```
 
+See @ref project_testing for test source and CMake layout.
+
 A module must have:
 
 - A stable lowercase name.
@@ -153,7 +169,7 @@ Run focused and aggregate validation before merge:
 ```powershell
 cmake --preset test
 cmake --build --preset test
-.\build\test\GameWIPTests.exe --test-module=<module>
+.\build\native\test\GameWIPTests.exe --test-module=<module>
 ctest --preset test
 ```
 
@@ -187,12 +203,13 @@ Choose the owner before writing a page.
 | Documentation type | Owner |
 | --- | --- |
 | Public API usage, examples, behavior, failure modes, and troubleshooting | Owning library `docs/` directory |
-| Build, validation, testing, benchmark, profiling, coverage, static-analysis, documentation, and automation workflows | `docs/doxygen/` |
+| Build, validation, and repository workflows | `docs/doxygen/` |
 | Vision, roadmap, decisions, versioning, contribution workflow, and milestone evidence | `docs/` |
 | Public API reference | Installed public headers |
 | Private implementation notes | Internal headers and source files |
 
-Generated Doxygen pages must be registered explicitly. Library pages are registered by the owning library target. Project pages are registered in
+Generated Doxygen pages must be registered explicitly. Library pages are
+registered by the owning library target. Project pages are registered in
 `cmake/GameWIPDocumentation.cmake`.
 
 Documentation changes must follow @ref project_documentation.
@@ -222,10 +239,10 @@ A backend integrates through these boundaries:
 
 - The backend implements the owning internal platform contract without changing
   the portable public API.
-- `platform.cmake` owns backend-local sources, resources, libraries, and compile
-  definitions.
+- CMake source registration follows @ref project_cmake_infrastructure.
 - Native failures translate into the owning library's status or result model.
-- Installed public headers contain no native handles or platform-specific types.
+- Portable installed headers contain no native handles or platform-specific
+  types. An intentional native connector documents its platform boundary.
 - Tests or approved hooks cover behavior that public API tests cannot validate
   directly.
 - The owning library's testing and troubleshooting pages describe supported
@@ -233,8 +250,8 @@ A backend integrates through these boundaries:
 
 ## CMake option integration
 
-Project composition options use the `GAMEWIP_` prefix and are defined in `cmake/GameWIPOptions.cmake`. Maintainer-facing CMake helper conventions are
-documented in @ref project_cmake_infrastructure.
+Project options and defaults are listed in @ref project_build. Maintainer CMake
+helper conventions are in @ref project_cmake_infrastructure.
 
 A project option must be reflected in all of the following:
 

@@ -6,9 +6,7 @@
 #include "logger/detail/formatting.h"
 #include "logger/record.h"
 
-#include <chrono>
 #include <format>
-#include <new>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -16,7 +14,7 @@
 namespace GameWIP::Logger
 {
     /// @cond INTERNAL
-    namespace Detail::Core
+    namespace Internal::Core
     {
         template <typename Source, typename... Args>
         void formatAndLogWithRecord(
@@ -83,6 +81,6 @@ namespace GameWIP::Logger
                 recordAllocationFailure();
             }
         }
-    } // namespace Detail::Core
+    } // namespace Internal::Core
     /// @endcond
 } // namespace GameWIP::Logger

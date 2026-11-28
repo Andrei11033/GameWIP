@@ -5,8 +5,8 @@ are in `test_support/process.h`.
 
 ## Status interpretation
 
-`Types::InfrastructureStatus::ok()` is true only for `Types::InfrastructureError::None`. `nativeCode` preserves a platform or standard-library
-diagnostic when available. Success and code-only failures do not allocate diagnostic strings.
+`Types::Status::ok()` is true only for `GameWIP::Status::Types::Code::Success`. Optional native details are for diagnostics; use the portable code
+for decisions. Success and code-only failures do not allocate diagnostic strings.
 
 ## Strict UTF-8 text files
 
@@ -14,16 +14,14 @@ diagnostic when available. Success and code-only failures do not allocate diagno
 
 `readTextFile()` opens in binary mode so bytes are not transformed by the runtime, then validates the bytes once before exposing them as text.
 
-- Empty file: success with empty `text`.
-- Valid UTF-8: success with the exact bytes in `text`.
+- Empty file: success with an empty value.
+- Valid UTF-8: success with the exact bytes in `value()`.
 - Malformed UTF-8 reports `EncodingFailed` and preserves the complete valid UTF-8 prefix, including when a backend failure is observed at the same
   read boundary.
-- An incomplete final UTF-8 sequence at a definitive end reports `EncodingFailed`; a known-size early EOF therefore reports encoding failure when the
-  retained suffix is incomplete.
-- If a backend fails after returning a valid prefix followed only by an incomplete sequence, the backend `FileOperationFailed` remains authoritative
-  because additional bytes may have existed.
-- A valid but short read relative to the size measured before the read reports `FileOperationFailed` rather than silently succeeding with a prefix.
-- Every returned `text` field is valid UTF-8, including on failure. No normalization, BOM handling, or newline conversion occurs.
+- An incomplete final UTF-8 sequence reports `EncodingFailed` only when the measured file contents were read completely. A backend failure or short read
+  reports `FileOperationFailed` because more bytes may have existed.
+- A valid short read relative to the measured size reports `FileOperationFailed` rather than silently succeeding with a prefix.
+- Any returned text value is valid UTF-8, including a partial value on failure. No normalization, BOM handling, or newline conversion occurs.
 
 `writeTextFile()` validates the complete input before any filesystem mutation. Malformed or incomplete UTF-8 therefore returns `EncodingFailed` before
 parent-directory creation and before a truncating destination open. Existing destination content is not destroyed by malformed text input.
@@ -49,11 +47,12 @@ failed or conflicting restorations, including failures observed only by a
 guard destructor. A later successful retry does not clear that audit status.
 
 `ScopedTemporaryDirectory` creates a unique child below the process temporary directory using a sanitized readable purpose plus bounded collision
-retries. GameWIP validation scopes that process directory to the active `build/<preset>/temp` tree; standalone library consumers use the host default.
+retries. GameWIP validation scopes that process directory to the active build tree's `temp` directory; standalone library consumers use the host default.
 Its destructor attempts recursive removal and then removes empty TestSupport parent directories; open handles, abnormal termination, or external
 filesystem activity can still leave artifacts.
 
-`ScopedCurrentPath` captures and changes process-global current-directory state. Safe use requires strict LIFO ownership and no unrelated
+`ScopedCurrentPath` captures and changes process-global current-directory state. After changing it, the guard records the path returned by
+`current_path()` for its restoration check, so lexical aliases alone do not create a conflict. Safe use requires strict LIFO ownership and no unrelated
 relative-path resolution or direct current-directory mutation during the scope. A direct mutation is detected during restoration and reported as
 `ProcessStateConflict` instead of overwriting the newer directory.
 

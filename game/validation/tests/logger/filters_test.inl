@@ -3,7 +3,9 @@
 
 void testFilteredFormattedRegisteredSource(TestContext &context)
 {
-    ScopedLoggerShutdown shutdown;
+    const ScopedLoggerShutdown shutdown;
+
+    // Register sources and filter the formatted source.
     std::array sources{Logger::defineSource(TestSource::Core, "Core"), Logger::defineSource(TestSource::Render, "Render")};
     OwnedLoggerConfig config = makeFileConfig(context, "filtered_formatted_source");
     config.sources = sources;
@@ -21,6 +23,7 @@ void testFilteredFormattedRegisteredSource(TestContext &context)
     Logger::info(TestSource::Render, "filtered {}", probe);
     Logger::info(TestSource::Render, Logger::runtimeFormat("{"), 17);
 
+    // Verify filtered messages skip formatting, queueing, and writes.
     const Logger::Types::Stats filteredStats = Logger::getStats();
     context.expectEq("filtered compile-time format is not invoked", formatCount.load(std::memory_order_relaxed), std::size_t{0});
     context.expectEq("filtered runtime format records no failure", filteredStats.formatFailures, std::size_t{0});
@@ -33,7 +36,9 @@ void testFilteredFormattedRegisteredSource(TestContext &context)
 
 void testFilterStatusesAndConcurrency(TestContext &context, const LoggerTestOptions &options)
 {
-    ScopedLoggerShutdown shutdown;
+    const ScopedLoggerShutdown shutdown;
+
+    // Verify filter validation and reset behavior.
     std::array sources{Logger::defineSource(TestSource::Core, "Core"), Logger::defineSource(TestSource::Render, "Render")};
     OwnedLoggerConfig config = makeFileConfig(context, "filters");
     config.sources = sources;
@@ -43,12 +48,12 @@ void testFilterStatusesAndConcurrency(TestContext &context, const LoggerTestOpti
     context.expectFalse("render filtered", Logger::shouldLog(Logger::Types::Level::Info, TestSource::Render));
     context.expectEq(
         "unknown source filter NotFound",
-        Logger::setSourceFilter(static_cast<Logger::Types::SourceId>(TestSource::Unknown), false).code,
-        IO::Types::ErrorCode::NotFound);
+        Logger::setSourceFilter(static_cast<Logger::Types::SourceId>(TestSource::Unknown), false).status().code(),
+        GameWIP::Status::Types::Code::NotFound);
     context.expectEq(
         "invalid level filter InvalidArgument",
-        Logger::setLevelFilter(static_cast<Logger::Types::Level>(99), true).code,
-        IO::Types::ErrorCode::InvalidArgument);
+        Logger::setLevelFilter(static_cast<Logger::Types::Level>(99), true).status().code(),
+        GameWIP::Status::Types::Code::InvalidArgument);
     context.expectTrue("reset source filters status", Logger::resetSourceFilters().ok());
     context.expectTrue("set level filter status", Logger::setLevelFilter(Logger::Types::Level::Debug, false).ok());
     context.expectFalse("debug filtered", Logger::shouldLog(Logger::Types::Level::Debug));
@@ -60,6 +65,8 @@ void testFilterStatusesAndConcurrency(TestContext &context, const LoggerTestOpti
         return;
     }
     const std::size_t iterations = std::max<std::size_t>(500, options.stressIterationsPerThread);
+
+    // Mutate a source filter while another thread logs.
     std::atomic<bool> start{false};
     std::atomic<bool> mutationsOk{true};
     std::thread producer(

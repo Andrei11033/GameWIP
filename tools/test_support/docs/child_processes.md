@@ -16,19 +16,19 @@ empty value; `std::nullopt` removes it. Overrides are applied in vector order, l
 
 ## Output capture is bytes
 
-When capture is enabled, stdout and stderr share one capture pipe. `Types::Process::Result::outputBytes` contains retained raw bytes exactly as
-produced by the child; TestSupport does not validate, normalize, decode, or perform newline conversion on captured output.
+When capture is enabled, stdout and stderr share one capture pipe. The result's `value().outputBytes` contains retained raw bytes exactly as produced
+by the child; TestSupport does not validate, normalize, decode, or perform newline conversion on captured output.
 
 At most `maxCapturedOutputBytes` bytes are retained. The pipe continues draining after that limit to prevent a verbose child from blocking.
-`outputTruncated` means bytes were discarded because of the retention limit, not that capture failed.
+`value().outputTruncated` means bytes were discarded because of the retention limit, not that capture failed.
 
-A capture infrastructure failure may still preserve useful partial `outputBytes` and a child outcome observed before the failure. When capture is
-disabled, the child receives inheritable duplicates of the selected parent standard handles; unrelated inheritable parent handles are excluded through
-the backend allowlist.
+A capture infrastructure failure may still preserve useful partial execution data and an outcome observed before the failure. Check `hasValue()` before
+reading it. When capture is disabled, the child receives inheritable duplicates of the selected parent standard handles; unrelated inheritable parent
+handles are excluded through the backend allowlist.
 
 ## Timeout and result interpretation
 
-Interpret infrastructure status and process outcome independently:
+Interpret `status()` and the execution outcome independently. Check `hasValue()` before reading execution fields:
 
 | Situation | Status | `Types::Process::Outcome` | Exit code |
 | --- | --- | --- | --- |
@@ -37,7 +37,7 @@ Interpret infrastructure status and process outcome independently:
 | Setup or launch fails before creation | Failed | `NotStarted` | Not meaningful |
 | Failure recovery requests termination | Failed | `TerminatedDuringCleanup` | Not meaningful |
 | Exit inspection fails after launch | `ProcessInspectionFailed` | `OutcomeUnavailable` | Not meaningful |
-| Capture fails but exit inspection succeeds | `CaptureFailed` | `Exited` | Exact native code |
+| Capture fails but exit inspection succeeds | `ProcessCaptureFailed` | `Exited` | Exact native code |
 
 `runChildProcess()` remains `noexcept`; expected implementation allocation, setup, launch, capture, wait, inspection, and cleanup failures are
 returned through `status`. Timeout continues to be a successful domain outcome when enforcement succeeds. `waitTimeout == std::nullopt` waits
@@ -47,7 +47,7 @@ mutates the caller's directory. Timeout determines when termination begins; job 
 
 The child is assigned to a Win32 job before it is resumed. Failure recovery and timeout enforcement terminate the job, and descendants are cleaned up
 so they cannot keep capture handles alive indefinitely. The Win32 backend owns the job, pipe, and handle implementation and preserves bounded capture
-and descendant cleanup. `nativeCode` retains the Win32 or standard-library diagnostic when available.
+and descendant cleanup. `status().diagnostic()` retains native details when available.
 
 @ref test_support_public_api
 @ref test_support_examples

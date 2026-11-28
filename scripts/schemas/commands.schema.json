@@ -21,6 +21,8 @@
     "benchmarkProfiles",
     "manualWorkflows",
     "modules",
+    "runtimeBuilderOptions",
+    "defaultRuntimeCommand",
     "projectCommands",
     "bundles"
   ],
@@ -173,6 +175,19 @@
         "$ref": "#/$defs/validationModule"
       }
     },
+    "runtimeBuilderOptions": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Runtime arguments offered by the interactive game command builder.",
+      "items": {
+        "$ref": "#/$defs/commandBuilderOption"
+      }
+    },
+    "defaultRuntimeCommand": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Project command selected by default in the game runtime builder."
+    },
     "projectCommands": {
       "type": "array",
       "minItems": 1,
@@ -204,12 +219,12 @@
           "type": "array",
           "minItems": 1,
           "items": {
-            "$ref": "#/$defs/validationBuilderOption"
+            "$ref": "#/$defs/commandBuilderOption"
           }
         }
       }
     },
-    "validationBuilderOption": {
+    "commandBuilderOption": {
       "type": "object",
       "additionalProperties": false,
       "required": ["id", "title", "description", "kind", "arguments", "default"],
@@ -227,7 +242,7 @@
           "minLength": 1
         },
         "kind": {
-          "enum": ["boolean", "choice", "integer", "text"]
+          "enum": ["boolean", "choice", "integer", "text", "multi-choice"]
         },
         "arguments": {
           "type": "array",
@@ -248,11 +263,29 @@
         "omitDefault": {
           "type": "boolean"
         },
+        "valueSeparator": {
+          "type": "string",
+          "minLength": 1
+        },
+        "exclusiveChoices": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        },
         "requiresCommon": {
           "type": "array",
           "uniqueItems": true,
           "items": {
             "type": "string"
+          }
+        },
+        "requiresPlatforms": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": ["windows", "linux"]
           }
         }
       }
@@ -432,6 +465,26 @@
         },
         "acceptsExtraArgs": {
           "type": "boolean"
+        },
+        "runtimeOptions": {
+          "type": "boolean",
+          "description": "Accepts the game's common runtime logging and diagnostic options."
+        },
+        "workingDirectory": {
+          "enum": ["repository", "build"],
+          "description": "Working directory for the project executable."
+        },
+        "inheritConsole": {
+          "type": "boolean",
+          "description": "Pass the caller's console streams directly to the project executable."
+        },
+        "targetRuntimePath": {
+          "type": "boolean",
+          "description": "Add the selected target runtime directories to PATH."
+        },
+        "startTracyProfiler": {
+          "type": "boolean",
+          "description": "Start the managed Tracy profiler before running the executable."
         }
       }
     },

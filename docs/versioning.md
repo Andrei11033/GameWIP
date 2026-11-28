@@ -63,6 +63,18 @@ milestone, fixes normally move forward to the active line instead of creating
 maintenance branches for old pre-1.0 lines. If real backport maintenance
 becomes necessary, define that policy from the demonstrated need.
 
+### Shared status and result API
+
+Operation status types now belong to `GameWIP::Status`. Replace
+`GameWIP::IO::Types::ErrorCode` and `GameWIP::IO::Types::Status` with
+`GameWIP::Status::Types::Code` and `GameWIP::Status::Types::Status`. Link the
+Status package directly when a public header exposes its types. Use
+`GameWIP::Status::Types::Result<T>` for value-bearing operations and
+`Result<void>` for fallible operations without a payload. Use `Status` to
+construct or combine outcomes, not as a public operation return. Check
+`status().code()` for decisions and `hasValue()` before reading partial
+progress.
+
 Version `1.0.0` means that the V1 public API, package, save-data, and compatibility promises have been explicitly defined and validated. It does not
 mean GameWIP development is finished.
 
@@ -80,7 +92,8 @@ Intended display forms:
 0.1.0
 ```
 
-An untagged commit uses the `-dev.<build>` form. A build with tracked worktree modifications adds `dirty` to its build metadata. A clean commit
+An untagged commit uses the `-dev.<build>` form. Tracked changes and
+non-ignored untracked files add `dirty` to the build metadata. A clean commit
 carrying the exact annotated `v<PROJECT_VERSION>` tag uses the release form.
 
 Development identifiers are diagnostics. They must not be published or treated

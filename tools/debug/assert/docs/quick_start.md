@@ -14,7 +14,8 @@ Include the public header:
 
 ## Installed CMake
 
-Use the package target. The package resolves the shared application manifest helper and, when runtime support is enabled, Logger:
+Use the package target. Runtime-enabled Assert resolves Logger and the `GameWIPApplication` manifest helper; interface-only Assert has no
+package dependencies:
 
 Set `GAMEWIP_REQUIRED_VERSION` from the consuming project's dependency lock; see @ref project_library_compatibility.
 
@@ -60,11 +61,10 @@ CHECK_ONCE_MSG(false, "This warning should only appear once from this call site"
 Use `ENSURE` when the caller needs the boolean result:
 
 ```cpp
-if (!ENSURE_MSG(socket.isOpen(), "Socket should be open"))
+if(!ENSURE_MSG(socket.isOpen(), "Socket should be open"))
 {
     return;
 }
-
 ```
 
 ## Failure handling

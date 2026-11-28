@@ -6,6 +6,10 @@ foreach(required_variable IN ITEMS PROJECT_SOURCE_DIR GAMEWIP_CMAKE_MINIMUM_VERS
     endif()
 endforeach()
 
+# ------------------------------------------------------------
+# Check the root and propagated CMake requirements
+# ------------------------------------------------------------
+
 file(READ "${PROJECT_SOURCE_DIR}/CMakeLists.txt" root_cmake)
 set(expected_root_requirement "cmake_minimum_required(VERSION ${GAMEWIP_CMAKE_MINIMUM_VERSION})")
 string(FIND "${root_cmake}" "${expected_root_requirement}" root_requirement_offset)
@@ -27,7 +31,17 @@ foreach(entry_point IN LISTS propagated_entry_points)
     endif()
 endforeach()
 
-file(GLOB_RECURSE maintained_cmake_files LIST_DIRECTORIES FALSE "${PROJECT_SOURCE_DIR}/CMakeLists.txt" "${PROJECT_SOURCE_DIR}/*.cmake")
+# ------------------------------------------------------------
+# Reject independent numeric minimum versions
+# ------------------------------------------------------------
+
+file(
+    GLOB_RECURSE maintained_cmake_files
+    LIST_DIRECTORIES FALSE
+    "${PROJECT_SOURCE_DIR}/CMakeLists.txt"
+    "${PROJECT_SOURCE_DIR}/*/CMakeLists.txt"
+    "${PROJECT_SOURCE_DIR}/*.cmake"
+)
 set(build_root "${PROJECT_SOURCE_DIR}/build")
 set(external_root "${PROJECT_SOURCE_DIR}/external")
 foreach(cmake_file IN LISTS maintained_cmake_files)
@@ -38,7 +52,7 @@ foreach(cmake_file IN LISTS maintained_cmake_files)
     endif()
 
     file(READ "${cmake_file}" cmake_contents)
-    if(cmake_contents MATCHES "cmake_minimum_required[ \t\r\n]*\\([ \t\r\n]*VERSION[ \t]+[0-9]")
+    if(cmake_contents MATCHES "cmake_minimum_required[ \t\r\n]*\\([ \t\r\n]*VERSION[ \t\r\n]+\"?[0-9]")
         message(FATAL_ERROR "${cmake_file} hard-codes a second numeric CMake requirement; " "propagate the root requirement instead.")
     endif()
 endforeach()

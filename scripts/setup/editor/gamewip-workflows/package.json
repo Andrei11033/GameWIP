@@ -2,7 +2,11 @@
   "name": "gamewip-workflows",
   "displayName": "GameWIP Workflow Keybindings",
   "description": "Repository-scoped keyboard shortcuts for complete GameWIP development workflows.",
-  "version": "1.4.0",
+  "version": "1.7.0",
+  "main": "./extension.js",
+  "activationEvents": [
+    "workspaceContains:scripts/config/build-targets.json"
+  ],
   "publisher": "gamewip",
   "engines": {
     "vscode": "^1.90.0"
@@ -23,6 +27,12 @@
     },
     "keybindings": [
       {
+        "key": "alt+f5",
+        "command": "workbench.action.tasks.runTask",
+        "args": "GameWIP: Build Development",
+        "when": "config.gamewip.keybindings.enabled"
+      },
+      {
         "key": "f5",
         "command": "workbench.action.tasks.runTask",
         "args": "GameWIP: Run Development",
@@ -31,7 +41,7 @@
       {
         "key": "ctrl+f5",
         "command": "workbench.action.tasks.runTask",
-        "args": "GameWIP: Build Development",
+        "args": "GameWIP: Run Development (Clean Build)",
         "when": "config.gamewip.keybindings.enabled"
       },
       {
@@ -41,9 +51,21 @@
         "when": "config.gamewip.keybindings.enabled"
       },
       {
+        "key": "ctrl+f6",
+        "command": "workbench.action.tasks.runTask",
+        "args": "GameWIP: Run Development With Startup Tests (Clean Build)",
+        "when": "config.gamewip.keybindings.enabled"
+      },
+      {
         "key": "f7",
         "command": "workbench.action.tasks.runTask",
         "args": "GameWIP: Test",
+        "when": "config.gamewip.keybindings.enabled"
+      },
+      {
+        "key": "ctrl+f7",
+        "command": "workbench.action.tasks.runTask",
+        "args": "GameWIP: Test (Clean Build)",
         "when": "config.gamewip.keybindings.enabled"
       },
       {
@@ -59,6 +81,12 @@
         "when": "config.gamewip.keybindings.enabled"
       },
       {
+        "key": "ctrl+f8",
+        "command": "workbench.action.tasks.runTask",
+        "args": "GameWIP: Documentation (Clean Build)",
+        "when": "config.gamewip.keybindings.enabled"
+      },
+      {
         "key": "alt+f8",
         "command": "workbench.action.tasks.runTask",
         "args": "GameWIP: Analyze",
@@ -68,6 +96,12 @@
         "key": "f9",
         "command": "workbench.action.tasks.runTask",
         "args": "GameWIP: Profile",
+        "when": "config.gamewip.keybindings.enabled"
+      },
+      {
+        "key": "ctrl+f9",
+        "command": "workbench.action.tasks.runTask",
+        "args": "GameWIP: Profile (Clean Build)",
         "when": "config.gamewip.keybindings.enabled"
       },
       {
@@ -89,15 +123,27 @@
         "when": "config.gamewip.keybindings.enabled"
       },
       {
+        "key": "alt+f11",
+        "command": "workbench.action.tasks.runTask",
+        "args": "GameWIP: Undefined Behavior Sanitizer",
+        "when": "config.gamewip.keybindings.enabled"
+      },
+      {
         "key": "f12",
         "command": "workbench.action.tasks.runTask",
         "args": "GameWIP: Run Release",
         "when": "config.gamewip.keybindings.enabled"
       },
       {
-        "key": "shift+f11",
+        "key": "ctrl+f12",
         "command": "workbench.action.tasks.runTask",
-        "args": "GameWIP: Undefined Behavior Sanitizer",
+        "args": "GameWIP: Run Release (Clean Build)",
+        "when": "config.gamewip.keybindings.enabled"
+      },
+      {
+        "key": "alt+f12",
+        "command": "workbench.action.tasks.runTask",
+        "args": "GameWIP: Build Release",
         "when": "config.gamewip.keybindings.enabled"
       }
     ]

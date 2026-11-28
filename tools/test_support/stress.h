@@ -15,6 +15,10 @@
 
 namespace GameWIP::TestSupport
 {
+    /// ------------------------------------------------------------
+    /// Synchronization primitives
+    /// ------------------------------------------------------------
+
     /// @brief One-shot gate that blocks workers until opened.
     /// @note Opening is idempotent; current and future waiters pass after the gate opens and it cannot be reset.
     class StartGate
@@ -26,6 +30,7 @@ namespace GameWIP::TestSupport
         void open();
 
     private:
+        // Gate state
         std::mutex mutex_;                  ///< Protects open_ and the wait protocol.
         std::condition_variable condition_; ///< Wakes blocked waiters when the gate opens.
         bool open_ = false;                 ///< Sticky one-way open state.
@@ -44,6 +49,10 @@ namespace GameWIP::TestSupport
         std::atomic<bool> stopRequested_{false}; ///< Sticky cooperative-stop state.
     };
 
+    /// ------------------------------------------------------------
+    /// Worker execution
+    /// ------------------------------------------------------------
+
     /// @brief Starts workerCount threads, joins every started worker, and rethrows one captured worker failure.
     /// @tparam WorkerFunction Copy-constructible callable accepting std::size_t or no arguments.
     /// @param workerCount Number of workers; zero starts none.
@@ -61,7 +70,7 @@ namespace GameWIP::TestSupport
             return;
         }
 
-        Worker workerPrototype(std::forward<WorkerFunction>(workerFunction));
+        Worker const workerPrototype(std::forward<WorkerFunction>(workerFunction));
         std::mutex exceptionMutex;
         std::exception_ptr firstException;
         std::vector<std::thread> workers;
@@ -93,7 +102,7 @@ namespace GameWIP::TestSupport
                         }
                         catch(...)
                         {
-                            std::lock_guard lock(exceptionMutex);
+                            std::lock_guard const lock(exceptionMutex);
 
                             if(!firstException)
                             {

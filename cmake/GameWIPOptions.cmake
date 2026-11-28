@@ -23,18 +23,22 @@ else()
     set(_gamewip_default_install_docs OFF)
 endif()
 
+# Build targets
 option(GAMEWIP_BUILD_GAME "Build the GameWIP runtime executable" ${_gamewip_default_build_game})
 
 option(GAMEWIP_BUILD_TESTS "Build the standalone GameWIPTests executable" ${_gamewip_default_build_tests})
 
 option(GAMEWIP_BUILD_BENCHMARKS "Build the standalone GameWIPBenchmarks executable" ${_gamewip_default_build_benchmarks})
 
+# Startup validation
 option(GAMEWIP_ENABLE_STARTUP_TESTS "Compile correctness tests into the game for opt-in --startup-tests execution" ${_gamewip_default_startup_tests})
 
 option(GAMEWIP_RUN_BENCHMARKS_AT_STARTUP "Compile and run benchmarks before game startup" ${_gamewip_default_startup_benchmarks})
 
+# Profiling
 option(GAMEWIP_ENABLE_TRACY "Enable Tracy profiler instrumentation" ${_gamewip_default_enable_tracy})
 
+# Build and validation settings
 option(GAMEWIP_DEPENDENCIES_OFFLINE "Disallow dependency downloads and require the local cache" OFF)
 
 option(GAMEWIP_WARNINGS_AS_ERRORS "Treat GameWIP compiler warnings as build errors" OFF)
@@ -47,10 +51,12 @@ option(GAMEWIP_ENABLE_ADDRESS_SANITIZER "Enable AddressSanitizer instrumentation
 
 option(GAMEWIP_ENABLE_UNDEFINED_BEHAVIOR_SANITIZER "Enable UndefinedBehaviorSanitizer instrumentation" OFF)
 
+# Static analysis
 option(GAMEWIP_ENABLE_STATIC_ANALYSIS "Create clang-tidy and clang-format validation targets" ${_gamewip_default_static_analysis})
 
 set(GAMEWIP_CLANG_TIDY_JOBS "4" CACHE STRING "Parallel clang-tidy process count")
 
+# Documentation
 option(GAMEWIP_BUILD_DOCS "Build project Doxygen documentation" ${_gamewip_default_build_docs})
 
 option(GAMEWIP_INSTALL_DOCS "Install generated Doxygen HTML documentation" ${_gamewip_default_install_docs})

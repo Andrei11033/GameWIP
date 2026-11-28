@@ -5,14 +5,14 @@
       "name": "GameWIP: Debug Development",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}\\build\\dev\\GameWIP.exe",
+      "program": "${command:gamewip-workflows.developmentExecutable}",
       "args": [],
       "stopAtEntry": false,
-      "cwd": "${workspaceFolder}\\build\\dev",
-      "environment": [{ "name": "PATH", "value": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" }],
+      "cwd": "${command:gamewip-workflows.developmentDirectory}",
+      "environment": [{ "name": "PATH", "value": "${command:gamewip-workflows.targetRuntimePath}" }],
       "externalConsole": false,
       "MIMode": "gdb",
-      "miDebuggerPath": "C:\\MSYS2\\ucrt64\\bin\\gdb.exe",
+      "miDebuggerPath": "${command:gamewip-workflows.debuggerPath}",
       "setupCommands": [
         {
           "description": "Enable GDB pretty-printing",

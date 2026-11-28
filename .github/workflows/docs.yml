@@ -66,7 +66,7 @@ jobs:
       - name: Configure documentation build
         shell: msys2 {0}
         run: >
-          cmake -S . -B build/docs
+          cmake -S . -B build/native/docs
           -G Ninja
           -DCMAKE_BUILD_TYPE=Release
           -DGAMEWIP_BUILD_GAME=OFF
@@ -79,11 +79,11 @@ jobs:
 
       - name: Build documentation
         shell: msys2 {0}
-        run: cmake --build build/docs --target docs --verbose
+        run: cmake --build build/native/docs --target docs --verbose
 
       - name: Disable Jekyll processing
         shell: powershell
-        run: New-Item -ItemType File -Path build/docs/docs/doxygen/html/.nojekyll -Force
+        run: New-Item -ItemType File -Path build/native/docs/docs/doxygen/html/.nojekyll -Force
 
       - name: Setup GitHub Pages
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
@@ -91,14 +91,47 @@ jobs:
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
         with:
-          path: build/docs/docs/doxygen/html
+          path: build/native/docs/docs/doxygen/html
 
-  reuse-validated-docs:
-    name: Reuse Validated Documentation
+  read-validation-scope:
+    name: Read validated documentation scope
     if: >-
       github.event_name == 'workflow_run' &&
       github.event.workflow_run.event == 'push' &&
       github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      needs_docs: ${{ steps.scope.outputs.needs_docs }}
+
+    steps:
+      - name: Download validation scope
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: validation-scope
+          path: validation-scope
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Read documentation scope
+        id: scope
+        shell: bash
+        run: |
+          needs_docs="$(jq -r '.needs_docs' validation-scope/gamewip-validation-scope.json)"
+          echo "needs_docs=$needs_docs" >> "$GITHUB_OUTPUT"
+
+  reuse-validated-docs:
+    name: Reuse Validated Documentation
+    needs: read-validation-scope
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      needs.read-validation-scope.outputs.needs_docs == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -135,11 +168,13 @@ jobs:
       id-token: write
     needs:
       - build
+      - read-validation-scope
       - reuse-validated-docs
     if: >-
       always() &&
       (needs.build.result == 'success' ||
-       needs.reuse-validated-docs.result == 'success')
+       (needs.read-validation-scope.outputs.needs_docs == 'true' &&
+        needs.reuse-validated-docs.result == 'success'))
 
     environment:
       name: github-pages

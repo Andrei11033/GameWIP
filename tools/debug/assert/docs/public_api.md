@@ -44,7 +44,7 @@ See @ref assert_configuration for `ASSERT_ENABLED`, `ASSERT_CHECKS_ENABLED`, dia
 Installed consumers link `GameWIP::Assert`. Source-tree consumers may link `Assert`. Assert may be a shared runtime library or an interface-only
 target depending on configuration.
 
-The `Detail::handle*` exported symbols are ABI support for the public macros, not public C++ API. They are documented in @ref assert_abi because they
+The `Internal::handle*` exported symbols are ABI support for the public macros, not public C++ API. They are documented in @ref assert_abi because they
 appear at the binary boundary.
 
 ## Related pages

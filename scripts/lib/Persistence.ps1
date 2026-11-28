@@ -41,6 +41,7 @@ function Write-GameWipTextAtomic
         New-Item -ItemType Directory -Path $directory | Out-Null
     }
 
+    # Keep the temporary file beside the destination for a same-volume replace.
     $temporaryPath = Join-Path $directory (
         '.{0}.{1}.tmp' -f
         [IO.Path]::GetFileName($fullPath),
@@ -51,6 +52,7 @@ function Write-GameWipTextAtomic
     {
         [IO.File]::WriteAllText($temporaryPath, $Content, [Text.UTF8Encoding]::new($false))
 
+        # Replace an existing file atomically when the filesystem supports it.
         if (Test-Path -LiteralPath $fullPath -PathType Leaf)
         {
             try
@@ -109,11 +111,15 @@ function Write-GameWipJsonAtomic
     Write-GameWipTextAtomic -Path $Path -Content $content
 }
 
+# ------------------------------------------------------------
+# Ownership markers
+# ------------------------------------------------------------
+
 function New-GameWipOwnershipMarker
 {
     param(
         [Parameter(Mandatory = $true)][string]$Resource,
-        [ValidateSet('created', 'claimedEmpty', 'adopted')][string]$Origin = 'created',
+        [ValidateSet('created', 'claimedEmpty', 'claimedProjectOwned', 'adopted')][string]$Origin = 'created',
         [AllowNull()]$Payload = $null,
         [switch]$IncludeProcess
     )
@@ -122,6 +128,7 @@ function New-GameWipOwnershipMarker
         schemaVersion = 1
         owner = 'GameWIP'
         resource = $Resource
+
         origin = $Origin
         recordedAt = (Get-Date).ToUniversalTime().ToString('o')
     }
@@ -149,9 +156,25 @@ function Read-GameWipOwnershipMarker
         [Parameter(Mandatory = $true)][string]$Resource
     )
 
-    if (-not (Test-Path -LiteralPath $Path -PathType Leaf))
+    try
+    {
+        $attributes = Get-GameWipFileSystemAttributes -Path $Path
+    }
+
+    catch
+    {
+        return [pscustomobject]@{ Status = 'unknown'; Marker = $null; Reason = 'marker could not be inspected' }
+    }
+
+    if ($null -eq $attributes)
     {
         return [pscustomobject]@{ Status = 'missing'; Marker = $null; Reason = 'marker does not exist' }
+    }
+
+    if (($attributes -band [IO.FileAttributes]::Directory) -ne 0 -or
+        ($attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0)
+    {
+        return [pscustomobject]@{ Status = 'unknown'; Marker = $null; Reason = 'marker is not a plain file' }
     }
 
     try
@@ -166,14 +189,22 @@ function Read-GameWipOwnershipMarker
 
     $properties = @($marker.PSObject.Properties.Name)
 
-    if ('schemaVersion' -notin $properties -or 'owner' -notin $properties -or 'resource' -notin $properties)
+    if (
+        'schemaVersion' -notin $properties -or
+        'owner' -notin $properties -or
+        'resource' -notin $properties
+    )
     {
         return [pscustomobject]@{ Status = 'unknown'; Marker = $marker; Reason = 'marker identity fields are incomplete' }
     }
 
     if ($marker.schemaVersion -ne 1 -or $marker.owner -ne 'GameWIP' -or $marker.resource -ne $Resource)
     {
-        return [pscustomobject]@{ Status = 'unknown'; Marker = $marker; Reason = 'marker identity does not match the requested GameWIP resource' }
+        return [pscustomobject]@{
+            Status = 'unknown'
+            Marker = $marker
+            Reason = 'marker identity does not match the requested GameWIP resource'
+        }
     }
 
     if ('origin' -notin $properties)
@@ -181,7 +212,7 @@ function Read-GameWipOwnershipMarker
         return [pscustomobject]@{ Status = 'unknown'; Marker = $marker; Reason = 'ownership origin is missing or unsupported' }
     }
 
-    if ($marker.origin -notin @('created', 'claimedEmpty', 'adopted'))
+    if ($marker.origin -notin @('created', 'claimedEmpty', 'claimedProjectOwned', 'adopted'))
     {
         return [pscustomobject]@{ Status = 'unknown'; Marker = $marker; Reason = 'ownership origin is missing or unsupported' }
     }
@@ -189,11 +220,19 @@ function Read-GameWipOwnershipMarker
     return [pscustomobject]@{ Status = 'valid'; Marker = $marker; Reason = '' }
 }
 
+# ------------------------------------------------------------
+# Operation temporary directories
+# ------------------------------------------------------------
+
 function Test-GameWipOperationOwnerActive
 {
     param([Parameter(Mandatory = $true)]$Marker)
 
-    if ($null -eq $Marker.process -or $null -eq $Marker.process.id -or [string]::IsNullOrWhiteSpace([string]$Marker.process.startedAt))
+    if (
+        $null -eq $Marker.process -or
+        $null -eq $Marker.process.id -or
+        [string]::IsNullOrWhiteSpace([string]$Marker.process.startedAt)
+    )
     {
         return $null
     }
@@ -219,9 +258,10 @@ function Test-GameWipOperationOwnerActive
 
 function Invoke-GameWipStaleOperationTempCleanup
 {
-    $tempRoot = Resolve-GameWipStoragePath -RelativePath $ProjectConfig.storage.temp
+    $tempRoot = Get-GameWipStorageAreaPath -Area temp
     $cutoff = (Get-Date).ToUniversalTime().AddDays(-1)
 
+    # Remove only old directories with a valid marker and inactive owner.
     foreach ($directory in @(Get-ChildItem -LiteralPath $tempRoot -Directory -ErrorAction SilentlyContinue))
     {
         if ($directory.LastWriteTimeUtc -ge $cutoff)
@@ -236,21 +276,29 @@ function Invoke-GameWipStaleOperationTempCleanup
         {
             continue
         }
+
         $ownerActive = Test-GameWipOperationOwnerActive -Marker $state.Marker
 
         if ($ownerActive -ne $false)
         {
             continue
         }
-        Invoke-GameWipOwnedTreeRemoval -Path $directory.FullName -OwnedRoot $tempRoot -RequireMarker -SuppressMutationTracking
+        Invoke-GameWipOwnedTreeRemoval `
+            -Path $directory.FullName `
+            -OwnedRoot $tempRoot `
+            -RequireMarker `
+            -SuppressMutationTracking
     }
 }
 
 function Initialize-GameWipOperationTemp
 {
+    # Prepare storage and discard only verified stale operation directories.
     Initialize-GameWipStorage
     Invoke-GameWipStaleOperationTempCleanup
-    $tempRoot = Resolve-GameWipStoragePath -RelativePath $ProjectConfig.storage.temp
+
+    # Create an owned directory and persist its process identity for later cleanup.
+    $tempRoot = Get-GameWipStorageAreaPath -Area temp
     $operationId = '{0}-{1}' -f $PID, ([guid]::NewGuid().ToString('N').Substring(0, 12))
     $operationPath = Join-Path $tempRoot $operationId
     New-Item -ItemType Directory -Path $operationPath | Out-Null

@@ -68,15 +68,13 @@ to catch accidental extra allocation/copying in the caller-owned buffering path;
 Automated runs leave human interaction disabled. From a real Windows Terminal session, run:
 
 ```powershell
-.\build\test\GameWIPTests.exe --test-module=terminal --manual-tests
+.\build\windows-amd64\test\GameWIPTests.exe --test-module=terminal --manual-tests
 ```
 
 The opt-in suite requests human confirmation for Unicode rendering, colors and styles, cursor save/restore, alternate-screen restoration, managed line
 input, native structured Left-Arrow delivery, managed session restoration, and cursor visibility. It skips with an explicit reason when the required
 streams are not real terminals. Use `s reason` to retain an observation's skip reason; end-of-input is recorded separately.
 Event-wrapper checks cover matching, nonmatching and const access, and alternative replacement. Native decoder tests own payload-field coverage.
-
-Manual runs report prompted observations separately from setup and contract assertions.
 
 ## Test hooks
 

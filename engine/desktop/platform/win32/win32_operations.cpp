@@ -1,6 +1,9 @@
 /// @file win32_operations.cpp
 /// @brief Win32 ownership, identity, icon, and geometry operations for Window.
 
+#include "desktop/internal/results.h"
+#include "desktop/platform/win32/internal/win32_shell_helpers.h"
+#include "desktop/platform/win32/internal/win32_unicode.h"
 #include "desktop/platform/win32/internal/win32_window_backend.h"
 
 #include <algorithm>
@@ -9,16 +12,16 @@
 #include <span>
 #include <utility>
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
-    // ------------------------------------------------------------
-    // Native geometry and icon helpers
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Native geometry and icon helpers
+    /// ------------------------------------------------------------
 
     namespace
     {
         /// @brief Changes the HWND owner while preserving Win32's zero-value error ambiguity.
-        [[nodiscard]] IO::Types::Status setNativeParent(HWND window, HWND owner) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status setNativeParent(HWND window, HWND owner) noexcept
         {
             SetLastError(ERROR_SUCCESS);
             const LONG_PTR previous = SetWindowLongPtrW(window, GWLP_HWNDPARENT, reinterpret_cast<LONG_PTR>(owner));
@@ -26,14 +29,17 @@ namespace GameWIP::Desktop::Detail::Platform
 
             if(previous == 0 && nativeCode != ERROR_SUCCESS)
             {
-                return statusFromWin32(IO::Types::ErrorCode::NativeFailure, nativeCode, "set window owner");
+                return statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, nativeCode, "set window owner");
             }
 
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
 
         /// @brief Converts a logical client rectangle into a DPI-scaled outer frame.
-        [[nodiscard]] IO::Types::Status setOuterRect(WindowState &state, Types::ScreenPosition position, Types::LogicalSize size) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status setOuterRect(
+            WindowState &state,
+            Types::ScreenPosition position,
+            Types::LogicalSize size) noexcept
         {
             const UINT dpi = dpiForWindow(state.platform->handle);
             const Types::PixelSize physicalSize = logicalToPhysicalSize(size, dpi);
@@ -42,15 +48,16 @@ namespace GameWIP::Desktop::Detail::Platform
                physicalSize.width > static_cast<std::uint32_t>(std::numeric_limits<LONG>::max()) ||
                physicalSize.height > static_cast<std::uint32_t>(std::numeric_limits<LONG>::max()))
             {
-                return IO::makeStatus(
-                    IO::Types::ErrorCode::InvalidArgument,
+                return GameWIP::Desktop::Internal::statusFor(
+                    GameWIP::Status::Types::Code::InvalidArgument,
                     ERROR_ARITHMETIC_OVERFLOW,
                     "client size exceeds Win32 range at the effective DPI");
             }
 
             RECT outer{0, 0, static_cast<LONG>(physicalSize.width), static_cast<LONG>(physicalSize.height)};
             LONG_PTR styleValue = 0;
-            IO::Types::Status status = queryWindowLong(state.platform->handle, GWL_STYLE, styleValue, "GetWindowLongPtrW geometry style");
+            GameWIP::Status::Types::Status status =
+                queryWindowLong(state.platform->handle, GWL_STYLE, styleValue, "GetWindowLongPtrW geometry style");
 
             if(!status.ok())
             {
@@ -70,7 +77,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
             if(AdjustWindowRectExForDpi(&outer, style, FALSE, extendedStyle, dpi) == FALSE)
             {
-                return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "AdjustWindowRectExForDpi");
+                return statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, GetLastError(), "AdjustWindowRectExForDpi");
             }
             const std::int64_t outerWidth = static_cast<std::int64_t>(outer.right) - outer.left;
             const std::int64_t outerHeight = static_cast<std::int64_t>(outer.bottom) - outer.top;
@@ -81,7 +88,11 @@ namespace GameWIP::Desktop::Detail::Platform
                wideY > std::numeric_limits<int>::max() || outerWidth <= 0 || outerWidth > std::numeric_limits<int>::max() || outerHeight <= 0 ||
                outerHeight > std::numeric_limits<int>::max())
             {
-                return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument, ERROR_ARITHMETIC_OVERFLOW, "outer frame position exceeds Win32 range");
+                return GameWIP::Desktop::Internal::statusFor(
+                    GameWIP::Status::Types::Code::InvalidArgument,
+                    ERROR_ARITHMETIC_OVERFLOW,
+                    GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error,
+                    "outer frame position exceeds Win32 range");
             }
             const int x = static_cast<int>(wideX);
             const int y = static_cast<int>(wideY);
@@ -95,7 +106,7 @@ namespace GameWIP::Desktop::Detail::Platform
                    static_cast<int>(outerHeight),
                    SWP_NOZORDER | SWP_NOACTIVATE) == FALSE)
             {
-                return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "SetWindowPos client rectangle");
+                return statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, GetLastError(), "SetWindowPos client rectangle");
             }
             return refreshCachedGeometry(state);
         }
@@ -119,96 +130,27 @@ namespace GameWIP::Desktop::Detail::Platform
                     return distance(left) < distance(right);
                 });
         }
-
-        /// @brief Creates a 32-bit BGRA HICON from a portable RGBA image.
-        [[nodiscard]] HICON createIcon(const Types::IconImageView &image) noexcept
-        {
-            BITMAPV5HEADER header{};
-            header.bV5Size = sizeof(header);
-            header.bV5Width = static_cast<LONG>(image.size.width);
-            header.bV5Height = -static_cast<LONG>(image.size.height);
-            header.bV5Planes = 1;
-            header.bV5BitCount = 32;
-            header.bV5Compression = BI_BITFIELDS;
-            header.bV5RedMask = 0x00FF0000;
-            header.bV5GreenMask = 0x0000FF00;
-            header.bV5BlueMask = 0x000000FF;
-            header.bV5AlphaMask = 0xFF000000;
-
-            void *pixels = nullptr;
-            HDC screen = GetDC(nullptr);
-
-            if(screen == nullptr)
-            {
-                return nullptr;
-            }
-            HBITMAP color = CreateDIBSection(screen, reinterpret_cast<const BITMAPINFO *>(&header), DIB_RGB_COLORS, &pixels, nullptr, 0);
-            ReleaseDC(nullptr, screen);
-
-            if(color == nullptr || pixels == nullptr)
-            {
-                if(color != nullptr)
-                {
-                    DeleteObject(color);
-                }
-
-                return nullptr;
-            }
-
-            // The returned bitmap owns pixel storage with image.rgba8.size() writable bytes for this 32-bit DIB.
-#if defined(__clang__)
-#pragma clang unsafe_buffer_usage begin
-#endif
-            std::span<std::byte> destination(static_cast<std::byte *>(pixels), image.rgba8.size());
-#if defined(__clang__)
-#pragma clang unsafe_buffer_usage end
-#endif
-            for(std::size_t offset = 0; offset < image.rgba8.size(); offset += 4)
-            {
-                const std::uint8_t red = std::to_integer<std::uint8_t>(image.rgba8[offset]);
-                const std::uint8_t green = std::to_integer<std::uint8_t>(image.rgba8[offset + 1]);
-                const std::uint8_t blue = std::to_integer<std::uint8_t>(image.rgba8[offset + 2]);
-                const std::uint8_t alpha = std::to_integer<std::uint8_t>(image.rgba8[offset + 3]);
-                destination[offset] = static_cast<std::byte>(blue);
-                destination[offset + 1] = static_cast<std::byte>(green);
-                destination[offset + 2] = static_cast<std::byte>(red);
-                destination[offset + 3] = static_cast<std::byte>(alpha);
-            }
-
-            HBITMAP mask = CreateBitmap(static_cast<int>(image.size.width), static_cast<int>(image.size.height), 1, 1, nullptr);
-
-            if(mask == nullptr)
-            {
-                DeleteObject(color);
-                return nullptr;
-            }
-            ICONINFO info{TRUE, 0, 0, mask, color};
-            HICON icon = CreateIconIndirect(&info);
-            DeleteObject(mask);
-            DeleteObject(color);
-            return icon;
-        }
     } // namespace
 
-    // ------------------------------------------------------------
-    // Ownership and content
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Ownership and content
+    /// ------------------------------------------------------------
 
-    IO::Types::Status setOwner(WindowState &state, Types::WindowId owner) noexcept
+    GameWIP::Status::Types::Status setOwner(WindowState &state, Types::WindowId owner) noexcept
     {
         WindowState *ownerState = owner.isValid() ? resolveWindowId(owner) : nullptr;
 
         if(owner.isValid() &&
            (ownerState == nullptr || !ownerState->platform || ownerState->platform->ownerThreadId != state.platform->ownerThreadId))
         {
-            return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::InvalidArgument);
         }
 
         for(WindowState *ancestor = ownerState; ancestor != nullptr && ancestor->owner.isValid();)
         {
             if(ancestor->owner == state.id)
             {
-                return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
+                return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::InvalidArgument);
             }
             ancestor = resolveWindowId(ancestor->owner);
         }
@@ -216,7 +158,8 @@ namespace GameWIP::Desktop::Detail::Platform
         const Types::WindowId previous = state.owner;
         WindowState *previousOwnerState = previous.isValid() ? resolveWindowId(previous) : nullptr;
         HWND previousOwnerHandle = previousOwnerState != nullptr && previousOwnerState->platform ? previousOwnerState->platform->handle : nullptr;
-        IO::Types::Status status = setNativeParent(state.platform->handle, ownerState != nullptr ? ownerState->platform->handle : nullptr);
+        GameWIP::Status::Types::Status status =
+            setNativeParent(state.platform->handle, ownerState != nullptr ? ownerState->platform->handle : nullptr);
 
         if(!status.ok())
         {
@@ -229,8 +172,8 @@ namespace GameWIP::Desktop::Detail::Platform
         if(!status.ok())
         {
             state.owner = previous;
-            IO::Types::Status parentRollback = setNativeParent(state.platform->handle, previousOwnerHandle);
-            IO::Types::Status styleRollback = applyStyle(state);
+            GameWIP::Status::Types::Status parentRollback = setNativeParent(state.platform->handle, previousOwnerHandle);
+            GameWIP::Status::Types::Status styleRollback = applyStyle(state);
 
             if(!parentRollback.ok())
             {
@@ -248,48 +191,51 @@ namespace GameWIP::Desktop::Detail::Platform
                     state.owner.isValid() ? std::optional<Types::WindowId>{state.owner} : std::nullopt});
         }
 
-        return IO::successStatus();
+        return GameWIP::Status::Types::Status{};
     }
 
-    IO::Types::Status setTitle(WindowState &state, std::string_view utf8Title) noexcept
+    GameWIP::Status::Types::Status setTitle(WindowState &state, std::string_view utf8Title) noexcept
     {
         try
         {
-            if(Detail::consumeFailure(TestHooks::FailurePoint::TitleConversion))
+            if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::TitleConversion))
             {
-                return IO::makeStatus(IO::Types::ErrorCode::EncodingFailed);
+                return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::EncodingFailed);
             }
             std::wstring title;
             DWORD nativeCode = ERROR_SUCCESS;
 
             if(!utf8ToUtf16(utf8Title, title, nativeCode))
             {
-                return statusFromWin32(unicodeConversionError(nativeCode, IO::Types::ErrorCode::InvalidArgument), nativeCode, "convert window title");
+                return statusFromWin32(
+                    unicodeConversionError(nativeCode, GameWIP::Status::Types::Code::InvalidArgument),
+                    nativeCode,
+                    "convert window title");
             }
             std::string cachedTitle(utf8Title);
 
             if(SetWindowTextW(state.platform->handle, title.c_str()) == FALSE)
             {
-                return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "SetWindowTextW");
+                return statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, GetLastError(), "SetWindowTextW");
             }
             state.title.swap(cachedTitle);
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::OutOfMemory);
         }
         catch(...)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::Unknown);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::Unknown);
         }
     }
 
-    IO::Types::Status setIcon(WindowState &state, std::span<const Types::IconImageView> images) noexcept
+    GameWIP::Status::Types::Status setIcon(WindowState &state, std::span<const Types::IconImageView> images) noexcept
     {
-        if(Detail::consumeFailure(TestHooks::FailurePoint::IconConversion))
+        if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::IconConversion))
         {
-            return IO::makeStatus(IO::Types::ErrorCode::NativeFailure);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::NativeFailure);
         }
 
         const UINT dpi = dpiForWindow(state.platform->handle);
@@ -297,19 +243,21 @@ namespace GameWIP::Desktop::Detail::Platform
         const int largeHeight = GetSystemMetricsForDpi(SM_CYICON, dpi);
         const int smallWidth = GetSystemMetricsForDpi(SM_CXSMICON, dpi);
         const int smallHeight = GetSystemMetricsForDpi(SM_CYSMICON, dpi);
-        HICON large = createIcon(closestIcon(images, largeWidth, largeHeight));
+        const Types::IconImageView &largeImage = closestIcon(images, largeWidth, largeHeight);
+        HICON large = Win32::createIcon(largeImage.size, largeImage.rgba8);
 
         if(large == nullptr)
         {
-            return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "CreateIconIndirect large");
+            return statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, GetLastError(), "CreateIconIndirect large");
         }
 
-        HICON small = createIcon(closestIcon(images, smallWidth, smallHeight));
+        const Types::IconImageView &smallImage = closestIcon(images, smallWidth, smallHeight);
+        HICON small = Win32::createIcon(smallImage.size, smallImage.rgba8);
 
         if(small == nullptr)
         {
             DestroyIcon(large);
-            return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "CreateIconIndirect small");
+            return statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, GetLastError(), "CreateIconIndirect small");
         }
 
         // The Window owns both handles after publication and releases them on replacement or close.
@@ -327,10 +275,10 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         state.platform->largeIcon = large;
         state.platform->smallIcon = small;
-        return IO::successStatus();
+        return GameWIP::Status::Types::Status{};
     }
 
-    IO::Types::Status clearIcon(WindowState &state) noexcept
+    GameWIP::Status::Types::Status clearIcon(WindowState &state) noexcept
     {
         SendMessageW(state.platform->handle, WM_SETICON, ICON_BIG, 0);
         SendMessageW(state.platform->handle, WM_SETICON, ICON_SMALL, 0);
@@ -346,35 +294,35 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         state.platform->largeIcon = nullptr;
         state.platform->smallIcon = nullptr;
-        return IO::successStatus();
+        return GameWIP::Status::Types::Status{};
     }
 
-    // ------------------------------------------------------------
-    // Geometry and coordinate conversion
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Geometry and coordinate conversion
+    /// ------------------------------------------------------------
 
-    IO::Types::Status setClientSize(WindowState &state, Types::LogicalSize size) noexcept
+    GameWIP::Status::Types::Status setClientSize(WindowState &state, Types::LogicalSize size) noexcept
     {
         return setOuterRect(state, state.clientPosition, size);
     }
 
-    IO::Types::Status setClientPosition(WindowState &state, Types::ScreenPosition position) noexcept
+    GameWIP::Status::Types::Status setClientPosition(WindowState &state, Types::ScreenPosition position) noexcept
     {
         return setOuterRect(state, position, state.clientSize);
     }
 
-    IO::Types::Status setClientRect(WindowState &state, Types::ScreenPosition position, Types::LogicalSize size) noexcept
+    GameWIP::Status::Types::Status setClientRect(WindowState &state, Types::ScreenPosition position, Types::LogicalSize size) noexcept
     {
         return setOuterRect(state, position, size);
     }
 
-    IO::Types::Status centerOn(WindowState &state, Types::Display::MonitorId monitor) noexcept
+    GameWIP::Status::Types::Status centerOn(WindowState &state, Types::Display::MonitorId monitor) noexcept
     {
         HMONITOR native = monitor.isValid() ? nativeMonitor(monitor) : MonitorFromWindow(state.platform->handle, MONITOR_DEFAULTTONEAREST);
 
         if(native == nullptr)
         {
-            return statusFromWin32(IO::Types::ErrorCode::NotFound, ERROR_NOT_FOUND, "resolve center monitor");
+            return statusFromWin32(GameWIP::Status::Types::Code::NotFound, ERROR_NOT_FOUND, "resolve center monitor");
         }
 
         MONITORINFO info{};
@@ -382,14 +330,14 @@ namespace GameWIP::Desktop::Detail::Platform
 
         if(GetMonitorInfoW(native, &info) == FALSE)
         {
-            return statusFromWin32(IO::Types::ErrorCode::NotFound, GetLastError(), "resolve center monitor");
+            return statusFromWin32(GameWIP::Status::Types::Code::NotFound, GetLastError(), "resolve center monitor");
         }
 
         RECT frame{};
 
         if(GetWindowRect(state.platform->handle, &frame) == FALSE)
         {
-            return statusFromWin32(IO::Types::ErrorCode::StatFailed, GetLastError(), "GetWindowRect center");
+            return statusFromWin32(GameWIP::Status::Types::Code::StatFailed, GetLastError(), "GetWindowRect center");
         }
         const int width = frame.right - frame.left;
         const int height = frame.bottom - frame.top;
@@ -403,12 +351,12 @@ namespace GameWIP::Desktop::Detail::Platform
                0,
                SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE) == FALSE)
         {
-            return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "SetWindowPos center");
+            return statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, GetLastError(), "SetWindowPos center");
         }
         return refreshCachedGeometry(state);
     }
 
-    IO::Types::Status setSizeLimits(WindowState &state, const Types::SizeLimits &limits) noexcept
+    GameWIP::Status::Types::Status setSizeLimits(WindowState &state, const Types::SizeLimits &limits) noexcept
     {
         const Types::SizeLimits previous = state.sizeLimits;
         state.sizeLimits = limits;
@@ -428,7 +376,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
         if(clamped != state.clientSize)
         {
-            IO::Types::Status status = setClientSize(state, clamped);
+            GameWIP::Status::Types::Status status = setClientSize(state, clamped);
 
             if(!status.ok())
             {
@@ -437,47 +385,50 @@ namespace GameWIP::Desktop::Detail::Platform
             }
         }
 
-        return IO::successStatus();
+        return GameWIP::Status::Types::Status{};
     }
 
-    IO::Types::Status setAspectRatio(WindowState &state, std::optional<Types::AspectRatio> ratio) noexcept
+    GameWIP::Status::Types::Status setAspectRatio(WindowState &state, std::optional<Types::AspectRatio> ratio) noexcept
     {
         state.aspectRatio = ratio;
-        return IO::successStatus();
+        return GameWIP::Status::Types::Status{};
     }
 
-    Types::Result<Types::ScreenPosition> clientToScreen(const WindowState &state, Types::LogicalPosition position) noexcept
+    GameWIP::Status::Types::Result<Types::ScreenPosition> clientToScreen(const WindowState &state, Types::LogicalPosition position) noexcept
     {
         const UINT dpi = dpiForWindow(state.platform->handle);
         POINT point{};
 
         if(!logicalToPhysicalChecked(position.x, dpi, point.x) || !logicalToPhysicalChecked(position.y, dpi, point.y))
         {
-            return {
-                .status = IO::makeStatus(
-                    IO::Types::ErrorCode::InvalidArgument,
+            return GameWIP::Status::Types::Result<Types::ScreenPosition>::failure(
+                GameWIP::Desktop::Internal::statusFor(
+                    GameWIP::Status::Types::Code::InvalidArgument,
                     ERROR_ARITHMETIC_OVERFLOW,
-                    "logical client position exceeds Win32 range at the effective DPI")};
+                    "logical client position exceeds Win32 range at the effective DPI"));
         }
 
         if(ClientToScreen(state.platform->handle, &point) == FALSE)
         {
-            return {.status = statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "ClientToScreen")};
+            return GameWIP::Status::Types::Result<Types::ScreenPosition>::failure(
+                statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, GetLastError(), "ClientToScreen"));
         }
 
-        return {.status = IO::successStatus(), .value = Types::ScreenPosition{point.x, point.y}};
+        return GameWIP::Status::Types::Result<Types::ScreenPosition>::success(Types::ScreenPosition{point.x, point.y});
     }
 
-    Types::Result<Types::LogicalPosition> screenToClient(const WindowState &state, Types::ScreenPosition position) noexcept
+    GameWIP::Status::Types::Result<Types::LogicalPosition> screenToClient(const WindowState &state, Types::ScreenPosition position) noexcept
     {
         const UINT dpi = dpiForWindow(state.platform->handle);
         POINT point{position.x, position.y};
 
         if(ScreenToClient(state.platform->handle, &point) == FALSE)
         {
-            return {.status = statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "ScreenToClient")};
+            return GameWIP::Status::Types::Result<Types::LogicalPosition>::failure(
+                statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, GetLastError(), "ScreenToClient"));
         }
 
-        return {.status = IO::successStatus(), .value = Types::LogicalPosition{physicalToLogical(point.x, dpi), physicalToLogical(point.y, dpi)}};
+        return GameWIP::Status::Types::Result<Types::LogicalPosition>::success(
+            Types::LogicalPosition{physicalToLogical(point.x, dpi), physicalToLogical(point.y, dpi)});
     }
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Platform

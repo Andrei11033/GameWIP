@@ -3,8 +3,7 @@
 
 #pragma once
 
-#include "io/status.h"
-#include "desktop/result.h"
+#include "status/result.h"
 #include "desktop/desktop_export.h"
 
 #include <windows.h>
@@ -20,8 +19,9 @@ namespace GameWIP::Desktop::Native::Win32
 {
     /// @brief Receives one owner-thread Win32 message before Desktop routing.
     /// @details The sink observes the message; it does not replace Desktop's
-    /// window procedure or choose the returned native result.
-    using MessageSink = IO::Types::Status (*)(void *context, HWND window, UINT message, WPARAM wParam, LPARAM lParam) noexcept;
+    /// window procedure or choose the returned native result. A failed result
+    /// is reported by the active or next message pump.
+    using MessageSink = GameWIP::Status::Types::Result<void> (*)(void *context, HWND window, UINT message, WPARAM wParam, LPARAM lParam) noexcept;
 
     /// @brief Non-owning native handle pair.
     /// @warning Valid only until the Window closes or reopens. Consumers must not destroy either
@@ -36,24 +36,27 @@ namespace GameWIP::Desktop::Native::Win32
     /// @param window Window whose native handles are requested.
     /// @return Query status and non-owning handles on success.
     /// @warning Native use must not race Window close.
-    [[nodiscard]] DESKTOP_EXPORT Types::Result<HandleView> getHandle(const GameWIP::Desktop::Window &window) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT GameWIP::Status::Types::Result<HandleView> getHandle(const GameWIP::Desktop::Window &window) noexcept;
 
     /// @brief Returns the borrowed Win32 host handle for an open ChildSurface on its owner thread.
     /// @param surface ChildSurface whose native host handle is requested.
     /// @return Query status and non-owning handles on success.
     /// @warning Native use must not race ChildSurface close. Consumers must not destroy, reparent,
     /// subclass, or overwrite GameWIP-owned state on the returned host HWND.
-    [[nodiscard]] DESKTOP_EXPORT Types::Result<HandleView> getHandle(const GameWIP::Desktop::ChildSurface &surface) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT GameWIP::Status::Types::Result<HandleView> getHandle(const GameWIP::Desktop::ChildSurface &surface) noexcept;
 
     /// @brief Attaches one native message sink to an open Window.
     /// @param window Open Window owned by the calling thread.
     /// @param sink Message sink to invoke before Desktop routing.
     /// @param context Opaque sink context.
     /// @return Success, InvalidArgument, NotOpen, ResourceBusy, or AlreadyOpen.
-    [[nodiscard]] DESKTOP_EXPORT IO::Types::Status attachMessageSink(GameWIP::Desktop::Window &window, MessageSink sink, void *context) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT GameWIP::Status::Types::Result<void> attachMessageSink(
+        GameWIP::Desktop::Window &window,
+        MessageSink sink,
+        void *context) noexcept;
 
     /// @brief Detaches the native message sink from a Window.
     /// @param window Open Window owned by the calling thread.
     /// @return Success, NotOpen, or ResourceBusy.
-    [[nodiscard]] DESKTOP_EXPORT IO::Types::Status detachMessageSink(GameWIP::Desktop::Window &window) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT GameWIP::Status::Types::Result<void> detachMessageSink(GameWIP::Desktop::Window &window) noexcept;
 } // namespace GameWIP::Desktop::Native::Win32

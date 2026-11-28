@@ -6,13 +6,14 @@ Use this map to find the declaration that owns an operation.
 ## Header ownership
 
 - `desktop/types.h` contains shared primitive/value vocabulary such as `WindowId`, geometry, DPI, limits, and `PresentationState`.
+- `desktop/icon_types.h` contains the borrowed RGBA8 icon image shared by Window, Taskbar, and Tray APIs.
 - `desktop/description.h` contains creation/configuration policy and `Types::Description`.
 - `desktop/events.h` contains `Types::Events`, queued `Types::Event`, and calling-thread `Desktop::Events` pump operations.
 - `desktop/display.h` contains fundamental `Types::Display::MonitorId`, display `Mode`, and mode queries.
 - `desktop/display_info.h` is the opt-in rich monitor/color inspection surface.
 - `desktop/cursor.h` is the opt-in custom native cursor resource and selection surface.
 - `desktop/child_surface.h` is the opt-in managed native child-host resource, passive description, and typed event surface.
-- `desktop/accessibility.h` is the opt-in immutable semantic snapshot, authoring/inspection, native provider, and bounded action bridge.
+- `desktop/accessibility.h` is the umbrella for the opt-in accessibility bridge; focused type, snapshot, and façade headers are under `desktop/accessibility/`.
 - `desktop/data_transfer.h` is the opt-in shared non-owning/owning transfer vocabulary for Clipboard and drag and drop.
 - `desktop/drag_drop.h` is the opt-in native data target/source API, declarative regions, effects, and typed target events.
 - `desktop/clipboard.h` is the opt-in stateless synchronous Clipboard service and its operation results.
@@ -78,7 +79,7 @@ whether a custom cursor is selected or a renderer provider is attached. Custom c
 `WindowId::isValid()` only reports a nonzero ID, not native liveness; `id()` retains the ended
 identity during `NativeDestroyedPendingFinalize`. Thread and concurrent-read contracts: @ref desktop_lifecycle_events, @ref desktop_renderer_integration.
 
-Cached getters issue no native queries. Expected failures are returned as `IO::Types::Status` or typed result structs; `close()` is
+Cached getters issue no native queries. Fallible operations return shared status results or operation-specific result structures; `close()` is
 synchronous and reports through its status.
 
 Plain cached properties use direct names (`visible()`, `focused()`,
@@ -134,8 +135,8 @@ opt-in resource surface. See @ref desktop_custom_cursors for image validation, D
 ## Clipboard and data transfer
 
 `desktop/data_transfer.h` owns `Types::DataTransfer` views and owning values for UTF-8 text, ordered paths, sRGB straight-alpha RGBA8 images, and
-arbitrary named opaque bytes. `desktop/clipboard.h` owns the stateless `Desktop::Clipboard` operations: query/read calls return `Types::Result<T>`
-with an optional value, while writes and clear use progress-specific result types. Clipboard adds no `Window` capability because operations require no
+arbitrary named opaque bytes. `desktop/clipboard.h` owns the stateless `Desktop::Clipboard` operations: query/read calls return shared `Result<T>`
+values, while writes and clear retain their progress in the result value. Clipboard adds no `Window` capability because operations require no
 Window object or event pump. See @ref desktop_clipboard for timeout, transaction, native ownership, and custom-format semantics.
 
 `desktop/drag_drop.h` owns the non-movable `DragDropTarget`, passive `Types::DragDrop` contract, and synchronous `DragDrop::beginDrag()`. See
@@ -167,8 +168,8 @@ Fundamental display mode operations are under `Desktop::Display`:
 - `getCurrentMode()`
 - `getPreferredMode()`
 
-All display and rich monitor/color queries return `Types::Result<T>`; test
-`ok()` before dereferencing, as failed queries expose no default-looking payload.
+All display and rich monitor/color queries return `GameWIP::Status::Types::Result<T>`; check `ok()` before treating a value as complete.
+Monitor and mode enumeration may retain a partial list when a later native query fails.
 
 Rich inspection from `desktop/display_info.h` adds:
 

@@ -143,8 +143,12 @@ namespace GameWIP::Debug::Assert
     /// @}
 } // namespace GameWIP::Debug::Assert
 
-/// @cond ASSERT_INTERNAL_DETAIL
-namespace GameWIP::Debug::Assert::Detail
+/// @cond ASSERT_INTERNAL_RUNTIME
+/// ------------------------------------------------------------
+/// Internal ABI bridges and trap helpers
+/// ------------------------------------------------------------
+
+namespace GameWIP::Debug::Assert::Internal
 {
 #if ASSERT_INTERNAL_RUNTIME
     /// @brief Exported ABI bridge used by fatal public macros; not public consumer API.
@@ -236,7 +240,7 @@ namespace GameWIP::Debug::Assert::Detail
         trapNoReturn();
 #endif
     }
-} // namespace GameWIP::Debug::Assert::Detail
+} // namespace GameWIP::Debug::Assert::Internal
 
 // ------------------------------------------------------------
 // Diagnostic text helpers
@@ -268,7 +272,7 @@ namespace GameWIP::Debug::Assert::Detail
 // The _AT bridges accept function text captured by the caller. ENSURE passes it from outside
 // its lambda so diagnostics name the enclosing function rather than the lambda call operator.
 #define ASSERT_INTERNAL_ASSERT_FAILURE_AT(condition, message, functionText) \
-    ::GameWIP::Debug::Assert::Detail::handleAssertFailure( \
+    ::GameWIP::Debug::Assert::Internal::handleAssertFailure( \
         ASSERT_INTERNAL_CONDITION_TEXT(condition), \
         ASSERT_INTERNAL_MESSAGE_TEXT(message), \
         ASSERT_INTERNAL_FILE_TEXT, \
@@ -276,7 +280,7 @@ namespace GameWIP::Debug::Assert::Detail
         functionText)
 
 #define ASSERT_INTERNAL_CHECK_FAILURE_AT(condition, message, functionText) \
-    ::GameWIP::Debug::Assert::Detail::handleCheckFailure( \
+    ::GameWIP::Debug::Assert::Internal::handleCheckFailure( \
         ASSERT_INTERNAL_CONDITION_TEXT(condition), \
         ASSERT_INTERNAL_MESSAGE_TEXT(message), \
         ASSERT_INTERNAL_FILE_TEXT, \
@@ -284,7 +288,7 @@ namespace GameWIP::Debug::Assert::Detail
         functionText)
 
 #define ASSERT_INTERNAL_INTERACTIVE_ASSERT_FAILURE_AT(condition, message, functionText, alwaysIgnoreFlag) \
-    ::GameWIP::Debug::Assert::Detail::handleInteractiveAssertFailure( \
+    ::GameWIP::Debug::Assert::Internal::handleInteractiveAssertFailure( \
         ASSERT_INTERNAL_CONDITION_TEXT(condition), \
         ASSERT_INTERNAL_MESSAGE_TEXT(message), \
         ASSERT_INTERNAL_FILE_TEXT, \
@@ -303,6 +307,7 @@ namespace GameWIP::Debug::Assert::Detail
 // ------------------------------------------------------------
 // Assertion macros
 // ------------------------------------------------------------
+
 /// @name Fatal assertion macros
 /// @{
 
@@ -337,7 +342,7 @@ namespace GameWIP::Debug::Assert::Detail
     { \
         if(!(condition)) [[unlikely]] \
         { \
-            ASSERT_INTERNAL_ASSERT_FAILURE(condition, ASSERT_INTERNAL_MESSAGE_TEXT(message)); \
+            ASSERT_INTERNAL_ASSERT_FAILURE(condition, message); \
         } \
     } while(false)
 
@@ -440,7 +445,7 @@ namespace GameWIP::Debug::Assert::Detail
 #define UNREACHABLE() \
     do \
     { \
-        ::GameWIP::Debug::Assert::Detail::handleAssertFailure( \
+        ::GameWIP::Debug::Assert::Internal::handleAssertFailure( \
             ASSERT_INTERNAL_UNREACHABLE_TEXT, \
             "", \
             ASSERT_INTERNAL_FILE_TEXT, \
@@ -494,13 +499,14 @@ namespace GameWIP::Debug::Assert::Detail
 
 /// @def UNREACHABLE()
 /// @brief Marks a code path that should never execute.
-#define UNREACHABLE() ::GameWIP::Debug::Assert::Detail::unreachableHint()
+#define UNREACHABLE() ::GameWIP::Debug::Assert::Internal::unreachableHint()
 #endif
 /// @}
 
 // ------------------------------------------------------------
 // Check macros
 // ------------------------------------------------------------
+
 /// @name Recoverable check macros
 /// @{
 
@@ -528,7 +534,7 @@ namespace GameWIP::Debug::Assert::Detail
     { \
         if(!(condition)) [[unlikely]] \
         { \
-            ASSERT_INTERNAL_CHECK_FAILURE(condition, ASSERT_INTERNAL_MESSAGE_TEXT(message)); \
+            ASSERT_INTERNAL_CHECK_FAILURE(condition, message); \
         } \
     } while(false)
 
@@ -565,7 +571,7 @@ namespace GameWIP::Debug::Assert::Detail
             static std::atomic_bool assertCheckReported_{false}; \
             if(!assertCheckReported_.load(std::memory_order_relaxed) && !assertCheckReported_.exchange(true, std::memory_order_relaxed)) \
             { \
-                ASSERT_INTERNAL_CHECK_FAILURE(condition, ASSERT_INTERNAL_MESSAGE_TEXT(message)); \
+                ASSERT_INTERNAL_CHECK_FAILURE(condition, message); \
             } \
         } \
     } while(false)
@@ -645,6 +651,7 @@ namespace GameWIP::Debug::Assert::Detail
 // ------------------------------------------------------------
 // Debug break macro
 // ------------------------------------------------------------
+
 /// @name Debug break macro
 /// @{
 
@@ -657,6 +664,6 @@ namespace GameWIP::Debug::Assert::Detail
 #define DEBUG_BREAK() \
     do \
     { \
-        ::GameWIP::Debug::Assert::Detail::debugBreakInline(); \
+        ::GameWIP::Debug::Assert::Internal::debugBreakInline(); \
     } while(false)
 /// @}

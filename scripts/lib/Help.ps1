@@ -41,7 +41,11 @@ function Show-GameWipProjectCatalog
     foreach ($moduleName in @(Get-GameWipValidationModuleName))
     {
         $module = Get-GameWipValidationModule -Name $moduleName
-        $options = @(Get-GameWipValidationBuilderOptions -ModuleName $moduleName -CommonCapabilities @('manual-tests', 'verbose-tests', 'test-support-child-process', 'report'))
+        $options = @(
+            Get-GameWipValidationBuilderOptions `
+                -ModuleName $moduleName `
+                -CommonCapabilities @('manual-tests', 'verbose-tests', 'test-support-child-process', 'report')
+        )
 
         if ($options.Count -gt 0)
         {
@@ -62,6 +66,13 @@ function Show-GameWipProjectCatalog
                 Write-Host ('    {0,-16} [{1}] {2}' -f $option.Id, $option.Kind, $option.Title)
             }
         }
+    }
+
+    Write-GameWipSection 'Runtime builder options'
+
+    foreach ($option in $CommandConfig.RuntimeBuilderOptions)
+    {
+        Write-Host ('  {0,-18} [{1}] {2}' -f $option.Id, $option.Kind, $option.Title)
     }
 
     Write-GameWipSection 'Project commands'
@@ -154,6 +165,7 @@ function Show-GameWipActionFailure
     {
         $suggestions = @('Inspect the retained run/step log.', 'Rerun the smallest focused GameWIP command that reproduces the failure.')
     }
+
     Write-GameWipHost 'What to do next:' -ForegroundColor Cyan
 
     foreach ($suggestion in $suggestions)
@@ -217,9 +229,10 @@ function Show-GameWipCommonControlHelp
 
 function Show-GameWipHelp
 {
+    $helperCommand = Get-GameWipProjectHelperCommand
     Write-Host 'Usage:'
-    Write-Host '  .\gamewip.bat <action> [command] [target] [options]'
-    Write-Host '  .\gamewip.bat                         Open the interactive UI.'
+    Write-Host "  $helperCommand <action> [command] [target] [options]"
+    Write-Host "  $helperCommand                         Open the interactive UI."
     Write-Host ''
     Write-Host 'Available commands:'
     Write-Host '  ready'
@@ -227,19 +240,23 @@ function Show-GameWipHelp
     Write-Host '  workflow <list|status|run> [workflow-id]'
     Write-Host '  unicode <status|verify|regenerate>'
     Write-Host '  format <check|apply>'
-    Write-Host '  quality <check|fix|status> [-ChangedOnly] [-FailFast]'
+    Write-Host '  quality <check|fix|status> [-ChangedOnly | -ChangedFilesPath <path>] [-FailFast]'
     Write-Host '  quality hygiene [standard|deep|check-id|list|status] [-FailOnFindings]'
     Write-Host '  tool <list|status|check-updates|ensure|update> [tool-id|category|all]'
     Write-Host '  deps <check|prepare>'
+    Write-Host '  target [-TargetPlatform windows|linux -TargetArchitecture amd64|arm64]'
     Write-Host '  config [preset] [-CleanBuild] [-Offline]'
     Write-Host '  build [preset] [-CleanBuild] [-Offline]'
     Write-Host '  test [preset] [-SkipBuild] [-CleanBuild]'
     Write-Host '  module [name] [-SkipBuild] [-PassThroughArgs <arguments>]'
     Write-Host '  wizard [-SkipBuild]'
     Write-Host '  stress [name] [-RunCount N] [-WorkerCount N] [-FailFast] [-SkipBuild]'
-    Write-Host '  run [project-command] [-SkipBuild] [-PassThroughArgs <arguments>]'
+    Write-Host '  run [project-command] [-BuildBeforeRun] [-SkipBuild] [-PassThroughArgs <arguments>]'
+    Write-Host '      [-LogLevel <level>] [-InputDebug] [-InputDevices] [-WindowEvents]'
+    Write-Host '      [-InputBackends <list>]'
+    Write-Host '  runtime [-SkipBuild]'
     Write-Host '  bundle [id] [-SkipBuild] [-CleanBuild]'
-    Write-Host '  doc | analyze | cov | asan | ubsan | links'
+    Write-Host '  doc [-CleanBuild] | analyze [-CleanBuild] | cov | asan | ubsan | links'
     Write-Host '  bench <run|dry-run|list|compare> [options]'
     Write-Host '  history list [all] | history show [latest|run-name] | history clean [run-name|all]'
     Write-Host '  list | help'
@@ -247,10 +264,18 @@ function Show-GameWipHelp
     Show-GameWipCommonControlHelp -OptionDefinitions $CommandConfig.Options
     Write-Host ''
     Write-Host 'Action-specific options:'
+    $globalOptionIds = @(
+        $CommandConfig.Options |
+            Where-Object { $_.ContainsKey('Global') -and [bool]$_.Global } |
+            ForEach-Object { [string]$_.Id }
+    )
 
     foreach ($action in @($CommandConfig.Actions | Where-Object { $CommandConfig.ActionOptions.ContainsKey([string]$_.Id) }))
     {
-        $specific = @($CommandConfig.ActionOptions[[string]$action.Id] | Where-Object { @($CommandConfig.Options | Where-Object Id -eq $_ | Where-Object { $_.ContainsKey('Global') -and [bool]$_.Global }).Count -eq 0 })
+        $specific = @(
+            $CommandConfig.ActionOptions[[string]$action.Id] |
+                Where-Object { $_ -notin $globalOptionIds }
+        )
 
         if ($specific.Count -eq 0)
         {
@@ -262,5 +287,5 @@ function Show-GameWipHelp
     }
 
     Write-Host ''
-    Write-Host 'Use .\gamewip.bat list to discover valid IDs.'
+    Write-Host "Use '$helperCommand list' to discover valid IDs."
 }

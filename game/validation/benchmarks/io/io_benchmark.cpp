@@ -32,14 +32,15 @@ namespace
 
             while(totalRead < payload.size())
             {
-                IO::Types::ReadResult result = reader.read(std::span<std::byte>{scratch});
+                const auto result = reader.read(std::span<std::byte>{scratch});
 
-                if(!result.status.ok() || result.bytesRead == 0)
+                if(!result.ok() || result.value().bytesRead == 0)
                 {
                     state.SkipWithError("MemoryReader benchmark read failed.");
                     return;
                 }
-                totalRead += result.bytesRead;
+
+                totalRead += result.value().bytesRead;
             }
             benchmark::DoNotOptimize(scratch.data());
         }
@@ -64,13 +65,14 @@ namespace
         {
             static_cast<void>(iteration);
             writer.clear();
-            IO::Types::WriteResult result = writer.write(payload);
+            const auto result = writer.write(payload);
 
-            if(!result.status.ok() || result.bytesWritten != payload.size())
+            if(!result.ok() || result.value().bytesWritten != payload.size())
             {
                 state.SkipWithError("MemoryWriter benchmark write failed.");
                 return;
             }
+
             benchmark::DoNotOptimize(writer.bytes().data());
         }
 
@@ -87,14 +89,15 @@ namespace
         {
             static_cast<void>(iteration);
             IO::MemoryReader reader(payload);
-            IO::Types::ReadAllBytesResult result = IO::readAllBytes(reader, payloadSize);
+            const auto result = IO::readAllBytes(reader, payloadSize);
 
-            if(!result.status.ok() || result.bytes.size() != payload.size())
+            if(!result.ok() || result.value().size() != payload.size())
             {
                 state.SkipWithError("IO known-size read-all benchmark failed.");
                 return;
             }
-            benchmark::DoNotOptimize(result.bytes.data());
+
+            benchmark::DoNotOptimize(result.value().data());
         }
 
         state.SetBytesProcessed(state.iterations() * static_cast<std::int64_t>(payloadSize));

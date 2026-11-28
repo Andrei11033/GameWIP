@@ -14,6 +14,8 @@ the selected failure action. Build options decide whether fatal assertions,
 recoverable checks, diagnostics, and interactive handling exist in a given
 configuration; those choices are exported to consumers through the CMake target.
 
+The shared runtime currently has a Win32 backend. Interface-only disabled builds do not require one.
+
 ## Consumer manual
 
 - @subpage assert_quick_start - Include, link, choose a macro family, and

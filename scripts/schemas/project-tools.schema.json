@@ -93,6 +93,9 @@
           "$ref": "#/$defs/providerGitHubRelease"
         },
         {
+          "$ref": "#/$defs/providerArchive"
+        },
+        {
           "$ref": "#/$defs/providerWinget"
         },
         {
@@ -155,11 +158,28 @@
           "type": "string",
           "minLength": 1
         },
+        "windowsMsys2": {
+          "$ref": "#/$defs/providerMsys2Package"
+        },
         "dependencies": {
           "type": "array",
           "items": {
             "$ref": "#/$defs/providerPackage"
           }
+        }
+      }
+    },
+    "providerMsys2Package": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["environment", "package"],
+      "properties": {
+        "environment": {
+          "enum": ["common", "ucrt64", "clang64"]
+        },
+        "package": {
+          "type": "string",
+          "minLength": 1
         }
       }
     },
@@ -193,9 +213,105 @@
           "type": "string",
           "minLength": 1
         },
-        "archiveName": {
+        "installMode": {
+          "enum": ["singleExecutable", "directoryArchive"]
+        },
+        "managedDirectory": {
           "type": "string",
           "minLength": 1
+        },
+        "binaryDirectory": {
+          "type": "string",
+          "minLength": 1
+        },
+        "cmakeToolchain": {
+          "type": "string",
+          "minLength": 1
+        },
+        "hostPlatform": {
+          "enum": ["windows", "linux"]
+        },
+        "validationFiles": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "assets": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "$ref": "#/$defs/asset"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "installMode": {
+                "const": "directoryArchive"
+              }
+            },
+            "required": ["installMode"]
+          },
+          "then": {
+            "required": ["managedDirectory", "binaryDirectory", "validationFiles"]
+          }
+        }
+      ]
+    },
+    "providerArchive": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "baseUrl", "installMode", "managedDirectory", "binaryDirectory", "compiler", "cmakeToolchain", "assets"],
+      "properties": {
+        "kind": {
+          "const": "archive"
+        },
+        "baseUrl": {
+          "type": "string",
+          "format": "uri"
+        },
+        "installMode": {
+          "const": "directoryArchive"
+        },
+        "managedDirectory": {
+          "type": "string",
+          "minLength": 1
+        },
+        "binaryDirectory": {
+          "type": "string",
+          "minLength": 1
+        },
+        "compiler": {
+          "type": "string",
+          "minLength": 1
+        },
+        "cmakeToolchain": {
+          "type": "string",
+          "minLength": 1
+        },
+        "latestIndex": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["url", "assetKeys"],
+          "properties": {
+            "url": {
+              "type": "string",
+              "format": "uri"
+            },
+            "assetKeys": {
+              "type": "object",
+              "minProperties": 1,
+              "additionalProperties": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
         },
         "assets": {
           "type": "object",
@@ -242,6 +358,41 @@
           "type": "string",
           "minLength": 1,
           "format": "uri"
+        },
+        "hostPlatform": {
+          "enum": ["windows", "linux"]
+        },
+        "managedPath": {
+          "type": "string",
+          "minLength": 1
+        },
+        "bootstrap": {
+          "enum": ["msys2BaseArchive"]
+        },
+        "latestQuery": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind"],
+          "properties": {
+            "kind": {
+              "const": "msys2PackageUpdates"
+            }
+          }
+        },
+        "latestVersion": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["url", "pattern"],
+          "properties": {
+            "url": {
+              "type": "string",
+              "format": "uri"
+            },
+            "pattern": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
         }
       }
     },
@@ -270,7 +421,7 @@
       "properties": {
         "archive": {
           "type": "string",
-          "minLength": 1
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]*$"
         },
         "sha256": {
           "type": "string",
@@ -278,6 +429,14 @@
         },
         "format": {
           "enum": ["archive", "executable"]
+        },
+        "validationFiles": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         }
       }
     },
@@ -307,9 +466,20 @@
           "type": "string",
           "minLength": 1
         },
-        "repositoryPath": {
-          "type": "string",
-          "minLength": 1
+        "repositoryPaths": {
+          "type": "object",
+          "properties": {
+            "windows": {
+              "type": "string",
+              "minLength": 1
+            },
+            "linux": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false,
+          "minProperties": 1
         },
         "commandConfigVersionPath": {
           "type": "string",
@@ -330,6 +500,14 @@
         },
         "update": {
           "type": "boolean"
+        },
+        "updatePin": {
+          "type": "boolean",
+          "description": "Advance the declared version when the update workflow resolves a newer release."
+        },
+        "reuseCompatibleExternal": {
+          "type": "boolean",
+          "description": "Reuse a compatible executable discovered outside the managed provider root."
         }
       }
     },
@@ -384,6 +562,36 @@
             },
             "kind": {
               "const": "cmakeMinimum"
+            },
+            "expectedCount": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "kind", "assetKey", "assetField", "pattern"],
+          "properties": {
+            "path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "kind": {
+              "const": "releaseAsset"
+            },
+            "assetKey": {
+              "type": "string",
+              "minLength": 1
+            },
+            "assetField": {
+              "enum": ["archive", "sha256"]
+            },
+            "pattern": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Literal asset template containing exactly one {value} token."
             },
             "expectedCount": {
               "type": "integer",

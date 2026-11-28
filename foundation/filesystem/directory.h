@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <vector>
 
 namespace GameWIP::FileSystem
@@ -16,10 +17,10 @@ namespace GameWIP::FileSystem
     /// @note Backend, container, address-space, and resource limits still apply.
     inline constexpr std::uint64_t kNoEntryLimit = std::numeric_limits<std::uint64_t>::max();
 
-    namespace Detail
+    namespace Internal
     {
         struct DirectoryCursorState;
-    } // namespace Detail
+    } // namespace Internal
 
     namespace Types
     {
@@ -29,8 +30,11 @@ namespace GameWIP::FileSystem
             /// @brief Options used by createDirectory() and createDirectories().
             struct CreateOptions
             {
+                // Existing path
                 /// @brief Treat an already-existing directory as success.
                 bool succeedIfAlreadyExists = true;
+
+                // Path resolution
                 /// @brief Symlink traversal policy used while resolving the path.
                 SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
             };
@@ -38,6 +42,7 @@ namespace GameWIP::FileSystem
             /// @brief Options used by listDirectory().
             struct ListOptions
             {
+                // Entry-kind filters
                 /// @brief Include regular files.
                 bool includeFiles = true;
                 /// @brief Include directories.
@@ -46,10 +51,14 @@ namespace GameWIP::FileSystem
                 bool includeSymlinks = true;
                 /// @brief Include existing entries without another portable kind.
                 bool includeOther = true;
+
+                // Visibility and metadata
                 /// @brief Include entries considered hidden by the backend.
                 bool includeHidden = true;
                 /// @brief Symlink policy used when obtaining child metadata.
                 SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
+
+                // Result limit
                 /// @brief Maximum number of accepted entries, or kNoEntryLimit for no caller limit.
                 /// @details Filtering is applied before counting. Exactly N accepted entries may be returned successfully;
                 /// an additional matching entry changes the result to SizeLimitExceeded while preserving those N entries.
@@ -67,56 +76,25 @@ namespace GameWIP::FileSystem
                 EntryInfo info{};
             };
 
-            /// @brief Result returned by listDirectory().
-            /// @details Owns all accepted entries. On SizeLimitExceeded the entries within the limit are preserved; see
-            /// ListOptions::maxEntries.
-            struct ListResult
-            {
-                /// @brief Operation status.
-                IO::Types::Status status;
-                /// @brief Direct children collected before completion or failure.
-                std::vector<Entry> entries;
-            };
-
-            /// @brief Result returned by one DirectoryCursor step.
-            /// @details Exhaustion is hasEntry=false with a successful status. The limit is probed one entry past N;
-            /// SizeLimitExceeded is sticky (see ListOptions::maxEntries). A failed result has no entry.
-            struct CursorNextResult
-            {
-                /// @brief Operation status.
-                IO::Types::Status status;
-                /// @brief Direct child returned when available.
-                Entry entry;
-                /// @brief Whether this step returned one accepted child.
-                bool hasEntry = false;
-            };
-        } // namespace Directory
-
-        namespace Directory
-        {
+            // Tree removal
             /// @brief Options used by removeDirectoryTree().
             struct RemoveTreeOptions
             {
+                // Missing target
                 /// @brief Treat a missing target as success.
                 bool succeedIfMissing = false;
+
+                // Initial path
                 /// @brief Symlink traversal policy used only for the initial path.
                 SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
+
+                // Work limit
                 /// @brief Maximum number of successfully removed entries, or kNoEntryLimit for no caller limit.
-                /// @details The root counts as one entry. An exact limit can complete successfully; an additional
-                /// entry returns SizeLimitExceeded after the accepted removals. A zero limit removes nothing.
+                /// @details A removable root counts as one entry; a drive or share root is left in place and is not counted.
+                /// An additional entry returns SizeLimitExceeded after accepted removals. A zero limit removes nothing.
                 std::uint64_t maxEntries = kNoEntryLimit;
             };
 
-            /// @brief Result returned by removeDirectoryTree().
-            /// @details Includes the root. Removal is incremental: SizeLimitExceeded preserves the count already removed
-            /// (see RemoveTreeOptions::maxEntries).
-            struct RemoveTreeResult
-            {
-                /// @brief Operation status.
-                IO::Types::Status status;
-                /// @brief Number of entries removed before completion or failure.
-                std::uint64_t removedEntries = 0;
-            };
         } // namespace Directory
     } // namespace Types
 
@@ -144,27 +122,26 @@ namespace GameWIP::FileSystem
         /// @param path Directory path to enumerate.
         /// @param options Filtering, symlink, hidden-entry, and entry-limit behavior.
         /// @return Success, AlreadyOpen, or a validation/open failure status.
-        [[nodiscard]] IO::Types::Status open(const Types::Path &path, const Types::Directory::ListOptions &options = {}) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> open(const Types::Path &path, const Types::Directory::ListOptions &options = {}) noexcept;
         /// @brief Reports whether this cursor owns an active backend enumeration.
         [[nodiscard]] bool isOpen() const noexcept;
         /// @brief Returns the next accepted child or successful exhaustion.
         /// @return One entry, successful exhaustion, NotOpen, SizeLimitExceeded, or an enumeration failure.
-        [[nodiscard]] Types::Directory::CursorNextResult next() noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<std::optional<Types::Directory::Entry>> next() noexcept;
         /// @brief Closes the enumeration. Repeated close calls succeed.
-        [[nodiscard]] IO::Types::Status close() noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> close() noexcept;
 
     private:
-        std::unique_ptr<Detail::DirectoryCursorState> state_;
+        // Backend enumeration
+        std::unique_ptr<Internal::DirectoryCursorState> state_;
+
+        // Filters and progress
         Types::Directory::ListOptions options_{};
         std::uint64_t emittedEntries_ = 0;
         bool limitReached_ = false;
     };
 
     /// @}
-
-    // ------------------------------------------------------------
-    // Directory operations
-    // ------------------------------------------------------------
 
     /// @name Directory operations
     /// @{
@@ -173,32 +150,41 @@ namespace GameWIP::FileSystem
     /// @param path Directory path.
     /// @param options Existing-directory and symlink traversal behavior.
     /// @return Success or a validation, conflict, permission, or directory-creation failure status.
-    [[nodiscard]] IO::Types::Status createDirectory(const Types::Path &path, const Types::Directory::CreateOptions &options = {}) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<void> createDirectory(
+        const Types::Path &path,
+        const Types::Directory::CreateOptions &options = {}) noexcept;
 
     /// @brief Creates a directory and any missing parent directories.
     /// @param path Directory path.
     /// @param options Existing-directory and symlink traversal behavior.
     /// @return Success or a validation, conflict, permission, or directory-creation failure status.
-    [[nodiscard]] IO::Types::Status createDirectories(const Types::Path &path, const Types::Directory::CreateOptions &options = {}) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<void> createDirectories(
+        const Types::Path &path,
+        const Types::Directory::CreateOptions &options = {}) noexcept;
 
     /// @brief Lists direct children of a directory in backend/native order.
     /// @param path Directory path.
     /// @param options Filtering, symlink, hidden-entry, and entry-limit behavior.
     /// @return Collected accepted child entries and final status. Filtering precedes maxEntries counting; an additional
     /// matching child beyond the accepted limit returns SizeLimitExceeded with the partial entries retained.
-    [[nodiscard]] Types::Directory::ListResult listDirectory(const Types::Path &path, const Types::Directory::ListOptions &options = {}) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<std::vector<Types::Directory::Entry>> listDirectory(
+        const Types::Path &path,
+        const Types::Directory::ListOptions &options = {}) noexcept;
 
     /// @brief Removes one empty directory.
     /// @param path Directory path.
     /// @param options Missing-target and symlink behavior.
     /// @return Success, DirectoryNotEmpty, or another validation, lookup, type, permission, or removal failure status.
-    [[nodiscard]] IO::Types::Status removeEmptyDirectory(const Types::Path &path, const Types::RemoveOptions &options = {}) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<void> removeEmptyDirectory(
+        const Types::Path &path,
+        const Types::RemoveOptions &options = {}) noexcept;
 
     /// @brief Recursively removes a directory tree without following discovered symlinked directories.
+    /// @details Drive and UNC share roots are containers: their contents are removed, but the root remains.
     /// @param path Root directory path.
     /// @param options Missing-target, initial symlink, and entry-limit behavior.
-    /// @return Final status and number of entries removed before completion or failure. The root counts toward maxEntries.
-    [[nodiscard]] Types::Directory::RemoveTreeResult removeDirectoryTree(
+    /// @return Final status and number of entries removed before completion or failure.
+    [[nodiscard]] GameWIP::Status::Types::Result<std::uint64_t> removeDirectoryTree(
         const Types::Path &path,
         const Types::Directory::RemoveTreeOptions &options = {}) noexcept;
 

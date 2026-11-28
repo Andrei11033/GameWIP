@@ -1,14 +1,15 @@
 /// @file events.cpp
 /// @brief Fixed-capacity Window event routing and calling-thread event pumping.
 
+#include "desktop/internal/results.h"
 #include "desktop/events.h"
 
-#include "desktop/internal/window_platform.h"
+#include "desktop/platform/window.h"
 #include "desktop/internal/window_state.h"
 
 #include <utility>
 
-namespace GameWIP::Desktop::Detail
+namespace GameWIP::Desktop::Internal
 {
     namespace
     {
@@ -60,12 +61,14 @@ namespace GameWIP::Desktop::Detail
     {
         using namespace Types::Events;
         return std::holds_alternative<ClientPositionChanged>(data) || std::holds_alternative<ClientSizeChanged>(data) ||
-               std::holds_alternative<FramebufferSizeChanged>(data) || std::holds_alternative<ContentScaleChanged>(data);
+               std::holds_alternative<FramebufferSizeChanged>(data) || std::holds_alternative<ContentScaleChanged>(data) ||
+               std::holds_alternative<RedrawRequested>(data);
     }
 
     /// @brief Enqueues a Window event, preserving durable events when the fixed queue is full.
     EnqueueResult enqueueEvent(WindowState &state, Types::Events::Payload data) noexcept
     {
+        // Ignore events during teardown and account for unavailable storage.
         if(state.suppressEvents)
         {
             return EnqueueResult::Coalesced;
@@ -77,6 +80,7 @@ namespace GameWIP::Desktop::Detail
             return EnqueueResult::Dropped;
         }
 
+        // Merge recent replaceable events before enforcing queue capacity.
         if(isCoalescible(data))
         {
             for(std::size_t offset = state.eventCount; offset > 0; --offset)
@@ -107,6 +111,7 @@ namespace GameWIP::Desktop::Detail
             }
         }
 
+        // Preserve durable events by evicting a coalescible event when the queue is full.
         if(state.eventCount == state.eventStorage.size())
         {
             std::size_t replaceIndex = state.eventCount;
@@ -133,6 +138,7 @@ namespace GameWIP::Desktop::Detail
             discardAt(state, replaceIndex);
         }
 
+        // Append the event at the logical tail of the ring.
         const std::size_t slot = physicalIndex(state, state.eventCount);
         state.eventStorage[slot] = Types::Event{state.nextSequence++, std::move(data)};
         ++state.eventCount;
@@ -171,25 +177,25 @@ namespace GameWIP::Desktop::Detail
 
         return enqueueEvent(state, Types::Events::InteractiveMoveResizeEnded{});
     }
-} // namespace GameWIP::Desktop::Detail
+} // namespace GameWIP::Desktop::Internal
 
 namespace GameWIP::Desktop::Events
 {
-    // ------------------------------------------------------------
-    // Event pumping
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Event pumping
+    /// ------------------------------------------------------------
 
     Types::Events::PumpResult poll() noexcept
     {
-        return Detail::Platform::pumpEvents(kNoWait, false);
+        return Platform::pumpEvents(kNoWait, false);
     }
 
     Types::Events::PumpResult wait(std::chrono::milliseconds timeout) noexcept
     {
         if(timeout < kWaitForever)
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::InvalidArgument)};
+            return Types::Events::PumpResult::failure(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::InvalidArgument));
         }
-        return Detail::Platform::pumpEvents(timeout, true);
+        return Platform::pumpEvents(timeout, true);
     }
 } // namespace GameWIP::Desktop::Events

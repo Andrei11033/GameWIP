@@ -3,16 +3,20 @@
 
 void testReportsAndHealth(TestContext &context)
 {
-    ScopedLoggerShutdown shutdown;
+    const ScopedLoggerShutdown shutdown;
     OwnedLoggerConfig config = makeFileConfig(context, "reports", Logger::Types::Level::Fatal);
     config.enableDebugOutput = false;
     config.enableFatalPopup = false;
     expectStarted(context, "report init", Logger::init(config.ready()));
 
+    // Verify emergency reports bypass normal level filtering.
     context.expectFalse("normal Info remains filtered", Logger::shouldLog(Logger::Types::Level::Info));
     const Logger::Types::Report::Result plain = Logger::reportError(kTestSource, "plain emergency report");
     context.expectTrue("emergency report delivered", reportDelivered(plain));
-    context.expectEq("emergency report complete delivery", plain.delivery, Logger::Types::Report::Delivery::Complete);
+    if(plain.hasValue())
+    {
+        context.expectEq("emergency report complete delivery", plain.value().delivery, Logger::Types::Report::Delivery::Complete);
+    }
     const Logger::Types::Report::Result formatted = Logger::report(Logger::Types::Level::Warn, kTestSource, "value {}", 17);
     context.expectTrue("formatted emergency report delivered", reportDelivered(formatted));
     const Logger::Types::Report::Result enumFormatted = Logger::report(Logger::Types::Level::Warn, TestSource::Core, "enum value {}", 23);
@@ -20,38 +24,51 @@ void testReportsAndHealth(TestContext &context)
     const Logger::Types::Report::Result enumRuntime = Logger::reportError(TestSource::Core, 2s, Logger::runtimeFormat("enum runtime {}"), 29);
     context.expectTrue("enum-source runtime emergency report delivered", reportDelivered(enumRuntime));
 
+    // Reject invalid timeouts and malformed UTF-8.
     const Logger::Types::Report::Result invalidTimeout = Logger::reportError(kTestSource, -1ms, "invalid timeout");
-    context.expectEq("negative report timeout invalid argument", invalidTimeout.status.code, IO::Types::ErrorCode::InvalidArgument);
+    context.expectEq("negative report timeout invalid argument", invalidTimeout.status().code(), GameWIP::Status::Types::Code::InvalidArgument);
     const std::string invalidUtf8{"\xC3\x28", 2};
     context.expectEq(
         "invalid report source UTF-8 rejected",
-        Logger::reportError(invalidUtf8, "message").status.code,
-        IO::Types::ErrorCode::EncodingFailed);
+        Logger::reportError(invalidUtf8, "message").status().code(),
+        GameWIP::Status::Types::Code::EncodingFailed);
     context.expectEq(
         "invalid report message UTF-8 rejected",
-        Logger::reportError(kTestSource, invalidUtf8).status.code,
-        IO::Types::ErrorCode::EncodingFailed);
+        Logger::reportError(kTestSource, invalidUtf8).status().code(),
+        GameWIP::Status::Types::Code::EncodingFailed);
 
 #if LOGGER_INTERNAL_TEST_HOOKS
-    GameWIP::Logger::TestHooks::forceNextTimedFlushTimeout();
+    // Preserve delivery details when report or sink flushing fails.
+    GameWIP::Logger::Internal::TestHooks::forceNextTimedFlushTimeout();
     const Logger::Types::Report::Result timedOut = Logger::reportError(kTestSource, 2s, "delivered before report timeout");
-    context.expectTrue("report timeout is not IO failure", timedOut.status.ok());
-    context.expectEq("report timeout has domain outcome", timedOut.outcome, Logger::Types::Report::Outcome::TimedOut);
-    context.expectEq("report timeout preserves delivery", timedOut.delivery, Logger::Types::Report::Delivery::Complete);
+    context.expectTrue("report timeout is a completed operation", timedOut.ok());
+    if(timedOut.hasValue())
+    {
+        context.expectEq("report timeout has domain outcome", timedOut.value().outcome, Logger::Types::Report::Outcome::TimedOut);
+        context.expectEq("report timeout preserves delivery", timedOut.value().delivery, Logger::Types::Report::Delivery::Complete);
+    }
 
-    GameWIP::Logger::TestHooks::forceNextFileFlushFailure();
+    GameWIP::Logger::Internal::TestHooks::forceNextFileFlushFailure();
     const Logger::Types::Report::Result flushFailed = Logger::reportError(kTestSource, "delivered before flush failure");
-    context.expectFalse("report surfaces post-delivery flush failure", flushFailed.status.ok());
-    context.expectEq("report flush failure completes attempt", flushFailed.outcome, Logger::Types::Report::Outcome::Completed);
-    context.expectEq("report flush failure preserves complete delivery", flushFailed.delivery, Logger::Types::Report::Delivery::Complete);
+    context.expectFalse("report surfaces post-delivery flush failure", flushFailed.ok());
+    context.expectTrue("report flush failure preserves report details", flushFailed.hasValue());
+    if(flushFailed.hasValue())
+    {
+        context.expectEq("report flush failure completes attempt", flushFailed.value().outcome, Logger::Types::Report::Outcome::Completed);
+        context.expectEq("report flush failure preserves complete delivery", flushFailed.value().delivery, Logger::Types::Report::Delivery::Complete);
+    }
 
     static_cast<void>(Logger::shutdown());
     config.output = Logger::Types::OutputMode::Both;
     expectStarted(context, "report partial-delivery reinit", Logger::init(config.ready()));
-    GameWIP::Logger::TestHooks::forceNextFileWriteFailure();
+    GameWIP::Logger::Internal::TestHooks::forceNextFileWriteFailure();
     const Logger::Types::Report::Result failed = Logger::reportError(kTestSource, "forced file write failure");
-    context.expectFalse("report surfaces sink failure", failed.status.ok());
-    context.expectEq("remaining console sink gives partial delivery", failed.delivery, Logger::Types::Report::Delivery::Partial);
+    context.expectFalse("report surfaces sink failure", failed.ok());
+    context.expectTrue("sink failure preserves report details", failed.hasValue());
+    if(failed.hasValue())
+    {
+        context.expectEq("remaining console sink gives partial delivery", failed.value().delivery, Logger::Types::Report::Delivery::Partial);
+    }
     const Logger::Types::Health::Snapshot health = Logger::getHealth();
     context.expectEq("file failure degrades only failed sink", health.state, Logger::Types::Health::State::Degraded);
     context.expectEq("file failure health source", health.lastFailureSource, Logger::Types::Health::FailureSource::File);
@@ -63,13 +80,13 @@ void testReportsAndHealth(TestContext &context)
 void testReportNoDrainScenario(TestContext &context)
 {
 #if LOGGER_INTERNAL_TEST_HOOKS
-    ScopedLoggerShutdown shutdown;
+    const ScopedLoggerShutdown shutdown;
     OwnedLoggerConfig config = makeFileConfig(context, "report-no-drain");
     config.workerBatchSize = 1;
     const auto initialized = Logger::init(config.ready());
     expectStarted(context, "report no-drain init", initialized);
 
-    if(!initialized.status.ok() || initialized.outcome != Logger::Types::Init::Outcome::Started)
+    if(!initialized.ok() || initialized.value().outcome != Logger::Types::Init::Outcome::Started)
     {
         return;
     }
@@ -78,17 +95,17 @@ void testReportNoDrainScenario(TestContext &context)
     {
         ~ScopedPauseRelease()
         {
-            GameWIP::Logger::TestHooks::releaseWorkerDeliveryPause();
+            GameWIP::Logger::Internal::TestHooks::releaseWorkerDeliveryPause();
         }
-    } releasePause;
-    GameWIP::Logger::TestHooks::armWorkerDeliveryPause();
+    } const releasePause;
+    GameWIP::Logger::Internal::TestHooks::armWorkerDeliveryPause();
     Logger::info(kTestSource, "older queued line deliberately held");
-    GameWIP::Logger::TestHooks::waitForWorkerDeliveryPause();
+    GameWIP::Logger::Internal::TestHooks::waitForWorkerDeliveryPause();
 
     const Logger::Types::Report::Result report = Logger::reportError(kTestSource, 250ms, "emergency line bypasses old queue");
     context.expectTrue("timed report completes with older queue blocked", reportDelivered(report));
 
-    GameWIP::Logger::TestHooks::releaseWorkerDeliveryPause();
+    GameWIP::Logger::Internal::TestHooks::releaseWorkerDeliveryPause();
     context.expectTrue("report no-drain final flush", flushCompleted(Logger::flush(2s)));
     const std::string contents = readWholeFile(context, loggerLogFilePath(context));
     context.expectContains("queued record delivered after release", contents, "older queued line deliberately held");
@@ -115,18 +132,19 @@ void testReportDoesNotDrainAsyncBacklog(TestContext &context, const LoggerTestOp
     TestSupport::Types::Process::Options childOptions;
     childOptions.executablePath = std::filesystem::path(context.executablePath);
     childOptions.arguments = {"--logger-test-child=report-no-drain"};
-    childOptions.environmentOverrides = {{std::string(kChildLogDirectoryEnvironmentVariable), pathText(directory)}};
+    childOptions.environmentOverrides = {{std::string(kChildLogDirectoryEnvironmentVariable), pathText(context, directory)}};
     childOptions.waitTimeout = 30s;
     const auto child = TestSupport::runChildProcess(childOptions);
+    const TestSupport::Types::Process::Execution *execution = child.hasValue() ? &child.value() : nullptr;
     context.expectTrue(
         "report no-drain child completes",
-        child.status.ok() && child.outcome == TestSupport::Types::Process::Outcome::Exited && child.exitCode == 0,
+        child.ok() && execution != nullptr && execution->outcome == TestSupport::Types::Process::Outcome::Exited && execution->exitCode == 0,
         std::format(
             "{} outcome={} exit={}\n{}",
-            TestSupport::formatInfrastructureStatus(child.status),
-            static_cast<int>(child.outcome),
-            child.exitCode,
-            child.outputBytes));
+            TestSupport::formatStatus(child.status()),
+            execution == nullptr ? -1 : static_cast<int>(execution->outcome),
+            execution == nullptr ? 0u : execution->exitCode,
+            execution == nullptr ? std::string{} : execution->outputBytes));
 #else
     static_cast<void>(options);
     context.skip("report no-drain child", "LOGGER_INTERNAL_TEST_HOOKS=0");
@@ -151,33 +169,40 @@ int runReportNoDrainChild()
         [&](TestSupport::Context &testContext)
         {
             TestContext context(testContext);
-            context.logRoot = pathFromText(directory);
+            context.logRoot = pathFromText(context, directory);
             testReportNoDrainScenario(context);
         });
-    return GameWIP::Test::RunnerHelpers::finalizeRunner(runner);
+    return GameWIP::Test::Internal::RunnerHelpers::finalizeRunner(runner);
 }
 
 void testFlushContracts(TestContext &context)
 {
-    ScopedLoggerShutdown shutdown;
+    const ScopedLoggerShutdown shutdown;
     OwnedLoggerConfig config = makeFileConfig(context, "flush-contracts");
     expectStarted(context, "flush contract init", Logger::init(config.ready()));
     Logger::info(kTestSource, "flush me");
 
     context.expectTrue("indefinite flush completes", flushCompleted(Logger::flush()));
     const Logger::Types::FlushResult invalid = Logger::flush(-1ms);
-    context.expectEq("negative flush timeout invalid", invalid.status.code, IO::Types::ErrorCode::InvalidArgument);
+    context.expectEq("negative flush timeout invalid", invalid.status().code(), GameWIP::Status::Types::Code::InvalidArgument);
 
 #if LOGGER_INTERNAL_TEST_HOOKS
-    GameWIP::Logger::TestHooks::forceNextTimedFlushTimeout();
+    GameWIP::Logger::Internal::TestHooks::forceNextTimedFlushTimeout();
     const Logger::Types::FlushResult timedOut = Logger::flush(2s);
-    context.expectTrue("timeout is not IO failure", timedOut.status.ok());
-    context.expectEq("timeout has domain outcome", timedOut.outcome, Logger::Types::FlushOutcome::TimedOut);
+    context.expectTrue("timeout is a completed operation", timedOut.ok());
+    if(timedOut.hasValue())
+    {
+        context.expectEq("timeout has domain outcome", timedOut.value().outcome, Logger::Types::FlushOutcome::TimedOut);
+    }
 
-    GameWIP::Logger::TestHooks::forceNextFileFlushFailure();
+    GameWIP::Logger::Internal::TestHooks::forceNextFileFlushFailure();
     const Logger::Types::FlushResult failed = Logger::flush(2s);
-    context.expectFalse("flush sink failure is IO failure", failed.status.ok());
-    context.expectEq("flush sink failure still completed attempt", failed.outcome, Logger::Types::FlushOutcome::Completed);
+    context.expectFalse("flush sink failure is reported", failed.ok());
+    context.expectTrue("flush sink failure preserves completion details", failed.hasValue());
+    if(failed.hasValue())
+    {
+        context.expectEq("flush sink failure still completed attempt", failed.value().outcome, Logger::Types::FlushOutcome::Completed);
+    }
     context.expectEq("flush failure health source", Logger::getHealth().lastFailureSource, Logger::Types::Health::FailureSource::File);
 #endif
 }
@@ -185,23 +210,33 @@ void testFlushContracts(TestContext &context)
 void testFatalPopupFailure(TestContext &context)
 {
 #if LOGGER_INTERNAL_TEST_HOOKS
-    ScopedLoggerShutdown shutdown;
+    const ScopedLoggerShutdown shutdown;
+
+    // Verify popup failure is reported after the log delivery attempt.
     OwnedLoggerConfig config = makeFileConfig(context, "fatal-popup");
     config.enableFatalPopup = true;
     expectStarted(context, "fatal popup init", Logger::init(config.ready()));
 
-    GameWIP::Logger::TestHooks::forceNextFatalPopupFailure();
+    GameWIP::Logger::Internal::TestHooks::forceNextFatalPopupFailure();
     const Logger::Types::Report::Result result = Logger::reportFatal(kTestSource, "forced popup failure");
-    context.expectFalse("fatal popup failure returned directly", result.status.ok());
-    context.expectEq("fatal popup partial delivery", result.delivery, Logger::Types::Report::Delivery::Partial);
+    context.expectFalse("fatal popup failure returned directly", result.ok());
+    context.expectTrue("fatal popup failure preserves report details", result.hasValue());
+    if(result.hasValue())
+    {
+        context.expectEq("fatal popup partial delivery", result.value().delivery, Logger::Types::Report::Delivery::Partial);
+    }
     context.expectEq("fatal popup health source", Logger::getHealth().lastFailureSource, Logger::Types::Health::FailureSource::FatalPopup);
 
     static_cast<void>(Logger::shutdown());
     expectStarted(context, "fatal Record popup init", Logger::init(config.ready()));
-    GameWIP::Logger::TestHooks::forceNextFatalPopupFailure();
+    GameWIP::Logger::Internal::TestHooks::forceNextFatalPopupFailure();
     const Logger::Types::Report::Result recordResult = Logger::reportFatal(kTestSource, Logger::record().field("record", true), "record popup");
-    context.expectFalse("fatal Record still attempts popup", recordResult.status.ok());
-    context.expectEq("fatal Record popup delivery", recordResult.delivery, Logger::Types::Report::Delivery::Partial);
+    context.expectFalse("fatal Record still attempts popup", recordResult.ok());
+    context.expectTrue("fatal Record popup failure preserves report details", recordResult.hasValue());
+    if(recordResult.hasValue())
+    {
+        context.expectEq("fatal Record popup delivery", recordResult.value().delivery, Logger::Types::Report::Delivery::Partial);
+    }
 #else
     context.skip("fatal popup failure hook test", "LOGGER_INTERNAL_TEST_HOOKS=0");
 #endif

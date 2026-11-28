@@ -14,6 +14,10 @@ include(CMakeParseArguments)
 # the project version, build count, commit, and dirty state. Generated consumers
 # do not require Git at build time.
 
+# ------------------------------------------------------------
+# Version metadata
+# ------------------------------------------------------------
+
 function(gamewip_compose_display_version output_variable)
     set(options RELEASE DIRTY)
     set(one_value_arguments PROJECT_VERSION BUILD_NUMBER GIT_COMMIT)
@@ -62,6 +66,8 @@ function(gamewip_detect_version output_prefix)
     if(NOT VERSION_DISABLE_GIT)
         find_package(Git QUIET)
     endif()
+
+    # Read repository state and version metadata when Git is available.
     if(Git_FOUND AND NOT VERSION_DISABLE_GIT)
         execute_process(
             COMMAND "${GIT_EXECUTABLE}" -C "${VERSION_SOURCE_DIR}" rev-parse --is-inside-work-tree
@@ -73,6 +79,7 @@ function(gamewip_detect_version output_prefix)
 
         if(inside_work_tree_result EQUAL 0 AND inside_work_tree STREQUAL "true")
             set(is_dirty TRUE)
+            # Read the build number and commit.
             execute_process(
                 COMMAND "${GIT_EXECUTABLE}" -C "${VERSION_SOURCE_DIR}" rev-list --first-parent --count HEAD
                 RESULT_VARIABLE build_number_result
@@ -95,8 +102,9 @@ function(gamewip_detect_version output_prefix)
                 string(TOLOWER "${detected_git_commit}" git_commit)
             endif()
 
+            # Mark tracked changes and untracked files as dirty.
             execute_process(
-                COMMAND "${GIT_EXECUTABLE}" -C "${VERSION_SOURCE_DIR}" status --porcelain --untracked-files=no
+                COMMAND "${GIT_EXECUTABLE}" -C "${VERSION_SOURCE_DIR}" status --porcelain --untracked-files=normal
                 RESULT_VARIABLE dirty_result
                 OUTPUT_VARIABLE dirty_output
                 OUTPUT_STRIP_TRAILING_WHITESPACE
@@ -106,6 +114,7 @@ function(gamewip_detect_version output_prefix)
                 set(is_dirty FALSE)
             endif()
 
+            # Only annotated tags at HEAD identify a release.
             set(expected_tag "v${VERSION_PROJECT_VERSION}")
             execute_process(
                 COMMAND "${GIT_EXECUTABLE}" -C "${VERSION_SOURCE_DIR}" tag --points-at HEAD
@@ -140,9 +149,11 @@ function(gamewip_detect_version output_prefix)
     if(is_release)
         list(APPEND compose_options RELEASE)
     endif()
+
     if(is_dirty)
         list(APPEND compose_options DIRTY)
     endif()
+
     gamewip_compose_display_version(
         display_version
         PROJECT_VERSION "${VERSION_PROJECT_VERSION}"
@@ -158,6 +169,10 @@ function(gamewip_detect_version output_prefix)
     set(${output_prefix}_DIRTY "${is_dirty}" PARENT_SCOPE)
     set(${output_prefix}_RELEASE "${is_release}" PARENT_SCOPE)
 endfunction()
+
+# ------------------------------------------------------------
+# Generated version header
+# ------------------------------------------------------------
 
 function(gamewip_write_version_header output_prefix)
     set(one_value_arguments SOURCE_DIR BINARY_DIR PROJECT_VERSION)
@@ -176,6 +191,7 @@ function(gamewip_write_version_header output_prefix)
     else()
         set(version_dirty_cpp false)
     endif()
+
     if(detected_RELEASE)
         set(version_release_cpp true)
     else()

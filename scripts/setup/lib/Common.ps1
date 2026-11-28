@@ -1,85 +1,10 @@
-# Shared setup state and presentation helpers. Native execution stays in scripts/lib/Process.ps1.
-
-# ------------------------------------------------------------
-# Setup state and ownership metadata
-# ------------------------------------------------------------
+# Shared setup host and command helpers. Native execution stays in scripts/lib/Process.ps1.
 
 Set-StrictMode -Version Latest
 
-function Get-GameWipSetupState
-{
-    $defaultState = [ordered]@{ schemaVersion = 1; wingetPackages = @(); vscodeExtensions = @(); msys2InstalledBySetup = $false }
-
-    if (-not (Test-Path -LiteralPath $script:SetupStatePath -PathType Leaf))
-    {
-        $script:SetupStateReadStatus = 'missing'
-        return $defaultState
-    }
-
-    try
-    {
-        $state = Get-Content -LiteralPath $script:SetupStatePath -Raw | ConvertFrom-Json
-
-        if ($state.schemaVersion -ne 1)
-        {
-            throw "Unsupported setup state schemaVersion '$($state.schemaVersion)'."
-        }
-
-        foreach ($field in @('wingetPackages', 'vscodeExtensions', 'msys2InstalledBySetup'))
-        {
-            if ($null -eq $state.PSObject.Properties[$field])
-            {
-                throw "Setup state is missing required ownership field '$field'."
-            }
-        }
-    }
-
-    catch
-    {
-        $script:SetupStateReadStatus = 'corrupt'
-        Add-GameWipOperationWarning -Message "Disposable setup state is corrupt and will be ignored: $($_.Exception.Message)"
-        return $defaultState
-    }
-
-    $script:SetupStateReadStatus = 'valid'
-    [string[]]$wingetPackages = @($state.wingetPackages | ForEach-Object { [string]$_ } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
-    [string[]]$vscodeExtensions = @($state.vscodeExtensions | ForEach-Object { [string]$_ } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
-    return [ordered]@{
-        schemaVersion = 1
-        wingetPackages = @($wingetPackages | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
-        vscodeExtensions = @($vscodeExtensions | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
-        msys2InstalledBySetup = [bool]$state.msys2InstalledBySetup
-    }
-}
-
-function Save-GameWipSetupState
-{
-    param([Parameter(Mandatory = $true)]$State)
-    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $script:SetupStatePath) | Out-Null
-    Write-GameWipJsonAtomic -Path $script:SetupStatePath -Value $State -Depth 8
-    $script:SetupStateReadStatus = 'valid'
-}
-
-function Add-GameWipOwnedVsCodeExtension
-{
-    param([Parameter(Mandatory = $true)][string]$Id)
-    $state = Get-GameWipSetupState
-    $state.vscodeExtensions = @(@($state.vscodeExtensions) + @($Id) | Sort-Object -Unique)
-    Save-GameWipSetupState -State $state
-}
-
-function Add-GameWipOwnedWingetPackage
-{
-    param([Parameter(Mandatory = $true)][string]$Id)
-    $state = Get-GameWipSetupState
-    $state.wingetPackages = @(@($state.wingetPackages) + @($Id) | Sort-Object -Unique)
-    Save-GameWipSetupState -State $state
-}
-
-function Initialize-GameWipSetupProcessPath
-{
-    Update-GameWipProcessPath
-}
+# ------------------------------------------------------------
+# Host and command helpers
+# ------------------------------------------------------------
 
 function Resolve-GameWipSetupCommand
 {
@@ -107,13 +32,17 @@ function Invoke-GameWipSetupNative
     param(
         [Parameter(Mandatory = $true)][string]$FilePath,
         [string[]]$ArgumentList = @(),
-        [int[]]$AllowedExitCodes = @(0)
+        [int[]]$AllowedExitCodes = @(0),
+        [switch]$InheritConsole,
+        [switch]$PreserveConsoleSession
     )
     $result = Invoke-GameWipNative `
         -Name ([IO.Path]::GetFileNameWithoutExtension($FilePath)) `
         -FilePath $FilePath `
         -Arguments $ArgumentList `
-        -AllowedExitCodes $AllowedExitCodes
+        -AllowedExitCodes $AllowedExitCodes `
+        -InheritConsole:$InheritConsole `
+        -PreserveConsoleSession:$PreserveConsoleSession
     return [int]$result.ExitCode
 }
 
@@ -130,6 +59,28 @@ function Assert-GameWipSetupWindows
     {
         Write-Warning "GameWIP officially supports Windows 11; detected Windows build $build."
     }
+}
+
+function Assert-GameWipSetupHost
+{
+    if (Test-GameWipWindowsHost)
+    {
+        Assert-GameWipSetupWindows
+        return
+    }
+
+    if ([Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::Linux))
+    {
+        if (-not (Get-Command Get-GameWipLinuxDistribution -ErrorAction SilentlyContinue))
+        {
+            throw 'Linux setup support was not loaded.'
+        }
+
+        $null = Get-GameWipLinuxDistribution
+        return
+    }
+
+    throw 'Setup supports Windows and Linux hosts only.'
 }
 
 function Assert-GameWipSetupRepository

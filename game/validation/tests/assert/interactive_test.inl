@@ -17,13 +17,14 @@ void verifyInteractiveAlwaysIgnoreSite(int &evaluations)
 void testInteractiveIgnoreOnce(TestContext &context)
 {
 #if ASSERT_ENABLED
-    ScopedLoggerShutdown loggerShutdown;
+    const ScopedLoggerShutdown loggerShutdown;
 
     if(!initFileLogger(context, "interactive_ignore_once"))
     {
         context.fail("interactive ignore once logger init", "Logger::init failed");
         return;
     }
+
     const ScopedEnvironmentVariable testAction(context.processState, kTestActionEnvironmentVariable, "ignore_once");
 
     if(!requireInfrastructure(context, "set interactive ignore-once action", testAction.status()))
@@ -33,9 +34,9 @@ void testInteractiveIgnoreOnce(TestContext &context)
 
     ASSERT_INTERACTIVE_MSG(false, "interactive ignore once test");
 
-    Logger::flush(2s);
+    static_cast<void>(Logger::flush(2s));
     const Logger::Types::Stats stats = Logger::getStats();
-    const std::string contents = readFile(context, loggerLogFilePath(context));
+    const std::string contents = readFile(context, assertLogFilePath(context));
     context.expectEq("ASSERT_INTERACTIVE ignore_once not queued", stats.queued, std::size_t{0});
     context.expectEq("ASSERT_INTERACTIVE ignore_once writes one fatal", stats.written, std::size_t{1});
     context.expectTrue("ASSERT_INTERACTIVE ignore_once logs fatal", contents.contains("[Assert][FATAL] Assert failed"), "interactive fatal missing");
@@ -59,13 +60,14 @@ void testInteractiveIgnoreOnce(TestContext &context)
 void testInteractiveAlwaysIgnore(TestContext &context)
 {
 #if ASSERT_ENABLED
-    ScopedLoggerShutdown loggerShutdown;
+    const ScopedLoggerShutdown loggerShutdown;
 
     if(!initFileLogger(context, "interactive_always_ignore"))
     {
         context.fail("interactive always ignore logger init", "Logger::init failed");
         return;
     }
+
     const ScopedEnvironmentVariable testAction(context.processState, kTestActionEnvironmentVariable, "always_ignore");
 
     if(!requireInfrastructure(context, "set interactive always-ignore action", testAction.status()))
@@ -76,9 +78,9 @@ void testInteractiveAlwaysIgnore(TestContext &context)
     interactiveAlwaysIgnoreSite();
     interactiveAlwaysIgnoreSite();
 
-    Logger::flush(2s);
+    static_cast<void>(Logger::flush(2s));
     const Logger::Types::Stats stats = Logger::getStats();
-    const std::string contents = readFile(context, loggerLogFilePath(context));
+    const std::string contents = readFile(context, assertLogFilePath(context));
     context.expectEq("ASSERT_INTERACTIVE always_ignore not queued", stats.queued, std::size_t{0});
     context.expectEq("ASSERT_INTERACTIVE always_ignore writes once", stats.written, std::size_t{1});
 #if ASSERT_DIAGNOSTICS
@@ -94,7 +96,7 @@ void testInteractiveAlwaysIgnore(TestContext &context)
 /// @brief Verifies interactive VERIFY evaluates its expression exactly once per invocation.
 void testVerifyInteractiveEvaluation(TestContext &context)
 {
-    ScopedLoggerShutdown loggerShutdown;
+    const ScopedLoggerShutdown loggerShutdown;
 
     if(!initFileLogger(context, "verify_interactive"))
     {
@@ -118,8 +120,8 @@ void testVerifyInteractiveEvaluation(TestContext &context)
     context.expectEq("VERIFY_INTERACTIVE failing evaluates once", failingEvaluations, 1);
 
 #if ASSERT_ENABLED
-    Logger::flush(2s);
-    const std::string contents = readFile(context, loggerLogFilePath(context));
+    static_cast<void>(Logger::flush(2s));
+    const std::string contents = readFile(context, assertLogFilePath(context));
 #if ASSERT_DIAGNOSTICS
     context.expectTrue(
         "VERIFY_INTERACTIVE failure logs when enabled",
@@ -132,7 +134,7 @@ void testVerifyInteractiveEvaluation(TestContext &context)
         "verify interactive message was embedded");
 #endif
 #else
-    Logger::flush(2s);
+    static_cast<void>(Logger::flush(2s));
     const Logger::Types::Stats stats = Logger::getStats();
     context.expectEq("VERIFY_INTERACTIVE disabled does not report", stats.written, std::size_t{0});
 #endif
@@ -142,7 +144,7 @@ void testVerifyInteractiveEvaluation(TestContext &context)
 void testVerifyInteractiveAlwaysIgnoreStillEvaluates(TestContext &context)
 {
 #if ASSERT_ENABLED
-    ScopedLoggerShutdown loggerShutdown;
+    const ScopedLoggerShutdown loggerShutdown;
 
     if(!initFileLogger(context, "verify_interactive_always_ignore"))
     {
@@ -161,8 +163,8 @@ void testVerifyInteractiveAlwaysIgnoreStillEvaluates(TestContext &context)
     verifyInteractiveAlwaysIgnoreSite(evaluations);
     verifyInteractiveAlwaysIgnoreSite(evaluations);
 
-    Logger::flush(2s);
-    const std::string contents = readFile(context, loggerLogFilePath(context));
+    static_cast<void>(Logger::flush(2s));
+    const std::string contents = readFile(context, assertLogFilePath(context));
     context.expectEq("VERIFY_INTERACTIVE Always Ignore still evaluates", evaluations, 2);
 #if ASSERT_DIAGNOSTICS
     context.expectEq(

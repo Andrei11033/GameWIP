@@ -19,6 +19,10 @@ const PRIORITY_ORDER = Object.freeze({
     'priority:low': 1,
 });
 
+// ------------------------------------------------------------
+// Status and metadata rules
+// ------------------------------------------------------------
+
 function hasRequiredLabels(labels) {
     const labelsByPrefix = Object.fromEntries(PRIMARY_LABEL_PREFIXES.map((prefix) => [prefix, labels.filter((label) => label.startsWith(prefix))]));
     return (
@@ -76,6 +80,7 @@ function mergeLinkedIssueMetadata(linkedIssues, author) {
     const assignees = new Set();
     const milestones = new Map();
 
+    // Collect labels, assignees, and milestones from linked issues.
     for (const issue of linkedIssues) {
         for (const label of issue.labels) {
             if (label.startsWith('priority:')) {
@@ -100,6 +105,7 @@ function mergeLinkedIssueMetadata(linkedIssues, author) {
         }
     }
 
+    // Keep unambiguous values and record conflicts for the caller.
     const labels = [];
 
     if (areas.size === 1) {
@@ -168,6 +174,10 @@ function splitRepository(nameWithOwner) {
     return { owner, repository };
 }
 
+// ------------------------------------------------------------
+// GitHub project synchronization
+// ------------------------------------------------------------
+
 class ProjectAutomation {
     constructor({ github, core, config }) {
         this.github = github;
@@ -177,6 +187,7 @@ class ProjectAutomation {
         this.records = [];
     }
 
+    // Resolve project fields and status options before any updates are planned.
     async initialize() {
         const result = await this.github.graphql(
             `query($owner: String!, $number: Int!) {
@@ -268,6 +279,7 @@ class ProjectAutomation {
         this.core.info(`${displayName} -> ${status}: ${reason}`);
     }
 
+    // Fetch normalized issue and pull-request records from GitHub.
     async getIssue(owner, repository, number) {
         const result = await this.github.graphql(
             `query($owner: String!, $repository: String!, $number: Int!) {
@@ -371,10 +383,12 @@ class ProjectAutomation {
         return response.data;
     }
 
+    // Inherit linked-issue metadata without replacing conflicting PR choices.
     async synchronizePullRequestMetadata(owner, repository, pullRequest) {
         const inherited = mergeLinkedIssueMetadata(pullRequest.linkedIssues, pullRequest.author);
         const labelPlan = planPullRequestLabelAdditions(pullRequest.labels, inherited.labels);
 
+        // Add only metadata that is missing from the pull request.
         if (labelPlan.labelsToAdd.length > 0 && !this.config.dryRun) {
             await this.github.rest.issues.addLabels({
                 owner,
@@ -384,6 +398,7 @@ class ProjectAutomation {
             });
         }
 
+        // Preserve conflicting choices and report them for manual review.
         for (const conflict of [
             ['areas', inherited.areaConflict],
             ['types', inherited.typeConflict],
@@ -403,6 +418,7 @@ class ProjectAutomation {
             );
         }
 
+        // Add missing assignees and inherit a milestone when unambiguous.
         const existingAssignees = new Set(pullRequest.assignees);
         const assigneesToAdd = inherited.assignees.filter((assignee) => !existingAssignees.has(assignee));
 
@@ -424,6 +440,7 @@ class ProjectAutomation {
             });
         }
 
+        // Report milestone conflicts without replacing the PR's choice.
         if (inherited.milestoneConflict.length > 0) {
             this.core.warning(`PR #${pullRequest.number} links issues with conflicting milestones: ${inherited.milestoneConflict.join(', ')}.`);
         } else if (inherited.milestone !== null && pullRequest.milestone !== null && inherited.milestone.number !== pullRequest.milestone.number) {
@@ -433,10 +450,14 @@ class ProjectAutomation {
         }
     }
 
+    // Reconcile one item, then update directly linked items without recursing back.
     async reconcileIssue(owner, repository, number, { synchronizePullRequests = true } = {}) {
+        // Read current issue state and unresolved blockers.
         const issue = await this.getIssue(owner, repository, number);
         const blockers = await this.getIssueDependencies(owner, repository, number, 'blocked_by');
         const openBlockers = blockers.filter((blocker) => blocker.state === 'open');
+
+        // Derive its status and user-facing reason.
         const status = deriveIssueStatus({ ...issue, openBlockerCount: openBlockers.length }, this.config.activeMilestone);
 
         let reason = 'not yet ready for the active milestone';
@@ -455,6 +476,7 @@ class ProjectAutomation {
 
         await this.setStatus(issue.id, `Issue #${number}`, status, reason);
 
+        // Refresh linked pull requests without recursing back to this issue.
         if (synchronizePullRequests) {
             for (const pullRequest of issue.linkedPullRequests.filter((candidate) => candidate.state === 'OPEN')) {
                 await this.reconcilePullRequest(owner, repository, pullRequest.number, { synchronizeIssues: false });
@@ -464,6 +486,8 @@ class ProjectAutomation {
 
     async reconcilePullRequest(owner, repository, number, { synchronizeIssues = true } = {}) {
         const pullRequest = await this.getPullRequest(owner, repository, number);
+
+        // Inherit safe metadata before deriving the project status.
         await this.synchronizePullRequestMetadata(owner, repository, pullRequest);
 
         const status = derivePullRequestStatus(pullRequest);
@@ -476,6 +500,7 @@ class ProjectAutomation {
         }
         await this.setStatus(pullRequest.id, `PR #${number}`, status, reason);
 
+        // Refresh linked issues without recursing back to this pull request.
         if (synchronizeIssues) {
             for (const issue of pullRequest.linkedIssues) {
                 await this.reconcileIssue(owner, repository, issue.number, { synchronizePullRequests: false });
@@ -491,6 +516,7 @@ class ProjectAutomation {
         }
     }
 
+    // Page through the full project before reconciling every repository item.
     async listProjectItems() {
         const items = [];
         let cursor = null;
@@ -505,6 +531,7 @@ class ProjectAutomation {
                                         __typename
                                         ... on Issue { number repository { nameWithOwner } }
                                         ... on PullRequest { number repository { nameWithOwner } }
+                                        ... on DraftIssue { title }
                                     }
                                 }
                                 pageInfo { hasNextPage endCursor }
@@ -521,10 +548,16 @@ class ProjectAutomation {
         return items;
     }
 
+    // Reconcile only project items owned by the configured repository.
     async reconcileAll() {
         const items = await this.listProjectItems();
 
         for (const item of items) {
+            if (item.__typename === 'DraftIssue') {
+                this.core.warning(`Skipping draft issue "${item.title}"; project sync supports repository issues and pull requests.`);
+                continue;
+            }
+
             if (item.repository.nameWithOwner !== this.config.repository) {
                 continue;
             }
@@ -555,6 +588,10 @@ class ProjectAutomation {
     }
 }
 
+// ------------------------------------------------------------
+// Workflow configuration and dispatch
+// ------------------------------------------------------------
+
 function readConfig(context, environment) {
     const projectNumber = Number.parseInt(environment.PROJECT_NUMBER ?? '', 10);
     const config = {
@@ -577,12 +614,14 @@ function isPullRequestIssueEvent(context) {
 }
 
 async function run({ github, context, core, environment = process.env }) {
+    // Validate configuration and project metadata before handling the event.
     const config = readConfig(context, environment);
     const automation = new ProjectAutomation({ github, core, config });
     await automation.initialize();
 
     const { owner, repository } = splitRepository(config.repository);
 
+    // Reconcile the event target or run a full project pass.
     if (context.eventName === 'issues') {
         const number = context.payload.issue.number;
 
@@ -610,6 +649,7 @@ async function run({ github, context, core, environment = process.env }) {
         await automation.reconcileAll();
     }
 
+    // Publish one summary after all requested updates finish.
     await automation.writeSummary();
 }
 

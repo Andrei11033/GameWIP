@@ -26,16 +26,19 @@ concepts.
 | --- | --- |
 | `CMakeLists.txt` | Root project composition and top-level target creation. |
 | `CMakePresets.json` | Supported configure, build, and test presets. |
+| `cmake/GameWIPTarget.cmake` | Target selection and compiler setup before `project()`. |
+| `cmake/GameWIPLLVMMinGW.cmake` | LLVM-MinGW compiler and Windows target configuration. |
+| `cmake/GameWIPZig.cmake` | Zig compiler and Linux target configuration. |
 | `cmake/GameWIPOptions.cmake` | Project composition options and option compatibility checks. |
-| `cmake/GameWIPPlatform.cmake` | Normalized platform resolution and required backend-file inclusion. |
+| `cmake/GameWIPPlatform.cmake` | Normalized platform resolution and required backend selection. |
 | `cmake/GameWIPPackage.cmake` | Shared package configuration, version, and export installation. |
 | `cmake/GameWIPApplication.cmake` | Explicit, single-resource application manifest attachment on Windows. |
 | `cmake/GameWIPWarnings.cmake` | First-party C++ warning policy, including opt-in warnings as errors. |
 | `cmake/LibraryDoxygen.cmake` | Doxygen input registration and generated documentation target creation. |
 | `cmake/GameWIPDocumentation.cmake` | Project-level Doxygen page registration. |
 | `cmake/GameWIPValidationModules.cmake` | Validation and benchmark module registration helpers. |
-| `cmake/GameWIPRuntimeDependencies.cmake` | Runtime dependency staging and validation registration for executable targets. |
-| `cmake/copy_runtime_dependencies.cmake` | Clean-shadow runtime dependency discovery and app-local DLL staging. |
+| `cmake/GameWIPRuntimeDependencies.cmake` | Windows runtime dependency staging and validation registration for executables. |
+| `cmake/copy_runtime_dependencies.cmake` | Clean-shadow Windows DLL discovery and app-local staging. |
 | `cmake/ValidateRuntimeDependencies.cmake` | Windows/MSYS2 regression contract for compiler-runtime replacement and executable launch. |
 | `cmake/GameWIPCoverage.cmake` | Coverage instrumentation and report target. |
 | `cmake/GameWIPStaticAnalysis.cmake` | clang-tidy and clang-format validation targets. |
@@ -111,7 +114,9 @@ check and a clear error message rather than hiding the coupling.
 
 ## Library targets
 
-Reusable libraries own their own `CMakeLists.txt` files. A library CMake file must:
+Folder purposes are defined in @ref project_structure. A library-level
+`CMakeLists.txt` owns target and package setup; each CMake-managed source folder
+has a `CMakeLists.txt` that registers its files. A library CMake file must:
 
 - Create one canonical target.
 - Provide one canonical project alias when appropriate.
@@ -124,8 +129,9 @@ Reusable libraries own their own `CMakeLists.txt` files. A library CMake file mu
 - Register package config and exact version files for installable libraries.
 - Register public headers and docs with `gamewip_register_doxygen_library()`.
 
-Maintained library sources use target-local include directories and compile
-definitions, with explicit source lists instead of recursive discovery.
+Use target-local include directories and compile definitions. Core, internal,
+and helper folders register their files locally; the library-level file owns
+target, public API, dependency, documentation, and install setup.
 
 TestSupport remains a validation-oriented leaf relative to higher-level
 reusable libraries. It may link foundational Unicode when its UTF-8 text
@@ -207,35 +213,36 @@ meaningful measurements.
 Use `gamewip_resolve_platform_id()` once at root configuration time to determine
 the project platform ID.
 
-Use `gamewip_target_platform_backend(TARGET <target> ROOT <platform-root>)`
-from every platform-aware target. The helper includes the active backend's
-`platform.cmake`; that file owns backend sources, system libraries, resources,
-private includes, and compile definitions.
+Each platform-aware target calls `add_subdirectory(platform)` after it is
+created. Its `platform/CMakeLists.txt` calls
+`gamewip_add_platform_backend(TARGET <target> ROOT <platform-root>)`. The helper
+resolves the platform and adds that backend's `CMakeLists.txt`, which owns
+backend sources, system libraries, resources, private includes, and compile
+definitions.
 
 The normal backend shape is:
 
 ```text
-<library>/platform/<platform-id>/
-  platform.cmake
-  <platform-id>_<feature>.cpp
+<library>/platform/
+  CMakeLists.txt
+  <platform-id>/
+    CMakeLists.txt
+    <platform-id>_<feature>.cpp
 ```
 
 Platform backend behavior is governed by @ref project_platform_backend_contract.
 
 ## Runtime dependencies
 
-Use `gamewip_copy_runtime_dependencies(<target>)` for executable targets that
-must run directly from the build tree on the supported Windows/MSYS2
-environment.
+Windows executable targets use `gamewip_copy_runtime_dependencies(<target>)` to resolve
+runtime DLLs and copy them beside the executable. Discovery scans a clean shadow
+copy so stale compiler DLLs cannot override the active toolchain runtime.
+Project DLLs remain available to the scan, compiler-owned DLLs resolve from the
+active compiler directory, and the temporary shadow directory is removed.
 
-The helper adds a post-build step that resolves runtime DLLs and copies them
-beside the target executable. It lets validation executables and the game run
-without asking users to copy compiler runtime dependencies manually.
-
-On Windows, discovery scans a clean shadow copy so a stale compiler DLL already
-beside the executable cannot override the active toolchain runtime. Project DLLs
-remain available to the scan, compiler-owned DLLs are resolved from the active
-compiler directory, and the temporary shadow directory is removed afterward.
+Linux targets skip this copy step. The ELF loader resolves system libraries
+through host library paths, while CMake uses `$ORIGIN` build RPATH entries for
+project-built shared libraries.
 Unresolved dependencies are warnings by default and become errors when the
 caller sets `GAMEWIP_FAIL_ON_UNRESOLVED_DEPENDENCIES`.
 
@@ -273,19 +280,6 @@ test-hook definitions exposed by libraries that retain them.
 Shared-library exported-symbol checks use allowlists under
 `cmake/export_allowlists/`. An allowlist changes only when the public exported
 surface intentionally changes.
-
-## Shared helper conventions
-
-- Keep target-local properties and explicit source registration so CMake state
-  stays easy to trace.
-- Keep project composition options in root infrastructure and library-local
-  behavior with the owning library.
-- Route platform selection through `GameWIPPlatform.cmake`, with target wiring
-  in each backend's `platform.cmake`.
-- Register Doxygen inputs, validation modules, and benchmarks through the
-  project helpers.
-- Keep installed public headers free of internal and test-hook paths.
-- Document new maintainer-facing helpers before using them widely.
 
 ## Change validation
 

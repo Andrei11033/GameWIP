@@ -19,7 +19,6 @@
 namespace
 {
     namespace FileSystem = GameWIP::FileSystem;
-    namespace IO = GameWIP::IO;
     namespace TestSupport = GameWIP::TestSupport;
 
     /// @brief Reuses expensive directory fixtures across materialized and cursor scenarios.
@@ -44,9 +43,7 @@ namespace
                 if(!workspace_->status().ok())
                 {
                     throw std::runtime_error(
-                        std::format(
-                            "Could not create FileSystem benchmark workspace: {}",
-                            TestSupport::formatInfrastructureStatus(workspace_->status())));
+                        std::format("Could not create FileSystem benchmark workspace: {}", TestSupport::formatStatus(workspace_->status())));
                 }
             }
 
@@ -56,6 +53,7 @@ namespace
             {
                 directoryPath /= "d";
             }
+
             std::filesystem::create_directories(directoryPath);
 
             for(int index = 0; index < entryCount; ++index)
@@ -103,19 +101,20 @@ namespace
         for(auto iteration : state)
         {
             static_cast<void>(iteration);
-            FileSystem::Types::Directory::ListResult listing = FileSystem::listDirectory(*directory);
+            const auto listing = FileSystem::listDirectory(*directory);
 
-            if(!listing.status.ok() || listing.entries.size() != static_cast<std::size_t>(entryCount))
+            if(!listing.ok() || listing.value().size() != static_cast<std::size_t>(entryCount))
             {
+                const auto *diagnostic = listing.status().diagnostic();
                 const std::string error = std::format(
-                    "FileSystem listDirectory benchmark enumeration failed (status={}, native={}, entries={}).",
-                    IO::errorCodeName(listing.status.code),
-                    listing.status.nativeCode,
-                    listing.entries.size());
+                    "FileSystem listDirectory benchmark enumeration failed (status={}, detail={}, entries={}).",
+                    static_cast<int>(listing.status().code()),
+                    diagnostic == nullptr ? "" : diagnostic->message,
+                    listing.hasValue() ? listing.value().size() : 0);
                 state.SkipWithError(error);
                 break;
             }
-            benchmark::DoNotOptimize(listing.entries.data());
+            benchmark::DoNotOptimize(listing.value().data());
         }
 
         state.SetItemsProcessed(state.iterations() * entryCount);
@@ -142,40 +141,50 @@ namespace
         {
             static_cast<void>(iteration);
             FileSystem::DirectoryCursor cursor;
-            const IO::Types::Status openStatus = cursor.open(*directory);
+            const auto openStatus = cursor.open(*directory);
 
             if(!openStatus.ok())
             {
-                const std::string error = std::format(
-                    "FileSystem DirectoryCursor benchmark open failed (status={}, native={}).",
-                    IO::errorCodeName(openStatus.code),
-                    openStatus.nativeCode);
+                const std::string error =
+                    std::format("FileSystem DirectoryCursor benchmark open failed (status={}).", static_cast<int>(openStatus.status().code()));
                 state.SkipWithError(error);
                 break;
             }
 
             std::int64_t observedEntries = 0;
+            bool enumerationFailed = false;
 
             for(;;)
             {
-                FileSystem::Types::Directory::CursorNextResult next = cursor.next();
+                auto next = cursor.next();
 
-                if(!next.status.ok())
+                if(!next.ok())
                 {
+                    const auto *diagnostic = next.status().diagnostic();
                     const std::string error = std::format(
-                        "FileSystem DirectoryCursor benchmark enumeration failed (status={}, native={}).",
-                        IO::errorCodeName(next.status.code),
-                        next.status.nativeCode);
+                        "FileSystem DirectoryCursor benchmark enumeration failed (status={}, detail={}).",
+                        static_cast<int>(next.status().code()),
+                        diagnostic == nullptr ? "" : diagnostic->message);
                     state.SkipWithError(error);
+                    enumerationFailed = true;
                     break;
                 }
 
-                if(!next.hasEntry)
+                const auto &nextEntry = next.value();
+
+                if(!nextEntry)
                 {
                     break;
                 }
+
                 ++observedEntries;
-                benchmark::DoNotOptimize(next.entry.info.kind);
+                auto entryKind = nextEntry->info.kind;
+                benchmark::DoNotOptimize(entryKind);
+            }
+
+            if(enumerationFailed)
+            {
+                break;
             }
 
             if(observedEntries != entryCount)

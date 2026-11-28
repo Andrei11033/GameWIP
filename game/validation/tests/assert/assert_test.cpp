@@ -7,13 +7,15 @@
 #include "validation/tests/assert/assert_test.h"
 
 #include "validation/executable_path.h"
+#include "validation/platform_tests.h"
 #include "validation/process_arguments.h"
+#include "validation/tests/internal/path_text.h"
 
 #include "debug/assert/assert.h"
 #include "debug/assert/internal/assert_test_hooks.h"
 
 #include "logger/logger.h"
-#include "validation/tests/runner_helpers.h"
+#include "validation/tests/internal/helpers/runner_helpers.h"
 #include "test_support/test_support.h"
 
 #include <algorithm>
@@ -32,16 +34,6 @@
 #include <utility>
 #include <vector>
 
-#if defined(_WIN32)
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#include <windows.h>
-#endif
-
 namespace
 {
     namespace Logger = GameWIP::Logger;
@@ -56,7 +48,7 @@ namespace
     constexpr std::string_view kInteractiveBreakChildArgument = "--assert-test-child=interactive-break";
     constexpr std::string_view kSuppressPopupEnvironmentVariable = "INTERNAL_ASSERT_SUPPRESS_POPUP";
     constexpr std::string_view kTestActionEnvironmentVariable = "INTERNAL_ASSERT_TEST_ACTION";
-    constexpr std::string_view kChildLogDirectoryEnvironmentVariable = "INTERNAL_ASSERT_TEST_CHILD_LOG_DIR";
+    constexpr char kChildLogDirectoryEnvironmentVariable[] = "INTERNAL_ASSERT_TEST_CHILD_LOG_DIR";
     constexpr std::string_view kAssertFailureChildMessage = "assert child logger message";
 
     /// @brief Mutable test state and TestSupport-backed reporting for the Assert suite.
@@ -67,11 +59,14 @@ namespace
         {
         }
 
+        // Shared reporting state
         TestSupport::Context &testContext;
+        TestSupport::Types::Reporting::Summary manualObservations;
+
+        // Process scope and test paths
         TestSupport::ScopedProcessState processState;
         std::filesystem::path logRoot;
         std::filesystem::path executablePath;
-        TestSupport::Types::Reporting::Summary manualObservations;
 
         [[nodiscard]] TestSupport::Types::Reporting::Summary result() const noexcept
         {
@@ -190,19 +185,19 @@ namespace
 
     template <typename Function> void runCase(TestContext &context, std::string_view name, Function &&function)
     {
-        TestSupport::Section section(context.testContext, name);
+        const TestSupport::Section section(context.testContext, name);
         try
         {
             std::forward<Function>(function)();
         }
         catch(const std::exception &exception)
         {
-            Logger::shutdown();
+            static_cast<void>(Logger::shutdown());
             context.fail(name, exception.what());
         }
         catch(...)
         {
-            Logger::shutdown();
+            static_cast<void>(Logger::shutdown());
             context.fail(name, "unknown exception");
         }
     }
@@ -210,43 +205,33 @@ namespace
     using TestSupport::ScopedEnvironmentVariable;
     using ScopedClearedEnvironmentVariable = TestSupport::ScopedUnsetEnvironmentVariable;
 
-    // ------------------------------------------------------------
-    // Test helpers
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Test helpers
+    /// ------------------------------------------------------------
 
-    bool requireInfrastructure(TestContext &context, std::string_view operation, const TestSupport::Types::InfrastructureStatus &status)
+    bool requireInfrastructure(TestContext &context, std::string_view operation, const TestSupport::Types::Status &status)
     {
         if(status.ok())
         {
             return true;
         }
 
-        context.fail(operation, TestSupport::formatInfrastructureStatus(status));
+        context.fail(operation, TestSupport::formatStatus(status));
         return false;
+    }
+
+    bool requireInfrastructure(TestContext &context, std::string_view operation, const TestSupport::Types::Result<void> &result)
+    {
+        return requireInfrastructure(context, operation, result.status());
     }
 
     struct ScopedLoggerShutdown
     {
         ~ScopedLoggerShutdown()
         {
-            Logger::shutdown();
+            static_cast<void>(Logger::shutdown());
         }
     };
-
-    bool hasArgument(int argc, char **argv, std::string_view argument)
-    {
-        const auto arguments = GameWIP::Validation::processArguments(argc, argv);
-
-        for(char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
-        {
-            if(value != nullptr && std::string_view(value) == argument)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
 
     TestSupport::Types::Process::Result runChildProcessResult(
         const std::filesystem::path &executablePath,
@@ -263,49 +248,34 @@ namespace
         return TestSupport::runChildProcess(child);
     }
 
-    std::string pathText(const std::filesystem::path &path)
+    [[nodiscard]] std::string pathText(TestContext &context, const std::filesystem::path &path)
     {
-        return path.generic_string();
+        return GameWIP::Test::Internal::pathToUtf8(context, path, "convert Assert test path");
     }
 
-    std::filesystem::path pathFromText(std::string_view text)
-    {
-        std::u8string converted(text.size(), u8'\0');
-        std::ranges::transform(
-            text,
-            converted.begin(),
-            [](char byte)
-            {
-                return static_cast<char8_t>(byte);
-            });
-        return std::filesystem::path(converted);
-    }
-
-    std::filesystem::path loggerLogFilePath(TestContext &context)
+    std::filesystem::path assertLogFilePath(TestContext &context)
     {
         const Logger::Types::LogFilePathResult result = Logger::getLogFilePath();
 
-        if(!result.status.ok())
+        if(!result.ok())
         {
-            context.fail(
-                "query Assert log file path",
-                std::format("code={} native={}", static_cast<int>(result.status.code), result.status.nativeCode));
+            context.fail("query Assert log file path", TestSupport::formatStatus(result.status()));
             return {};
         }
 
-        return pathFromText(result.utf8);
+        return GameWIP::Test::Internal::pathFromUtf8(context, result.value(), "convert Assert log path");
     }
 
     std::string readFile(TestContext &context, const std::filesystem::path &path)
     {
         TestSupport::Types::TextResult result = TestSupport::readTextFile(path);
 
-        if(!requireInfrastructure(context, "read Assert log fixture", result.status))
+        if(!requireInfrastructure(context, "read Assert log fixture", result.status()))
         {
             return {};
         }
 
-        return std::move(result.text);
+        return std::move(result).value();
     }
 
     std::string readDirectoryFiles(TestContext &context, const std::filesystem::path &directory)
@@ -355,14 +325,20 @@ namespace
 
     bool initFileLogger(TestContext &context, std::string_view name)
     {
-        Logger::shutdown();
+        static_cast<void>(Logger::shutdown());
         const std::filesystem::path directory = context.logRoot / std::string(name);
 
         if(!TestSupport::createDirectories(directory).ok())
         {
             return false;
         }
-        const std::string directoryText = pathText(directory);
+
+        const std::string directoryText = pathText(context, directory);
+
+        if(directoryText.empty())
+        {
+            return false;
+        }
 
         Logger::Types::Config config;
         config.output = Logger::Types::OutputMode::File;
@@ -370,7 +346,7 @@ namespace
         config.logDirectory = directoryText;
         config.enableDebugOutput = false;
         config.enableFatalPopup = false;
-        return Logger::init(config).status.ok();
+        return Logger::init(config).ok();
     }
 
 #include "validation/tests/assert/macro_behavior_test.inl"
@@ -393,41 +369,40 @@ namespace
 
 namespace GameWIP::Test
 {
-    // ------------------------------------------------------------
-    // Test runner
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Test runner
+    /// ------------------------------------------------------------
 
     int runAssertTests(int argc, char **argv, const AssertTestOptions &options)
     {
-        if(hasArgument(argc, argv, kAssertFailureChildArgument))
+        if(GameWIP::Validation::hasProcessArgument(argc, argv, kAssertFailureChildArgument))
         {
             return runAssertFailureChild();
         }
 
-        if(hasArgument(argc, argv, kInteractiveAbortChildArgument))
+        if(GameWIP::Validation::hasProcessArgument(argc, argv, kInteractiveAbortChildArgument))
         {
             return runInteractiveAbortChild();
         }
 
-        if(hasArgument(argc, argv, kInteractiveBreakChildArgument))
+        if(GameWIP::Validation::hasProcessArgument(argc, argv, kInteractiveBreakChildArgument))
         {
             return runInteractiveBreakChild();
         }
 
-        if(hasArgument(argc, argv, kDebugBreakChildArgument))
+        if(GameWIP::Validation::hasProcessArgument(argc, argv, kDebugBreakChildArgument))
         {
             return runDebugBreakChild();
         }
 
-        if(hasArgument(argc, argv, kUnreachableChildArgument))
+        if(GameWIP::Validation::hasProcessArgument(argc, argv, kUnreachableChildArgument))
         {
             return runUnreachableChild();
         }
 
-        TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::RunnerHelpers::makeReportingOptions(options);
+        const TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::Internal::RunnerHelpers::makeReportingOptions(options);
 
         TestSupport::Runner runner(reportOptions);
-        runner.info(std::format("Assert test report: {}", options.writeReport ? options.reportPath.string() : std::string{"disabled"}));
 
         const TestSupport::Types::Reporting::SuiteResult suite = runner.runSuite(
             "Assert",
@@ -437,7 +412,7 @@ namespace GameWIP::Test
 
                 if(!context.processState.status().ok())
                 {
-                    context.fail("acquire Assert process-state scope", TestSupport::formatInfrastructureStatus(context.processState.status()));
+                    context.fail("acquire Assert process-state scope", TestSupport::formatStatus(context.processState.status()));
                     return;
                 }
 
@@ -452,7 +427,13 @@ namespace GameWIP::Test
                 const ScopedLoggerShutdown loggerShutdown;
                 context.logRoot = workspace.path();
 
-                context.emit(std::format("[INFO] Assert test log root: {}\n", pathText(context.logRoot)));
+                const std::string logRootText = pathText(context, context.logRoot);
+                if(!logRootText.empty())
+                {
+                    context.emit(std::format("[INFO] Assert test log root: {}\n", logRootText));
+                }
+
+                const std::string reportPath = options.writeReport ? pathText(context, options.reportPath) : "disabled";
                 context.emit(
                     std::format(
                         "[INFO] Assert config: runtime={} enabled={} checks={} diagnostics={}\n",
@@ -469,7 +450,7 @@ namespace GameWIP::Test
                         options.enableAutomatedInteractiveTests,
                         options.enableManualTests,
                         options.stressThreadCount,
-                        options.writeReport ? options.reportPath.string() : std::string{"disabled"}));
+                        reportPath));
 
                 runCase(
                     context,
@@ -605,7 +586,7 @@ namespace GameWIP::Test
                             context.manualObservations.failed,
                             context.manualObservations.skipped));
                 }
-                Logger::shutdown();
+                static_cast<void>(Logger::shutdown());
                 printSummary(context);
             });
 
@@ -616,7 +597,7 @@ namespace GameWIP::Test
                 suite.summary.failed,
                 suite.summary.skipped,
                 suite.elapsedMilliseconds));
-        Logger::shutdown();
-        return GameWIP::Test::RunnerHelpers::finalizeRunner(runner);
+        static_cast<void>(Logger::shutdown());
+        return GameWIP::Test::Internal::RunnerHelpers::finalizeRunner(runner);
     }
 } // namespace GameWIP::Test

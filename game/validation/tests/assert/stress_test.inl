@@ -17,7 +17,7 @@ void testCheckOnceThreadStress(TestContext &context, const AssertTestOptions &op
         return;
     }
 
-    ScopedLoggerShutdown loggerShutdown;
+    const ScopedLoggerShutdown loggerShutdown;
 
     if(!initFileLogger(context, "check_once_thread_stress"))
     {
@@ -50,8 +50,8 @@ void testCheckOnceThreadStress(TestContext &context, const AssertTestOptions &op
         worker.join();
     }
 
-    Logger::flush(2s);
-    const std::string contents = readFile(context, loggerLogFilePath(context));
+    static_cast<void>(Logger::flush(2s));
+    const std::string contents = readFile(context, assertLogFilePath(context));
 #if ASSERT_DIAGNOSTICS
     context.expectEq("CHECK_ONCE thread stress logs once", countOccurrences(contents, "threaded check once stress"), std::size_t{1});
 #else

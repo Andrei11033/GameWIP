@@ -5,18 +5,20 @@
 
 #include <span>
 
-bool probeInstalledDragDrop()
+[[nodiscard]] bool probeInstalledDragDrop()
 {
     GameWIP::Desktop::Window closedWindow;
     GameWIP::Desktop::DragDropTarget target;
 
     const GameWIP::Desktop::Types::DragDrop::Result closedBegin = GameWIP::Desktop::DragDrop::beginDrag(closedWindow, {});
-    const GameWIP::IO::Types::Status firstClose = target.close();
-    const GameWIP::IO::Types::Status closedSetRegions = target.setRegions(std::span<const GameWIP::Desktop::Types::DragDrop::RegionDescription>{});
-    const GameWIP::IO::Types::Status closedOpen = target.open(closedWindow, {});
-    const GameWIP::IO::Types::Status secondClose = target.close();
+    const GameWIP::Status::Types::Result<void> firstClose = target.close();
+    const GameWIP::Status::Types::Result<void> closedSetRegions =
+        target.setRegions(std::span<const GameWIP::Desktop::Types::DragDrop::RegionDescription>{});
+    const GameWIP::Status::Types::Result<void> closedOpen = target.open(closedWindow, {});
+    const GameWIP::Status::Types::Result<void> secondClose = target.close();
 
-    return closedBegin.status.code == GameWIP::IO::Types::ErrorCode::NotOpen && firstClose.ok() &&
-           closedSetRegions.code == GameWIP::IO::Types::ErrorCode::NotOpen && closedOpen.code == GameWIP::IO::Types::ErrorCode::NotOpen &&
-           secondClose.ok() && !target.isOpen() && target.lifetimeState() == GameWIP::Desktop::Types::LifetimeState::Closed;
+    return closedBegin.status().code() == GameWIP::Status::Types::Code::NotOpen && firstClose.ok() &&
+           closedSetRegions.status().code() == GameWIP::Status::Types::Code::NotOpen &&
+           closedOpen.status().code() == GameWIP::Status::Types::Code::NotOpen && secondClose.ok() && !target.isOpen() &&
+           target.lifetimeState() == GameWIP::Desktop::Types::LifetimeState::Closed;
 }

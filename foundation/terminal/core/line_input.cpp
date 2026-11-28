@@ -3,9 +3,10 @@
 
 #include "terminal/input.h"
 #include "terminal/output.h"
-#include "terminal/internal/terminal_input.h"
+#include "terminal/internal/input.h"
+#include "terminal/internal/status.h"
 #include "base/checked_arithmetic.h"
-#include "terminal/internal/terminal_platform.h"
+#include "terminal/platform/backend.h"
 #include "unicode/unicode.h"
 
 #include <algorithm>
@@ -25,16 +26,25 @@ namespace GameWIP::Terminal
 {
     namespace
     {
-        using IO::Types::ErrorCode;
+        using ErrorCode = GameWIP::Status::Types::Code;
 
-        [[nodiscard]] IO::Types::Status unsupportedStatus() noexcept
+        /// ------------------------------------------------------------
+        /// Read controls and timeout helpers
+        /// ------------------------------------------------------------
+
+        [[nodiscard]] GameWIP::Status::Types::Status unsupportedStatus() noexcept
         {
-            return IO::makeStatus(ErrorCode::Unsupported);
+            return GameWIP::Terminal::Internal::backendStatus(ErrorCode::Unsupported);
         }
 
-        [[nodiscard]] IO::Types::Status invalidArgumentStatus() noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status writeTerminalText(Types::Output::Stream output, std::string_view text)
         {
-            return IO::makeStatus(ErrorCode::InvalidArgument);
+            return Terminal::writeText(output, text).status();
+        }
+
+        [[nodiscard]] GameWIP::Status::Types::Status invalidArgumentStatus() noexcept
+        {
+            return GameWIP::Terminal::Internal::backendStatus(ErrorCode::InvalidArgument);
         }
 
         [[nodiscard]] std::optional<std::chrono::milliseconds> remainingReadTimeout(
@@ -64,6 +74,10 @@ namespace GameWIP::Terminal
                    Types::Events::hasModifier(modifiers, Types::Events::KeyModifier::Meta);
         }
 
+        /// ------------------------------------------------------------
+        /// Grapheme indexing
+        /// ------------------------------------------------------------
+
         class GraphemeIndex final
         {
         public:
@@ -78,9 +92,9 @@ namespace GameWIP::Terminal
                 cursor_.clear();
             }
 
-            [[nodiscard]] IO::Types::Status seek(std::string_view text, std::size_t byteOffset)
+            [[nodiscard]] GameWIP::Status::Types::Status seek(std::string_view text, std::size_t byteOffset)
             {
-                IO::Types::Status status = ensure(text);
+                GameWIP::Status::Types::Status status = ensure(text);
                 if(!status.ok())
                 {
                     return status;
@@ -88,13 +102,13 @@ namespace GameWIP::Terminal
 
                 if(cursor_.seek(byteOffset).outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
                 {
-                    return IO::makeStatus(ErrorCode::EncodingFailed);
+                    return GameWIP::Terminal::Internal::backendStatus(ErrorCode::EncodingFailed);
                 }
 
-                return IO::successStatus();
+                return GameWIP::Status::Types::Status{};
             }
 
-            [[nodiscard]] std::optional<std::size_t> previous(std::string_view text, std::size_t byteOffset, IO::Types::Status &status)
+            [[nodiscard]] std::optional<std::size_t> previous(std::string_view text, std::size_t byteOffset, GameWIP::Status::Types::Status &status)
             {
                 status = seek(text, byteOffset);
 
@@ -112,14 +126,14 @@ namespace GameWIP::Terminal
 
                 if(result.outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
                 {
-                    status = IO::makeStatus(ErrorCode::EncodingFailed);
+                    status = GameWIP::Terminal::Internal::backendStatus(ErrorCode::EncodingFailed);
                     return std::nullopt;
                 }
 
                 return result.byteOffset;
             }
 
-            [[nodiscard]] std::optional<std::size_t> next(std::string_view text, std::size_t byteOffset, IO::Types::Status &status)
+            [[nodiscard]] std::optional<std::size_t> next(std::string_view text, std::size_t byteOffset, GameWIP::Status::Types::Status &status)
             {
                 status = seek(text, byteOffset);
 
@@ -137,7 +151,7 @@ namespace GameWIP::Terminal
 
                 if(result.outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
                 {
-                    status = IO::makeStatus(ErrorCode::EncodingFailed);
+                    status = GameWIP::Terminal::Internal::backendStatus(ErrorCode::EncodingFailed);
                     return std::nullopt;
                 }
 
@@ -152,9 +166,9 @@ namespace GameWIP::Terminal
                 }
             }
 
-            [[nodiscard]] IO::Types::Status normalizeCaret(std::string_view text, std::size_t &byteOffset)
+            [[nodiscard]] GameWIP::Status::Types::Status normalizeCaret(std::string_view text, std::size_t &byteOffset)
             {
-                IO::Types::Status status = ensure(text);
+                GameWIP::Status::Types::Status status = ensure(text);
 
                 if(!status.ok())
                 {
@@ -165,33 +179,34 @@ namespace GameWIP::Terminal
 
                 if(exact.outcome == Unicode::Types::Utf8::BoundaryOutcome::Found)
                 {
-                    return IO::successStatus();
+                    return GameWIP::Status::Types::Status{};
                 }
+
                 const Unicode::Types::Utf8::BoundaryResult next = Unicode::Utf8::nextGraphemeBoundary(text, byteOffset);
 
                 if(next.outcome == Unicode::Types::Utf8::BoundaryOutcome::Found)
                 {
                     byteOffset = next.byteOffset;
                     static_cast<void>(cursor_.seek(byteOffset));
-                    return IO::successStatus();
+                    return GameWIP::Status::Types::Status{};
                 }
 
                 if(next.outcome == Unicode::Types::Utf8::BoundaryOutcome::AtEnd)
                 {
                     byteOffset = text.size();
                     static_cast<void>(cursor_.seek(byteOffset));
-                    return IO::successStatus();
+                    return GameWIP::Status::Types::Status{};
                 }
 
-                return IO::makeStatus(ErrorCode::EncodingFailed);
+                return GameWIP::Terminal::Internal::backendStatus(ErrorCode::EncodingFailed);
             }
 
         private:
-            [[nodiscard]] IO::Types::Status ensure(std::string_view text)
+            [[nodiscard]] GameWIP::Status::Types::Status ensure(std::string_view text)
             {
                 if(ready_)
                 {
-                    return IO::successStatus();
+                    return GameWIP::Status::Types::Status{};
                 }
 
                 Unicode::Types::Utf8::GraphemeIndexResult indexed = cursor_.reset(text, storage_);
@@ -205,17 +220,22 @@ namespace GameWIP::Terminal
                 if(indexed.outcome != Unicode::Types::Utf8::GraphemeIndexOutcome::Indexed)
                 {
                     cursor_.clear();
-                    return IO::makeStatus(ErrorCode::EncodingFailed);
+                    return GameWIP::Terminal::Internal::backendStatus(ErrorCode::EncodingFailed);
                 }
 
                 ready_ = true;
-                return IO::successStatus();
+                return GameWIP::Status::Types::Status{};
             }
 
+            // Reusable Unicode boundary cursor.
             std::vector<std::size_t> &storage_;
             Unicode::Utf8::GraphemeCursor cursor_;
             bool ready_ = false;
         };
+
+        /// ------------------------------------------------------------
+        /// Line echo
+        /// ------------------------------------------------------------
 
         class LineEcho final
         {
@@ -227,45 +247,47 @@ namespace GameWIP::Terminal
             {
             }
 
-            [[nodiscard]] IO::Types::Status begin()
+            [[nodiscard]] GameWIP::Status::Types::Status begin()
             {
                 if(!enabled_)
                 {
-                    return IO::successStatus();
+                    return GameWIP::Status::Types::Status{};
                 }
 
+                // Echo requires cursor movement and a stable view of terminal geometry.
                 const Types::Output::CapabilitiesResult prepared = prepareOutput(output_);
 
-                if(!prepared.status.ok())
+                if(!prepared.ok())
                 {
-                    return prepared.status;
+                    return prepared.status();
                 }
 
-                if(!prepared.capabilities.supportsCursorMovement || !prepared.capabilities.supportsCursorPositionQuery ||
-                   !prepared.capabilities.supportsTerminalSize)
+                if(!prepared.value().supportsCursorMovement || !prepared.value().supportsCursorPositionQuery ||
+                   !prepared.value().supportsTerminalSize)
                 {
                     return unsupportedStatus();
                 }
 
                 const Types::SizeResult size = getTerminalSize(output_);
 
-                if(!size.status.ok())
+                if(!size.ok())
                 {
-                    return size.status;
+                    return size.status();
                 }
-                size_ = size.size;
+                size_ = size.value();
 
-                const Types::Cursor::PositionResult position = queryRenderingPosition();
+                const Internal::PositionResult position = queryRenderingPosition();
 
-                if(!position.status.ok())
+                if(!position.ok())
                 {
-                    return position.status;
+                    return position.status();
                 }
-                origin_ = position.position;
+
+                origin_ = position.value();
                 active_ = true;
                 renderedCells_ = 0;
                 caretCells_ = 0;
-                return IO::successStatus();
+                return GameWIP::Status::Types::Status{};
             }
 
             void updateSize(Types::Size size) noexcept
@@ -277,14 +299,14 @@ namespace GameWIP::Terminal
             }
 
             /// @brief Echoes an append-at-end edit without rewriting the existing line.
-            [[nodiscard]] IO::Types::Status append(std::string_view appendedText)
+            [[nodiscard]] GameWIP::Status::Types::Status append(std::string_view appendedText)
             {
                 if(!enabled_ || !active_ || appendedText.empty())
                 {
-                    return IO::successStatus();
+                    return GameWIP::Status::Types::Status{};
                 }
 
-                IO::Types::Status status = writeText(output_, appendedText);
+                GameWIP::Status::Types::Status status = writeTerminalText(output_, appendedText);
 
                 if(!status.ok())
                 {
@@ -305,16 +327,16 @@ namespace GameWIP::Terminal
                     // Unicode and control text take the measured slow path so Terminal does not invent a width policy.
                     renderedCells_ += appendedText.size();
                     caretCells_ = renderedCells_;
-                    return IO::successStatus();
+                    return GameWIP::Status::Types::Status{};
                 }
 
-                const Types::Cursor::PositionResult current = queryRenderingPosition();
+                const Internal::PositionResult current = queryRenderingPosition();
 
-                if(!current.status.ok())
+                if(!current.ok())
                 {
-                    return current.status;
+                    return current.status();
                 }
-                const std::optional<std::size_t> cells = cellDistance(origin_, current.position);
+                const std::optional<std::size_t> cells = cellDistance(origin_, current.value());
 
                 if(!cells.has_value())
                 {
@@ -322,15 +344,15 @@ namespace GameWIP::Terminal
                 }
                 renderedCells_ = *cells;
                 caretCells_ = renderedCells_;
-                return IO::successStatus();
+                return GameWIP::Status::Types::Status{};
             }
 
             /// @brief Erases one known single-cell ASCII suffix without rewriting the line.
-            [[nodiscard]] IO::Types::Status eraseTrailingAsciiCell()
+            [[nodiscard]] GameWIP::Status::Types::Status eraseTrailingAsciiCell()
             {
                 if(!enabled_ || !active_)
                 {
-                    return IO::successStatus();
+                    return GameWIP::Status::Types::Status{};
                 }
 
                 if(size_.columns == 0)
@@ -338,20 +360,21 @@ namespace GameWIP::Terminal
                     return unsupportedStatus();
                 }
 
-                const Types::Cursor::PositionResult current = queryRenderingPosition();
+                const Internal::PositionResult current = queryRenderingPosition();
 
-                if(!current.status.ok())
+                if(!current.ok())
                 {
-                    return current.status;
+                    return current.status();
                 }
-                const std::optional<Types::Cursor::Position> currentOrigin = positionBefore(current.position, caretCells_);
+
+                const std::optional<Types::Cursor::Position> currentOrigin = positionBefore(current.value(), caretCells_);
 
                 if(!currentOrigin.has_value())
                 {
                     return unsupportedStatus();
                 }
 
-                Types::Cursor::Position previous = current.position;
+                Types::Cursor::Position previous = current.value();
 
                 if(previous.column > 0)
                 {
@@ -367,14 +390,14 @@ namespace GameWIP::Terminal
                     return unsupportedStatus();
                 }
 
-                IO::Types::Status status = setRenderingPosition(previous);
+                GameWIP::Status::Types::Status status = setRenderingPosition(previous);
 
                 if(!status.ok())
                 {
                     return status;
                 }
 
-                status = writeText(output_, " ");
+                status = writeTerminalText(output_, " ");
 
                 if(!status.ok())
                 {
@@ -394,11 +417,11 @@ namespace GameWIP::Terminal
             }
 
             /// @brief Redraws when navigation or an edit invalidates the displayed suffix.
-            [[nodiscard]] IO::Types::Status redraw(std::string_view line, std::size_t caretByteOffset)
+            [[nodiscard]] GameWIP::Status::Types::Status redraw(std::string_view line, std::size_t caretByteOffset)
             {
                 if(!enabled_ || !active_)
                 {
-                    return IO::successStatus();
+                    return GameWIP::Status::Types::Status{};
                 }
 
                 if(caretByteOffset > line.size() || size_.columns == 0)
@@ -406,13 +429,14 @@ namespace GameWIP::Terminal
                     return invalidArgumentStatus();
                 }
 
-                const Types::Cursor::PositionResult current = queryRenderingPosition();
+                const Internal::PositionResult current = queryRenderingPosition();
 
-                if(!current.status.ok())
+                if(!current.ok())
                 {
-                    return current.status;
+                    return current.status();
                 }
-                const std::optional<Types::Cursor::Position> rebuiltOrigin = positionBefore(current.position, caretCells_);
+
+                const std::optional<Types::Cursor::Position> rebuiltOrigin = positionBefore(current.value(), caretCells_);
 
                 if(!rebuiltOrigin.has_value())
                 {
@@ -420,25 +444,26 @@ namespace GameWIP::Terminal
                 }
                 origin_ = *rebuiltOrigin;
 
-                IO::Types::Status status = setRenderingPosition(origin_);
+                // Replace the rendered line and clear any cells left by its previous version.
+                GameWIP::Status::Types::Status status = setRenderingPosition(origin_);
                 if(!status.ok())
                 {
                     return status;
                 }
 
-                status = writeText(output_, line);
+                status = writeTerminalText(output_, line);
                 if(!status.ok())
                 {
                     return status;
                 }
 
-                const Types::Cursor::PositionResult end = queryRenderingPosition();
+                const Internal::PositionResult end = queryRenderingPosition();
 
-                if(!end.status.ok())
+                if(!end.ok())
                 {
-                    return end.status;
+                    return end.status();
                 }
-                const std::optional<std::size_t> newCells = cellDistance(origin_, end.position);
+                const std::optional<std::size_t> newCells = cellDistance(origin_, end.value());
 
                 if(!newCells.has_value())
                 {
@@ -466,19 +491,19 @@ namespace GameWIP::Terminal
 
                 if(caretByteOffset > 0)
                 {
-                    status = writeText(output_, line.substr(0, caretByteOffset));
+                    status = writeTerminalText(output_, line.substr(0, caretByteOffset));
 
                     if(!status.ok())
                     {
                         return status;
                     }
-                    const Types::Cursor::PositionResult caretPosition = queryRenderingPosition();
+                    const Internal::PositionResult caretPosition = queryRenderingPosition();
 
-                    if(!caretPosition.status.ok())
+                    if(!caretPosition.ok())
                     {
-                        return caretPosition.status;
+                        return caretPosition.status();
                     }
-                    const std::optional<std::size_t> cells = cellDistance(origin_, caretPosition.position);
+                    const std::optional<std::size_t> cells = cellDistance(origin_, caretPosition.value());
 
                     if(!cells.has_value())
                     {
@@ -491,19 +516,19 @@ namespace GameWIP::Terminal
                     caretCells_ = 0;
                 }
 
-                return IO::successStatus();
+                return GameWIP::Status::Types::Status{};
             }
 
-            [[nodiscard]] IO::Types::Status finish(std::string_view line, std::size_t caretByteOffset)
+            [[nodiscard]] GameWIP::Status::Types::Status finish(std::string_view line, std::size_t caretByteOffset)
             {
                 if(!enabled_ || !active_)
                 {
-                    return IO::successStatus();
+                    return GameWIP::Status::Types::Status{};
                 }
 
                 if(caretByteOffset != line.size())
                 {
-                    IO::Types::Status status = redraw(line, line.size());
+                    GameWIP::Status::Types::Status status = redraw(line, line.size());
 
                     if(!status.ok())
                     {
@@ -511,20 +536,22 @@ namespace GameWIP::Terminal
                     }
                 }
 
-                return writeText(output_, "\r\n");
+                return writeTerminalText(output_, "\r\n");
             }
 
         private:
-            [[nodiscard]] Types::Cursor::PositionResult queryRenderingPosition() const
+            // Cursor queries and movement
+            [[nodiscard]] Internal::PositionResult queryRenderingPosition() const
             {
-                return Detail::getLineRenderingCursorPosition(output_, input_);
+                return Internal::getLineRenderingCursorPosition(output_, input_);
             }
 
-            [[nodiscard]] IO::Types::Status setRenderingPosition(Types::Cursor::Position position) const
+            [[nodiscard]] GameWIP::Status::Types::Status setRenderingPosition(Types::Cursor::Position position) const
             {
-                return Detail::setLineRenderingCursorPosition(output_, position);
+                return Internal::setLineRenderingCursorPosition(output_, position);
             }
 
+            // Cursor-coordinate calculations
             [[nodiscard]] std::optional<Types::Cursor::Position> positionBefore(Types::Cursor::Position end, std::size_t cells) const noexcept
             {
                 if(size_.columns == 0 || end.column >= size_.columns)
@@ -559,14 +586,15 @@ namespace GameWIP::Terminal
                 return static_cast<std::size_t>(endLinear - beginLinear);
             }
 
-            [[nodiscard]] IO::Types::Status writeSpaces(std::size_t count)
+            // Output helpers
+            [[nodiscard]] GameWIP::Status::Types::Status writeSpaces(std::size_t count)
             {
                 static constexpr std::string_view spaces = "                                                                ";
 
                 while(count > 0)
                 {
                     const std::size_t chunk = std::min(count, spaces.size());
-                    IO::Types::Status status = writeText(output_, spaces.substr(0, chunk));
+                    GameWIP::Status::Types::Status status = writeTerminalText(output_, spaces.substr(0, chunk));
                     if(!status.ok())
                     {
                         return status;
@@ -574,9 +602,10 @@ namespace GameWIP::Terminal
                     count -= chunk;
                 }
 
-                return IO::successStatus();
+                return GameWIP::Status::Types::Status{};
             }
 
+            // Active line rendering state
             Types::Input::Stream input_;
             Types::Output::Stream output_;
             Types::Size size_{};
@@ -587,7 +616,11 @@ namespace GameWIP::Terminal
             bool active_ = false;
         };
 
-        [[nodiscard]] IO::Types::Status insertScalar(
+        /// ------------------------------------------------------------
+        /// Editing helpers
+        /// ------------------------------------------------------------
+
+        [[nodiscard]] GameWIP::Status::Types::Status insertScalar(
             std::string &line,
             std::size_t &caret,
             char32_t scalar,
@@ -595,27 +628,30 @@ namespace GameWIP::Terminal
             bool &wasTruncated,
             GraphemeIndex &graphemes)
         {
+            // Encode and enforce the byte limit before changing the line.
             const Unicode::Types::Utf8::EncodeResult encoded = Unicode::Utf8::encodeScalar(scalar);
 
             if(encoded.outcome != Unicode::Types::EncodeOutcome::Encoded)
             {
-                return IO::makeStatus(ErrorCode::EncodingFailed);
+                return GameWIP::Terminal::Internal::backendStatus(ErrorCode::EncodingFailed);
             }
             const std::size_t bytes = encoded.byteCount;
 
             if(bytes > maxBytes - std::min(maxBytes, line.size()))
             {
                 wasTruncated = true;
-                return IO::successStatus();
+                return GameWIP::Status::Types::Status{};
             }
+
+            // Insert at the caret and restore a grapheme boundary after mid-line edits.
             const bool appendedAtEnd = caret == line.size();
             line.insert(caret, encoded.bytes.data(), bytes);
             caret += bytes;
             graphemes.invalidate();
-            return appendedAtEnd ? IO::successStatus() : graphemes.normalizeCaret(line, caret);
+            return appendedAtEnd ? GameWIP::Status::Types::Status{} : graphemes.normalizeCaret(line, caret);
         }
 
-        [[nodiscard]] IO::Types::Status insertPaste(
+        [[nodiscard]] GameWIP::Status::Types::Status insertPaste(
             std::string &line,
             std::size_t &caret,
             std::string_view text,
@@ -623,6 +659,7 @@ namespace GameWIP::Terminal
             bool &wasTruncated,
             GraphemeIndex &graphemes)
         {
+            // Accept only complete UTF-8 scalars that fit the remaining byte budget.
             const std::size_t remaining = maxBytes - std::min(maxBytes, line.size());
             std::size_t accepted = 0;
 
@@ -632,7 +669,7 @@ namespace GameWIP::Terminal
 
                 if(decoded.outcome != Unicode::Types::DecodeOutcome::Decoded)
                 {
-                    return IO::makeStatus(ErrorCode::EncodingFailed);
+                    return GameWIP::Terminal::Internal::backendStatus(ErrorCode::EncodingFailed);
                 }
 
                 if(decoded.bytesConsumed > remaining - std::min(remaining, accepted))
@@ -647,6 +684,7 @@ namespace GameWIP::Terminal
                 wasTruncated = true;
             }
 
+            // Insert the accepted prefix and keep the caret on a grapheme boundary.
             if(accepted > 0)
             {
                 const bool appendedAtEnd = caret == line.size();
@@ -660,16 +698,21 @@ namespace GameWIP::Terminal
                 }
             }
 
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
 
-        [[nodiscard]] IO::Types::Status completeManagedLine(
-            Types::Input::LineResult &result,
+        /// ------------------------------------------------------------
+        /// Line result completion
+        /// ------------------------------------------------------------
+
+        [[nodiscard]] GameWIP::Status::Types::Status completeManagedLine(
+            Internal::LineOperation &result,
             std::string line,
             const Types::Input::LineOptions &options)
         {
             result.consumedLineEnding = Types::Input::ConsumedLineEnding::CrLf;
 
+            // Select the returned line ending.
             std::string_view ending;
 
             switch(options.lineEndingMode)
@@ -685,6 +728,7 @@ namespace GameWIP::Terminal
                 break;
             }
 
+            // Apply the result limit before publishing the line.
             const std::size_t maxBytes = options.maxReturnedBytes > static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max())
                                              ? std::numeric_limits<std::size_t>::max()
                                              : static_cast<std::size_t>(options.maxReturnedBytes);
@@ -699,29 +743,38 @@ namespace GameWIP::Terminal
             }
 
             result.line = std::move(line);
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
 
-        [[nodiscard]] Types::Input::EventResult readManagedEvent(
+        /// ------------------------------------------------------------
+        /// Structured event reads
+        /// ------------------------------------------------------------
+
+        [[nodiscard]] Internal::EventResult readManagedEvent(
             Types::Input::Stream input,
             Types::Output::Stream output,
             const Types::Input::EventOptions &options)
         {
-            std::lock_guard lock(Detail::inputIoMutex(input));
-            return Detail::Platform::readEvent(input, output, options);
+            std::lock_guard lock(Internal::inputIoMutex(input));
+            return Platform::readEvent(input, output, options);
         }
 
     } // namespace
 
-    Types::Input::LineResult Detail::managedTerminalLineRead(
+    /// ------------------------------------------------------------
+    /// Managed line reads
+    /// ------------------------------------------------------------
+
+    Internal::LineResult Internal::managedTerminalLineRead(
         Types::Input::Stream input,
         Types::Output::Stream output,
         const Types::Input::LineOptions &options,
         std::vector<std::size_t> &graphemeStorage)
     {
-        Types::Input::LineResult result;
-        result.status = IO::successStatus();
+        Internal::LineOperation result;
+        result.status = GameWIP::Status::Types::Status{};
 
+        // Initialize the editable line and its terminal echo.
         const std::size_t maxBytes = options.maxReturnedBytes > static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max())
                                          ? std::numeric_limits<std::size_t>::max()
                                          : static_cast<std::size_t>(options.maxReturnedBytes);
@@ -739,6 +792,7 @@ namespace GameWIP::Terminal
             return result;
         }
 
+        // Keep the requested timeout across all input events.
         const auto start = std::chrono::steady_clock::now();
 
         while(true)
@@ -749,28 +803,35 @@ namespace GameWIP::Terminal
                 result.line = std::move(line);
                 return result;
             }
+
             Types::Input::EventOptions eventOptions;
             eventOptions.timeout = remainingReadTimeout(start, options.timeout);
             eventOptions.stopToken = options.stopToken;
 
-            Types::Input::EventResult eventResult = readManagedEvent(input, output, eventOptions);
+            Internal::EventResult eventResult = readManagedEvent(input, output, eventOptions);
+            const Types::Input::EventInfo *eventInfo = eventResult.hasValue() ? &eventResult.value() : nullptr;
 
-            if(!eventResult.status.ok())
+            if(!eventResult.ok())
             {
-                result.status = std::move(eventResult.status);
-                result.outcome = eventResult.outcome;
+                result.status = eventResult.status();
+
+                if(eventInfo != nullptr)
+                {
+                    result.outcome = eventInfo->outcome;
+                }
                 result.line = std::move(line);
                 return result;
             }
 
-            if(eventResult.outcome != Types::Input::ReadOutcome::Completed || !eventResult.event.has_value())
+            if(eventInfo->outcome != Types::Input::ReadOutcome::Completed || !eventInfo->event.has_value())
             {
-                result.outcome = eventResult.outcome;
+                result.outcome = eventInfo->outcome;
                 result.line = std::move(line);
                 return result;
             }
 
-            if(const Types::Events::Resize *resize = eventResult.event->getIf<Types::Events::Resize>())
+            // Refresh echo after terminal geometry changes.
+            if(const Types::Events::Resize *resize = eventInfo->event->getIf<Types::Events::Resize>())
             {
                 echo.updateSize(resize->size);
                 result.status = echo.redraw(line, caret);
@@ -783,7 +844,8 @@ namespace GameWIP::Terminal
                 continue;
             }
 
-            if(const Types::Events::Paste *paste = eventResult.event->getIf<Types::Events::Paste>())
+            // Insert pasted text as complete Unicode scalars within the line limit.
+            if(const Types::Events::Paste *paste = eventInfo->event->getIf<Types::Events::Paste>())
             {
                 const std::size_t oldSize = line.size();
                 const std::size_t oldCaret = caret;
@@ -805,7 +867,8 @@ namespace GameWIP::Terminal
                 continue;
             }
 
-            const Types::Events::Key *keyEvent = eventResult.event->getIf<Types::Events::Key>();
+            // Ignore key releases and apply repeat counts to accepted key events.
+            const Types::Events::Key *keyEvent = eventInfo->event->getIf<Types::Events::Key>();
 
             if(keyEvent == nullptr || keyEvent->action == Types::Events::KeyAction::Release)
             {
@@ -814,6 +877,7 @@ namespace GameWIP::Terminal
 
             const std::uint32_t occurrences = keyEvent->action == Types::Events::KeyAction::Repeat ? std::max(keyEvent->repeatCount, 1U) : 1U;
 
+            // Insert character keys unless a shortcut modifier is held.
             if(const auto *character = std::get_if<Types::Events::CharacterKey>(&keyEvent->key))
             {
                 if(hasShortcutModifier(keyEvent->modifiers))
@@ -852,6 +916,7 @@ namespace GameWIP::Terminal
                 continue;
             }
 
+            // Enter completes the line before other named-key handling.
             if(*named == Types::Events::NamedKey::Enter)
             {
                 result.status = echo.finish(line, caret);
@@ -871,11 +936,12 @@ namespace GameWIP::Terminal
                 continue;
             }
 
+            // Apply editing commands at grapheme boundaries.
             bool redrawRequired = false;
 
             for(std::uint32_t occurrence = 0; occurrence < occurrences; ++occurrence)
             {
-                IO::Types::Status navigationStatus = IO::successStatus();
+                GameWIP::Status::Types::Status navigationStatus = GameWIP::Status::Types::Status{};
 
                 switch(*named)
                 {
@@ -909,9 +975,9 @@ namespace GameWIP::Terminal
                         {
                             result.status = echo.eraseTrailingAsciiCell();
 
-                            if(result.status.code == ErrorCode::Unsupported)
+                            if(result.status.code() == ErrorCode::Unsupported)
                             {
-                                result.status = IO::successStatus();
+                                result.status = GameWIP::Status::Types::Status{};
                                 redrawRequired = true;
                             }
                             else if(!result.status.ok())
@@ -1080,6 +1146,7 @@ namespace GameWIP::Terminal
                 }
             }
 
+            // Redraw once after all repeated edits for this key event.
             if(redrawRequired)
             {
                 result.status = echo.redraw(line, caret);

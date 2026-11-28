@@ -1,6 +1,14 @@
 # Enables requested sanitizer instrumentation after compile/link probing confirms toolchain support.
 # Unsupported requests fail at configure time with environment guidance.
 
+if(GAMEWIP_TARGET_PLATFORM STREQUAL "windows")
+    set(_gamewip_sanitizer_guidance "Use a Windows target toolchain that supports the requested sanitizer.")
+elseif(WIN32)
+    set(_gamewip_sanitizer_guidance "For native Windows builds, configure from the MSYS2 CLANG64 environment.")
+else()
+    set(_gamewip_sanitizer_guidance "Use a compiler toolchain that supports the requested sanitizer.")
+endif()
+
 if(GAMEWIP_ENABLE_ADDRESS_SANITIZER)
     include(CheckCXXSourceCompiles)
     include(CMakePushCheckState)
@@ -12,11 +20,7 @@ if(GAMEWIP_ENABLE_ADDRESS_SANITIZER)
     cmake_pop_check_state()
 
     if(NOT GAMEWIP_ADDRESS_SANITIZER_AVAILABLE)
-        message(
-            FATAL_ERROR
-            "AddressSanitizer is unavailable with the selected compiler. "
-            "On Windows, configure this preset using the MSYS2 CLANG64 environment."
-        )
+        message(FATAL_ERROR "AddressSanitizer is unavailable with the selected compiler. " "${_gamewip_sanitizer_guidance}")
     endif()
 
     add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
@@ -34,11 +38,7 @@ if(GAMEWIP_ENABLE_UNDEFINED_BEHAVIOR_SANITIZER)
     cmake_pop_check_state()
 
     if(NOT GAMEWIP_UNDEFINED_BEHAVIOR_SANITIZER_AVAILABLE)
-        message(
-            FATAL_ERROR
-            "UndefinedBehaviorSanitizer is unavailable with the selected compiler. "
-            "On Windows, configure this preset using the MSYS2 CLANG64 environment."
-        )
+        message(FATAL_ERROR "UndefinedBehaviorSanitizer is unavailable with the selected compiler. " "${_gamewip_sanitizer_guidance}")
     endif()
 
     add_compile_options(-fsanitize=undefined -fno-sanitize-recover=undefined -fno-omit-frame-pointer -fno-sanitize-merge)

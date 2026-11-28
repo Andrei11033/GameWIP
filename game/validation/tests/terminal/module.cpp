@@ -5,13 +5,11 @@
 
 #include "validation/process_arguments.h"
 #include "validation/tests/registry.h"
+#include "validation/tests/terminal/platform.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <string_view>
-
-#ifndef TERMINAL_INTERNAL_TEST_HOOKS
-#define TERMINAL_INTERNAL_TEST_HOOKS 0
-#endif
 
 namespace
 {
@@ -20,7 +18,7 @@ namespace
     {
         const auto arguments = GameWIP::Validation::processArguments(argc, argv);
 
-        for(char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
+        for(const char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
         {
             if(value == nullptr)
             {
@@ -32,12 +30,11 @@ namespace
             {
                 return true;
             }
-#if TERMINAL_INTERNAL_TEST_HOOKS && defined(_WIN32)
-            if(argument == "--terminal-test-child=cancellation-signal-failure")
+
+            if(GameWIP::Test::TerminalPlatform::handlesCancellationSignalFailureChild(argument))
             {
                 return true;
             }
-#endif
         }
 
         return false;

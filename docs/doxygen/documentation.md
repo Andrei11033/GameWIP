@@ -389,18 +389,46 @@ Internal helper comments may be shorter than public API comments, but still
 explain the helper's purpose, contract, and reason for existing when nearby code
 does not make that clear.
 
-Inside non-trivial functions, blank lines can separate phases such as validation,
-input preparation, the main operation, fallback or error handling, state
-publication, and cleanup.
+### Manual source organization
 
-This spacing is for function-body flow. Section separators belong to larger
-file-level groups, not to every unrelated step or statement.
+Apply these rules to maintained first-party code in every language. They
+supplement formatters and cover logical grouping and spacing formatters do not
+choose. Use each language's native structures and comment syntax, and leave
+formatter-managed alignment to the configured formatter. File boundaries
+follow @ref project_structure.
 
-Other maintained first-party languages use their own documentation conventions:
+- Use the same domain terms for related responsibilities across files. Let each
+  file's role determine its order; interfaces and implementations do not need
+  to mirror one another.
+- Group declarations, state, configuration fields, and assignments by
+  responsibility and order them by meaning; use alphabetical order when it
+  helps scan a lookup set. Keep platform-gated declarations adjacent to their
+  guard directives, without blank lines inside a short guard block. Field and
+  assignment group spacing is detailed below.
+- Use three-line separators for major file and namespace sections, and for
+  public class sections without a Doxygen member group. In C++, use `///` at
+  namespace scope and the repo's `//` form at file and class scope. When a
+  public API already uses `@name` groups, do not repeat the same title in a
+  separator. Use short labels for struct fields and function phases.
+- In non-trivial functions, mark each logical phase with a concise native
+  comment directly above its work and separate phases with one blank line.
+  The first phase may follow the block opener directly. Use comments for
+  meaningful steps and substeps, not to narrate syntax. Separate independent
+  conditions and assignment groups with one blank line; keep each condition
+  with its handling and keep multi-branch chains together. Do not use
+  separator banners inside function bodies.
+- Put API contracts on declarations or in their owning docs. Implementation
+  comments add local context instead of repeating those contracts.
+
+Use the language-specific documentation and comment conventions alongside
+these shared grouping rules:
 
 Python files start with a concise module docstring that identifies purpose and
 ownership. JavaScript files start with a concise file-purpose or ownership
 comment when generated or vendor ownership does not already cover the role.
+CSS stylesheets group selectors by responsibility and use block comments for
+substantial sections. Batch entry points remain thin; `rem` comments explain
+non-obvious routing or command contracts.
 PowerShell entry points and libraries identify the file purpose and document
 non-obvious command contracts, side effects, or failure behavior near the owning
 function. Shared CMake modules identify purpose and document helper inputs,
@@ -408,28 +436,74 @@ side effects, target ownership, generated files, source-tree versus installed
 behavior, platform scope, dependency visibility, and failure conditions when
 those are not obvious from the function name. YAML comments explain only
 non-obvious policy or security constraints. JSON uses its schema and owning
-documentation rather than comment-like fields. Generated and vendored sources
-follow their generator or upstream contract.
+documentation rather than comments; JSONC comments explain only non-obvious
+setting constraints. Generated and vendored sources follow their generator or
+upstream contract.
 
 These standards do not require a CI check for every style preference. Automate
 a rule only when doing so protects a meaningful contract or prevents recurring
 drift.
 
-Long maintained source files may use section separators as a short
-responsibility map:
+Use section separators as a short responsibility map in files with multiple
+major groups. Use the language's ordinary comment syntax and exactly 60
+hyphens on each divider line; for example:
 
 ```cpp
+#include <cstddef>
+
 // ------------------------------------------------------------
-// Lifecycle
+// File section
 // ------------------------------------------------------------
+
+void initialize() noexcept;
 ```
 
-Use exactly 60 hyphens, the language's ordinary line-comment marker, and a
-concise noun phrase. Public headers group consumer concerns; implementations
-group mechanisms; validation sources group suites, fixtures, and runners; CMake
-files group configuration, target contracts, dependencies, generated artifacts,
-installation, and documentation registration. The same domain terms should be
-used across layers when they describe the same responsibility.
+At C++ namespace scope, use `///` on all three lines:
+
+```cpp
+namespace GameWIP::Desktop::Events
+{
+    /// ------------------------------------------------------------
+    /// Window lifecycle events
+    /// ------------------------------------------------------------
+
+    void pump() noexcept;
+}
+```
+
+Use concise native line comments for struct field and local assignment groups.
+Place the first member or statement directly below its label and leave one
+blank line between groups. The first group may follow its opening delimiter
+directly.
+
+Example struct field groups:
+
+```cpp
+struct State
+{
+    // Identity
+    DeviceId id{};
+
+    // Capture state
+    bool connected = false;
+};
+```
+
+```powershell
+# ------------------------------------------------------------
+# Dependency cache
+# ------------------------------------------------------------
+
+```
+
+Use a concise noun phrase. Match group names to the file's role: interfaces
+group consumer concerns, implementations group mechanisms, validation sources
+group suites and fixtures, and build files group configuration, targets,
+dependencies, generated artifacts, and installation. Use the same domain terms
+across layers for shared responsibilities.
+
+Leave one blank line above and below each separator. When a separator directly
+follows an opening `{`, the leading blank line may be omitted.
 
 Place a separator where it helps a new reader scan the file before reading the
 details. A section holds a coherent set of related declarations or steps, not a
@@ -442,14 +516,11 @@ Small or single-purpose files, individual symbols or namespaces, and generated,
 vendored, or comment-free structured content do not need separators. Separators
 organize source; they do not replace symbol or helper documentation.
 
-When a public API family also needs a group in the generated reference, pair the
-separator with a Doxygen member group:
+Use Doxygen member groups to organize public APIs in the generated reference.
+Do not repeat the same title in a separator; use a separator only for a broader
+source section outside the member group:
 
 ```cpp
-// ------------------------------------------------------------
-// Lifecycle
-// ------------------------------------------------------------
-
 /// @name Lifecycle
 /// @{
 
@@ -467,8 +538,9 @@ and put broader separators outside them. A single symbol or a repeated file,
 namespace, or type name does not need a group.
 
 The repository standards check enforces separator shape and the blank line after
-a Doxygen `@{`. `gamewip quality fix` normalizes those mechanically safe details;
-malformed three-line separator structures still need manual fixes.
+a Doxygen `@{`. Group placement, header/source alignment, and function-phase
+spacing remain manual review. `gamewip quality fix` normalizes mechanically safe
+details; malformed three-line separator structures still need manual fixes.
 
 ## Editorial standard
 
@@ -497,24 +569,21 @@ Build the generated manual and check the warning log:
 ```powershell
 cmake --preset docs
 cmake --build --preset docs
-$warningLog = Get-Item .\build\docs\docs\doxygen\doxygen_warnings.log
+$warningLog = Get-Item .\build\native\docs\docs\doxygen\doxygen_warnings.log
 if ($warningLog.Length -ne 0) {
     Get-Content $warningLog
     throw "Doxygen emitted unexpected warnings."
 }
-
 ```
 
 The generated Doxyfile must keep explicit inputs, write HTML output under the
 build tree, and write warnings to
-`build/docs/docs/doxygen/doxygen_warnings.log`. Local and CI validation treat a
-warning log containing unexpected warnings as a failure. A successful Doxygen
-process exit alone is not enough.
-
-The documentation build rejects unexpected Doxygen warnings. Undocumented
-passive enum values and explicitly approved equality and bitmask operators are
-exceptions to the documentation-warning policy. Non-obvious enum-value
-documentation is review-enforced rather than Doxygen-enforced.
+`build/native/docs/docs/doxygen/doxygen_warnings.log`. Local and CI validation treat a
+warning log containing unexpected warnings as a failure; a successful Doxygen
+process exit alone is not enough. Undocumented passive enum values and
+explicitly approved equality and bitmask operators are exceptions to the
+documentation-warning policy. Non-obvious enum-value documentation is
+review-enforced rather than Doxygen-enforced.
 Doxygen checks other undocumented declarations and incomplete tagged parameter
 or return documentation. A concise summary may fully document an obvious
 accessor, but a non-trivial operation still needs its local contract in the

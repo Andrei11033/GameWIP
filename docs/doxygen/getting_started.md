@@ -6,33 +6,53 @@ workflow reference.
 
 ## First checkout setup
 
-Run the repository setup entry point after cloning. The fresh-machine flow,
-editor selection, repair and update actions, and command options are documented
-in @ref project_environment_setup.
+Run the repository setup entry point after cloning. If PowerShell 7.7 or newer
+is missing, setup asks before installing the verified managed runtime. The
+fresh-machine flow, supported distributions, repair and update actions, and
+command options are documented in @ref project_environment_setup.
 
 ```powershell
 .\setup.bat
 ```
 
-VS Code users should open `GameWIP.code-workspace`. The setup utility prepares
-the `dev` compilation database used by workspace IntelliSense.
+On Ubuntu, Debian, or CachyOS, run:
+
+```bash
+bash ./setup.sh
+```
+
+VS Code users should open `GameWIP.code-workspace`. The C/C++ extension can use
+the `dev` compilation database for each configured build target.
 
 ## Configure, build, and run
 
-From PowerShell, use the helper to build the `dev` preset with the configured
-toolchain (see @ref project_build for all presets), then run the executable:
+From PowerShell, use the helper to build the `dev` preset for the selected
+Windows target (see @ref project_build for target selection and all presets):
 
 ```powershell
 .\gamewip.bat build dev
-.\build\dev\GameWIP.exe
+.\build\windows-amd64\dev\GameWIP.exe
 ```
+
+The helper defaults to Windows AMD64. Windows ARM64 uses
+`build/windows-arm64/dev/GameWIP.exe`.
+
+Linux can cross-build either Windows target with the same helper commands:
+
+```bash
+bash ./gamewip.sh target -TargetPlatform windows -TargetArchitecture amd64
+bash ./gamewip.sh build dev
+```
+
+The helper also selects Linux AMD64 and ARM64 compiler targets on Windows and
+Linux. Full project configuration waits for Linux platform backends.
 
 From MSYS2 UCRT64 Bash, the equivalent direct commands are:
 
 ```bash
 cmake --preset dev
 cmake --build --preset dev
-./build/dev/GameWIP.exe
+./build/native/dev/GameWIP.exe
 ```
 
 The executable's `--version` option prints the generated build identity. Run it
@@ -62,6 +82,8 @@ cmake --preset test
 cmake --build --preset test
 ctest --preset test
 ```
+
+For Linux cross-build validation, see @ref project_build.
 
 The validation architecture, module registration, child-process routing, report
 paths, and startup behavior are documented in @ref project_validation. Test

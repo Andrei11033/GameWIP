@@ -3,13 +3,13 @@
 
 #include "desktop/display_info.h"
 
-#include "desktop/internal/window_platform.h"
+#include "desktop/platform/window.h"
 
 #include <algorithm>
 #include <cmath>
 #include <limits>
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
     /// @brief Converts native color metadata into a sanitized portable snapshot.
     Types::Display::ColorInfo makeDisplayColorInfo(Types::Display::MonitorId monitor, const DisplayColorSnapshot &snapshot) noexcept
@@ -36,48 +36,50 @@ namespace GameWIP::Desktop::Detail::Platform
                                      ? std::nullopt
                                      : std::optional<float>{static_cast<float>(snapshot.sdrWhiteLevelMilli80Nits) * 80.0F / 1000.0F}};
     }
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Platform
 
 namespace GameWIP::Desktop::Display
 {
-    // ------------------------------------------------------------
-    // Monitor and display-color queries
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Monitor and display-color queries
+    /// ------------------------------------------------------------
 
-    Types::Result<std::vector<Types::Display::Info>> getMonitors() noexcept
+    GameWIP::Status::Types::Result<std::vector<Types::Display::Info>> getMonitors() noexcept
     {
-        return Detail::Platform::getMonitors();
+        return Platform::getMonitors();
     }
 
-    Types::Result<Types::Display::Info> getPrimaryMonitor() noexcept
+    GameWIP::Status::Types::Result<Types::Display::Info> getPrimaryMonitor() noexcept
     {
-        return Detail::Platform::getPrimaryMonitor();
+        return Platform::getPrimaryMonitor();
     }
 
-    Types::Result<Types::Display::Info> getMonitor(Types::Display::MonitorId monitor) noexcept
+    GameWIP::Status::Types::Result<Types::Display::Info> getMonitor(Types::Display::MonitorId monitor) noexcept
     {
-        return Detail::Platform::getMonitor(monitor);
+        return Platform::getMonitor(monitor);
     }
 
-    Types::Result<Types::Display::ColorInfo> getColorInfo(Types::Display::MonitorId monitor) noexcept
+    GameWIP::Status::Types::Result<Types::Display::ColorInfo> getColorInfo(Types::Display::MonitorId monitor) noexcept
     {
-        return Detail::Platform::getColorInfo(monitor);
+        return Platform::getColorInfo(monitor);
     }
 
-    Types::Result<Types::Display::ColorInfo> getColorInfo(const Window &window) noexcept
+    GameWIP::Status::Types::Result<Types::Display::ColorInfo> getColorInfo(const Window &window) noexcept
     {
-        const Detail::WindowState *state = Detail::WindowAccess::state(window);
+        const Internal::WindowState *state = Internal::WindowAccess::state(window);
 
         if(state == nullptr || !window.isOpen())
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::NotOpen)};
+            return GameWIP::Status::Types::Result<Types::Display::ColorInfo>::failure(
+                GameWIP::Status::Types::Status(GameWIP::Status::Types::Code::NotOpen));
         }
 
         if(!window.ownedByCurrentThread())
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::ResourceBusy)};
+            return GameWIP::Status::Types::Result<Types::Display::ColorInfo>::failure(
+                GameWIP::Status::Types::Status(GameWIP::Status::Types::Code::ResourceBusy));
         }
 
-        return Detail::Platform::getColorInfo(state->monitor);
+        return Platform::getColorInfo(state->monitor);
     }
 } // namespace GameWIP::Desktop::Display

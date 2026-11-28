@@ -29,13 +29,14 @@ void testManualAssertUi(TestContext &context, const AssertTestOptions &options)
     }
 
 #if ASSERT_ENABLED
-    ScopedLoggerShutdown loggerShutdown;
+    const ScopedLoggerShutdown loggerShutdown;
 
     if(!initFileLogger(context, "manual_assert_ui"))
     {
         context.fail("manual assert UI logger init", "Logger::init failed");
         return;
     }
+
     const ScopedClearedEnvironmentVariable clearTestAction(context.processState, kTestActionEnvironmentVariable);
     const ScopedClearedEnvironmentVariable clearSuppressPopup(context.processState, kSuppressPopupEnvironmentVariable);
 
@@ -54,20 +55,22 @@ void testManualAssertUi(TestContext &context, const AssertTestOptions &options)
     manualInteractiveAlwaysIgnoreSite();
     context.manualCheck("manual assert UI Always Ignore", "Did Always Ignore dismiss the first dialog and suppress the second call's dialog?");
 
-#if defined(_WIN32)
-    if(IsDebuggerPresent() != FALSE)
+    const GameWIP::Validation::PlatformTests::DebuggerStatus debuggerStatus = GameWIP::Validation::PlatformTests::debuggerStatus();
+
+    if(debuggerStatus == GameWIP::Validation::PlatformTests::DebuggerStatus::Attached)
     {
         context.emit("[MANUAL] Assert UI Break: click Break, let the debugger stop, then continue execution.\n");
         manualInteractiveBreakSite();
         context.manualCheck("manual assert UI Break", "Did Break stop in the debugger, and could you resume execution?");
     }
-    else
+    else if(debuggerStatus == GameWIP::Validation::PlatformTests::DebuggerStatus::Detached)
     {
         context.skip("manual assert UI Break", "no debugger is attached");
     }
-#else
-    context.skip("manual assert UI Break", "this manual check is Windows-only");
-#endif
+    else
+    {
+        context.skip("manual assert UI Break", "debugger detection is unavailable");
+    }
 
     if(options.enableChildCrashTests)
     {
@@ -80,7 +83,7 @@ void testManualAssertUi(TestContext &context, const AssertTestOptions &options)
         const ScopedEnvironmentVariable childLogDirectoryOverride(
             context.processState,
             kChildLogDirectoryEnvironmentVariable,
-            pathText(childLogDirectory));
+            pathText(context, childLogDirectory));
         const ScopedClearedEnvironmentVariable clearChildTestAction(context.processState, kTestActionEnvironmentVariable);
         const ScopedClearedEnvironmentVariable clearChildSuppressPopup(context.processState, kSuppressPopupEnvironmentVariable);
 
@@ -111,7 +114,7 @@ void testManualAssertUi(TestContext &context, const AssertTestOptions &options)
         context.skip("manual assert UI Abort child", "child crash tests are disabled");
     }
 
-    Logger::flush(2s);
+    static_cast<void>(Logger::flush(2s));
 #else
     context.skip("manual assert UI tests", "ASSERT_ENABLED=0");
 #endif

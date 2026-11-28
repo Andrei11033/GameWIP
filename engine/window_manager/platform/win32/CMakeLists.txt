@@ -1,0 +1,1 @@
+target_sources(WindowManager PRIVATE win32_window_manager.cpp)

@@ -4,6 +4,7 @@
 /// @brief Verifies strict UTF-16 decode, encode, and whole-range validation edge cases.
 void testUtf16CodecAndValidation(TestSupport::Context &context)
 {
+    // Decode BMP values and surrogate-pair boundaries.
     expectUtf16Decode(context, "empty UTF-16", {}, DecodeOutcome::Incomplete);
 
     const std::array<char16_t, 1> nul{u'\0'};
@@ -27,6 +28,7 @@ void testUtf16CodecAndValidation(TestSupport::Context &context)
     const std::array<char16_t, 2> highThenBmp{static_cast<char16_t>(0xD800), u'A'};
     expectUtf16Decode(context, "high surrogate followed by BMP", highThenBmp, DecodeOutcome::InvalidEncoding);
 
+    // Encode representative scalar boundaries.
     struct EncodeCase
     {
         char32_t scalar;
@@ -73,6 +75,7 @@ void testUtf16CodecAndValidation(TestSupport::Context &context)
                 })));
     }
 
+    // Validate complete ranges and report the valid prefix.
     const std::array<char16_t, 5> validText{
         u'\0',
         u'A',

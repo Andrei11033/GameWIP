@@ -13,10 +13,9 @@
 #include <type_traits>
 #include <utility>
 
-static_assert(sizeof(GameWIP::TestSupport::Types::InfrastructureError) == sizeof(std::uint8_t));
+static_assert(sizeof(GameWIP::Status::Types::Code) == sizeof(std::uint8_t));
 static_assert(sizeof(GameWIP::TestSupport::Types::Process::Outcome) == sizeof(std::uint8_t));
-static_assert(GameWIP::TestSupport::Types::InfrastructureStatus{}.ok());
-static_assert(noexcept(GameWIP::TestSupport::Types::InfrastructureStatus{}.ok()));
+static_assert(noexcept(GameWIP::TestSupport::Types::Status{}.ok()));
 static_assert(noexcept(GameWIP::TestSupport::readTextFile(std::declval<const std::filesystem::path &>())));
 static_assert(noexcept(GameWIP::TestSupport::writeTextFile(std::declval<const std::filesystem::path &>(), std::declval<std::string_view>())));
 static_assert(noexcept(GameWIP::TestSupport::fileExists(std::declval<const std::filesystem::path &>())));

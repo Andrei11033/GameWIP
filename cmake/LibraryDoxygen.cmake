@@ -11,6 +11,10 @@ include_guard(GLOBAL)
 # reusable library must provide its landing page; unsupported inputs fail during
 # configuration instead of being silently omitted.
 
+# ------------------------------------------------------------
+# Register inputs and libraries
+# ------------------------------------------------------------
+
 function(gamewip_register_doxygen_inputs)
     foreach(doxygen_input IN LISTS ARGN)
         if(NOT doxygen_input)
@@ -78,14 +82,6 @@ function(gamewip_register_doxygen_library)
         )
     endif()
 
-    if(NOT LIBRARY_DOXYGEN_LIBRARY_PUBLIC_HEADERS AND NOT LIBRARY_DOXYGEN_LIBRARY_DOCS)
-        message(
-            FATAL_ERROR
-            "gamewip_register_doxygen_library(${LIBRARY_DOXYGEN_LIBRARY_NAME}) "
-            "must register at least one public header or docs folder."
-        )
-    endif()
-
     set(LIBRARY_DOXYGEN_LIBRARY_LANDING_PAGE_FOUND OFF)
     foreach(doxygen_docs_input IN LISTS LIBRARY_DOXYGEN_LIBRARY_DOCS)
         get_filename_component(doxygen_docs_input_absolute "${doxygen_docs_input}" ABSOLUTE)
@@ -113,6 +109,10 @@ function(gamewip_register_doxygen_library)
 
     gamewip_register_doxygen_inputs(${LIBRARY_DOXYGEN_LIBRARY_PUBLIC_HEADERS} ${LIBRARY_DOXYGEN_LIBRARY_DOCS})
 endfunction()
+
+# ------------------------------------------------------------
+# Generate the documentation target
+# ------------------------------------------------------------
 
 function(gamewip_create_doxygen_target)
     set(options)

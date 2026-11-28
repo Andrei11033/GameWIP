@@ -13,6 +13,7 @@ foreach(
         GAMEWIP_CMAKE_MINIMUM_VERSION
         MULTI_CONFIG
         CXX_COMPILER
+        CXX_FLAGS
         EXECUTABLE_SUFFIX
 )
     if(NOT DEFINED ${required_variable})
@@ -25,6 +26,10 @@ set(install_prefix "${WORK_DIR}/prefix")
 set(consumer_build_dir "${WORK_DIR}/consumer")
 file(REMOVE_RECURSE "${WORK_DIR}")
 
+# ------------------------------------------------------------
+# Configure, build, and install the project
+# ------------------------------------------------------------
+
 set(configure_command
     "${CMAKE_COMMAND}"
     -S
@@ -34,6 +39,7 @@ set(configure_command
     -G
     "${GENERATOR}"
     "-DCMAKE_CXX_COMPILER=${CXX_COMPILER}"
+    "-DCMAKE_CXX_FLAGS=${CXX_FLAGS}"
     -DGAMEWIP_BUILD_GAME=OFF
     -DGAMEWIP_BUILD_TESTS=OFF
     -DGAMEWIP_BUILD_BENCHMARKS=OFF
@@ -71,6 +77,10 @@ if(NOT prefix_install_result EQUAL 0)
     message(FATAL_ERROR "Interface-only Assert prefix installation failed.\n" "${prefix_install_output}\n${prefix_install_error}")
 endif()
 
+# ------------------------------------------------------------
+# Build and run an isolated package consumer
+# ------------------------------------------------------------
+
 set(consumer_configure_command
     "${CMAKE_COMMAND}"
     -S
@@ -80,10 +90,12 @@ set(consumer_configure_command
     -G
     "${GENERATOR}"
     "-DCMAKE_CXX_COMPILER=${CXX_COMPILER}"
+    "-DCMAKE_CXX_FLAGS=${CXX_FLAGS}"
     "-DCMAKE_PREFIX_PATH=${install_prefix}"
     "-DGAMEWIP_PACKAGE_VERSION=${PACKAGE_VERSION}"
     "-DGAMEWIP_CMAKE_MINIMUM_VERSION=${GAMEWIP_CMAKE_MINIMUM_VERSION}"
     -DGAMEWIP_CONSUMER_PACKAGE=Assert
+    -DGAMEWIP_ASSERT_INTERFACE_ONLY=ON
 )
 if(NOT MULTI_CONFIG)
     list(APPEND consumer_configure_command "-DCMAKE_BUILD_TYPE=${BUILD_TYPE}")

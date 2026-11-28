@@ -14,6 +14,8 @@ endfunction()
 # ------------------------------------------------------------
 
 gamewip_add_public_header_check(BaseCheckedArithmetic base_checked_arithmetic_header.cpp GameWIP::Base)
+gamewip_add_public_header_check(Status status_status_header.cpp GameWIP::Status)
+gamewip_add_public_header_check(StatusResult status_result_header.cpp GameWIP::Status)
 
 # ------------------------------------------------------------
 # Unicode and IO
@@ -21,7 +23,6 @@ gamewip_add_public_header_check(BaseCheckedArithmetic base_checked_arithmetic_he
 
 gamewip_add_public_header_check(Unicode unicode_header.cpp GameWIP::Unicode)
 gamewip_add_public_header_check(IO io_header.cpp GameWIP::IO)
-gamewip_add_public_header_check(IOStatus io_status_header.cpp GameWIP::IO)
 gamewip_add_public_header_check(IOStream io_stream_header.cpp GameWIP::IO)
 gamewip_add_public_header_check(IOMemory io_memory_header.cpp GameWIP::IO)
 gamewip_add_public_header_check(IOTransfer io_transfer_header.cpp GameWIP::IO)
@@ -34,6 +35,7 @@ gamewip_add_public_header_check(FileSystem filesystem_header.cpp GameWIP::FileSy
 gamewip_add_public_header_check(FileSystemPath filesystem_path_header.cpp GameWIP::FileSystem)
 gamewip_add_public_header_check(FileSystemEntry filesystem_entry_header.cpp GameWIP::FileSystem)
 gamewip_add_public_header_check(FileSystemFile filesystem_file_header.cpp GameWIP::FileSystem)
+gamewip_add_public_header_check(FileSystemFileTypes filesystem_file_types_header.cpp GameWIP::FileSystem)
 gamewip_add_public_header_check(FileSystemDirectory filesystem_directory_header.cpp GameWIP::FileSystem)
 
 # ------------------------------------------------------------
@@ -44,6 +46,7 @@ gamewip_add_public_header_check(Terminal terminal_header.cpp GameWIP::Terminal)
 gamewip_add_public_header_check(TerminalTypes terminal_types_header.cpp GameWIP::Terminal)
 gamewip_add_public_header_check(TerminalInput terminal_input_header.cpp GameWIP::Terminal)
 gamewip_add_public_header_check(TerminalOutput terminal_output_header.cpp GameWIP::Terminal)
+gamewip_add_public_header_check(TerminalOutputTypes terminal_output_types_header.cpp GameWIP::Terminal)
 gamewip_add_public_header_check(TerminalSession terminal_session_header.cpp GameWIP::Terminal)
 gamewip_add_public_header_check(TerminalStyle terminal_style_header.cpp GameWIP::Terminal)
 
@@ -52,7 +55,21 @@ gamewip_add_public_header_check(TerminalStyle terminal_style_header.cpp GameWIP:
 # ------------------------------------------------------------
 
 gamewip_add_public_header_check(DesktopTypes desktop_types_header.cpp GameWIP::Desktop)
+gamewip_add_public_header_check(DesktopIconTypes desktop_icon_types_header.cpp GameWIP::Desktop)
 gamewip_add_public_header_check(DesktopAccessibility desktop_accessibility_header.cpp GameWIP::Desktop)
+
+# Focused accessibility headers
+gamewip_add_public_header_check(DesktopAccessibilityActions desktop_accessibility_actions_header.cpp GameWIP::Desktop)
+gamewip_add_public_header_check(DesktopAccessibilityCollections desktop_accessibility_collections_header.cpp GameWIP::Desktop)
+gamewip_add_public_header_check(DesktopAccessibilityFacade desktop_accessibility_facade_header.cpp GameWIP::Desktop)
+gamewip_add_public_header_check(DesktopAccessibilityGeometry desktop_accessibility_geometry_header.cpp GameWIP::Desktop)
+gamewip_add_public_header_check(DesktopAccessibilityIdentity desktop_accessibility_identity_header.cpp GameWIP::Desktop)
+gamewip_add_public_header_check(DesktopAccessibilityRelations desktop_accessibility_relations_header.cpp GameWIP::Desktop)
+gamewip_add_public_header_check(DesktopAccessibilitySnapshot desktop_accessibility_snapshot_header.cpp GameWIP::Desktop)
+gamewip_add_public_header_check(DesktopAccessibilitySnapshotTypes desktop_accessibility_snapshot_types_header.cpp GameWIP::Desktop)
+gamewip_add_public_header_check(DesktopAccessibilityText desktop_accessibility_text_header.cpp GameWIP::Desktop)
+gamewip_add_public_header_check(DesktopAccessibilityTypes desktop_accessibility_types_header.cpp GameWIP::Desktop)
+
 gamewip_add_public_header_check(DesktopClipboard desktop_clipboard_header.cpp GameWIP::Desktop)
 gamewip_add_public_header_check(DesktopDataTransfer desktop_data_transfer_header.cpp GameWIP::Desktop)
 gamewip_add_public_header_check(DesktopDragDrop desktop_drag_drop_header.cpp GameWIP::Desktop)
@@ -65,7 +82,6 @@ gamewip_add_public_header_check(DesktopDisplay desktop_display_header.cpp GameWI
 gamewip_add_public_header_check(DesktopDisplayInfo desktop_display_info_header.cpp GameWIP::Desktop)
 gamewip_add_public_header_check(DesktopWindow desktop_window_header.cpp GameWIP::Desktop)
 gamewip_add_public_header_check(DesktopRenderer desktop_renderer_header.cpp GameWIP::Desktop)
-gamewip_add_public_header_check(DesktopResult desktop_result_header.cpp GameWIP::Desktop)
 gamewip_add_public_header_check(DesktopShell desktop_shell_header.cpp GameWIP::Desktop)
 gamewip_add_public_header_check(DesktopShellTypes desktop_shell_types_header.cpp GameWIP::Desktop)
 gamewip_add_public_header_check(DesktopShellTaskbar desktop_shell_taskbar_header.cpp GameWIP::Desktop)
@@ -73,7 +89,6 @@ gamewip_add_public_header_check(DesktopShellTray desktop_shell_tray_header.cpp G
 gamewip_add_public_header_check(DesktopShellNotifications desktop_shell_notifications_header.cpp GameWIP::Desktop)
 gamewip_add_public_header_check(DesktopShellJumpLists desktop_shell_jump_lists_header.cpp GameWIP::Desktop)
 gamewip_add_public_header_check(DesktopShellRegistration desktop_shell_registration_header.cpp GameWIP::Desktop)
-gamewip_add_public_header_check(DesktopNativeWin32 desktop_native_win32_header.cpp GameWIP::Desktop)
 
 # ------------------------------------------------------------
 # Input
@@ -86,8 +101,6 @@ gamewip_add_public_header_check(InputFrame input_frame_header.cpp GameWIP::Input
 gamewip_add_public_header_check(InputQuery input_query_header.cpp GameWIP::Input)
 gamewip_add_public_header_check(InputSystem input_system_header.cpp GameWIP::Input)
 gamewip_add_public_header_check(InputSynthetic input_synthetic_header.cpp GameWIP::Input)
-gamewip_add_public_header_check(InputWin32 input_win32_header.cpp GameWIP::Input)
-gamewip_add_public_header_check(InputNativeDesktopWin32 input_native_desktop_win32_header.cpp GameWIP::Input GameWIP::Desktop)
 
 # ------------------------------------------------------------
 # Logger
@@ -118,3 +131,5 @@ gamewip_add_public_header_check(TestSupportFiles test_support_files_header.cpp G
 gamewip_add_public_header_check(TestSupportProcess test_support_process_header.cpp GameWIP::TestSupport)
 gamewip_add_public_header_check(TestSupportStress test_support_stress_header.cpp GameWIP::TestSupport)
 gamewip_add_public_header_check(TestSupport test_support_header.cpp GameWIP::TestSupport)
+
+add_subdirectory(platform)

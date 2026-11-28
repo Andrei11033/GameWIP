@@ -2,6 +2,7 @@
 /// @brief Google Benchmark scenarios for Logger producer paths.
 
 #include "logger/logger.h"
+#include "filesystem/path.h"
 #include "test_support/test_support.h"
 
 #include <benchmark/benchmark.h>
@@ -17,12 +18,18 @@
 
 namespace
 {
+    namespace FileSystem = GameWIP::FileSystem;
     namespace Logger = GameWIP::Logger;
+    namespace Status = GameWIP::Status::Types;
     namespace TestSupport = GameWIP::TestSupport;
 
     constexpr std::string_view kSource = "LoggerBenchmark";
     constexpr std::string_view kMessage = "logger benchmark message";
     constexpr Logger::Types::SourceId kRegisteredSource = 1;
+
+    /// ------------------------------------------------------------
+    /// Shared Logger fixtures
+    /// ------------------------------------------------------------
 
     Logger::Types::Config baseConfig()
     {
@@ -46,7 +53,31 @@ namespace
 
     [[nodiscard]] bool flushCompleted(const Logger::Types::FlushResult &result) noexcept
     {
-        return result.status.ok() && result.outcome == Logger::Types::FlushOutcome::Completed;
+        return result.ok() && result.value().outcome == Logger::Types::FlushOutcome::Completed;
+    }
+
+    void recordLoggerCounters(benchmark::State &state, const Logger::Types::Stats &stats)
+    {
+        state.counters["queued"] = static_cast<double>(stats.queued);
+        state.counters["written"] = static_cast<double>(stats.written);
+        state.counters["queue_drops"] = static_cast<double>(stats.queueDropsSoft + stats.queueDropsHard);
+        state.counters["peak_queue"] = static_cast<double>(stats.peakQueueDepth);
+    }
+
+    [[nodiscard]] std::string statusDescription(const Status::Status &status)
+    {
+        const Status::Diagnostic *diagnostic = status.diagnostic();
+        const std::string nativeCode =
+            diagnostic != nullptr && diagnostic->nativeCode.has_value()
+                ? std::format("{}:{}", Status::nativeCodeDomainName(diagnostic->nativeCode->domain), diagnostic->nativeCode->value)
+                : "<none>";
+        const std::string message = diagnostic != nullptr && !diagnostic->message.empty() ? diagnostic->message : "<none>";
+        return std::format("code={} native={} message={}", Status::codeName(status.code()), nativeCode, message);
+    }
+
+    [[nodiscard]] std::string pathConversionError(std::string_view pathName, const Status::Status &status)
+    {
+        return std::format("Could not convert {} ({}).", pathName, statusDescription(status));
     }
 
     class LoggerFixture : public benchmark::Fixture
@@ -69,14 +100,22 @@ namespace
 
                     if(!workspace_->status().ok())
                     {
-                        const std::string error = std::format(
-                            "Could not create Logger benchmark workspace: {}.",
-                            TestSupport::formatInfrastructureStatus(workspace_->status()));
+                        const std::string error =
+                            std::format("Could not create Logger benchmark workspace: {}.", TestSupport::formatStatus(workspace_->status()));
                         state.SkipWithError(error);
                         workspace_.reset();
                         return false;
                     }
-                    directoryText_ = workspace_->path().string();
+                    const auto directory = FileSystem::pathToUtf8(workspace_->path());
+
+                    if(!directory.ok())
+                    {
+                        state.SkipWithError(pathConversionError("Logger benchmark path", directory.status()));
+                        workspace_.reset();
+                        return false;
+                    }
+
+                    directoryText_ = directory.value();
                     config.logDirectory = directoryText_;
                 }
                 catch(const std::exception &exception)
@@ -87,16 +126,16 @@ namespace
             }
 
             const Logger::Types::Init::Result initResult = Logger::init(config);
-            initialized_ = initResult.status.ok() && initResult.outcome == Logger::Types::Init::Outcome::Started;
+            initialized_ = initResult.ok() && initResult.value().outcome == Logger::Types::Init::Outcome::Started;
 
             if(!initialized_)
             {
                 const std::string error = std::format(
-                    "Logger initialization failed (status={}, native={}, outputStatus={}, outputNative={}).",
-                    static_cast<int>(initResult.status.code),
-                    initResult.status.nativeCode,
-                    static_cast<int>(initResult.outputSetupStatus.code),
-                    initResult.outputSetupStatus.nativeCode);
+                    "Logger initialization failed (status={}, outputStatus={}).",
+                    statusDescription(initResult.status()),
+                    initResult.hasValue() && initResult.value().outputSetupStatus.has_value()
+                        ? statusDescription(*initResult.value().outputSetupStatus)
+                        : "<none>");
                 state.SkipWithError(error);
             }
 
@@ -111,10 +150,7 @@ namespace
                 const Logger::Types::Stats stats = Logger::getStats();
                 static_cast<void>(Logger::shutdown());
 
-                state.counters["queued"] = static_cast<double>(stats.queued);
-                state.counters["written"] = static_cast<double>(stats.written);
-                state.counters["queue_drops"] = static_cast<double>(stats.queueDropsSoft + stats.queueDropsHard);
-                state.counters["peak_queue"] = static_cast<double>(stats.peakQueueDepth);
+                recordLoggerCounters(state, stats);
 
                 if(!flushCompleted(flushResult))
                 {
@@ -131,6 +167,10 @@ namespace
         std::string directoryText_;
     };
 
+    /// ------------------------------------------------------------
+    /// Single-producer paths
+    /// ------------------------------------------------------------
+
     class OutputDisabledFixture : public LoggerFixture
     {
     public:
@@ -143,7 +183,7 @@ namespace
             // Disabled output is a successful configuration but intentionally does not start a worker.
             const auto init = Logger::init(config);
 
-            if(!init.status.ok() || init.outcome != Logger::Types::Init::Outcome::Disabled)
+            if(!init.ok() || init.value().outcome != Logger::Types::Init::Outcome::Disabled)
             {
                 state.SkipWithError("Logger disabled initialization failed.");
                 return;
@@ -263,6 +303,10 @@ namespace
         state.SetItemsProcessed(state.iterations());
     }
 
+    /// ------------------------------------------------------------
+    /// Multi-producer contention
+    /// ------------------------------------------------------------
+
     void multiProducerContention(benchmark::State &state)
     {
         static std::mutex lifecycleMutex;
@@ -284,22 +328,31 @@ namespace
                     if(!workspace->status().ok())
                     {
                         state.SkipWithError(
-                            std::format(
-                                "Could not create multi-producer workspace: {}.",
-                                TestSupport::formatInfrastructureStatus(workspace->status())));
+                            std::format("Could not create multi-producer workspace: {}.", TestSupport::formatStatus(workspace->status())));
                         workspace.reset();
                         initialized = false;
                     }
                     else
                     {
-                        directoryText = workspace->path().string();
-                        const std::array sources{Logger::Types::SourceDefinition{kRegisteredSource, "RegisteredBenchmark"}};
-                        Logger::Types::Config config = baseConfig();
-                        config.output = Logger::Types::OutputMode::File;
-                        config.logDirectory = directoryText;
-                        config.sources = sources;
-                        const auto init = Logger::init(config);
-                        initialized = init.status.ok() && init.outcome == Logger::Types::Init::Outcome::Started;
+                        const auto directory = FileSystem::pathToUtf8(workspace->path());
+
+                        if(!directory.ok())
+                        {
+                            state.SkipWithError(pathConversionError("multi-producer workspace path", directory.status()));
+                            workspace.reset();
+                            initialized = false;
+                        }
+                        else
+                        {
+                            directoryText = directory.value();
+                            const std::array sources{Logger::Types::SourceDefinition{kRegisteredSource, "RegisteredBenchmark"}};
+                            Logger::Types::Config config = baseConfig();
+                            config.output = Logger::Types::OutputMode::File;
+                            config.logDirectory = directoryText;
+                            config.sources = sources;
+                            const auto init = Logger::init(config);
+                            initialized = init.ok() && init.value().outcome == Logger::Types::Init::Outcome::Started;
+                        }
                     }
                 }
                 catch(const std::exception &exception)
@@ -339,10 +392,7 @@ namespace
                 workspace.reset();
                 directoryText.clear();
                 initialized = false;
-                state.counters["queued"] = static_cast<double>(stats.queued);
-                state.counters["written"] = static_cast<double>(stats.written);
-                state.counters["queue_drops"] = static_cast<double>(stats.queueDropsSoft + stats.queueDropsHard);
-                state.counters["peak_queue"] = static_cast<double>(stats.peakQueueDepth);
+                recordLoggerCounters(state, stats);
 
                 if(!flushed)
                 {

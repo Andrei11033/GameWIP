@@ -1,0 +1,20 @@
+add_subdirectory(helpers)
+
+target_sources(
+    Desktop
+    PRIVATE
+        accessibility_state.h
+        child_surface_state.h
+        cursor_selection.h
+        cursor_state.h
+        desktop_test_export.h
+        desktop_test_hooks.h
+        drag_drop_state.h
+        presentation_publication_state.h
+        progress_dialog_state.h
+        results.h
+        renderer_integration_state.h
+        shell_helpers.h
+        shell_state.h
+        window_state.h
+)

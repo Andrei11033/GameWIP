@@ -10,7 +10,6 @@ The Win32 validation backend exposes two bounded coordination points for strict 
 - `armMoveCommittedPause()` pauses after native commit and before the operation returns.
 - `waitForMovePause()` observes the worker reaching the selected point.
 - `releaseMovePause()` allows the worker to continue.
-- `reset()` clears both unlock-failure state and move-pause state.
 
 These hooks support externally meaningful race tests by validating that a strict move remains anchored to the original parent.
 They also validate that post-commit namespace changes do not alter the operation's result.

@@ -14,9 +14,9 @@ Run coverage from the repository root:
 .\gamewip.bat cov
 ```
 
-The helper removes and recreates `build/coverage` on every high-level coverage
-run before configuring, building, testing, and generating the report. This keeps
-obsolete `.gcda`/`.gcno` data and generated files from surviving
+The helper removes and recreates the selected target's coverage tree on every
+high-level run before configuring, building, testing, and generating the report.
+This keeps obsolete `.gcda`/`.gcno` data and generated files from surviving
 source moves, target changes, or instrumentation changes.
 
 The equivalent raw CMake sequence is:
@@ -25,10 +25,10 @@ The equivalent raw CMake sequence is:
 cmake --preset coverage
 cmake --build --preset coverage
 ctest --preset coverage
-cmake --build build/coverage --target coverage
+cmake --build build/native/coverage --target coverage
 ```
 
-For a clean raw-CMake result, begin with an empty `build/coverage` tree. Raw
+For a clean raw-CMake result, begin with an empty `build/native/coverage` tree. Raw
 CMake commands otherwise remain incremental.
 
 The coverage workflow requires standalone tests.
@@ -36,26 +36,29 @@ The coverage workflow requires standalone tests.
 ## Build controls
 
 `GAMEWIP_ENABLE_COVERAGE=ON` adds GCC or Clang coverage instrumentation and
-creates the `coverage` target. The `coverage` preset enables this option and
-disables the game executable.
+creates the `coverage` target. Only GameWIP targets receive instrumentation;
+external dependencies are configured first. The `coverage` preset enables
+this option and disables the game executable.
 
 The project rejects `GAMEWIP_ENABLE_COVERAGE=ON` when `GAMEWIP_BUILD_TESTS=OFF`.
 
 ## Outputs and artifacts
 
-The `coverage` target uses `gcovr` to write:
+The `coverage` target uses `gcovr` to write these paths relative to the selected
+build tree:
 
 ```text
-build/coverage/coverage/index.html
-build/coverage/coverage/coverage.xml
-build/coverage/coverage/tests/index.html
-build/coverage/coverage/tests/coverage.xml
+coverage/coverage/index.html
+coverage/coverage/coverage.xml
+coverage/coverage/tests/index.html
+coverage/coverage/tests/coverage.xml
 ```
 
 The report includes maintained implementation sources for Base, Unicode, IO,
-FileSystem, Terminal, Logger, Assert, TestSupport, and Desktop. The separate
-`tests/` report contains modular correctness-test sources under `game/validation/tests`;
-test code does not inflate implementation coverage. Header-only Base code
+FileSystem, Terminal, Logger, Assert, TestSupport, Desktop, and Input. The
+separate `tests/` report contains modular correctness-test sources under
+`game/validation/tests`; test code does not inflate implementation coverage.
+Header-only Base code
 contributes where tests or consumers instantiate it. Third-party sources under
 `external/`, generated build output, and retained engine reference code are excluded.
 Coverage data is read only from the active coverage build tree, so archived or

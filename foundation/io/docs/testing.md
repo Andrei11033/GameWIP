@@ -5,10 +5,18 @@
 ## Focused module
 
 The `io` correctness module checks the public contract through the shared GameWIP
-validation runner. Run it with:
+validation runner. For a direct CMake build, run:
+
+Windows:
 
 ```powershell
-.\build\test\GameWIPTests.exe --test-module=io --no-test-report
+.\build\native\test\GameWIPTests.exe --test-module=io --no-test-report
+```
+
+Linux:
+
+```sh
+./build/native/test/GameWIPTests --test-module=io --no-test-report
 ```
 
 Use @ref project_testing for configure/build commands, reporting, CTest behavior, and validation authoring rules.
@@ -39,7 +47,7 @@ The repository validation also checks:
 
 - independent compilation of every focused IO header and the `io/io.h` umbrella;
 - installed consumption through both focused headers and the umbrella;
-- A clean installed consumer using `find_package(IO ... EXACT CONFIG REQUIRED)` and `GameWIP::IO` without source-tree include paths; the IO package
+- a clean installed consumer using `find_package(IO ... EXACT CONFIG REQUIRED)` and `GameWIP::IO` without source-tree include paths; the IO package
   resolves its Unicode implementation dependency automatically.
 - Project-wide compiler, sanitizer, coverage, and static-analysis workflows where enabled.
 

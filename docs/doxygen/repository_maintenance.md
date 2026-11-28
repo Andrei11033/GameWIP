@@ -103,20 +103,23 @@ Before release preparation, use the `local-release-check` helper bundle and the
 release readiness dry run. Record actual evidence in the release pull request;
 do not treat an earlier ordinary pull-request run as finalization evidence.
 The bundle recreates every preset tree it owns before executing its declared
-steps. The separate `sanitizer` bundle does the same for `build/asan` and `build/ubsan`; the
-`quick` bundle remains incremental for normal iteration.
+steps. The separate `sanitizer` bundle does the same for the selected target's
+`asan` and `ubsan` trees; the `quick` bundle remains incremental for normal
+iteration.
 
 GitHub-hosted validation already receives a new workspace for every job.
 Repository workflows may cache immutable tool downloads and dependency data,
-but must not cache or restore `build/<preset>` CMake trees. Reusing those trees
+but must not cache or restore CMake build trees under `build/native/` or
+`build/<target>/`. Reusing those trees
 would weaken the clean-run guarantee and can preserve artifacts that CMake no
 longer knows how to clean.
 
 ## Manual workflow map
 
-Use `gamewip.bat workflow list` to discover supported
-dispatches. The helper fixes the ref to `master`, shows the exact command, and
-uses typed confirmation for writes and deployments.
+Use `gamewip.bat workflow list` on Windows or `bash ./gamewip.sh workflow list`
+on Linux to discover supported dispatches. The helper fixes the ref to
+`master`, shows the exact command, and uses typed confirmation for writes and
+deployments.
 
 | Dispatch | Use it when | Effect |
 | --- | --- | --- |

@@ -19,12 +19,16 @@ and workflow pages describe the behavior inside each area.
 | `engine/` | The maintained Desktop and Input libraries and retained engine reference code. See the engine section below for build status. |
 | `game/` | Executable entry point, runtime facade, startup validation wiring, validation runners, and game-facing integration. |
 | `cmake/` | Repository-wide build, platform, validation, coverage, documentation, packaging, and analysis helpers. |
+| `scripts/lib/` | Shared PowerShell helper libraries used by the project and setup commands. |
+| `scripts/platform/<platform>/` | Host-specific shell bootstrap shared by project and setup entry points. |
+| `scripts/setup/lib/` | Shared setup orchestration, inventory, and editor integration. |
+| `scripts/setup/platform/<platform>/` | Host-specific setup providers and uninstall operations. |
 | `external/` | CMake integration for optional FetchContent dependencies. |
 | `config/quality/` | Explicit formatter and linter policy consumed by the project quality helper. |
 | `docs/doxygen/` | Doxygen sources for the project manual pages. |
 | `docs/` | Vision, roadmap, decisions, versioning, and contributor workflow records. |
 | `.github/` | Pull-request policy, CI, documentation publishing, and repository automation. |
-| `build/gamewip/cache/dependencies/` | Setup-managed locked third-party dependency sources. |
+| `<storage-root>/cache/dependencies/` (default `build/gamewip/cache/dependencies/`) | Setup-managed locked third-party dependency sources. |
 
 Build output belongs under the build directories selected by CMake presets.
 
@@ -53,8 +57,8 @@ IO + FileSystem
 IO + Unicode
   -> Input
 
-Input::Platform::Win32::Attachment (optional Windows integration)
-  -> Desktop::Native::Win32 (message sink routing)
+Desktop::Native::Win32 (message sink routing)
+  -> Input::Platform::Win32::attachToWindow (optional Desktop connector)
 
 IO + FileSystem + Terminal
   -> Logger
@@ -73,9 +77,10 @@ An arrow points from a dependency to the library that consumes it. Lower-level
 libraries must not depend on the game executable, runtime facade, validation
 runner, or benchmark runner.
 
-Input offers portable device capture with an optional Windows attachment. Desktop integration is
-available on Windows only through `Input::Platform::Win32::attachToWindow()`; Input remains independent
-on other platforms and in contexts where Desktop is not used.
+Input offers portable device capture and an optional Windows attachment. The
+Input library target has no Desktop dependency; its optional
+`Input::Platform::Win32::attachToWindow()` connector uses Desktop's native
+message sink.
 
 Unicode has no dependency on another reusable GameWIP library. It owns
 platform-neutral scalar, encoding, conversion, and grapheme algorithms without
@@ -124,6 +129,41 @@ Each reusable library owns:
 
 A reusable library must not require the game executable to compile, test, install, or be consumed from a clean external CMake project.
 
+## Library folder roles
+
+This is the authoritative guide to library folder ownership. The layout is
+selective: add a folder only when the library has that responsibility. Do not
+add empty source folders or placeholder backends.
+
+| Folder | Use |
+| --- | --- |
+| Library root | Public headers and `CMakeLists.txt` for target, package setup, dependencies, and docs registration. |
+| `core/` | Portable implementation. Its `CMakeLists.txt` registers files; omit it for header-only libraries. |
+| `internal/` | Private contracts, state, and declarations shared by implementation files. |
+| `internal/helpers/` | Shared private helper implementations. Keep declarations in the parent `internal/` folder. |
+| `platform/` | Backend selection in `CMakeLists.txt`; no backend implementation. |
+| `platform/<platform-id>/` | Platform implementation and dependencies. Its `CMakeLists.txt` registers them. |
+| `platform/<platform-id>/internal/` | Private contracts and state shared within that backend. |
+| `platform/<platform-id>/internal/helpers/` | Shared backend helpers. Keep declarations in its `internal/` folder. |
+| `native/` | Public inter-library connectors that deliberately expose native handles or messages. |
+| `detail/` | Header-only support required by installed templates or macros; installed when needed, unsupported API. |
+| `cmake/` | Library-local CMake modules and package templates. |
+| `docs/` | Library manuals and API guidance registered for generated docs. |
+| `tools/` | Library maintenance scripts and generators, not part of ordinary use. |
+
+Every CMake-managed source or header folder owns a `CMakeLists.txt` that
+registers its files. The library root owns target and package setup. Docs,
+package templates, and maintenance scripts do not need source-registration
+files. Public headers may include a named platform adapter at the library root;
+its native implementation stays under `platform/<platform-id>/`. Correctness
+tests and benchmarks belong under `game/validation/`, not inside a library.
+
+Some libraries use only part of this layout. Base is a header-only,
+source-tree support target, while IO and Unicode have no platform backend.
+Logger's `detail/` headers are an exception to the usual private-header
+boundary: public templates include them, so they must be installed for those
+templates to compile, but their names and contents remain unsupported.
+
 ## Source organization
 
 Files are organized by responsibility. Public, implementation, internal, and
@@ -139,9 +179,16 @@ to mirror one another.
 - `.cpp` files organize implementation responsibility. Split a translation unit
   when a coherent subsystem can be owned, maintained, and built independently
   without creating a broad private API just to move lines around.
-- Internal headers own private contracts when multiple implementation files
-  genuinely share them or when a private subsystem becomes materially clearer.
-  Do not create one solely to make source files smaller.
+- Shared private contracts belong in `internal/` headers. Put helpers shared by
+  multiple translation units in `internal/helpers/`; keep file-local helpers
+  with their owning core or platform implementation. Add a private header for
+  a shared contract or clear private subsystem, not only to shorten a source
+  file. Avoid catch-all helper files.
+- Name implementation files for their responsibility. Omit a repeated library
+  prefix when the parent directory already identifies the library.
+- Use `.inl` only for focused test fragments under `game/validation/`.
+  Implementations belong in `.cpp` files. The retained Action reference has
+  existing implementation `.inl` files pending its separate pass.
 - Correctness-test sources organize behavioral domains inside one logical
   module. A module may use focused private case fragments or several focused
   case translation units while retaining one registration, options interface,
@@ -165,18 +212,25 @@ just to make neighboring targets look alike.
 Installation exports only the public header set and any generated shared-library
 export headers required by the package.
 
+Private implementation uses the library's `Internal` namespace. Backend
+contracts use its sibling `Platform` namespace; test hooks use
+`Internal::TestHooks`.
+
 These are not consumer API:
 
 - Internal headers.
 - Platform backend headers.
 - Test-hook headers.
 - Validation-only helpers.
-- Private `Detail` implementation helpers.
+- Private `Internal` implementation helpers.
 - Backend-native handles and platform-specific types.
 - Source-tree-only CMake helpers.
 
-Public manuals must not require readers to understand `Detail` namespaces.
-Maintainer documentation may mention them when explaining implementation
+An intentional native interoperability header may expose the handles and types
+required by its documented connector API.
+
+Public manuals document supported contracts, not internal namespaces.
+Maintainer documentation may name them when explaining implementation
 boundaries, validation hooks, or backend contracts.
 
 ## Installed-package boundary
@@ -196,10 +250,10 @@ Package rules are documented in @ref project_library_compatibility.
 
 ## Platform backend boundary
 
-Platform-specific implementation belongs behind the owning library's internal
-backend contract. Backend file layout, native error translation, Unicode and
-path behavior, cleanup rules, and test-hook restrictions are documented in @ref
-project_platform_backend_contract.
+Platform-specific implementation belongs under `platform/<platform-id>/` and
+implements the owning library's `Platform` contract. Backend file layout,
+native error translation, Unicode and path behavior, cleanup rules, and
+test-hook restrictions are documented in @ref project_platform_backend_contract.
 
 ## Validation ownership
 
@@ -209,7 +263,13 @@ Correctness tests live under:
 
 ```text
 game/validation/tests/<module>/
+game/validation/tests/<module>/platform/<platform>/
 ```
+
+Keep platform-specific test sources with their owning module. Each module's
+`platform/CMakeLists.txt` selects its backend and
+`platform/<platform>/CMakeLists.txt` registers its sources. Shared validation
+helpers belong under `game/validation/tests/platform/<platform>/`.
 
 Benchmarks live under:
 

@@ -4,30 +4,31 @@ Logger lifecycle operations are serialized.
 
 ## Initialization
 
-A successful enabled init returns `status.ok() == true` and `Types::Init::Outcome::Started`. `OutputMode::None` returns success plus `Disabled`.
+A successful enabled init returns `ok() == true` and `value().outcome == Types::Init::Outcome::Started`. `OutputMode::None` returns success plus `Disabled`.
 Recoverable numeric/storage adjustments remain successful and are described by the adjustment bitmask.
 
-If File setup fails and Console remains available, overall initialization succeeds, `effectiveOutput` reflects Console, and `outputSetupStatus`
-contains the original File/setup failure. If no normal sink remains, init fails and returns `Disabled`.
+If File setup fails and Console remains available, overall initialization succeeds, `value().effectiveOutput` reflects Console, and
+`value().outputSetupStatus` contains the original File/setup failure. If no normal sink remains, init fails and returns `Disabled`.
 
 If timestamp conversion fails during File setup but the log file still opens, initialization can still start with File output. The failure remains
-visible through `outputSetupStatus` and health because timestamp quality degraded, but the usable sink is not disabled.
+visible through `value().outputSetupStatus` and health because timestamp quality degraded, but the usable sink is not disabled.
 
-Calling init while Logger is active returns `AlreadyOpen`, preserves the existing runtime and health, and does not reconfigure it. Reconfiguration is
-explicit: `shutdown()` then `init()`.
+Calling init while Logger is active returns a failed result with `status().code() == Status::Types::Code::AlreadyOpen`, preserves the existing
+runtime and health, and does not reconfigure it. Reconfiguration is explicit: `shutdown()` then `init()`.
 
 ## Flush
 
 `flush()` drains accepted asynchronous work and flushes active sinks. The optional duration controls one absolute Logger-owned deadline: `nullopt`
 waits indefinitely, zero polls, positive values bound waits, and negative values are invalid.
 
-A respected deadline produces `status.ok() == true` plus `FlushOutcome::TimedOut`. Real write/flush failures are represented by failed IO status.
+A respected deadline produces `ok() == true` plus `value().outcome == FlushOutcome::TimedOut`. Real write/flush failures are represented by a failed
+`status()`.
 Native IO already entered is synchronous and may complete after the deadline.
 
 ## Shutdown
 
 `shutdown()` is repeat-safe and safe before init. It disables producer acceptance, joins/drains the worker, flushes sinks, closes File, and releases
-configured storage. Cleanup continues after failures and returns the first real IO failure. The final runtime state is Disabled.
+configured storage. Cleanup continues after failures and returns the first real operation failure. The final runtime state is Disabled.
 
 ## Queries and failure reporting
 

@@ -29,6 +29,8 @@ project-wide rule; silence is not an exception.
   accepted Win32 adapter is the one deliberate exception to the general plural-collection rule: `Desktop::Native::Win32::HandleView`,
   `Types::Result<HandleView>`, and `getHandle(...)` describe one coherent native-handle
   view/result even though the view contains both `HINSTANCE` and `HWND`.
+- Capability and support queries describe implemented semantics; they do not
+  infer support from platform presence alone.
 
 ## Text and bytes
 
@@ -61,10 +63,7 @@ but platform code must not introduce an independent Win32 codec implementation.
 Keeping conversion in one library makes validation, malformed-input handling,
 and boundary behavior consistent across consumers.
 
-## Predicates, units, and offsets
-
-Predicate names distinguish plain state, classification, presence, capability, support, and conditional behavior without mechanically adding a
-prefix. Capability and support queries report implemented semantics and do not infer them from platform presence alone.
+## Units and offsets
 
 Public units must be visible in the type, member name, or directly adjacent contract. Distinguish logical coordinates, physical pixels, durations,
 byte counts, code-unit counts, scalar counts, and grapheme counts. Text offsets state their unit and required boundary. UTF-8 storage normally uses
@@ -75,8 +74,8 @@ byte offsets, with callers required to supply valid code-point or grapheme bound
 An operation status reports whether the operation completed and why it failed. Expected domain outcomes such as cancellation, timeout policy
 successfully enforced, user choice, fallback, adjustment, or truncation remain distinct from operational failure.
 
-- Return a status directly when no value or domain outcome is needed.
-- Use a named result containing status plus values or outcomes when callers need both.
+- Use `Result<void>` for fallible operations with no payload and `Result<T>` when callers need a value or outcome.
+- Use `Status` to construct, inspect, or combine operation outcomes; do not return it directly from public operations.
 - Preserve meaningful partial progress.
 - Associate diagnostics with the operation result or a coherent health snapshot. Do not use mutable process-wide or thread-local last-operation
   pairings.
@@ -84,18 +83,11 @@ successfully enforced, user choice, fallback, adjustment, or truncation remain d
 
 ## Unsupported capabilities
 
-Platform-specific features that are unavailable on the current platform must return `Unsupported` rather than throwing exceptions, providing stub implementations,
-or accepting the request without performing it. This pattern allows callers to detect missing capabilities at runtime and adapt gracefully without requiring
-platform-specific conditional compilation in application code.
-
-Return `Unsupported` when:
-
-- A feature requires native platform support that is absent (e.g., Input attachment on Linux/macOS)
-- A Windows-only capability is requested on another platform
-- A newer OS version requirement is not met (e.g., backdrop effect on Windows 10)
-- Future extensibility requires a capability placeholder
-
-Example: `Input::Platform::Win32::Attachment` is available only on Windows; other platforms return `Unsupported` from `attach()`.
+Return `Unsupported` when an implemented backend cannot provide a requested
+capability, including one that requires a newer OS version. If the selected
+platform has no backend implementation, configuration fails; do not add an
+empty placeholder backend. This lets callers handle native capability limits
+without platform-specific conditional compilation.
 
 Do not use `Unsupported` for:
 

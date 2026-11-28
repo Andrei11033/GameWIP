@@ -21,7 +21,7 @@ endif()
 include("${PROJECT_SOURCE_DIR}/cmake/GameWIPVisibility.cmake")
 include(GNUInstallDirs)
 
-if(NOT COMMAND gamewip_target_platform_backend)
+if(NOT COMMAND gamewip_add_platform_backend)
     include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPlatform.cmake")
     gamewip_resolve_platform_id(GAMEWIP_PLATFORM_ID)
 endif()
@@ -150,10 +150,10 @@ else()
 endif()
 
 if(ASSERT_RUNTIME_TARGET_ENABLED)
-    target_sources(Assert PRIVATE core/assert.cpp)
+    add_subdirectory(core)
+    add_subdirectory(internal)
+    add_subdirectory(platform)
 endif()
-
-gamewip_target_platform_backend(TARGET Assert ROOT "${CMAKE_CURRENT_SOURCE_DIR}/platform")
 
 if(ASSERT_RUNTIME_TARGET_ENABLED)
     target_include_directories(

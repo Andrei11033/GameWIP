@@ -10,14 +10,12 @@
 #include <limits>
 #include <vector>
 
-namespace GameWIP::Desktop::Detail
+namespace GameWIP::Desktop::Internal
 {
-    // Keep this as one lazy allocation while its optional renderer features remain small and closely related. If it grows substantially with
-    // independent features such as presentation timing, HDR/color metadata, damage tracking, or frame-latency state, split focused optional
-    // sub-states instead of turning this into a generic renderer-state container.
     /// @brief Optional renderer-facing state shared by hit-mask and occlusion bridges.
     struct RendererIntegrationState
     {
+        // Pointer hit-mask publication
         std::vector<Types::Renderer::PointerHitMaskWord> pointerHitMask;
         Types::PixelSize pointerHitMaskSize;
         Types::PixelSize pointerHitMaskTargetSize;
@@ -27,18 +25,25 @@ namespace GameWIP::Desktop::Detail
         std::uint64_t pointerHitMaskTargetGeneration = 0;
         bool pointerHitMaskGenerationExhausted = false;
         bool pointerHitMaskBackendSupportedForTesting = false;
+
+        // Renderer occlusion feedback
         bool occlusionProviderAttached = false;
         bool occluded = false;
+
+        /// @brief Publishes a completed mask and clears its reserved target metadata.
+        void commitPointerHitMask(std::uint64_t generation, Types::PixelSize size) noexcept
+        {
+            pointerHitMaskActiveGeneration = generation;
+            pointerHitMaskSize = size;
+            pointerHitMaskTargetGeneration = 0;
+            pointerHitMaskTargetSize = {};
+            pointerHitMaskTargetWordCount = 0;
+        }
 
         /// @brief Clears the active mask and advances its generation for stale-publish rejection.
         void invalidatePointerHitMask() noexcept
         {
-            pointerHitMask.clear();
-            pointerHitMaskSize = {};
-            pointerHitMaskActiveGeneration = 0;
-            pointerHitMaskTargetGeneration = 0;
-            pointerHitMaskTargetSize = {};
-            pointerHitMaskTargetWordCount = 0;
+            clearPointerHitMask();
 
             if(pointerHitMaskGeneration == std::numeric_limits<std::uint64_t>::max())
             {
@@ -53,15 +58,21 @@ namespace GameWIP::Desktop::Detail
         /// @brief Clears optional renderer state at the end of one Window lifetime.
         void finishWindowLifetime() noexcept
         {
+            clearPointerHitMask();
+            pointerHitMaskBackendSupportedForTesting = false;
+            occlusionProviderAttached = false;
+            occluded = false;
+        }
+
+    private:
+        void clearPointerHitMask() noexcept
+        {
             pointerHitMask.clear();
             pointerHitMaskSize = {};
             pointerHitMaskActiveGeneration = 0;
             pointerHitMaskTargetGeneration = 0;
             pointerHitMaskTargetSize = {};
             pointerHitMaskTargetWordCount = 0;
-            pointerHitMaskBackendSupportedForTesting = false;
-            occlusionProviderAttached = false;
-            occluded = false;
         }
     };
-} // namespace GameWIP::Desktop::Detail
+} // namespace GameWIP::Desktop::Internal

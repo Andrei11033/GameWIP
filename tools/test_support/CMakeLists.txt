@@ -11,7 +11,7 @@ if(NOT COMMAND gamewip_install_package)
     include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPackage.cmake")
 endif()
 
-if(NOT COMMAND gamewip_target_platform_backend)
+if(NOT COMMAND gamewip_add_platform_backend)
     include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPlatform.cmake")
     gamewip_resolve_platform_id(GAMEWIP_PLATFORM_ID)
 endif()
@@ -20,26 +20,23 @@ endif()
 # Target and public headers
 # ------------------------------------------------------------
 
+set(TEST_SUPPORT_PUBLIC_HEADERS
+    "${CMAKE_CURRENT_SOURCE_DIR}/types.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/reporting.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/files.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/process.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/stress.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_support.h"
+)
+
 add_library(TestSupport STATIC)
 add_library(GameWIP::TestSupport ALIAS TestSupport)
 
-target_sources(
-    TestSupport
-    PRIVATE core/test_support.cpp core/reporting.cpp core/files.cpp core/process_state.cpp core/stress.cpp
-    PUBLIC
-        FILE_SET public_headers
-            TYPE HEADERS
-            BASE_DIRS "${PROJECT_SOURCE_DIR}/tools"
-            FILES
-                "${CMAKE_CURRENT_SOURCE_DIR}/types.h"
-                "${CMAKE_CURRENT_SOURCE_DIR}/reporting.h"
-                "${CMAKE_CURRENT_SOURCE_DIR}/files.h"
-                "${CMAKE_CURRENT_SOURCE_DIR}/process.h"
-                "${CMAKE_CURRENT_SOURCE_DIR}/stress.h"
-                "${CMAKE_CURRENT_SOURCE_DIR}/test_support.h"
-)
+target_sources(TestSupport PUBLIC FILE_SET public_headers TYPE HEADERS BASE_DIRS "${PROJECT_SOURCE_DIR}/tools" FILES ${TEST_SUPPORT_PUBLIC_HEADERS})
 
-gamewip_target_platform_backend(TARGET TestSupport ROOT "${CMAKE_CURRENT_SOURCE_DIR}/platform")
+add_subdirectory(core)
+add_subdirectory(internal)
+add_subdirectory(platform)
 
 # ------------------------------------------------------------
 # Compile and dependency contracts
@@ -48,9 +45,9 @@ gamewip_target_platform_backend(TARGET TestSupport ROOT "${CMAKE_CURRENT_SOURCE_
 target_include_directories(TestSupport PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/tools> $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 
 target_compile_features(TestSupport PUBLIC cxx_std_23)
-target_link_libraries(TestSupport PRIVATE Unicode)
+target_link_libraries(TestSupport PUBLIC GameWIP::Status PRIVATE Unicode)
 
-# TestSupport may use foundational Unicode for real text semantics, but must not
+# TestSupport may use foundational Status and Unicode, but must not
 # acquire IO, FileSystem, Logger, Assert, engine, or other higher-level GameWIP dependencies.
 set(test_support_forbidden_gamewip_targets
     IO
@@ -73,8 +70,8 @@ foreach(property_name LINK_LIBRARIES INTERFACE_LINK_LIBRARIES)
             if(link_item IN_LIST test_support_forbidden_gamewip_targets)
                 message(FATAL_ERROR "TestSupport must not depend on '${link_item}'.")
             endif()
-            if(link_item MATCHES "^GameWIP::" AND NOT link_item STREQUAL "GameWIP::Unicode")
-                message(FATAL_ERROR "TestSupport may depend only on foundational Unicode, but ${property_name} contains '${link_item}'.")
+            if(link_item MATCHES "^GameWIP::" AND NOT link_item STREQUAL "GameWIP::Status" AND NOT link_item STREQUAL "GameWIP::Unicode")
+                message(FATAL_ERROR "TestSupport may depend only on foundational Status and Unicode, but ${property_name} contains '${link_item}'.")
             endif()
         endforeach()
     endif()
@@ -90,13 +87,7 @@ if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
     gamewip_register_doxygen_library(
         NAME TestSupport
         PAGE_ID test_support
-        PUBLIC_HEADERS
-            "${CMAKE_CURRENT_SOURCE_DIR}/types.h"
-            "${CMAKE_CURRENT_SOURCE_DIR}/reporting.h"
-            "${CMAKE_CURRENT_SOURCE_DIR}/files.h"
-            "${CMAKE_CURRENT_SOURCE_DIR}/process.h"
-            "${CMAKE_CURRENT_SOURCE_DIR}/stress.h"
-            "${CMAKE_CURRENT_SOURCE_DIR}/test_support.h"
+        PUBLIC_HEADERS ${TEST_SUPPORT_PUBLIC_HEADERS}
         DOCS "${CMAKE_CURRENT_SOURCE_DIR}/docs"
     )
 endif()

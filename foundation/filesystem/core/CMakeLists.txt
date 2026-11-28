@@ -1,0 +1,15 @@
+target_sources(
+    FileSystem
+    PRIVATE
+        atomic_write.cpp
+        directories.cpp
+        directory_cursor.cpp
+        file.cpp
+        file_lock.cpp
+        metadata.cpp
+        mutations.cpp
+        path.cpp
+        reader.cpp
+        writer.cpp
+        whole_file.cpp
+)

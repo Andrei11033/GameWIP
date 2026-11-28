@@ -4,13 +4,13 @@
   "defaultBranch": "master",
   "storage": {
     "root": "build/gamewip",
-    "cache": "build/gamewip/cache",
-    "state": "build/gamewip/state",
-    "temp": "build/gamewip/temp",
-    "runs": "build/gamewip/runs"
+    "cache": "cache",
+    "state": "state",
+    "temp": "temp",
+    "runs": "runs"
   },
   "managedEnvironment": {
-    "msys2Root": "C:\\MSYS2",
-    "gameWipToolsRoot": "C:\\MSYS2\\GameWIPTools"
+    "msys2Root": "tools/msys2",
+    "gameWipToolsRoot": "tools/managed"
   }
 }

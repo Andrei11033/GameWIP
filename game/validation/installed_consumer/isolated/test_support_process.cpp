@@ -5,4 +5,4 @@
 
 #include <type_traits>
 
-static_assert(std::is_default_constructible_v<GameWIP::TestSupport::Types::Process::Result>);
+static_assert(!std::is_default_constructible_v<GameWIP::TestSupport::Types::Process::Result>);

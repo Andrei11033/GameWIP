@@ -41,7 +41,8 @@ Use `LOGGER_*` or `shouldLog()` around expensive arguments because C++ evaluates
 Use `Logger::record()` for opt-in fields and metadata:
 
 ```cpp
-Logger::info(Area::Input,
+Logger::info(
+    Area::Input,
     Logger::record().field("device", "Keyboard").field("id", 12).threadId().sourceLocation(),
     "Device connected");
 ```

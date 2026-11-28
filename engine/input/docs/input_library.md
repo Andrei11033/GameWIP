@@ -35,11 +35,13 @@ control values. Standard identifiers and lookup helpers live under
   values instead of being discarded because they lack a standard identifier.
 - Capture is frame-based and preserves the event and state information needed
   by a higher-level action system.
+- Fallible operations use the shared `Status::Types::Result` contract.
 
 ## Dependency boundary
 
 Input's portable API is independent of Desktop, Action, WindowManager, Renderer, UI, and the game executable.
 The platform attachment owns native observation and feeds the portable `System`; it does not own application windows or action policy.
 
-On Windows, optional integration with Desktop is available: see @ref desktop_native_interop for `Platform::Win32::attachToWindow()` which
-registers Input with an existing Desktop window for seamless message routing.
+On Windows, optional Desktop integration is available through
+@ref desktop_native_interop. `Platform::Win32::attachToWindow()` registers Input
+with an existing Desktop window for message routing.

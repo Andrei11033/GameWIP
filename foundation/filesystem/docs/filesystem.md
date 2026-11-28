@@ -6,8 +6,7 @@ Include `filesystem/filesystem.h`. Passive values live in `GameWIP::FileSystem::
 `GameWIP::FileSystem`.
 
 The focused public headers are `filesystem/path.h`, `filesystem/entry.h`,
-`filesystem/file.h`, and `filesystem/directory.h`.
-`filesystem/filesystem.h` is the complete convenience include.
+`filesystem/file_types.h`, `filesystem/file.h`, and `filesystem/directory.h`.
 
 ## How the library is organized
 
@@ -62,7 +61,7 @@ pieces compose and which behavior callers can safely build on.
 
 ## Key behavior
 
-- Expected failures are returned through `GameWIP::IO` statuses and results; public operations are `noexcept`.
+- Expected failures are returned through `GameWIP::Status` results; public operations are `noexcept`.
 - Whole-file helpers own their open, transfer, optional flush, and close sequence. Explicit handles are for repeated transfers, seeking, custom
   sharing, locking, or controlled lifetime.
 - Non-atomic write and append helpers preserve accepted payload progress. Atomic helpers expose only the final path-replacement result.
@@ -76,8 +75,8 @@ pieces compose and which behavior callers can safely build on.
 
 ## Dependency boundary
 
-FileSystem is installed as the static target `GameWIP::FileSystem` and publicly depends on `GameWIP::IO`. It uses `GameWIP::Unicode` privately for
-FileSystem-owned UTF-8 trust boundaries; the installed package resolves both dependencies for static linking. The installed package exports
+FileSystem is installed as the static target `GameWIP::FileSystem` and publicly depends on Status and IO. It uses `GameWIP::Unicode` privately for
+FileSystem-owned UTF-8 trust boundaries; the installed package resolves all three dependencies for static linking. The installed package exports
 `filesystem/filesystem.h`; internal and platform headers are not consumer API.
 
 The public interface exposes C++ standard-library path, string, vector, span, chrono, and smart-pointer-backed types. Consumers therefore follow the

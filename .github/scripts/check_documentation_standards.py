@@ -10,6 +10,11 @@ from collections import defaultdict
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+
+# ------------------------------------------------------------
+# Documentation policy
+# ------------------------------------------------------------
+
 PAGE_PATTERN = re.compile(r"^@page\s+(\S+)\s+(.+)$", re.MULTILINE)
 SUBPAGE_PATTERN = re.compile(r"@subpage\s+(\S+)")
 FENCE_PATTERN = re.escape(chr(96) * 3)
@@ -92,6 +97,11 @@ PROJECT_MANUAL_SIDEBAR = (
 )
 
 
+# ------------------------------------------------------------
+# Repository discovery
+# ------------------------------------------------------------
+
+
 def relative(path: Path) -> str:
     return path.relative_to(ROOT).as_posix()
 
@@ -123,12 +133,18 @@ def declared_subpages(path: Path) -> tuple[str, ...]:
     return tuple(SUBPAGE_PATTERN.findall(manual_markup(path)))
 
 
+# ------------------------------------------------------------
+# Navigation validation
+# ------------------------------------------------------------
+
+
 def check_page_graph(files: list[Path], errors: list[str]) -> None:
     page_owners: dict[str, Path] = {}
     parents: dict[str, set[Path]] = defaultdict(set)
 
     mainpage_path = ROOT / "docs/doxygen/index.md"
 
+    # Register page owners and collect sidebar links.
     for path in files:
         text = manual_markup(path)
         page_declarations = list(PAGE_PATTERN.finditer(text))
@@ -155,6 +171,7 @@ def check_page_graph(files: list[Path], errors: list[str]) -> None:
         for child in SUBPAGE_PATTERN.findall(text):
             parents[child].add(path)
 
+    # Require every sidebar link to resolve to one page with one parent.
     for child, owners in sorted(parents.items()):
         if child not in page_owners:
             errors.append(f"sidebar references undefined page `{child}`")
@@ -180,6 +197,11 @@ def check_sidebar_order(errors: list[str]) -> None:
 
     if manual_children != PROJECT_MANUAL_SIDEBAR:
         errors.append("project-manual sidebar order changed; expected " + ", ".join(PROJECT_MANUAL_SIDEBAR))
+
+
+# ------------------------------------------------------------
+# Documentation ownership
+# ------------------------------------------------------------
 
 
 def check_project_registration(errors: list[str]) -> None:
@@ -257,6 +279,7 @@ def check_source_file_headers(errors: list[str]) -> None:
 
 
 def check_command_catalog_documentation(errors: list[str]) -> None:
+    # Compare helper actions and options with the command reference.
     helper_path = ROOT / "scripts/GameWIP.ps1"
     helper_text = helper_path.read_text(encoding="utf-8")
     command_config = json.loads((ROOT / "scripts/config/commands.json").read_text(encoding="utf-8"))
@@ -279,14 +302,15 @@ def check_command_catalog_documentation(errors: list[str]) -> None:
         if f"-{parameter}" not in command_page:
             errors.append(f"project-helper option `-{parameter}` is absent from the command reference")
 
+    # Compare setup actions with the environment manual.
     setup_config_path = ROOT / "scripts/setup/config/setup.json"
     setup_config = json.loads(setup_config_path.read_text(encoding="utf-8"))
     setup_manual = (ROOT / "docs/doxygen/environment_setup.md").read_text(encoding="utf-8")
 
     for action in (entry["id"] for entry in setup_config["actions"]):
-        marker = "`setup.bat` or `setup.bat menu`" if action == "menu" else f"`setup.bat {action}`"
+        markers = ("`setup.bat menu`", "`bash ./setup.sh menu`") if action == "menu" else (f"`setup.bat {action}`", f"`bash ./setup.sh {action}`")
 
-        if marker not in setup_manual:
+        if not any(marker in setup_manual for marker in markers):
             errors.append(f"setup action `{action}` is absent from the environment manual")
 
 
@@ -299,6 +323,11 @@ def check_explanatory_documentation(files: list[Path], errors: list[str]) -> Non
 
         if CHECKLIST_WORD_PATTERN.search(text):
             errors.append(f"documentation uses checklist framing instead of explanatory prose: {relative(path)}")
+
+
+# ------------------------------------------------------------
+# Validation entry point
+# ------------------------------------------------------------
 
 
 def main() -> int:

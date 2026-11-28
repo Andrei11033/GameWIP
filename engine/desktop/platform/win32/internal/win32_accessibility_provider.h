@@ -8,29 +8,66 @@
 #include <uiautomation.h>
 #include <exception>
 #include <map>
+#include <span>
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
+    /// ------------------------------------------------------------
+    /// Shared portable accessibility state
+    /// ------------------------------------------------------------
+
+    namespace A = Internal::A;
+    using Internal::AccessibilityHostGeometry;
+    using Internal::AccessibilityNativeSnapshot;
+    using Internal::AccessibilityNativeState;
+    using Internal::AccessibilityTextCache;
+
     struct UiaState;
     class NodeProvider;
     class TextRangeProvider;
 
-    // ------------------------------------------------------------
-    // Native snapshot retention and bounded provider state
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Native UI Automation constants
+    /// ------------------------------------------------------------
+
+    inline constexpr HRESULT kUnavailable = static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE);
+    inline constexpr HRESULT kUnsupported = static_cast<HRESULT>(UIA_E_NOTSUPPORTED);
+    inline constexpr double kNoScroll = -1.0;
+    // Selection2=10034 in Microsoft's UIAutomation IDL; older MinGW SDKs omit the named constant.
+    inline constexpr PATTERNID kSelection2PatternId = 10034;
+
+    /// ------------------------------------------------------------
+    /// Native snapshot retention and bounded provider state
+    /// ------------------------------------------------------------
 
     struct UiaSnapshot final : AccessibilityNativeSnapshot
     {
         struct Layout
         {
+            // Geometry
+
             A::Rect bounds;
             std::optional<A::Rect> clip;
             bool visible = true;
-            std::uint32_t order = 0, ordinal = 0;
+
+            // Tree order
+
+            std::uint32_t order = 0;
+            std::uint32_t ordinal = 0;
             std::uint32_t subtreeEnd = 0;
-            A::NodeId selectionContainer = 0, containingGrid = 0;
+
+            // Related controls
+
+            A::NodeId selectionContainer = 0;
+            A::NodeId containingGrid = 0;
         };
+
+        // Retained providers
+
         std::vector<IRawElementProviderSimple *> providers;
+
+        // Cached node data
+
         std::vector<Layout> layout;
         std::vector<std::pair<std::size_t, std::size_t>> annotationSources;
 
@@ -39,10 +76,15 @@ namespace GameWIP::Desktop::Detail::Platform
 
     struct UiaQuery
     {
+        // Snapshot query
+
         std::shared_ptr<AccessibilityRuntime> runtime;
         std::shared_ptr<const PublishedSnapshot> snapshot;
         const A::Node *node = nullptr;
         std::size_t index = 0;
+
+        // Host state
+
         std::optional<AccessibilityHostGeometry> host; // One coherent host state retained for the entire query.
 
         [[nodiscard]] explicit operator bool() const noexcept
@@ -72,8 +114,13 @@ namespace GameWIP::Desktop::Detail::Platform
 
     struct UiaState final : AccessibilityNativeState, std::enable_shared_from_this<UiaState>
     {
+        // Provider lifetime
+
         std::map<A::NodeId, NodeProvider *> providers; // Mutated only under the portable publication gate; never used by queries.
         std::vector<std::unique_ptr<TextRangeProvider>> ranges;
+
+        // Notification delivery
+
         RaiseNotification raiseNotification = nullptr;
         std::atomic<std::uint32_t> listeners{0};
 
@@ -81,9 +128,9 @@ namespace GameWIP::Desktop::Detail::Platform
         [[nodiscard]] HRESULT range(const UiaQuery &query, A::TextRange bounds, ITextRangeProvider **out) noexcept;
     };
 
-    // ------------------------------------------------------------
-    // Query projection and action transport
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Query projection and action transport
+    /// ------------------------------------------------------------
 
     [[nodiscard]] UiaQuery queryNode(const std::weak_ptr<AccessibilityRuntime> &runtime, A::NodeId id) noexcept;
     [[nodiscard]] IRawElementProviderSimple *providerFor(const PublishedSnapshot &snapshot, A::NodeId id) noexcept;
@@ -100,9 +147,9 @@ namespace GameWIP::Desktop::Detail::Platform
     [[nodiscard]] HRESULT action(const UiaQuery &query, A::ActionRequest request) noexcept;
     [[nodiscard]] HRESULT stringValue(std::u16string_view text, BSTR *out) noexcept;
 
-    // ------------------------------------------------------------
-    // COM pattern and provider interfaces
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// COM pattern and provider interfaces
+    /// ------------------------------------------------------------
 
     // COM interfaces are destroyed by Release(), not through their intentionally nonvirtual base destructors.
 #if defined(__GNUC__)
@@ -156,17 +203,20 @@ namespace GameWIP::Desktop::Detail::Platform
                                public ITextChildProvider
     {
     public:
+        // Provider identity
         NodeProvider(const std::shared_ptr<AccessibilityRuntime> &runtime, A::NodeId id, bool root) noexcept;
         [[nodiscard]] UiaQuery query() const noexcept;
         HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, void **out) override;
         ULONG STDMETHODCALLTYPE AddRef() override;
         ULONG STDMETHODCALLTYPE Release() override;
 
+        // Simple provider
         HRESULT STDMETHODCALLTYPE get_ProviderOptions(ProviderOptions *out) override;
         HRESULT STDMETHODCALLTYPE GetPatternProvider(PATTERNID id, IUnknown **out) override;
         HRESULT STDMETHODCALLTYPE GetPropertyValue(PROPERTYID id, VARIANT *out) override;
         HRESULT STDMETHODCALLTYPE get_HostRawElementProvider(IRawElementProviderSimple **out) override;
 
+        // Fragment tree
         HRESULT STDMETHODCALLTYPE Navigate(NavigateDirection direction, IRawElementProviderFragment **out) override;
         HRESULT STDMETHODCALLTYPE GetRuntimeId(SAFEARRAY **out) override;
         HRESULT STDMETHODCALLTYPE get_BoundingRectangle(UiaRect *out) override;
@@ -176,15 +226,18 @@ namespace GameWIP::Desktop::Detail::Platform
         HRESULT STDMETHODCALLTYPE ElementProviderFromPoint(double x, double y, IRawElementProviderFragment **out) override;
         HRESULT STDMETHODCALLTYPE GetFocus(IRawElementProviderFragment **out) override;
 
+        // Event subscriptions
         HRESULT STDMETHODCALLTYPE AdviseEventAdded(EVENTID id, SAFEARRAY *properties) override;
         HRESULT STDMETHODCALLTYPE AdviseEventRemoved(EVENTID id, SAFEARRAY *properties) override;
 
+        // Invoke and value patterns
         HRESULT STDMETHODCALLTYPE Invoke() override;
 
         HRESULT STDMETHODCALLTYPE SetValue(LPCWSTR value) override;
         HRESULT STDMETHODCALLTYPE get_Value(BSTR *out) override;
         HRESULT STDMETHODCALLTYPE get_IsReadOnly(BOOL *out) override;
 
+        // Range value pattern
         HRESULT STDMETHODCALLTYPE SetValue(double value) override;
         HRESULT STDMETHODCALLTYPE get_Value(double *out) override;
         HRESULT STDMETHODCALLTYPE get_Maximum(double *out) override;
@@ -192,6 +245,7 @@ namespace GameWIP::Desktop::Detail::Platform
         HRESULT STDMETHODCALLTYPE get_LargeChange(double *out) override;
         HRESULT STDMETHODCALLTYPE get_SmallChange(double *out) override;
 
+        // Toggle and expand/collapse patterns
         HRESULT STDMETHODCALLTYPE Toggle() override;
         HRESULT STDMETHODCALLTYPE get_ToggleState(ToggleState *out) override;
 
@@ -199,6 +253,7 @@ namespace GameWIP::Desktop::Detail::Platform
         HRESULT STDMETHODCALLTYPE Collapse() override;
         HRESULT STDMETHODCALLTYPE get_ExpandCollapseState(ExpandCollapseState *out) override;
 
+        // Selection patterns
         HRESULT STDMETHODCALLTYPE GetSelection(SAFEARRAY **out) override;
         HRESULT STDMETHODCALLTYPE get_CanSelectMultiple(BOOL *out) override;
         HRESULT STDMETHODCALLTYPE get_IsSelectionRequired(BOOL *out) override;
@@ -213,6 +268,7 @@ namespace GameWIP::Desktop::Detail::Platform
         HRESULT STDMETHODCALLTYPE get_IsSelected(BOOL *out) override;
         HRESULT STDMETHODCALLTYPE get_SelectionContainer(IRawElementProviderSimple **out) override;
 
+        // Scroll patterns
         HRESULT STDMETHODCALLTYPE Scroll(ScrollAmount horizontal, ScrollAmount vertical) override;
         HRESULT STDMETHODCALLTYPE SetScrollPercent(double horizontal, double vertical) override;
         HRESULT STDMETHODCALLTYPE get_HorizontalScrollPercent(double *out) override;
@@ -224,6 +280,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
         HRESULT STDMETHODCALLTYPE ScrollIntoView() override;
 
+        // Grid and table patterns
         HRESULT STDMETHODCALLTYPE GetItem(int row, int column, IRawElementProviderSimple **out) override;
         HRESULT STDMETHODCALLTYPE get_RowCount(int *out) override;
         HRESULT STDMETHODCALLTYPE get_ColumnCount(int *out) override;
@@ -241,6 +298,7 @@ namespace GameWIP::Desktop::Detail::Platform
         HRESULT STDMETHODCALLTYPE GetRowHeaderItems(SAFEARRAY **out) override;
         HRESULT STDMETHODCALLTYPE GetColumnHeaderItems(SAFEARRAY **out) override;
 
+        // Virtualization, annotations, and text links
         HRESULT STDMETHODCALLTYPE Realize() override;
 
         HRESULT STDMETHODCALLTYPE
@@ -265,6 +323,7 @@ namespace GameWIP::Desktop::Detail::Platform
         [[nodiscard]] HRESULT request(A::ActionKind kind, A::SelectionOperation operation = A::SelectionOperation::Replace) noexcept;
         [[nodiscard]] HRESULT rangeValue(double A::RangeValue::*member, double *out) noexcept;
         [[nodiscard]] HRESULT scrollValue(double A::ScrollInfo::*member, double *out, bool horizontal) noexcept;
+        [[nodiscard]] HRESULT scrollable(bool horizontal, BOOL *out) noexcept;
         [[nodiscard]] HRESULT collectionValue(std::uint32_t A::CollectionInfo::*member, int *out) noexcept;
         [[nodiscard]] HRESULT ancestor(bool selection, IRawElementProviderSimple **out) noexcept;
         [[nodiscard]] HRESULT headers(A::RelationKind kind, SAFEARRAY **out) noexcept;
@@ -274,12 +333,18 @@ namespace GameWIP::Desktop::Detail::Platform
     class TextRangeProvider final : public ITextRangeProvider
     {
     public:
+        // COM lifetime
+
         std::atomic<ULONG> references{0};
         std::atomic<bool> available{true};
         std::shared_ptr<UiaState> lease;
+
+        // Snapshot identity
+
         std::weak_ptr<AccessibilityRuntime> runtime;
         std::shared_ptr<const PublishedSnapshot> snapshot;
         A::NodeId node = 0;
+
         std::atomic<std::uint64_t> bounds{0};
         HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, void **out) override;
         ULONG STDMETHODCALLTYPE AddRef() override;
@@ -313,4 +378,4 @@ namespace GameWIP::Desktop::Detail::Platform
 #if defined(__GNUC__)
 #pragma GCC diagnostic pop
 #endif
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Platform

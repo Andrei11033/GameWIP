@@ -38,26 +38,27 @@ meaningful behavior.
 
 ## Read contract
 
-`read(destination)` may copy from zero through `destination.size()` bytes.
+`read(destination)` returns `Result<ReadProgress>`. Its status describes the operation; its optional value reports copied bytes and end-of-stream state.
+The operation may copy from zero through `destination.size()` bytes.
 
 An implementation must:
 
 - Never report `bytesRead > destination.size()`.
-- Report valid copied bytes even when the same call also reports failure.
+- Preserve valid copied bytes in the value when the same call also reports failure.
 - Set `endOfStream` according to whether no additional input remains after the call.
 - Return a successful zero-byte result only for an empty request or when end-of-stream is reported.
 - Avoid retaining the destination span after the call returns unless a separate public contract explicitly transfers or extends its lifetime.
 
-The final non-empty read may set `endOfStream = true`. Callers must inspect both fields.
+The final non-empty read may set `endOfStream = true`. Callers inspect `status()` and, when `hasValue()` is true, both progress fields.
 
 ## Write contract
 
-`write(bytes)` may accept from zero through `bytes.size()` bytes.
+`write(bytes)` returns `Result<WriteProgress>` and may accept from zero through `bytes.size()` bytes.
 
 An implementation must:
 
 - Never report `bytesWritten > bytes.size()`.
-- Report valid accepted bytes even when the same call also reports failure.
+- Preserve valid accepted bytes in the value when the same call also reports failure.
 - Return success with zero bytes for an empty request.
 - Avoid returning success with zero bytes while non-empty input remains, because generic retry loops cannot make progress.
 - Avoid retaining the input span after the call returns unless a separate public contract explicitly transfers or extends its lifetime.
@@ -112,7 +113,8 @@ The scratch buffer is ignored when the reader qualifies for the known-size path.
 
 ### UTF-8 text finalization
 
-`readAllText()` returns only valid UTF-8 in `text`. Validation, trimming, and `EncodingFailed`/`PartialRead` precedence: @ref io_utf8_policy.
+`readAllText()` returns only valid UTF-8 in its value. On failure, the value is optional and contains only a complete valid prefix when available.
+Validation, trimming, and `EncodingFailed`/`PartialRead` precedence: @ref io_utf8_policy.
 
 ### Hard byte limits
 
@@ -129,13 +131,13 @@ A zero limit accepts an empty stream and probes unknown-size input immediately.
 
 ## Whole-stream writes
 
-`writeAllBytes()` repeatedly passes the unwritten suffix to the writer until all input is accepted or a call fails.
+`writeAllBytes()` returns `Result<WriteProgress>` and repeatedly passes the unwritten suffix to the writer until all input is accepted or a call fails.
 
 It:
 
 - Succeeds for empty input without calling `write()`.
 - Retries successful short writes.
-- Includes bytes accepted by a final failing call in `bytesWritten`.
+- Includes bytes accepted by a final failing call in the value's `bytesWritten` field.
 - Returns `WriteFailed` if a writer reports an impossible count or successful zero progress.
 - Does not flush or close the writer.
 
@@ -171,8 +173,8 @@ flush or close.
 `bytes()` returns a non-owning view into writer-owned storage. Do not retain it across operations that can modify storage or ownership. A write or
 reserve may reallocate; clear, take, move assignment, destruction, and ownership transfer invalidate the prior logical view.
 
-`copyText()` returns a `CopyTextResult` with an independent validated copy (@ref io_utf8_policy); invalid collected bytes return `EncodingFailed` with
-empty text. `reserve()` and `copyText()` report allocation, representation-limit, and unexpected failures through status.
+`copyText()` returns `Result<std::string>` with an independent validated copy (@ref io_utf8_policy). On failure, no text value is returned.
+`reserve()` and `copyText()` report allocation, representation-limit, and unexpected failures through status.
 
 ## Exceptions
 
@@ -187,8 +189,8 @@ Every virtual transfer, lifecycle, and checked capability operation is `noexcept
   allocation or length failure.
 - Destructors do not throw. Call `close()` explicitly when close failure must be observed.
 
-Argument construction still occurs before function entry. For example, creating an owning diagnostic string for `makeStatus()` may throw before its
-`noexcept` boundary; build optional diagnostics best-effort when operating in a non-throwing backend.
+Argument construction still occurs before function entry. For example, building an owning string before passing it to `Status::withDiagnostic()` may
+throw before its `noexcept` boundary; attach optional diagnostics only when useful.
 
 ## Thread-safety and blocking
 

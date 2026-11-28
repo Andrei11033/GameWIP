@@ -1,147 +1,78 @@
 @page io_error_model Error model
 
-`GameWIP::IO::Types::Status` is the shared error-reporting shape for expected I/O failures.
+IO operations use the shared `GameWIP::Status::Types::Result<T>` contract. The portable `Code` describes the outcome; optional diagnostics
+provide native codes and developer-facing UTF-8 text.
 
-## Status fields
+## Reading a result
 
-| Field | Meaning |
+```cpp
+auto result = GameWIP::IO::readAllBytes(reader, 1024);
+if(!result.ok())
+{
+    const auto code = result.status().code();
+    if(result.hasValue())
+    {
+        // Keep or discard the partial bytes according to the caller's policy.
+        consume(result.value());
+    }
+}
+```
+
+`ok()` means the operation succeeded and a value is present. Failed results may retain useful partial progress. `Result<void>` has no value and
+reports success from its status alone. Do not call `value()` unless `hasValue()` is true.
+
+For reporting, inspect `status().diagnostic()` when present. `Status::code()` is the only field used for portable control flow. Native code includes
+its source domain; diagnostic text is UTF-8, optional, and not stable for parsing. Code-only statuses do not allocate diagnostic storage.
+
+## Choosing a code
+
+Use the most specific shared `GameWIP::Status::Types::Code` that describes the operation. Common IO codes include:
+
+| Code | Use |
 | --- | --- |
-| `code` | Portable category used for program decisions. |
-| `nativeCode` | Backend-native error value when one exists, otherwise zero. |
-| `message` | Optional developer-facing UTF-8 diagnostic text. It is not stable for parsing. |
-
-`Status::ok()` returns true only when `code == ErrorCode::Success`.
-
-A successful status should normally use `nativeCode == 0` and an empty message. Backends may attach diagnostic detail to failures when the additional
-allocation and text are useful. Message encoding: @ref io_utf8_policy.
-
-## Error-code categories
-
-The generated API reference documents each enumerator. Use the following categories when selecting a code.
-
-### Contract and state
-
-| Code | Use when |
-| --- | --- |
-| `InvalidArgument` | Input violates the API contract, including an unknown option enumerator or an internally inconsistent capability result. |
-| `Unsupported` | The operation or capability is intentionally unavailable and no more specific capability code applies. |
-| `NotOpen` | An operation requires an open resource or memory object. |
-| `AlreadyOpen` | Opening was requested for an already-open resource. |
-
-### Resource lookup, path, and kind
-
-| Code | Use when |
-| --- | --- |
-| `NotFound` | The requested resource does not exist. |
-| `AlreadyExists` | Creation or replacement policy rejects an existing resource. |
+| `InvalidArgument` | An argument or backend result violates the contract. |
+| `Unsupported` | An operation or capability is unavailable. |
+| `NotOpen` | The operation requires an open resource. |
+| `NotSeekable` | Position or seek behavior is unavailable. |
 | `PermissionDenied` | Access policy rejects the operation. |
-| `PathTooLong` | A backend path limit is exceeded. |
-| `IsDirectory` | A directory was supplied where a non-directory resource was required. |
-| `NotDirectory` | A non-directory was supplied where a directory was required. |
-| `NotSeekable` | Position, size, or seek behavior is unavailable for a stream. |
-| `EndOfStream` | An API explicitly represents end-of-stream as a status. Ordinary reads should prefer `ReadResult::endOfStream`. |
+| `ReadFailed`, `WriteFailed`, `FlushFailed`, `CloseFailed`, `SeekFailed` | The named operation failed without a more specific code. |
+| `PartialRead` | A known-size reader stopped before its promised byte count. |
+| `SizeLimitExceeded` | A caller limit or supported size is exceeded. |
+| `OutOfMemory` | An internal allocation failed. |
+| `EncodingFailed` | Strict UTF-8 validation failed. |
 
-### Generic operation failures
+The complete vocabulary and symbolic names are documented by the Status library. Enum numeric values are not stable IDs or wire-format values.
 
-Use `OpenFailed`, `ReadFailed`, `WriteFailed`, `FlushFailed`, `CloseFailed`, `SeekFailed`, `StatFailed`, `RemoveFailed`, `ReplaceFailed`,
-`CopyFailed`, `MoveFailed`, `ResizeFailed`, `LockFailed`, `UnlockFailed`, `DirectoryCreateFailed`, or `DirectoryListFailed` when the named operation
-failed and no more specific portable category applies.
+## Partial progress and end-of-stream
 
-Use `DirectoryNotEmpty` when removal fails specifically because a directory still contains entries.
-
-### Transfer, size, and allocation
-
-| Code | Use when |
-| --- | --- |
-| `PartialRead` | A reader promised a known remaining byte count but reached end-of-stream before producing it. |
-| `PartialWrite` | A backend chooses to classify an incomplete write explicitly. The generic write-all helper does not synthesize this code for every successful short write. |
-| `SizeLimitExceeded` | A caller limit, destination representation, or supported stream-size range is exceeded. |
-| `OutOfMemory` | A required allocation failed in an operation whose status contract converts allocation failure. |
-
-### Resource and platform state
-
-| Code | Use when |
-| --- | --- |
-| `ResourceBusy` | Sharing, lock, or active-use state prevents the operation. |
-| `StorageFull` | Storage or quota capacity is exhausted. |
-| `BrokenPipe` | A pipe or redirected output no longer has a reader. |
-| `Interrupted` | The operation was interrupted before completion. |
-
-### Encoding and fallback
-
-| Code | Use when |
-| --- | --- |
-| `EncodingFailed` | Strict text validation or encoding conversion failed. See @ref io_utf8_policy. |
-| `NativeFailure` | A backend-native failure has no useful portable category. |
-| `Unknown` | The failure category cannot be determined. Prefer a more specific code whenever possible. |
-
-## Selecting the primary code
-
-Return the most specific portable category that describes the failure. Use generic operation codes only when no better category is available. For
-example, a file open denied by access control should normally use `PermissionDenied`, not `OpenFailed`.
-
-The native code and message supplement the portable category; they must not replace it.
-
-## Symbolic and numeric stability
-
-`errorCodeName()` returns stable symbolic names for diagnostics, logs, and tests. Unknown enumerator values map to `"Unknown"`.
-
-`ErrorCode` numeric values are not serialization identifiers or protocol values. Do not persist enum ordinals or expose them as a cross-version wire
-contract. Persist an application-owned representation when storage or protocol stability is required.
-
-## Partial progress
-
-Transfer count and status are independent:
-
-- A reader or writer may report nonzero progress with a failure status.
-- Whole-stream helpers preserve valid progress produced by the final failing call.
-- Callers decide whether partial output is useful, retryable, or must be discarded.
-- A backend must never report a byte count larger than the span.
-
-A successful short write is not itself a failure. `writeAllBytes()` retries it. A successful zero-byte write while input remains is invalid progress
-and becomes `WriteFailed`.
-
-For known-size reads, early end-of-stream becomes `PartialRead`. For unknown-size reads, a successful zero-byte read without end-of-stream becomes
-`ReadFailed` because the helper cannot make progress.
+- A failed read or write may include progress in its value.
+- Whole-stream helpers preserve accumulated data when a later read fails.
+- A successful short write is retried by `writeAllBytes()`; successful zero progress while bytes remain becomes `WriteFailed`.
+- `ReadProgress::endOfStream` is independent of `bytesRead`. The final read may return bytes and set it, or return zero bytes at EOF.
+- Known-size early EOF becomes `PartialRead`. Unknown-size zero progress without EOF becomes `ReadFailed`.
+- At a finite limit, an unknown-size reader may be advanced by one probe byte that is not stored.
 
 @anchor io_utf8_policy
 
 ## UTF-8 text policy
 
-This is the single source for UTF-8 rules across IO, FileSystem, and Terminal text APIs; other pages link here.
+This is the shared policy for IO, FileSystem, and Terminal text APIs; other pages link here.
 
-- Text is strict UTF-8: no normalization, BOM transformation, replacement, or repair. Embedded NUL is preserved.
-- Strict validation failure, including an incomplete trailing sequence, returns `EncodingFailed`.
-- Text returned by a failing read (`ReadAllTextResult::text`, `CopyTextResult::text`) is valid UTF-8: only the complete valid prefix is kept.
-- Malformed bytes produce `EncodingFailed` even when the same read also reports a backend failure.
-- An incomplete suffix produces `EncodingFailed` only at a definitive end of input. If a backend or limit failure stopped the stream first, that
-  failure stays primary and the suffix is trimmed, because continuation bytes may exist beyond the failed boundary.
-- A known-size reader that ends early with an incomplete sequence reports `EncodingFailed`, not `PartialRead`.
-- Text writers validate the whole input before the first write; failure returns `EncodingFailed` with zero bytes written.
-- `MemoryReader`'s `std::string_view` constructor is byte-oriented and performs no validation.
-- Caller-supplied `Status::message` text must already be valid UTF-8; `makeStatus()` does not rescan it.
+- Text is strict UTF-8. No normalization, BOM transformation, replacement, or repair is performed. Embedded NUL is preserved.
+- On failure, text results may keep only the complete valid UTF-8 prefix.
+- Malformed bytes return `EncodingFailed`, including when a backend failure occurs in the same read.
+- An incomplete suffix returns `EncodingFailed` at definitive end-of-input. If a backend or size limit stops the read first, that failure remains
+  primary and the incomplete suffix is trimmed.
+- Text writes validate all input before the first write.
+- `MemoryReader`'s `std::string_view` constructor is byte-oriented and does not validate encoding.
 
-## End-of-stream
+## Failure containment
 
-`ReadResult::endOfStream` is independent of `bytesRead`:
+Reader, Writer, MemoryReader, and MemoryWriter checked methods are `noexcept`. Implementations must convert expected failures into results; throwing
+from an override violates the contract and terminates the process.
 
-- The final non-empty read may return bytes and set `endOfStream = true`.
-- An empty read at the end may return success, zero bytes, and `endOfStream = true`.
-- A zero-byte success with `endOfStream = false` does not permit a whole-stream helper to continue safely.
-
-## Status helpers and allocation
-
-`makeStatus()` accepts a portable code, optional native code, and optional owning UTF-8 message. The function is `noexcept`; however, construction of
-the message argument happens before function entry and may allocate.
-
-`successStatus()` creates a default successful status. Code-only statuses avoid diagnostic-string allocation.
-
-Whole-stream and memory-writer operations convert allocations they perform internally to `OutOfMemory`, representation or container-length failures to
-`SizeLimitExceeded`, and unexpected internal exceptions to `Unknown`. `MemoryWriter::reserve()` and `MemoryWriter::copyText()` provide status-bearing
-allocation boundaries.
-
-Reader and Writer checked virtual functions are `noexcept`. A custom implementation must perform the same containment for its own expected failures;
-throwing from an override is a contract violation and invokes `std::terminate`.
+Whole-stream and memory-writer operations map allocation failures to `OutOfMemory`, size representation failures to `SizeLimitExceeded`, and
+unexpected exceptions to `Unknown`.
 
 ## Related pages
 

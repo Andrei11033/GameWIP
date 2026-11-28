@@ -20,6 +20,10 @@
 /// @brief Portable shell identities, targets, launch values, progress, and event payloads.
 namespace GameWIP::Desktop::Types::Shell
 {
+    /// ------------------------------------------------------------
+    /// Shell resource identities
+    /// ------------------------------------------------------------
+
     /// @brief Process-local identity of one registered tray icon.
     struct TrayIconId
     {
@@ -79,6 +83,10 @@ namespace GameWIP::Desktop::Types::Shell
 
         friend constexpr bool operator==(CommandId, CommandId) noexcept = default;
     };
+
+    /// ------------------------------------------------------------
+    /// Launch targets and arguments
+    /// ------------------------------------------------------------
 
     /// @brief Non-owning filesystem-path target used by a call-scoped shell description.
     /// @details The referenced path must remain alive until the receiving operation returns.
@@ -267,6 +275,10 @@ namespace GameWIP::Desktop::Types::Shell
         friend bool operator==(LaunchAction, LaunchAction) noexcept = default;
     };
 
+    /// ------------------------------------------------------------
+    /// Progress and notification values
+    /// ------------------------------------------------------------
+
     /// @brief Progress display state for a shell resource.
     enum class ProgressState : std::uint8_t
     {
@@ -304,6 +316,10 @@ namespace GameWIP::Desktop::Types::Shell
 
         friend constexpr bool operator==(NotificationInputId, NotificationInputId) noexcept = default;
     };
+
+    /// ------------------------------------------------------------
+    /// Shell event payloads
+    /// ------------------------------------------------------------
 
     /// @brief Portable shell event payloads.
     namespace Events

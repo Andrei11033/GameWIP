@@ -1,4 +1,4 @@
-# Minimal installed DLL visibility-header generation for GameWIP shared libraries.
+# Minimal installed visibility-header generation for GameWIP shared libraries.
 # Test-only validation visibility remains in source-tree-only module headers.
 
 include(CMakeParseArguments)

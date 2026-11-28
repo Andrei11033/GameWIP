@@ -1,84 +1,58 @@
 /// @file process_test.inl
 /// @brief Private Assert correctness cases for isolated crash, break, and child-process behavior.
 
-/// @brief Child-process body that intentionally triggers a failed ASSERT.
-int runAssertFailureChild()
+/// @brief Configures isolated child logging and suppresses native crash dialogs.
+void initializeChildLogger()
 {
-#if defined(_WIN32)
-    SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
-#endif
+    GameWIP::Validation::PlatformTests::suppressCrashDialogs();
+
     Logger::Types::Config config;
     config.output = Logger::Types::OutputMode::None;
     config.minLevel = Logger::Types::Level::Trace;
     config.enableDebugOutput = false;
     config.enableFatalPopup = false;
 
-    if(const char *childLogDirectory = std::getenv(std::string(kChildLogDirectoryEnvironmentVariable).c_str()))
+    // Route output to the parent-owned fixture directory when requested.
+    if(const char *childLogDirectory = std::getenv(kChildLogDirectoryEnvironmentVariable))
     {
         config.output = Logger::Types::OutputMode::File;
         config.logDirectory = childLogDirectory;
         config.fallbackToConsoleOnFileFailure = false;
     }
-    Logger::init(config);
+    static_cast<void>(Logger::init(config));
+}
+
+/// @brief Child-process body that intentionally triggers a failed ASSERT.
+int runAssertFailureChild()
+{
+    initializeChildLogger();
     ASSERT_MSG(false, kAssertFailureChildMessage);
-    Logger::shutdown();
+    static_cast<void>(Logger::shutdown());
     return 0;
 }
 
 /// @brief Executes the interactive Abort child protocol; correct behavior terminates the process.
 int runInteractiveAbortChild()
 {
-#if defined(_WIN32)
-    SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
-#endif
-    Logger::Types::Config config;
-    config.output = Logger::Types::OutputMode::None;
-    config.minLevel = Logger::Types::Level::Trace;
-    config.enableDebugOutput = false;
-    config.enableFatalPopup = false;
-
-    if(const char *childLogDirectory = std::getenv(std::string(kChildLogDirectoryEnvironmentVariable).c_str()))
-    {
-        config.output = Logger::Types::OutputMode::File;
-        config.logDirectory = childLogDirectory;
-        config.fallbackToConsoleOnFileFailure = false;
-    }
-    Logger::init(config);
+    initializeChildLogger();
     ASSERT_INTERACTIVE_MSG(false, "interactive abort child");
-    Logger::shutdown();
+    static_cast<void>(Logger::shutdown());
     return 0;
 }
 
 /// @brief Executes the interactive Break child protocol under the test action environment.
 int runInteractiveBreakChild()
 {
-#if defined(_WIN32)
-    SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
-#endif
-    Logger::Types::Config config;
-    config.output = Logger::Types::OutputMode::None;
-    config.minLevel = Logger::Types::Level::Trace;
-    config.enableDebugOutput = false;
-    config.enableFatalPopup = false;
-
-    if(const char *childLogDirectory = std::getenv(std::string(kChildLogDirectoryEnvironmentVariable).c_str()))
-    {
-        config.output = Logger::Types::OutputMode::File;
-        config.logDirectory = childLogDirectory;
-        config.fallbackToConsoleOnFileFailure = false;
-    }
-    Logger::init(config);
+    initializeChildLogger();
     ASSERT_INTERACTIVE_MSG(false, "interactive break child");
-    Logger::shutdown();
+    static_cast<void>(Logger::shutdown());
     return 0;
 }
 
 /// @brief Child-process body that intentionally triggers DEBUG_BREAK.
 int runDebugBreakChild()
 {
-#if defined(_WIN32)
-    SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
-#endif
+    GameWIP::Validation::PlatformTests::suppressCrashDialogs();
     DEBUG_BREAK();
     return 0;
 }
@@ -86,9 +60,7 @@ int runDebugBreakChild()
 /// @brief Child-process body that intentionally triggers UNREACHABLE when assertions are enabled.
 int runUnreachableChild()
 {
-#if defined(_WIN32)
-    SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
-#endif
+    GameWIP::Validation::PlatformTests::suppressCrashDialogs();
     UNREACHABLE();
     return 0;
 }
@@ -99,15 +71,17 @@ void expectAbnormalChildExit(TestContext &context, std::string_view argument, st
     std::cout.flush();
     std::cerr.flush();
     const TestSupport::Types::Process::Result result = runChildProcessResult(context.executablePath, argument, timeout);
+    const bool hasExecution = result.hasValue();
+    const TestSupport::Types::Process::Execution *execution = hasExecution ? &result.value() : nullptr;
     context.expectTrue(
         testName,
-        result.status.ok() && result.outcome == TestSupport::Types::Process::Outcome::Exited && result.exitCode != 0,
+        result.ok() && execution != nullptr && execution->outcome == TestSupport::Types::Process::Outcome::Exited && execution->exitCode != 0,
         std::format(
             "{} outcome={} exit={}\n{}",
-            TestSupport::formatInfrastructureStatus(result.status),
-            static_cast<int>(result.outcome),
-            result.exitCode,
-            result.outputBytes));
+            TestSupport::formatStatus(result.status()),
+            execution == nullptr ? -1 : static_cast<int>(execution->outcome),
+            execution == nullptr ? 0u : execution->exitCode,
+            execution == nullptr ? std::string{} : execution->outputBytes));
 }
 
 /// @brief Verifies a failed ASSERT triggers an abnormal child-process exit when assertions are enabled.
@@ -130,7 +104,7 @@ void testAssertFailureChild(TestContext &context, const AssertTestOptions &optio
     const ScopedEnvironmentVariable childLogDirectoryOverride(
         context.processState,
         kChildLogDirectoryEnvironmentVariable,
-        pathText(childLogDirectory));
+        pathText(context, childLogDirectory));
     const ScopedEnvironmentVariable suppressPopupOverride(context.processState, kSuppressPopupEnvironmentVariable, "1");
 
     if(!requireInfrastructure(context, "set ASSERT child log directory", childLogDirectoryOverride.status()) ||
@@ -182,7 +156,7 @@ void testInteractiveAbortChild(TestContext &context, const AssertTestOptions &op
     const ScopedEnvironmentVariable childLogDirectoryOverride(
         context.processState,
         kChildLogDirectoryEnvironmentVariable,
-        pathText(childLogDirectory));
+        pathText(context, childLogDirectory));
     const ScopedEnvironmentVariable testAction(context.processState, kTestActionEnvironmentVariable, "abort");
 
     if(!requireInfrastructure(context, "set interactive Abort child log directory", childLogDirectoryOverride.status()) ||
@@ -234,7 +208,7 @@ void testInteractiveBreakChild(TestContext &context, const AssertTestOptions &op
     const ScopedEnvironmentVariable childLogDirectoryOverride(
         context.processState,
         kChildLogDirectoryEnvironmentVariable,
-        pathText(childLogDirectory));
+        pathText(context, childLogDirectory));
     const ScopedEnvironmentVariable testAction(context.processState, kTestActionEnvironmentVariable, "break");
 
     if(!requireInfrastructure(context, "set interactive Break child log directory", childLogDirectoryOverride.status()) ||

@@ -4,10 +4,10 @@
 #pragma once
 
 #include "desktop/desktop_export.h"
+#include "desktop/icon_types.h"
 #include "desktop/shell.h"
 #include "desktop/shell_types.h"
-#include "desktop/window.h"
-#include "io/status.h"
+#include "status/result.h"
 
 #include <cstdint>
 #include <memory>
@@ -17,11 +17,11 @@
 
 namespace GameWIP::Desktop
 {
-    namespace Detail
+    namespace Internal
     {
         struct TrayIconAccess;
         struct TrayIconState;
-    } // namespace Detail
+    } // namespace Internal
 } // namespace GameWIP::Desktop
 
 namespace GameWIP::Desktop::Types::Tray
@@ -165,13 +165,13 @@ namespace GameWIP::Desktop
         /// @details The initial menu must be empty. A non-empty menu requires the queue overload.
         /// @param description Initial icon, tooltip, and empty-menu presentation snapshot.
         /// @return Success, or a status explaining why no tray icon was opened.
-        [[nodiscard]] IO::Types::Status open(const Types::Tray::Description &description) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> open(const Types::Tray::Description &description) noexcept;
 
         /// @brief Opens icon presentation with interaction events delivered through a queue.
         /// @param description Initial icon, tooltip, and menu presentation snapshot.
         /// @param eventQueue Open queue owned by the calling thread; borrowed until close.
         /// @return Success, or a status explaining why no tray icon was opened.
-        [[nodiscard]] IO::Types::Status open(const Types::Tray::Description &description, ShellEventQueue &eventQueue) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> open(const Types::Tray::Description &description, ShellEventQueue &eventQueue) noexcept;
 
         /// @brief Reports whether the tray-icon binding is open.
         [[nodiscard]] bool isOpen() const noexcept;
@@ -193,11 +193,11 @@ namespace GameWIP::Desktop
         /// @param eventQueue Open queue owned by the calling thread.
         /// @return Success, NotOpen, InvalidArgument for a prohibited binding, ResourceBusy for
         /// wrong-thread access, or another queue/native failure.
-        [[nodiscard]] IO::Types::Status bindEventQueue(ShellEventQueue &eventQueue) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> bindEventQueue(ShellEventQueue &eventQueue) noexcept;
 
         /// @brief Closes the binding and releases its tray publication.
         /// @return Success when closed or already closed; ResourceBusy for wrong-thread calls or retained native work.
-        [[nodiscard]] IO::Types::Status close() noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> close() noexcept;
 
         /// @}
 
@@ -207,25 +207,25 @@ namespace GameWIP::Desktop
         /// @brief Replaces the tray icon image variants.
         /// @param icons Non-empty borrowed RGBA8 icon views copied before return.
         /// @return Success, or a validation, ownership, capability, allocation, or native failure.
-        [[nodiscard]] IO::Types::Status setIcon(std::span<const Types::IconImageView> icons) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> setIcon(std::span<const Types::IconImageView> icons) noexcept;
 
         /// @brief Replaces or clears the tray tooltip.
         /// @param tooltip Valid UTF-8 tooltip text without embedded U+0000; empty clears the tooltip.
         /// @return Success, or a validation, ownership, capability, allocation, or native failure.
-        [[nodiscard]] IO::Types::Status setTooltip(std::string_view tooltip) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> setTooltip(std::string_view tooltip) noexcept;
 
         /// @brief Replaces the complete recursive tray-menu tree.
         /// @details An empty menu clears the current menu. A non-empty menu requires a bound event
         /// queue. A failed replacement leaves the previously published menu unchanged.
         /// @param menu Borrowed complete menu tree copied before return.
         /// @return Success, or a validation, ownership, queue, capability, size, allocation, or native failure.
-        [[nodiscard]] IO::Types::Status setMenu(const Types::Tray::MenuDescription &menu) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> setMenu(const Types::Tray::MenuDescription &menu) noexcept;
 
         /// @}
 
     private:
-        friend struct Detail::TrayIconAccess;
+        friend struct Internal::TrayIconAccess;
 
-        std::unique_ptr<Detail::TrayIconState> state_;
+        std::unique_ptr<Internal::TrayIconState> state_;
     };
 } // namespace GameWIP::Desktop

@@ -1,11 +1,14 @@
 /// @file win32_progress_dialog.cpp
 /// @brief Modeless Win32 implementation of ProgressDialog.
 
-#include "desktop/internal/dialogs_platform.h"
+#include "desktop/internal/results.h"
+#include "desktop/platform/dialogs.h"
 
 #include "desktop/internal/desktop_test_hooks.h"
 #include "desktop/internal/window_state.h"
+#include "desktop/platform/win32/internal/test_hooks.h"
 #include "desktop/platform/win32/internal/win32_window_backend.h"
+#include "desktop/platform/win32/internal/win32_unicode.h"
 
 #include <commctrl.h>
 
@@ -17,11 +20,13 @@
 #include <string>
 #include <utility>
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
-    // ------------------------------------------------------------
-    // Native progress-window state and lifecycle helpers
-    // ------------------------------------------------------------
+    namespace Win32TestHooks = GameWIP::Desktop::Internal::TestHooks::Win32;
+
+    /// ------------------------------------------------------------
+    /// Native progress-window state and lifecycle helpers
+    /// ------------------------------------------------------------
 
     struct ProgressDialogData;
 
@@ -36,10 +41,10 @@ namespace GameWIP::Desktop::Detail::Platform
         HINSTANCE progressClassInstance = nullptr;
         bool progressClassOwned = false;
 
-        [[nodiscard]] IO::Types::Status acquireProgressClass(HINSTANCE instance) noexcept;
-        [[nodiscard]] IO::Types::Status releaseProgressClass() noexcept;
-        [[nodiscard]] IO::Types::Status layoutProgressWindow(ProgressDialogData &data, UINT dpi) noexcept;
-        [[nodiscard]] IO::Types::Status restoreOwnerAfterRemoval(const ProgressDialogState &state) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Status acquireProgressClass(HINSTANCE instance) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Status releaseProgressClass() noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Status layoutProgressWindow(ProgressDialogData &data, UINT dpi) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Status restoreOwnerAfterRemoval(const ProgressDialogState &state) noexcept;
         void queueProgressOwnerRestore(ProgressDialogState &state) noexcept;
         void cancelProgressOwnerRestore(ProgressDialogState &state) noexcept;
         [[nodiscard]] ProgressCloseResult finalizeNative(ProgressDialogState &state, bool restoreOwner) noexcept;
@@ -50,15 +55,20 @@ namespace GameWIP::Desktop::Detail::Platform
     /// @brief Owns one modeless progress HWND and its child controls.
     struct ProgressDialogData
     {
+        // Dialog ownership
         ProgressDialogState *owner = nullptr;
+        HWND nativeOwner = nullptr;
+        DWORD ownerThreadId = 0;
+
+        // Native window and controls
         HINSTANCE instance = nullptr;
         HWND handle = nullptr;
         HWND heading = nullptr;
         HWND message = nullptr;
         HWND progress = nullptr;
         HWND cancel = nullptr;
-        HWND nativeOwner = nullptr;
-        DWORD ownerThreadId = 0;
+
+        // Registration and teardown state
         bool classReferenceHeld = false;
         bool registered = false;
         bool blockingOwner = false;
@@ -74,18 +84,18 @@ namespace GameWIP::Desktop::Detail::Platform
         }
 
         /// @brief Reflows progress controls after creation or a DPI transition.
-        IO::Types::Status layoutProgressWindow(ProgressDialogData &data, UINT dpi) noexcept
+        GameWIP::Status::Types::Status layoutProgressWindow(ProgressDialogData &data, UINT dpi) noexcept
         {
             if(data.handle == nullptr)
             {
-                return IO::successStatus();
+                return GameWIP::Status::Types::Status{};
             }
 
             RECT client{};
 
             if(GetClientRect(data.handle, &client) == FALSE)
             {
-                return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "GetClientRect ProgressDialog");
+                return statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, GetLastError(), "GetClientRect ProgressDialog");
             }
 
             const LONG margin = scaled(18, dpi);
@@ -100,19 +110,19 @@ namespace GameWIP::Desktop::Detail::Platform
 
             if(MoveWindow(data.heading, margin, top, width, headingHeight, TRUE) == FALSE)
             {
-                return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "MoveWindow ProgressDialog heading");
+                return statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, GetLastError(), "MoveWindow ProgressDialog heading");
             }
             top += headingHeight + gap;
 
             if(MoveWindow(data.message, margin, top, width, messageHeight, TRUE) == FALSE)
             {
-                return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "MoveWindow ProgressDialog message");
+                return statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, GetLastError(), "MoveWindow ProgressDialog message");
             }
             top += messageHeight + gap;
 
             if(MoveWindow(data.progress, margin, top, width, progressHeight, TRUE) == FALSE)
             {
-                return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "MoveWindow ProgressDialog progress");
+                return statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, GetLastError(), "MoveWindow ProgressDialog progress");
             }
 
             if(data.cancel != nullptr)
@@ -125,11 +135,11 @@ namespace GameWIP::Desktop::Detail::Platform
                        buttonHeight,
                        TRUE) == FALSE)
                 {
-                    return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "MoveWindow ProgressDialog cancel");
+                    return statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, GetLastError(), "MoveWindow ProgressDialog cancel");
                 }
             }
 
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
 
         /// @brief Handles progress cancellation, DPI layout, and unexpected HWND destruction.
@@ -186,9 +196,10 @@ namespace GameWIP::Desktop::Detail::Platform
                        suggested->bottom - suggested->top,
                        SWP_NOACTIVATE | SWP_NOZORDER) == FALSE)
                 {
-                    recordPumpFailure(statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "SetWindowPos ProgressDialog DPI"));
+                    recordPumpFailure(
+                        statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, GetLastError(), "SetWindowPos ProgressDialog DPI"));
                 }
-                const IO::Types::Status layout = layoutProgressWindow(*data, HIWORD(wParam));
+                const GameWIP::Status::Types::Status layout = layoutProgressWindow(*data, HIWORD(wParam));
 
                 if(!layout.ok())
                 {
@@ -229,7 +240,7 @@ namespace GameWIP::Desktop::Detail::Platform
                         bool postFailed = false;
                         DWORD postError = ERROR_SUCCESS;
 #if DESKTOP_INTERNAL_TEST_HOOKS
-                        postFailed = Detail::consumeFailure(TestHooks::FailurePoint::ProgressOwnerRestoreWake);
+                        postFailed = Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ProgressOwnerRestoreWake);
 
                         if(postFailed)
                         {
@@ -264,7 +275,7 @@ namespace GameWIP::Desktop::Detail::Platform
                         if(postFailed)
                         {
                             recordPumpFailure(statusFromWin32(
-                                IO::Types::ErrorCode::Interrupted,
+                                GameWIP::Status::Types::Code::Interrupted,
                                 postError == ERROR_SUCCESS ? ERROR_FUNCTION_FAILED : postError,
                                 "PostMessageW ProgressDialog owner restore"));
                         }
@@ -281,14 +292,14 @@ namespace GameWIP::Desktop::Detail::Platform
             return DefWindowProcW(window, message, wParam, lParam);
         }
 
-        [[nodiscard]] IO::Types::Status acquireProgressClass(HINSTANCE instance) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status acquireProgressClass(HINSTANCE instance) noexcept
         {
             std::scoped_lock lock(progressClassMutex);
 
             if(progressClassUsers != 0)
             {
                 ++progressClassUsers;
-                return IO::successStatus();
+                return GameWIP::Status::Types::Status{};
             }
 
             WNDCLASSEXW windowClass{};
@@ -299,9 +310,9 @@ namespace GameWIP::Desktop::Detail::Platform
             windowClass.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW + 1);
             windowClass.lpszClassName = kProgressClassName;
 #if DESKTOP_INTERNAL_TEST_HOOKS
-            if(Detail::consumeFailure(TestHooks::FailurePoint::ProgressClassRegistration))
+            if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ProgressClassRegistration))
             {
-                return IO::makeStatus(IO::Types::ErrorCode::OpenFailed);
+                return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::OpenFailed);
             }
 
 #endif
@@ -311,7 +322,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
                 if(nativeCode != ERROR_CLASS_ALREADY_EXISTS)
                 {
-                    return statusFromWin32(IO::Types::ErrorCode::OpenFailed, nativeCode, "RegisterClassExW ProgressDialog");
+                    return statusFromWin32(GameWIP::Status::Types::Code::OpenFailed, nativeCode, "RegisterClassExW ProgressDialog");
                 }
                 progressClassOwned = false;
             }
@@ -321,44 +332,44 @@ namespace GameWIP::Desktop::Detail::Platform
             }
             progressClassInstance = instance;
             progressClassUsers = 1;
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
 
-        [[nodiscard]] IO::Types::Status releaseProgressClass() noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status releaseProgressClass() noexcept
         {
             std::scoped_lock lock(progressClassMutex);
 
             if(progressClassUsers == 0)
             {
-                return IO::successStatus();
+                return GameWIP::Status::Types::Status{};
             }
             --progressClassUsers;
 
             if(progressClassUsers != 0 || !progressClassOwned)
             {
-                return IO::successStatus();
+                return GameWIP::Status::Types::Status{};
             }
 
 #if DESKTOP_INTERNAL_TEST_HOOKS
-            if(Detail::consumeFailure(TestHooks::FailurePoint::ProgressClassRelease))
+            if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ProgressClassRelease))
             {
                 ++progressClassUsers;
-                return IO::makeStatus(IO::Types::ErrorCode::CloseFailed);
+                return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::CloseFailed);
             }
 
 #endif
             if(UnregisterClassW(kProgressClassName, progressClassInstance) == FALSE)
             {
                 ++progressClassUsers;
-                return statusFromWin32(IO::Types::ErrorCode::CloseFailed, GetLastError(), "UnregisterClassW ProgressDialog");
+                return statusFromWin32(GameWIP::Status::Types::Code::CloseFailed, GetLastError(), "UnregisterClassW ProgressDialog");
             }
 
             progressClassOwned = false;
             progressClassInstance = nullptr;
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
 
-        [[nodiscard]] IO::Types::Status convertProgressText(std::string_view text, std::wstring &wide) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status convertProgressText(std::string_view text, std::wstring &wide) noexcept
         {
             try
             {
@@ -366,31 +377,34 @@ namespace GameWIP::Desktop::Detail::Platform
 
                 if(!utf8ToUtf16(text, wide, nativeCode))
                 {
-                    return IO::makeStatus(unicodeConversionError(nativeCode, IO::Types::ErrorCode::EncodingFailed), nativeCode);
+                    return GameWIP::Desktop::Internal::statusFor(
+                        unicodeConversionError(nativeCode, GameWIP::Status::Types::Code::EncodingFailed),
+                        nativeCode,
+                        GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
                 }
-                return IO::successStatus();
+                return GameWIP::Status::Types::Status{};
             }
             catch(const std::bad_alloc &)
             {
-                return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
+                return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::OutOfMemory);
             }
             catch(...)
             {
-                return IO::makeStatus(IO::Types::ErrorCode::Unknown);
+                return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::Unknown);
             }
         }
 
-        [[nodiscard]] IO::Types::Status setNativeText(HWND control, std::string_view text) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status setNativeText(HWND control, std::string_view text) noexcept
         {
 #if DESKTOP_INTERNAL_TEST_HOOKS
-            if(Detail::consumeFailure(TestHooks::FailurePoint::ProgressMutation))
+            if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ProgressMutation))
             {
-                return IO::makeStatus(IO::Types::ErrorCode::NativeFailure);
+                return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::NativeFailure);
             }
 
 #endif
             std::wstring wide;
-            IO::Types::Status status = convertProgressText(text, wide);
+            GameWIP::Status::Types::Status status = convertProgressText(text, wide);
 
             if(!status.ok())
             {
@@ -401,24 +415,25 @@ namespace GameWIP::Desktop::Detail::Platform
 
             if(SetWindowTextW(control, wide.c_str()) == FALSE)
             {
-                return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "SetWindowTextW ProgressDialog");
+                return statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, GetLastError(), "SetWindowTextW ProgressDialog");
             }
 
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
 
-        [[nodiscard]] IO::Types::Status applyProgressMode(ProgressDialogState &state, Types::Dialogs::Progress::Mode mode) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status applyProgressMode(ProgressDialogState &state, Types::Dialogs::Progress::Mode mode) noexcept
         {
 #if DESKTOP_INTERNAL_TEST_HOOKS
-            if(Detail::consumeFailure(TestHooks::FailurePoint::ProgressMutation))
+            if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ProgressMutation))
             {
-                return IO::makeStatus(IO::Types::ErrorCode::NativeFailure);
+                return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::NativeFailure);
             }
 
 #endif
             ProgressDialogData &data = *state.platform;
             LONG_PTR style = 0;
-            const IO::Types::Status queryStatus = queryWindowLong(data.progress, GWL_STYLE, style, "GetWindowLongPtrW ProgressDialog mode");
+            const GameWIP::Status::Types::Status queryStatus =
+                queryWindowLong(data.progress, GWL_STYLE, style, "GetWindowLongPtrW ProgressDialog mode");
 
             if(!queryStatus.ok())
             {
@@ -435,7 +450,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
             if(previous == 0 && error != ERROR_SUCCESS)
             {
-                return statusFromWin32(IO::Types::ErrorCode::NativeFailure, error, "SetWindowLongPtrW ProgressDialog mode");
+                return statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, error, "SetWindowLongPtrW ProgressDialog mode");
             }
 
             if(mode == Types::Dialogs::Progress::Mode::Indeterminate)
@@ -451,14 +466,14 @@ namespace GameWIP::Desktop::Detail::Platform
 
             if(SetWindowPos(data.progress, nullptr, 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOZORDER) == FALSE)
             {
-                return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "SetWindowPos ProgressDialog mode");
+                return statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, GetLastError(), "SetWindowPos ProgressDialog mode");
             }
 
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
 
         /// @brief Re-enables a blocked Window after its last blocking progress dialog is gone.
-        IO::Types::Status restoreOwnerAfterRemoval(const ProgressDialogState &state) noexcept
+        GameWIP::Status::Types::Status restoreOwnerAfterRemoval(const ProgressDialogState &state) noexcept
         {
             WindowState *owner = resolveWindowId(state.ownerId);
 
@@ -469,11 +484,14 @@ namespace GameWIP::Desktop::Detail::Platform
 
                 if(IsWindowEnabled(owner->platform->handle) != (owner->interactionEnabled ? TRUE : FALSE))
                 {
-                    return statusFromWin32(IO::Types::ErrorCode::NativeFailure, ERROR_FUNCTION_FAILED, "EnableWindow ProgressDialog owner restore");
+                    return statusFromWin32(
+                        GameWIP::Status::Types::Code::NativeFailure,
+                        ERROR_FUNCTION_FAILED,
+                        "EnableWindow ProgressDialog owner restore");
                 }
             }
 
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
 
         /// @brief Adds one unexpected-owner-loss restoration to the dispatcher retry chain.
@@ -516,31 +534,33 @@ namespace GameWIP::Desktop::Detail::Platform
         /// @brief Destroys native progress resources and reports whether portable cleanup completed.
         [[nodiscard]] ProgressCloseResult finalizeNative(ProgressDialogState &state, bool restoreOwner) noexcept
         {
+            // Restore an owner retained after unexpected native destruction.
             if(state.ownerRestorePending && restoreOwner)
             {
-                IO::Types::Status restore = restoreOwnerAfterRemoval(state);
+                GameWIP::Status::Types::Status restore = restoreOwnerAfterRemoval(state);
 
                 if(!restore.ok())
                 {
-                    return {std::move(restore), false};
+                    return Internal::result(std::move(restore), false);
                 }
             }
             cancelProgressOwnerRestore(state);
 
+            // Destroy the live window before releasing state reachable by its procedure.
             if(!state.platform)
             {
                 state.nativeDestroyedPendingFinalize = true;
                 state.cancelRequested = false;
-                return {IO::successStatus(), true};
+                return Internal::result(GameWIP::Status::Types::Status{}, true);
             }
             ProgressDialogData &data = *state.platform;
 
             if(data.handle != nullptr)
             {
 #if DESKTOP_INTERNAL_TEST_HOOKS
-                if(Detail::consumeFailure(TestHooks::FailurePoint::Close))
+                if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::Close))
                 {
-                    return {IO::makeStatus(IO::Types::ErrorCode::CloseFailed), false};
+                    return Internal::result(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::CloseFailed), false);
                 }
 #endif
                 data.destroying = true;
@@ -548,10 +568,13 @@ namespace GameWIP::Desktop::Detail::Platform
                 if(DestroyWindow(data.handle) == FALSE)
                 {
                     data.destroying = false;
-                    return {statusFromWin32(IO::Types::ErrorCode::CloseFailed, GetLastError(), "DestroyWindow ProgressDialog"), false};
+                    return Internal::result(
+                        statusFromWin32(GameWIP::Status::Types::Code::CloseFailed, GetLastError(), "DestroyWindow ProgressDialog"),
+                        false);
                 }
             }
 
+            // Remove dispatcher tracking and restore owner interaction.
             if(data.registered)
             {
                 unregisterOpenProgressDialog(state);
@@ -562,29 +585,30 @@ namespace GameWIP::Desktop::Detail::Platform
 
             if(blocked && restoreOwner)
             {
-                IO::Types::Status restore = restoreOwnerAfterRemoval(state);
+                GameWIP::Status::Types::Status restore = restoreOwnerAfterRemoval(state);
 
                 if(!restore.ok())
                 {
                     queueProgressOwnerRestore(state);
-                    return {std::move(restore), false};
+                    return Internal::result(std::move(restore), false);
                 }
             }
             state.cancelRequested = false;
             state.nativeDestroyedPendingFinalize = true;
 
+            // Release the shared window class before freeing native state.
             if(data.classReferenceHeld)
             {
-                IO::Types::Status status = releaseProgressClass();
+                GameWIP::Status::Types::Status status = releaseProgressClass();
 
                 if(!status.ok())
                 {
-                    return {std::move(status), false};
+                    return Internal::result(std::move(status), false);
                 }
                 data.classReferenceHeld = false;
             }
             state.platform.reset();
-            return {IO::successStatus(), true};
+            return Internal::result(GameWIP::Status::Types::Status{}, true);
         }
 
         /// @brief Detaches thread-exit native state without deleting storage still reachable by HWNDs.
@@ -644,9 +668,9 @@ namespace GameWIP::Desktop::Detail::Platform
         }
     } // namespace
 
-    // ------------------------------------------------------------
-    // Native deleters and dispatcher ownership
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Native deleters and dispatcher ownership
+    /// ------------------------------------------------------------
 
     /// @brief Finalizes a progress allocation only after its HWND and class references are safe.
     void ProgressDialogDataDeleter::operator()(ProgressDialogData *data) const noexcept
@@ -655,6 +679,8 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             return;
         }
+
+        // Detach portable callback ownership before native teardown.
         ProgressDialogState *portableOwner = data->owner;
         data->owner = nullptr;
         const bool onOwnerThread = data->ownerThreadId == GetCurrentThreadId();
@@ -757,7 +783,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 continue;
             }
 
-            const IO::Types::Status status = restoreOwnerAfterRemoval(state);
+            const GameWIP::Status::Types::Status status = restoreOwnerAfterRemoval(state);
 
             if(!status.ok())
             {
@@ -778,14 +804,15 @@ namespace GameWIP::Desktop::Detail::Platform
     }
 
     /// @brief Creates and publishes the modeless native progress dialog.
-    IO::Types::Status openProgress(ProgressDialogState &state, const Types::Dialogs::Progress::Description &description) noexcept
+    GameWIP::Status::Types::Status openProgress(ProgressDialogState &state, const Types::Dialogs::Progress::Description &description) noexcept
     {
         try
         {
+            // Convert user text before acquiring native resources.
             std::wstring title;
             std::wstring heading;
             std::wstring message;
-            IO::Types::Status status = convertProgressText(description.title, title);
+            GameWIP::Status::Types::Status status = convertProgressText(description.title, title);
 
             if(!status.ok())
             {
@@ -805,6 +832,8 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return status;
             }
+
+            // Bind the native dialog to its owner and acquire the shared class.
             auto data = std::unique_ptr<ProgressDialogData, ProgressDialogDataDeleter>(new ProgressDialogData);
             data->owner = &state;
             data->ownerThreadId = GetCurrentThreadId();
@@ -816,7 +845,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
                 if(owner == nullptr || !owner->platform || owner->platform->handle == nullptr)
                 {
-                    return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
+                    return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::NotOpen);
                 }
                 data->nativeOwner = owner->platform->handle;
             }
@@ -831,21 +860,24 @@ namespace GameWIP::Desktop::Detail::Platform
             state.platform = std::move(data);
             ProgressDialogData &native = *state.platform;
 
+            // Initialize common controls and calculate the native window bounds.
             INITCOMMONCONTROLSEX controls{sizeof(controls), ICC_PROGRESS_CLASS};
 
             if(InitCommonControlsEx(&controls) == FALSE)
             {
-                return statusFromWin32(IO::Types::ErrorCode::OpenFailed, GetLastError(), "InitCommonControlsEx");
+                return statusFromWin32(GameWIP::Status::Types::Code::OpenFailed, GetLastError(), "InitCommonControlsEx");
             }
             const UINT dpi = native.nativeOwner != nullptr ? dpiForWindow(native.nativeOwner) : dpiForWindow(nullptr);
             RECT bounds{0, 0, scaled(460, dpi), scaled(description.cancelable ? 190 : 160, dpi)};
 
             if(AdjustWindowRectExForDpi(&bounds, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU, FALSE, 0, dpi) == FALSE)
             {
-                return statusFromWin32(IO::Types::ErrorCode::OpenFailed, GetLastError(), "AdjustWindowRectExForDpi ProgressDialog");
+                return statusFromWin32(GameWIP::Status::Types::Code::OpenFailed, GetLastError(), "AdjustWindowRectExForDpi ProgressDialog");
             }
+
+            // Create and register the top-level dialog.
 #if DESKTOP_INTERNAL_TEST_HOOKS
-            const bool failNativeCreation = Detail::consumeFailure(TestHooks::FailurePoint::NativeCreation);
+            const bool failNativeCreation = Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::NativeCreation);
 #else
             constexpr bool failNativeCreation = false;
 #endif
@@ -871,11 +903,12 @@ namespace GameWIP::Desktop::Detail::Platform
 
             if(native.handle == nullptr)
             {
-                return statusFromWin32(IO::Types::ErrorCode::OpenFailed, GetLastError(), "CreateWindowExW ProgressDialog");
+                return statusFromWin32(GameWIP::Status::Types::Code::OpenFailed, GetLastError(), "CreateWindowExW ProgressDialog");
             }
             registerOpenProgressDialog(state);
             native.registered = true;
 
+            // Create child controls and preserve the first native failure.
             DWORD controlCreationError = ERROR_SUCCESS;
             native.heading = CreateWindowExW(
                 0,
@@ -967,11 +1000,12 @@ namespace GameWIP::Desktop::Detail::Platform
                (description.cancelable && native.cancel == nullptr))
             {
                 return statusFromWin32(
-                    IO::Types::ErrorCode::OpenFailed,
+                    GameWIP::Status::Types::Code::OpenFailed,
                     controlCreationError == ERROR_SUCCESS ? ERROR_FUNCTION_FAILED : controlCreationError,
                     "create ProgressDialog controls");
             }
 
+            // Configure fonts and initialize the progress range.
             HFONT font = static_cast<HFONT>(GetStockObject(DEFAULT_GUI_FONT));
             SendMessageW(native.heading, WM_SETFONT, reinterpret_cast<WPARAM>(font), TRUE);
             SendMessageW(native.message, WM_SETFONT, reinterpret_cast<WPARAM>(font), TRUE);
@@ -982,6 +1016,7 @@ namespace GameWIP::Desktop::Detail::Platform
             }
             SendMessageW(native.progress, PBM_SETRANGE32, 0, kProgressRange);
 
+            // Apply the initial mode and layout.
             status = applyProgressMode(state, state.mode);
 
             if(!status.ok())
@@ -998,13 +1033,14 @@ namespace GameWIP::Desktop::Detail::Platform
                 return status;
             }
 
+            // Block the Window owner only after native setup is complete.
             if(state.ownerId.isValid() && state.blocksOwner)
             {
 #if DESKTOP_INTERNAL_TEST_HOOKS
-                if(Detail::consumeFailure(TestHooks::FailurePoint::ProgressOwnerBlocking))
+                if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ProgressOwnerBlocking))
                 {
                     rollbackProgressOpenBestEffort(state);
-                    return IO::makeStatus(IO::Types::ErrorCode::NativeFailure);
+                    return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::NativeFailure);
                 }
 #endif
                 EnableWindow(state.platform->nativeOwner, FALSE);
@@ -1012,31 +1048,32 @@ namespace GameWIP::Desktop::Detail::Platform
                 if(IsWindowEnabled(state.platform->nativeOwner) != FALSE)
                 {
                     rollbackProgressOpenBestEffort(state);
-                    return statusFromWin32(IO::Types::ErrorCode::NativeFailure, ERROR_FUNCTION_FAILED, "EnableWindow ProgressDialog owner");
+                    return statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, ERROR_FUNCTION_FAILED, "EnableWindow ProgressDialog owner");
                 }
                 state.platform->blockingOwner = true;
             }
 
+            // Show the completed dialog without activating it.
             ShowWindow(state.platform->handle, SW_SHOWNOACTIVATE);
 
             if(UpdateWindow(state.platform->handle) == FALSE)
             {
-                status = statusFromWin32(IO::Types::ErrorCode::OpenFailed, GetLastError(), "UpdateWindow ProgressDialog");
+                status = statusFromWin32(GameWIP::Status::Types::Code::OpenFailed, GetLastError(), "UpdateWindow ProgressDialog");
                 rollbackProgressOpenBestEffort(state);
                 return status;
             }
             state.nativeDestroyedPendingFinalize = false;
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
         catch(const std::bad_alloc &)
         {
             rollbackProgressOpenBestEffort(state);
-            return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::OutOfMemory);
         }
         catch(...)
         {
             rollbackProgressOpenBestEffort(state);
-            return IO::makeStatus(IO::Types::ErrorCode::Unknown);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::Unknown);
         }
     }
 
@@ -1045,12 +1082,12 @@ namespace GameWIP::Desktop::Detail::Platform
     {
         if(!state.platform)
         {
-            return {IO::successStatus(), true};
+            return Internal::result(GameWIP::Status::Types::Status{}, true);
         }
 
         if(state.platform->ownerThreadId != GetCurrentThreadId())
         {
-            return {IO::makeStatus(IO::Types::ErrorCode::ResourceBusy), false};
+            return Internal::result(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::ResourceBusy), false);
         }
         return finalizeNative(state, true);
     }
@@ -1065,7 +1102,8 @@ namespace GameWIP::Desktop::Detail::Platform
 
         if(state.platform->ownerThreadId == GetCurrentThreadId())
         {
-            return finalizeNative(state, true).resourceClosed;
+            const ProgressCloseResult result = finalizeNative(state, true);
+            return result.hasValue() && result.value();
         }
 
         if((state.platform->handle == nullptr || IsWindow(state.platform->handle) == FALSE) && !state.platform->registered &&
@@ -1073,7 +1111,7 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             if(state.platform->classReferenceHeld)
             {
-                const IO::Types::Status status = releaseProgressClass();
+                const GameWIP::Status::Types::Status status = releaseProgressClass();
 
                 if(!status.ok())
                 {
@@ -1095,20 +1133,20 @@ namespace GameWIP::Desktop::Detail::Platform
     {
         const ProgressCloseResult result = finalizeNative(state, false);
 
-        if(!result.resourceClosed)
+        if(!result.hasValue() || !result.value())
         {
             abandonNativeForThreadExit(state);
         }
     }
 
     /// @brief Closes or defers progress dialogs whose Window owner is being destroyed.
-    IO::Types::Status notifyProgressOwnerLoss(WindowState &owner) noexcept
+    GameWIP::Status::Types::Status notifyProgressOwnerLoss(WindowState &owner) noexcept
     {
         Dispatcher &current = dispatcher();
 
         if(!current.progressDialogs)
         {
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
 
         std::size_t index = 0;
@@ -1121,16 +1159,16 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 ProgressCloseResult result = finalizeNative(*state, false);
 
-                if(!result.resourceClosed)
+                if(!result.hasValue() || !result.value())
                 {
-                    return std::move(result.status);
+                    return result.status();
                 }
                 continue;
             }
             ++index;
         }
 
-        return IO::successStatus();
+        return GameWIP::Status::Types::Status{};
     }
 
     /// @brief Performs non-reporting progress cleanup for Window destruction paths.
@@ -1153,7 +1191,7 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 const ProgressCloseResult result = finalizeNative(*state, false);
 
-                if(!result.resourceClosed && state->platform && state->platform->registered)
+                if((!result.hasValue() || !result.value()) && state->platform && state->platform->registered)
                 {
                     ++index;
                 }
@@ -1186,30 +1224,30 @@ namespace GameWIP::Desktop::Detail::Platform
     }
 
     /// @brief Applies a new native progress-dialog title.
-    IO::Types::Status setProgressTitle(ProgressDialogState &state, std::string_view title) noexcept
+    GameWIP::Status::Types::Status setProgressTitle(ProgressDialogState &state, std::string_view title) noexcept
     {
         return setNativeText(state.platform->handle, title);
     }
 
     /// @brief Applies a new native progress-dialog heading.
-    IO::Types::Status setProgressHeading(ProgressDialogState &state, std::string_view heading) noexcept
+    GameWIP::Status::Types::Status setProgressHeading(ProgressDialogState &state, std::string_view heading) noexcept
     {
         return setNativeText(state.platform->heading, heading);
     }
 
     /// @brief Applies a new native progress-dialog message.
-    IO::Types::Status setProgressMessage(ProgressDialogState &state, std::string_view message) noexcept
+    GameWIP::Status::Types::Status setProgressMessage(ProgressDialogState &state, std::string_view message) noexcept
     {
         return setNativeText(state.platform->message, message);
     }
 
     /// @brief Applies progress mode and restores the prior mode if native mutation fails.
-    IO::Types::Status setProgressMode(ProgressDialogState &state, Types::Dialogs::Progress::Mode mode) noexcept
+    GameWIP::Status::Types::Status setProgressMode(ProgressDialogState &state, Types::Dialogs::Progress::Mode mode) noexcept
     {
-        IO::Types::Status status = applyProgressMode(state, mode);
+        GameWIP::Status::Types::Status status = applyProgressMode(state, mode);
         if(!status.ok())
         {
-            const IO::Types::Status rollback = applyProgressMode(state, state.mode);
+            const GameWIP::Status::Types::Status rollback = applyProgressMode(state, state.mode);
 
             if(!rollback.ok())
             {
@@ -1221,12 +1259,12 @@ namespace GameWIP::Desktop::Detail::Platform
     }
 
     /// @brief Applies a determinate progress value to the native control.
-    IO::Types::Status setProgressValue(ProgressDialogState &state, double progress) noexcept
+    GameWIP::Status::Types::Status setProgressValue(ProgressDialogState &state, double progress) noexcept
     {
 #if DESKTOP_INTERNAL_TEST_HOOKS
-        if(Detail::consumeFailure(TestHooks::FailurePoint::ProgressMutation))
+        if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ProgressMutation))
         {
-            return IO::makeStatus(IO::Types::ErrorCode::NativeFailure);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::NativeFailure);
         }
 
 #endif
@@ -1236,13 +1274,13 @@ namespace GameWIP::Desktop::Detail::Platform
             SendMessageW(state.platform->progress, PBM_SETPOS, static_cast<WPARAM>(position), 0);
         }
 
-        return IO::successStatus();
+        return GameWIP::Status::Types::Status{};
     }
 
 #if DESKTOP_INTERNAL_TEST_HOOKS
     namespace
     {
-        [[nodiscard]] TestHooks::NativePixelRect nativeRect(HWND window) noexcept
+        [[nodiscard]] Win32TestHooks::NativePixelRect nativeRect(HWND window) noexcept
         {
             RECT rect{};
 
@@ -1272,19 +1310,29 @@ namespace GameWIP::Desktop::Detail::Platform
             return text;
         }
 
-        [[nodiscard]] IO::Types::Status requireTestProgress(const ProgressDialogState *state) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status requireTestProgress(const ProgressDialogState *state) noexcept
         {
             if(state == nullptr || !state->platform || state->platform->handle == nullptr)
             {
-                return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
+                return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::NotOpen);
             }
-            return state->platform->ownerThreadId == GetCurrentThreadId() ? IO::successStatus() : IO::makeStatus(IO::Types::ErrorCode::ResourceBusy);
+            return state->platform->ownerThreadId == GetCurrentThreadId()
+                       ? GameWIP::Status::Types::Status{}
+                       : GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::ResourceBusy);
         }
     } // namespace
 
-    TestHooks::ProgressDialogNativeSnapshot inspectProgressDialog(const ProgressDialogState *state) noexcept
+} // namespace GameWIP::Desktop::Platform
+
+namespace GameWIP::Desktop::Internal::Win32
+{
+    using namespace GameWIP::Desktop::Platform;
+    using namespace GameWIP::Desktop::Internal;
+    namespace Win32TestHooks = GameWIP::Desktop::Internal::TestHooks::Win32;
+
+    Win32TestHooks::ProgressDialogNativeSnapshot inspectProgressDialog(const ProgressDialogState *state) noexcept
     {
-        TestHooks::ProgressDialogNativeSnapshot snapshot;
+        Win32TestHooks::ProgressDialogNativeSnapshot snapshot;
 
         if(state == nullptr)
         {
@@ -1300,17 +1348,19 @@ namespace GameWIP::Desktop::Detail::Platform
         try
         {
             const ProgressDialogData &data = *state->platform;
+
+            // Read native controls and their geometry.
             snapshot.nativeWindow = data.handle != nullptr && IsWindow(data.handle) != FALSE;
             snapshot.cancelControl = data.cancel != nullptr && IsWindow(data.cancel) != FALSE;
-            snapshot.registered = data.registered;
-            snapshot.classReferenceHeld = data.classReferenceHeld;
-            snapshot.blockingOwner = data.blockingOwner;
             snapshot.windowBounds = nativeRect(data.handle);
             snapshot.progressBounds = nativeRect(data.progress);
+
+            // Copy visible text while the native controls are alive.
             snapshot.title = nativeText(data.handle);
             snapshot.heading = nativeText(data.heading);
             snapshot.message = nativeText(data.message);
 
+            // Read the current progress state.
             if(data.progress != nullptr)
             {
                 snapshot.rangeMinimum = static_cast<int>(SendMessageW(data.progress, PBM_GETRANGE, TRUE, 0));
@@ -1324,6 +1374,11 @@ namespace GameWIP::Desktop::Detail::Platform
                     snapshot.marquee = (static_cast<ULONG_PTR>(style) & static_cast<ULONG_PTR>(PBS_MARQUEE)) != 0;
                 }
             }
+
+            // Preserve registration and teardown state.
+            snapshot.registered = data.registered;
+            snapshot.classReferenceHeld = data.classReferenceHeld;
+            snapshot.blockingOwner = data.blockingOwner;
         }
         catch(...)
         {
@@ -1333,9 +1388,9 @@ namespace GameWIP::Desktop::Detail::Platform
         return snapshot;
     }
 
-    IO::Types::Status requestProgressDialogCancel(ProgressDialogState *state) noexcept
+    GameWIP::Status::Types::Status requestProgressDialogCancel(ProgressDialogState *state) noexcept
     {
-        const IO::Types::Status status = requireTestProgress(state);
+        const GameWIP::Status::Types::Status status = requireTestProgress(state);
 
         if(!status.ok())
         {
@@ -1344,7 +1399,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
         if(state->platform->cancel == nullptr)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::Unsupported);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::Unsupported);
         }
 
         SendMessageW(
@@ -1352,12 +1407,12 @@ namespace GameWIP::Desktop::Detail::Platform
             WM_COMMAND,
             MAKEWPARAM(kCancelControlId, BN_CLICKED),
             reinterpret_cast<LPARAM>(state->platform->cancel));
-        return IO::successStatus();
+        return GameWIP::Status::Types::Status{};
     }
 
-    IO::Types::Status requestProgressDialogClose(ProgressDialogState *state) noexcept
+    GameWIP::Status::Types::Status requestProgressDialogClose(ProgressDialogState *state) noexcept
     {
-        const IO::Types::Status status = requireTestProgress(state);
+        const GameWIP::Status::Types::Status status = requireTestProgress(state);
 
         if(!status.ok())
         {
@@ -1365,12 +1420,12 @@ namespace GameWIP::Desktop::Detail::Platform
         }
 
         SendMessageW(state->platform->handle, WM_CLOSE, 0, 0);
-        return IO::successStatus();
+        return GameWIP::Status::Types::Status{};
     }
 
-    IO::Types::Status destroyNativeProgressDialog(ProgressDialogState *state) noexcept
+    GameWIP::Status::Types::Status destroyNativeProgressDialog(ProgressDialogState *state) noexcept
     {
-        const IO::Types::Status status = requireTestProgress(state);
+        const GameWIP::Status::Types::Status status = requireTestProgress(state);
 
         if(!status.ok())
         {
@@ -1378,16 +1433,16 @@ namespace GameWIP::Desktop::Detail::Platform
         }
 
         return DestroyWindow(state->platform->handle) != FALSE
-                   ? IO::successStatus()
-                   : statusFromWin32(IO::Types::ErrorCode::CloseFailed, GetLastError(), "DestroyWindow ProgressDialog test hook");
+                   ? GameWIP::Status::Types::Status{}
+                   : statusFromWin32(GameWIP::Status::Types::Code::CloseFailed, GetLastError(), "DestroyWindow ProgressDialog test hook");
     }
 
-    IO::Types::Status simulateProgressDialogDpiChange(
+    GameWIP::Status::Types::Status simulateProgressDialogDpiChange(
         ProgressDialogState *state,
-        TestHooks::NativePixelRect suggestedBounds,
+        Win32TestHooks::NativePixelRect suggestedBounds,
         std::uint32_t dpi) noexcept
     {
-        const IO::Types::Status status = requireTestProgress(state);
+        const GameWIP::Status::Types::Status status = requireTestProgress(state);
 
         if(!status.ok())
         {
@@ -1401,7 +1456,7 @@ namespace GameWIP::Desktop::Detail::Platform
            suggestedBounds.x > maximumLong - static_cast<LONG>(suggestedBounds.width) ||
            suggestedBounds.y > maximumLong - static_cast<LONG>(suggestedBounds.height))
         {
-            return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::InvalidArgument);
         }
 
         RECT suggested{
@@ -1410,7 +1465,7 @@ namespace GameWIP::Desktop::Detail::Platform
             suggestedBounds.x + static_cast<LONG>(suggestedBounds.width),
             suggestedBounds.y + static_cast<LONG>(suggestedBounds.height)};
         SendMessageW(state->platform->handle, WM_DPICHANGED, MAKEWPARAM(dpi, dpi), reinterpret_cast<LPARAM>(&suggested));
-        return IO::successStatus();
+        return GameWIP::Status::Types::Status{};
     }
 
     std::size_t activeProgressDialogCount() noexcept
@@ -1440,4 +1495,4 @@ namespace GameWIP::Desktop::Detail::Platform
     }
 
 #endif
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Platform

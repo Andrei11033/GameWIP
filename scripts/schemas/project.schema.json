@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/Andrei11033/GameWIP/schemas/project.schema.json",
   "title": "GameWIP project configuration",
-  "description": "Repository identity, disposable local storage, and persistent managed-environment roots.",
+  "description": "Repository identity and build-local helper storage paths.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "repository", "defaultBranch", "storage", "managedEnvironment"],
@@ -26,23 +26,27 @@
       "properties": {
         "root": {
           "const": "build/gamewip",
-          "description": "Only repository-local mutable helper root."
+          "description": "Default local helper root; GAMEWIP_STORAGE_ROOT may override it beneath build/."
         },
         "cache": {
-          "const": "build/gamewip/cache",
-          "description": "Disposable reproducible cache root."
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*$",
+          "description": "Cache directory relative to the helper root."
         },
         "state": {
-          "const": "build/gamewip/state",
-          "description": "Disposable advisory state root."
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*$",
+          "description": "State directory relative to the helper root."
         },
         "temp": {
-          "const": "build/gamewip/temp",
-          "description": "Operation-scoped temporary root."
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*$",
+          "description": "Temporary directory relative to the helper root."
         },
         "runs": {
-          "const": "build/gamewip/runs",
-          "description": "Retained run logs and artifacts root."
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*$",
+          "description": "Retained run directory relative to the helper root."
         }
       }
     },
@@ -52,12 +56,14 @@
       "required": ["msys2Root", "gameWipToolsRoot"],
       "properties": {
         "msys2Root": {
-          "const": "C:\\MSYS2",
-          "description": "MSYS2 package-managed environment root."
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*$",
+          "description": "MSYS2 root relative to the helper root."
         },
         "gameWipToolsRoot": {
-          "const": "C:\\MSYS2\\GameWIPTools",
-          "description": "Persistent GameWIP-managed non-pacman tool root."
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*$",
+          "description": "Managed tool root relative to the helper root."
         }
       }
     }

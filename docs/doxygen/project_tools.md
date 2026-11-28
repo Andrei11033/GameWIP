@@ -10,14 +10,27 @@ orchestration path.
 ## Provider and version policy
 
 The supported providers are MSYS2, npm, Python, PowerShell Gallery, verified
-GitHub releases, WinGet, and external/manual state. Provider
-selection follows this order when the tool is available from more than one
-source:
+GitHub releases and archives, WinGet, and external/manual state. Each tool's
+registry entry selects its provider. Discovery checks that provider's managed
+location first, then other GameWIP-managed locations and `PATH`.
 
-1. An official MSYS2/pacman package.
-2. The tool's native ecosystem under the persistent GameWIP tool root.
-3. A checksum-verified standalone release.
-4. Explicit external/manual ownership.
+Tool version requirements are declared in `project-tools.json` and mirrored here:
+
+<!-- prettier-ignore -->
+| Tool | Version | Provider |
+| --- | --- | --- |
+| PowerShell | 7.7.0 or newer | verified GitHub release |
+| LLVM-MinGW | 20261117 | verified GitHub release |
+| Zig | 0.17.1 | verified archive |
+| Ruff | 0.17.6 | verified GitHub release |
+| Gersemi | 0.29.2 | verified GitHub release |
+| yamllint | 1.38.0 | Python |
+| ESLint | 10.16.0 | npm |
+| Prettier | 3.10.1 | npm |
+| markdownlint-cli2 | 0.24.2 | npm |
+| PSScriptAnalyzer | 1.25.0 | PowerShell Gallery |
+| actionlint | 1.7.12 | verified GitHub release |
+| jsonschema | 4.26.0 | Python (minimum) |
 
 `exact` pins version-sensitive tools. `minimum` accepts the declared version or
 newer. `managed` lets the owning package manager select a compatible version.
@@ -35,42 +48,64 @@ platform asset names, and SHA-256 digests. `scripts/setup/config/setup.json`
 owns setup-action metadata and the IDs needed to bootstrap a provider host.
 
 On Windows, the Python provider uses MSYS2 UCRT64 Python. GameWIP creates its
-managed environment at `C:\MSYS2\GameWIPTools\python` with MSYS2 system
-packages visible, so native Windows CPython is not required. MSYS2 provides
-compiled tools and dependencies such as Ruff and jsonschema; pure-Python tools
-such as yamllint are installed in the managed environment.
+managed environment under `<managed-tools-root>/python` with MSYS2 system
+packages visible, so native Windows CPython is not required. Ruff uses verified
+upstream binaries on Windows and Linux; Python tools use the managed environment.
+When a Python package has no compatible MSYS2 build, its registry entry can
+select a native package for Windows while Linux continues to use pip.
 
-The GitHub CLI is a managed WinGet tool because the workflow status and dispatch
-commands depend on it. Its sign-in state is intentionally not managed by setup.
+The VS Code workspace discovers the default Python environment under
+`build/gamewip/tools/managed/python` after setup creates it and uses the shared
+Ruff configuration. `.vscode/extensions.json` recommends the Python, Python
+Environments, Pylance, and Ruff extensions. If a root override selects another
+environment, choose it with **Python: Select Interpreter**. The helper remains
+responsible for pinned command-line tools.
+
+Git and GitHub CLI are host tools managed by WinGet on Windows, so their
+installation paths and package state are outside the checkout. Setup reuses
+compatible installations and asks before installing a missing tool. Their
+sign-in state is not managed by setup.
 
 ## Persistent tool ownership
 
-MSYS2 lives at `C:\MSYS2`. Pacman-owned files remain in the standard `usr`,
-`ucrt64`, and `clang64` trees. GameWIP never copies unmanaged binaries into
-those package-manager directories.
+MSYS2 defaults to `build/gamewip/tools/msys2`; a new install is extracted from
+the official base archive there, and pacman-owned files remain in the standard
+`usr`, `ucrt64`, and `clang64` trees. Setup checks common Windows install
+locations and asks before reusing a discovered installation. Set
+`GAMEWIP_MSYS2_ROOT` to select one directly. GameWIP never copies unmanaged
+binaries into those package-manager directories. The managed-tools root may be
+a direct `GameWIPTools` child of the MSYS2 root to reuse the previous layout.
 
-Tools managed directly by GameWIP persist under:
+Tools managed directly by GameWIP default to:
 
 ```text
-C:\MSYS2\GameWIPTools\
-  bin\
-  tools\
-  npm\
-  python\
-  powershell\
+build/gamewip/tools/managed/
+  bin/
+  tools/
+    powershell/
+  npm/
+  python/
 ```
 
-The directory is separate from repository build output and survives deleting
-`build/`. When GameWIP creates this tree it writes `.gamewip-managed.json`
-inside it. An existing non-empty tree without valid ownership proof must never
-be silently adopted or recursively removed. Interactive setup may show its
-top-level contents and ask whether the
-user wants to adopt it, with No as the default. Adopted ownership is recorded
+Versioned directory archives live under `tools/<tool>/<version>` and expose
+their declared binary directory to tool discovery. LLVM-MinGW supplies the
+Windows AMD64 and ARM64 targets; Zig supplies Linux AMD64 and ARM64 targets from
+Windows or Linux. Matching system Zig versions are reused. Target selection and
+compiler setup are documented in @ref project_build.
+
+Set `GAMEWIP_MANAGED_TOOLS_ROOT` to another directory under `build/` or to an
+existing installation. New managed roots stay under `build/`. When GameWIP
+creates this tree it writes `.gamewip-managed.json` inside it.
+Ownership markers must be regular files; symlinked markers do not prove ownership.
+An existing non-empty tree without valid ownership proof must never be silently
+adopted or recursively removed.
+Interactive setup may show its top-level contents and ask whether the user
+wants to adopt it, with No as the default. Adopted ownership is recorded
 separately from setup-created ownership. Noninteractive setup remains
 fail-closed, and `setup.bat check` reports missing ownership proof without
 changing it.
 
-`C:\MSYS2\.gamewip-managed.json` is a different marker. It records proven
+`<msys2-root>/.gamewip-managed.json` is a different marker. It records proven
 GameWIP ownership of the MSYS2 installation itself when setup created it.
 Ownership evidence never bypasses recursive-deletion path safety. Setup still
 preserves the MSYS2 root for manual review because users can add files or
@@ -91,6 +126,9 @@ explicitly declares its repository path.
 `gamewip.bat tool check-updates` is online and read-only. It resolves
 all requested latest versions, including versioned provider dependencies,
 without changing tracked files or installed software.
+It also checks Zig's stable archive index, Unicode's latest UCD marker, and
+MSYS2's cached package database. The MSYS2 result may be stale; `setup.bat update`
+refreshes the databases and applies the full rolling upgrade.
 
 `gamewip.bat tool update <id|all>` discovers upstream state and builds the plan
 before persistent mutation. `-Preview` runs discovery, planning, tracked
@@ -126,11 +164,15 @@ Malformed input fails, and writes remain UTF-8 without a byte-order mark.
 Provider adapters own provider-specific queries, installation, and rollback.
 The shared engine owns discovery, planning, staging, validation, preview,
 consent, application, verification, formatting, and quality. Verified GitHub-release
-providers download and checksum a candidate, verify it before replacement, and
-restore the previous managed tool and shim if replacement fails. If every
-selected declaration and installation is current, the update is a true no-op:
-it neither stages tracked files nor reinstalls an identical tool. The command
-never commits or pushes.
+providers checksum candidates before replacement. Single-executable releases
+use managed shims; directory archives install versioned tool trees. Both restore
+the previous managed state if replacement fails. If every selected declaration
+and installation is current, the update is a true no-op: it neither stages
+tracked files nor reinstalls an identical tool. The command never commits or
+pushes.
+Archive-index updates advance the exact pin and all declared archive names and
+checksums together. Unicode data uses the dedicated `unicode verify` and
+`unicode regenerate` workflow.
 
 `setup.bat update` has a different role. It performs the MSYS2 `pacman -Syu`
 environment update, updates other compatible package-manager software and
@@ -141,10 +183,11 @@ use **Quality** for quality and formatting.
 
 ## Repository-local mutable storage
 
-All helper-owned mutable repository data is disposable and lives under:
+All helper-owned mutable repository data defaults to the configured storage
+root (`build/gamewip/`):
 
 ```text
-build/gamewip/
+<storage-root>/
   cache/
   state/
   temp/
@@ -152,17 +195,23 @@ build/gamewip/
 ```
 
 `cache/` contains reproducible data. `state/` is advisory and never sole
-ownership evidence. Missing or corrupt advisory editor/setup state is reported
-and safely reconstructed from configured defaults or persistent evidence rather
-than making the helper unusable. `temp/<operation-id>/` is operation-owned and
+ownership evidence. `check` reports incomplete or unreadable setup state without
+writing; confirmed repair and setup actions normalize recoverable fields or
+rebuild it. `temp/<operation-id>/` is operation-owned and
 marked with the owning process identity. Stale cleanup removes an old directory
 only when GameWIP ownership is valid and the recorded owner is confirmed
 inactive; active, malformed, or ambiguous ownership is preserved. `runs/`
 retains logs, manifests, summaries, and artifacts.
 
-Deleting `build/` or any storage child is a supported recovery operation.
-Doctor, status, quality, and setup recreate the directories they need without
-reinstalling persistent tools.
+`GAMEWIP_STORAGE_ROOT` can move this tree beneath the checkout's `build/`
+directory. The managed-root variables can select existing installations outside
+it; setup asks before reusing a discovered external installation.
+
+Deleting caches, advisory state, temporary data, or run history is a supported
+recovery operation. The default managed tool roots also live under `build/`, so
+deleting them requires setup to reinstall those tools or the root variables to
+point to existing installations. Doctor, status, quality, and setup recreate the
+directories they need.
 
 ## Quality configuration
 
@@ -210,14 +259,16 @@ not rewrite prose, workflow behavior, or semantic CMake policy.
 
 Use `gamewip tool status` to inspect tool selection and competing
 copies. Use `gamewip ready` to verify the complete declared development
-environment. Use `setup.bat repair` when provider-owned software is missing or
-incompatible.
+environment. Run the setup helper's `repair` action when provider-owned
+software is missing or incompatible (`setup.bat repair` on Windows or
+`bash ./setup.sh repair` on Linux).
 
-If advisory setup state is missing or corrupt, setup reports that condition and
-reconstructs what it safely can from persistent evidence. Unknown resources are
-preserved. If an existing `GameWIPTools` tree has no ownership marker, review it
-manually instead of forcing uninstall.
+If setup state is incomplete or unreadable, `check` reports it without writing.
+`repair` and other confirmed setup actions normalize recoverable fields or
+rebuild the state file. Unknown external resources remain preserved. If an
+existing `GameWIPTools` tree has no ownership marker, review it manually
+instead of forcing uninstall.
 
-Persistent tools belong outside `build/`, unmanaged files do not belong in
-pacman-owned `bin` directories, and `build/gamewip/state` is not durable machine
-ownership evidence.
+Managed tools default under `build/gamewip`; set the root variables to reuse
+existing installations. Unmanaged files do not belong in pacman-owned `bin`
+directories, and advisory state is not durable ownership evidence.

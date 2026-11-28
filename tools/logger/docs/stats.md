@@ -10,7 +10,7 @@ status-bearing `Types::LogFilePathResult` so failures while producing an owning
 UTF-8 string remain observable.
 
 `getHealth()` is separate and coherent. `Types::Health::Snapshot` contains current `Healthy`, `Degraded`, or `Disabled` state, effective normal
-output, compact failure source, portable IO error, native code, and the failure count for the current initialization epoch.
+output, compact failure source, portable status code, optional native code, and the failure count for the current initialization epoch.
 
 A failed normal sink is disabled for the rest of that Logger initialization. With `Both`, loss of File leaves Console and health becomes Degraded;
 loss of the final normal sink leaves `OutputMode::None` and health Disabled. Debug output and fatal-popup failures disable only their own emergency

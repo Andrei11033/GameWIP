@@ -3,9 +3,9 @@
 
 #include "test_support/files.h"
 
-#include <utility>
 #include <filesystem>
 #include <string_view>
+#include <utility>
 
 static_assert(noexcept(GameWIP::TestSupport::readTextFile(std::declval<const std::filesystem::path &>())));
 static_assert(noexcept(GameWIP::TestSupport::writeTextFile(std::declval<const std::filesystem::path &>(), std::declval<std::string_view>())));

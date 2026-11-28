@@ -6,8 +6,8 @@ the matching case below.
 
 ## Report file is missing or empty
 
-Check `writeReport`, `reportPath`, and `appendReport`. An empty path disables file opening. Ordinary directory/open/write/flush failure emits one
-`[TEST REPORT]` diagnostic and disables that sink without affecting the test result.
+Check `writeReport`, `reportPath`, and `appendReport`. An empty path disables file opening. A directory, open, write, flush, or close failure emits
+one `[TEST REPORT]` diagnostic and disables that sink without affecting the test result.
 
 A standalone context normally finalizes at destruction; a runner flushes after each completed suite and owns the shared sink lifecycle. Call
 `finalize()` and inspect `SinkStatus::state` when the artifact must be proven complete. Use `flushReportEachLine` when another process must read each
@@ -23,8 +23,8 @@ Expectations record and return a result; they do not abort. Return early based o
 
 ## A file helper returns failed status
 
-Inspect `status.error` and `status.nativeCode`. Missing input is a read failure, while `fileExists()` represents an absent path as successful status
-plus `value == false`.
+Inspect `result.status().code()` and optional `result.status().diagnostic()`. `readTextFile()` reports `FileOperationFailed` for a missing path;
+`fileExists()` reports success with `value() == false`.
 
 ## Temporary files remain
 
@@ -46,9 +46,9 @@ Check `captureOutput`. stdout and stderr share one retained byte stream. A zero 
 
 ## Child reports failed infrastructure status
 
-Inspect `status.error`, `status.nativeCode`, and `outcome` together. A failed status may still preserve partial `outputBytes` or an exact exit code
-when `outcome == Types::Process::Outcome::Exited`. `Types::Process::Outcome::TimedOut` with successful status means timeout policy was enforced
-normally.
+Inspect `status().code()` and optional `status().diagnostic()` together with the execution value when `hasValue()` is true. A failed status may still
+preserve partial `outputBytes` or an exact exit code when `outcome == Types::Process::Outcome::Exited`. `TimedOut` with successful status means
+timeout policy was enforced normally.
 
 ## Child call exceeded the configured timeout
 

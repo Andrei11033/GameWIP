@@ -1,5 +1,9 @@
 # Installs GameWIP and validates clean consumers across supported package boundaries.
 
+# ------------------------------------------------------------
+# Validate inputs and install the package
+# ------------------------------------------------------------
+
 foreach(
     required_variable
     IN
@@ -16,6 +20,7 @@ foreach(
         GAMEWIP_CMAKE_MINIMUM_VERSION
         MULTI_CONFIG
         CXX_COMPILER
+        CXX_FLAGS
         COVERAGE_ENABLED
         ADDRESS_SANITIZER_ENABLED
         UNDEFINED_BEHAVIOR_SANITIZER_ENABLED
@@ -45,8 +50,8 @@ execute_process(
     COMMAND
         "${CMAKE_COMMAND}" "-DPROJECT_SOURCE_DIR=${PROJECT_SOURCE_DIR}" "-DWORK_DIR=${CONSUMER_BUILD_DIR}/application-manifests"
         "-DMODULE_DIR=${INSTALL_PREFIX}/${INSTALL_LIBDIR}/cmake/GameWIPApplication" "-DGENERATOR=${GENERATOR}" "-DCXX_COMPILER=${CXX_COMPILER}"
-        "-DBUILD_TYPE=${BUILD_TYPE}" "-DGAMEWIP_CMAKE_MINIMUM_VERSION=${GAMEWIP_CMAKE_MINIMUM_VERSION}" "-DRUN_RUNTIME_PROBE=${RUN_RUNTIME_PROBE}" -P
-        "${PROJECT_SOURCE_DIR}/cmake/TestGameWIPApplication.cmake"
+        "-DCXX_FLAGS=${CXX_FLAGS}" "-DBUILD_TYPE=${BUILD_TYPE}" "-DGAMEWIP_CMAKE_MINIMUM_VERSION=${GAMEWIP_CMAKE_MINIMUM_VERSION}"
+        "-DRUN_RUNTIME_PROBE=${RUN_RUNTIME_PROBE}" -P "${PROJECT_SOURCE_DIR}/cmake/TestGameWIPApplication.cmake"
     RESULT_VARIABLE manifest_result
     OUTPUT_VARIABLE manifest_output
     ERROR_VARIABLE manifest_error
@@ -55,19 +60,25 @@ if(NOT manifest_result EQUAL 0)
     message(FATAL_ERROR "Installed application manifest validation failed.\n${manifest_output}\n${manifest_error}")
 endif()
 
+# ------------------------------------------------------------
+# Verify the installed header set
+# ------------------------------------------------------------
+
 set(expected_gamewip_headers
     debug/assert/assert.h
     debug/assert/assert_export.h
     filesystem/directory.h
     filesystem/entry.h
     filesystem/file.h
+    filesystem/file_types.h
     filesystem/filesystem.h
     filesystem/path.h
     io/memory.h
     io/io.h
-    io/status.h
     io/stream.h
     io/transfer.h
+    status/result.h
+    status/status.h
     logger/config.h
     logger/detail/log_templates.h
     logger/detail/report_templates.h
@@ -83,6 +94,7 @@ set(expected_gamewip_headers
     logger/types.h
     terminal/input.h
     terminal/output.h
+    terminal/output_types.h
     terminal/session.h
     terminal/style.h
     terminal/terminal.h
@@ -97,6 +109,16 @@ set(expected_gamewip_headers
     unicode/unicode.h
     desktop/child_surface.h
     desktop/accessibility.h
+    desktop/accessibility/actions.h
+    desktop/accessibility/collections.h
+    desktop/accessibility/facade.h
+    desktop/accessibility/geometry.h
+    desktop/accessibility/identity.h
+    desktop/accessibility/relations.h
+    desktop/accessibility/snapshot.h
+    desktop/accessibility/snapshot_types.h
+    desktop/accessibility/text.h
+    desktop/accessibility/types.h
     desktop/clipboard.h
     desktop/cursor.h
     desktop/data_transfer.h
@@ -106,9 +128,9 @@ set(expected_gamewip_headers
     desktop/display_info.h
     desktop/drag_drop.h
     desktop/events.h
+    desktop/icon_types.h
     desktop/native/win32.h
     desktop/renderer_bridge.h
-    desktop/result.h
     desktop/shell.h
     desktop/shell_jump_lists.h
     desktop/shell_notifications.h
@@ -154,8 +176,13 @@ if(unexpected_headers OR missing_headers)
     )
 endif()
 
+# ------------------------------------------------------------
+# Configure and run installed consumers
+# ------------------------------------------------------------
+
 cmake_path(GET CXX_COMPILER PARENT_PATH compiler_runtime_directory)
 set(runtime_path "${INSTALL_PREFIX}/bin;${compiler_runtime_directory};$ENV{PATH}")
+cmake_path(CONVERT "${runtime_path}" TO_NATIVE_PATH_LIST native_runtime_path)
 
 function(
     run_installed_consumer
@@ -172,6 +199,7 @@ function(
         list(APPEND package_prefix_path "${prefix}" "${prefix}/${INSTALL_LIBDIR}/cmake")
     endforeach()
 
+    # Configure the consumer with the requested package roots and build options.
     string(REPLACE ";" "\\;" escaped_prefix_path "${package_prefix_path}")
 
     set(configure_command
@@ -183,6 +211,7 @@ function(
         -G
         "${GENERATOR}"
         "-DCMAKE_CXX_COMPILER=${CXX_COMPILER}"
+        "-DCMAKE_CXX_FLAGS=${CXX_FLAGS}"
         "-DCMAKE_PREFIX_PATH=${escaped_prefix_path}"
         "-DGAMEWIP_PACKAGE_VERSION=${PACKAGE_VERSION}"
         "-DGAMEWIP_CMAKE_MINIMUM_VERSION=${GAMEWIP_CMAKE_MINIMUM_VERSION}"
@@ -193,6 +222,7 @@ function(
     if(NOT MULTI_CONFIG)
         list(APPEND configure_command "-DCMAKE_BUILD_TYPE=${BUILD_TYPE}")
     endif()
+
     if(package_name)
         list(APPEND configure_command "-DGAMEWIP_CONSUMER_PACKAGE=${package_name}")
     endif()
@@ -202,6 +232,7 @@ function(
         message(FATAL_ERROR "Installed ${package_name} consumer configuration failed.\n" "${configure_output}\n${configure_error}")
     endif()
 
+    # Build and run the installed consumer.
     execute_process(
         COMMAND "${CMAKE_COMMAND}" --build "${build_dir}" --config "${BUILD_TYPE}" --parallel 2
         RESULT_VARIABLE build_result
@@ -218,7 +249,7 @@ function(
         set(consumer_executable "${build_dir}/${executable_name}${EXECUTABLE_SUFFIX}")
     endif()
     execute_process(
-        COMMAND "${CMAKE_COMMAND}" -E env "PATH=${runtime_path}" "${consumer_executable}"
+        COMMAND "${CMAKE_COMMAND}" -E env "PATH=${native_runtime_path}" "${consumer_executable}"
         RESULT_VARIABLE run_result
         OUTPUT_VARIABLE run_output
         ERROR_VARIABLE run_error
@@ -233,7 +264,7 @@ run_installed_consumer("${CONSUMER_SOURCE_DIR}" "${CONSUMER_BUILD_DIR}/combined"
 foreach(
     package_name
     IN
-    ITEMS Unicode IO FileSystem Terminal Desktop Input Logger Assert TestSupport
+    ITEMS Status Unicode IO FileSystem Terminal Desktop Input Logger Assert TestSupport
 )
     string(TOLOWER "${package_name}" package_directory)
     run_installed_consumer(

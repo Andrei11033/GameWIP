@@ -7,8 +7,8 @@
 #include "logger/types.h"
 #include "logger/detail/layout_template.h"
 
-#include <array>
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -21,9 +21,9 @@
 
 namespace GameWIP::Logger
 {
-    // ------------------------------------------------------------
-    // Colors and themes
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Colors and themes
+    /// ------------------------------------------------------------
 
     /// @brief Compile-time-friendly foreground color used by Logger themes and sources.
     struct Color
@@ -78,11 +78,14 @@ namespace GameWIP::Logger
         static const Color BrightWhite;   ///< ANSI bright white.
         // NOLINTEND(readability-identifier-naming)
 
+        // Selected representation
         Kind kind = Kind::Default;  ///< Color representation selected for this value.
         Basic basic = Basic::White; ///< Basic color when kind is Basic.
-        std::uint8_t red = 0;       ///< Red channel when kind is Rgb.
-        std::uint8_t green = 0;     ///< Green channel when kind is Rgb.
-        std::uint8_t blue = 0;      ///< Blue channel when kind is Rgb.
+
+        // RGB channels
+        std::uint8_t red = 0;   ///< Red channel when kind is Rgb.
+        std::uint8_t green = 0; ///< Green channel when kind is Rgb.
+        std::uint8_t blue = 0;  ///< Blue channel when kind is Rgb.
 
         /// @brief Creates a basic foreground color.
         [[nodiscard]] static constexpr Color basicColor(Basic value) noexcept
@@ -118,25 +121,30 @@ namespace GameWIP::Logger
     /// @brief Foreground colors used for the logger's semantic output parts.
     struct Theme
     {
-        Color timestamp = Color::BrightBlack;  ///< Timestamp text and literals scoped as timestamps.
-        Color message = Color::White;          ///< Fallback color when messageUsesSeverityColor is false.
-        bool messageUsesSeverityColor = true;  ///< Use the severity color for unmarked message text.
+        // Timestamp and message
+        Color timestamp = Color::BrightBlack; ///< Timestamp text and literals scoped as timestamps.
+        Color message = Color::White;         ///< Fallback color when messageUsesSeverityColor is false.
+        bool messageUsesSeverityColor = true; ///< Use the severity color for unmarked message text.
+
+        // Severity levels
         Color trace = Color::BrightGreen;      ///< Trace severity and literals scoped as severities.
         Color debug = Color::Cyan;             ///< Debug severity.
         Color info = Color::BrightBlack;       ///< Info severity.
         Color warn = Color::Yellow;            ///< Warning severity.
         Color error = Color::Red;              ///< Error severity.
         Color fatal = Color::rgb(255, 70, 70); ///< Fatal severity.
-        Color area = Color::White;             ///< Registered area labels and literals scoped as areas.
-        Color field = Color::BrightBlack;      ///< Record field names and literals scoped as fields.
-        Color code = Color::Magenta;           ///< Values marked with `code()` and code scopes.
-        Color path = Color::Cyan;              ///< Values marked with `path()` and path scopes.
-        Color number = Color::Yellow;          ///< Values marked with `number()` and number scopes.
-        Color quoted = Color::Green;           ///< Values marked with `quoted()` and quoted scopes.
+
+        // Record fields and semantic values
+        Color area = Color::White;        ///< Registered area labels and literals scoped as areas.
+        Color field = Color::BrightBlack; ///< Record field names and literals scoped as fields.
+        Color code = Color::Magenta;      ///< Values marked with `code()` and code scopes.
+        Color path = Color::Cyan;         ///< Values marked with `path()` and path scopes.
+        Color number = Color::Yellow;     ///< Values marked with `number()` and number scopes.
+        Color quoted = Color::Green;      ///< Values marked with `quoted()` and quoted scopes.
     };
 
     /// @cond INTERNAL
-    namespace Detail
+    namespace Internal
     {
 
         [[nodiscard]] constexpr bool isValidColor(Color value) noexcept
@@ -173,6 +181,7 @@ namespace GameWIP::Logger
                 {
                     return false;
                 }
+
                 if(format[index] == '%')
                 {
                     if(index + 1 == format.size())
@@ -184,12 +193,12 @@ namespace GameWIP::Logger
             }
             return true;
         }
-    } // namespace Detail
+    } // namespace Internal
     /// @endcond
 
-    // ------------------------------------------------------------
-    // Record and output layouts
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Record and output layouts
+    /// ------------------------------------------------------------
 
     /// @brief Field presentation used when a record contains optional fields.
     enum class FieldLayout : std::uint8_t
@@ -201,14 +210,14 @@ namespace GameWIP::Logger
     };
 
     /// @cond INTERNAL
-    namespace Detail
+    namespace Internal
     {
         [[nodiscard]] constexpr bool isValidFieldLayout(FieldLayout value) noexcept
         {
             return value == FieldLayout::Adaptive || value == FieldLayout::Compact || value == FieldLayout::Expanded ||
                    value == FieldLayout::Parenthesized;
         }
-    } // namespace Detail
+    } // namespace Internal
     /// @endcond
 
     /// @brief Factory helpers for built-in field layouts.
@@ -250,16 +259,16 @@ namespace GameWIP::Logger
     template <std::size_t Size> [[nodiscard]] consteval LayoutTemplate makeLayout(const char (&text)[Size])
     {
         const std::string_view layout{text, Size - 1};
-        if(!Detail::isValidLayoutTemplate(layout) || !Detail::isValidUtf8(layout))
+        if(!Internal::isValidLayoutTemplate(layout) || !Internal::isValidUtf8(layout))
         {
             throw std::invalid_argument("Logger layout must use valid UTF-8 and known placeholders");
         }
         return {layout};
     }
 
-    // ------------------------------------------------------------
-    // Initialization configuration
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Initialization configuration
+    /// ------------------------------------------------------------
 
     namespace Types
     {
@@ -273,8 +282,11 @@ namespace GameWIP::Logger
         /// @brief Associates a SourceId with its UTF-8 display name during initialization.
         struct SourceDefinition
         {
-            SourceId id = 0;                           ///< Source identifier.
-            std::string_view name = {};                ///< Valid non-empty UTF-8 display name.
+            // Source identity
+            SourceId id = 0;            ///< Source identifier.
+            std::string_view name = {}; ///< Valid non-empty UTF-8 display name.
+
+            // Display
             std::optional<Color> color = std::nullopt; ///< Optional foreground color for the source label.
         };
 
@@ -295,42 +307,55 @@ namespace GameWIP::Logger
         /// @brief Complete Logger initialization configuration.
         struct Config
         {
-            OutputMode output = OutputMode::Both;                    ///< Requested normal-output sinks.
-            Level minLevel = Level::Info;                            ///< Minimum accepted severity.
+            // Output and filtering
+            OutputMode output = OutputMode::Both; ///< Requested normal-output sinks.
+            Level minLevel = Level::Info;         ///< Minimum accepted severity.
+
+            // Queue and formatting limits
             std::size_t maxQueueSize = 1024;                         ///< Soft queue limit.
             double hardQueueMultiplier = 1.25;                       ///< Hard-limit multiplier applied to the soft limit.
             std::size_t maxMessageLength = 4096;                     ///< Maximum retained UTF-8 message bytes.
             FormatPolicy formatPolicy = FormatPolicy::StrictBounded; ///< Formatting memory policy.
             std::size_t inlineMessageCapacity = 256;                 ///< Inline bytes reserved per queued message.
             std::size_t workerBatchSize = 256;                       ///< Maximum records drained per worker batch.
-            std::string_view logDirectory = "logs";                  ///< UTF-8 file-output directory.
-            bool fallbackToConsoleOnFileFailure = true;              ///< Allow File to fall back to Console.
-            std::span<const SourceDefinition> sources = {};          ///< Registered source definitions copied by init().
-            std::span<const SourceFilter> sourceFilters = {};        ///< Initial per-source filters.
-            std::span<const LevelFilter> levelFilters = {};          ///< Initial exact-level filters.
-            bool enableConsoleColor = true;                          ///< Enable supported console styling.
-            Theme theme{};                                           ///< Console theme used for semantic log parts.
-            FieldLayout fieldLayout = FieldLayout::Adaptive;         ///< Default layout for record fields.
-            LayoutTemplate layout{};                                 ///< Optional compile-time custom output layout.
-            std::string_view timestampFormat = "%H:%M:%S.%f";        ///< Local-time strftime format; `%f` expands to milliseconds.
-            std::size_t maxRecordFields = 8;                         ///< Maximum fields accepted by a Record.
-            std::size_t maxFieldKeyLength = 64;                      ///< Maximum UTF-8 bytes retained per field key.
-            std::size_t maxFieldValueLength = 512;                   ///< Maximum UTF-8 bytes retained per field value.
-            bool enableDebugOutput = true;                           ///< Mirror reports to the debugger channel.
-            bool enableFatalPopup = true;                            ///< Enable the fatal-report popup channel.
-            bool flushFileEveryBatch = false;                        ///< Flush File after each worker batch.
-            bool flushConsoleEveryWrite = false;                     ///< Flush Console after each normal write.
-            bool releaseMessageMemoryAfterWrite = false;             ///< Release excess message scratch after writes.
-            bool releaseStorageOnShutdown = true;                    ///< Release queue storage during shutdown.
+
+            // File output
+            std::string_view logDirectory = "logs";     ///< UTF-8 file-output directory.
+            bool fallbackToConsoleOnFileFailure = true; ///< Allow File to fall back to Console.
+
+            // Registered sources and filters
+            std::span<const SourceDefinition> sources = {};   ///< Registered source definitions copied by init().
+            std::span<const SourceFilter> sourceFilters = {}; ///< Initial per-source filters.
+            std::span<const LevelFilter> levelFilters = {};   ///< Initial exact-level filters.
+
+            // Console presentation
+            bool enableConsoleColor = true;                   ///< Enable supported console styling.
+            Theme theme{};                                    ///< Console theme used for semantic log parts.
+            FieldLayout fieldLayout = FieldLayout::Adaptive;  ///< Default layout for record fields.
+            LayoutTemplate layout{};                          ///< Optional compile-time custom output layout.
+            std::string_view timestampFormat = "%H:%M:%S.%f"; ///< Local-time strftime format; `%f` expands to milliseconds.
+
+            // Structured record limits
+            std::size_t maxRecordFields = 8;       ///< Maximum fields accepted by a Record.
+            std::size_t maxFieldKeyLength = 64;    ///< Maximum UTF-8 bytes retained per field key.
+            std::size_t maxFieldValueLength = 512; ///< Maximum UTF-8 bytes retained per field value.
+
+            // Diagnostic sinks and shutdown behavior
+            bool enableDebugOutput = true;               ///< Mirror reports to the debugger channel.
+            bool enableFatalPopup = true;                ///< Enable the fatal-report popup channel.
+            bool flushFileEveryBatch = false;            ///< Flush File after each worker batch.
+            bool flushConsoleEveryWrite = false;         ///< Flush Console after each normal write.
+            bool releaseMessageMemoryAfterWrite = false; ///< Release excess message scratch after writes.
+            bool releaseStorageOnShutdown = true;        ///< Release queue storage during shutdown.
         };
     } // namespace Types
 
-    // ------------------------------------------------------------
-    // Registered source enums
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Registered source enums
+    /// ------------------------------------------------------------
 
     /// @cond INTERNAL
-    namespace Detail::Core
+    namespace Internal::Core
     {
         template <typename Enum, bool IsEnum = std::is_enum_v<Enum>> struct SourceEnumTraits : std::false_type
         {
@@ -360,21 +385,21 @@ namespace GameWIP::Logger
             using Underlying = std::underlying_type_t<std::remove_cvref_t<Enum>>;
             return static_cast<Types::SourceId>(static_cast<Underlying>(value));
         }
-    } // namespace Detail::Core
+    } // namespace Internal::Core
     /// @endcond
 
     /// @brief Concept for source enums accepted by enum-based Logger APIs.
     /// @details The enum must use an unsigned underlying type no wider than SourceId and must not be a Logger-owned enum.
     /// Registration of individual values remains a runtime Config concern.
     template <typename Enum>
-    concept SourceEnum = Detail::Core::SourceEnum<Enum>;
+    concept SourceEnum = Internal::Core::SourceEnum<Enum>;
 
     /// @brief Creates a registered-source definition from an unsigned enum value and UTF-8 name.
     template <typename Enum>
         requires(SourceEnum<Enum>)
     constexpr Types::SourceDefinition defineSource(Enum value, std::string_view name) noexcept
     {
-        return {Detail::Core::sourceId(value), name};
+        return {Internal::Core::sourceId(value), name};
     }
 
     /// @brief Creates a registered-source definition with a custom area-label color.
@@ -382,12 +407,12 @@ namespace GameWIP::Logger
         requires(SourceEnum<Enum>)
     constexpr Types::SourceDefinition defineSource(Enum value, std::string_view name, Color color) noexcept
     {
-        return {Detail::Core::sourceId(value), name, color};
+        return {Internal::Core::sourceId(value), name, color};
     }
 
-    // ------------------------------------------------------------
-    // Configuration presets
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Configuration presets
+    /// ------------------------------------------------------------
 
     /// @brief Returns the balanced default Logger configuration.
     [[nodiscard]] LOGGER_EXPORT Types::Config defaultConfig() noexcept;

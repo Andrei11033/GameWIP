@@ -199,23 +199,32 @@ namespace GameWIP::Desktop::Types
     /// runtime layout/publication and cannot be selected at open.
     struct Description
     {
+        // Windowed geometry and DPI behavior
         std::string title = "GameWIP"; ///< UTF-8; embedded U+0000 is rejected by native title operations.
         WindowedGeometry windowed;     ///< Initial/restored logical windowed geometry; independent of physical display mode.
         DpiResizePolicy dpiResizePolicy = DpiResizePolicy::PreserveLogicalClientSize; ///< DPI resize behavior.
+
+        // Initial presentation and activation
         WindowModeRequest initialWindowMode = WindowModes::windowed(); ///< Initial presentation request; separate from windowed geometry.
         PresentationState presentation = PresentationState::Normal;    ///< Initial presentation state.
         DecorationMode decoration = DecorationMode::System;            ///< Initial decoration policy.
         ActivationPolicy activation;                                   ///< Visibility and focus policy; contradictory combinations are rejected.
-        ResizePolicy resizing;                      ///< Resizing, controls, limits, and aspect-ratio policy; contradictory combinations are rejected.
-        std::optional<WindowId> owner;              ///< Optional owner Window identity; nullopt means no owner.
-        CursorMode cursorMode = CursorMode::Normal; ///< Initial cursor mode.
+
+        // Resize and ownership policy
+        ResizePolicy resizing;         ///< Resizing, controls, limits, and aspect-ratio policy; contradictory combinations are rejected.
+        std::optional<WindowId> owner; ///< Optional owner Window identity; nullopt means no owner.
+
+        // Cursor and pointer input
+        CursorMode cursorMode = CursorMode::Normal;                   ///< Initial cursor mode.
         CursorShape cursorShape = CursorShape::Arrow;                 ///< Initial cursor shape.
         PointerInputMode pointerInputMode = PointerInputMode::Normal; ///< Initial pointer hit-test policy.
-        BackdropEffect backdropEffect = BackdropEffect::None;         ///< Initial backdrop treatment.
-        float opacity = 1.0F;                                         ///< Initial opacity in [0, 1].
-        bool userInteractionEnabled = true;                           ///< Whether user interaction is enabled.
-        bool alwaysOnTop = false;                                     ///< Whether topmost ordering is requested.
-        bool fileDropEnabled = false;                                 ///< Whether portable file-drop events are enabled.
-        bool transparentFramebuffer = false;                          ///< Whether framebuffer alpha reaches the desktop.
+
+        // Appearance and interaction
+        BackdropEffect backdropEffect = BackdropEffect::None; ///< Initial backdrop treatment.
+        float opacity = 1.0F;                                 ///< Initial opacity in [0, 1].
+        bool userInteractionEnabled = true;                   ///< Whether user interaction is enabled.
+        bool alwaysOnTop = false;                             ///< Whether topmost ordering is requested.
+        bool fileDropEnabled = false;                         ///< Whether portable file-drop events are enabled.
+        bool transparentFramebuffer = false;                  ///< Whether framebuffer alpha reaches the desktop.
     };
 } // namespace GameWIP::Desktop::Types

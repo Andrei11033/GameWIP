@@ -7,8 +7,7 @@
 #include "desktop/desktop_export.h"
 #include "desktop/shell.h"
 #include "desktop/shell_types.h"
-#include "desktop/result.h"
-#include "io/status.h"
+#include "status/result.h"
 
 #include <chrono>
 #include <cstdint>
@@ -20,11 +19,11 @@
 
 namespace GameWIP::Desktop
 {
-    namespace Detail
+    namespace Internal
     {
         struct NotificationCenterAccess;
         struct NotificationCenterState;
-    } // namespace Detail
+    } // namespace Internal
 } // namespace GameWIP::Desktop
 
 namespace GameWIP::Desktop::Types::Notifications
@@ -163,12 +162,12 @@ namespace GameWIP::Desktop
 
         /// @brief Opens notification publication without interactive event delivery.
         /// @return Success, or a status explaining why the center was not opened.
-        [[nodiscard]] IO::Types::Status open() noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> open() noexcept;
 
         /// @brief Opens notification publication with interactive event delivery.
         /// @param eventQueue Open queue owned by the calling thread and borrowed until close.
         /// @return Success, or a status explaining why the center was not opened.
-        [[nodiscard]] IO::Types::Status open(ShellEventQueue &eventQueue) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> open(ShellEventQueue &eventQueue) noexcept;
 
         /// @brief Reports whether the notification center is open.
         [[nodiscard]] bool isOpen() const noexcept;
@@ -182,7 +181,7 @@ namespace GameWIP::Desktop
         /// @brief Closes notification publication and releases retained native state.
         /// @details Published identities are no longer accepted by this center after close.
         /// @return Success when closed or already closed; ResourceBusy for wrong-thread calls or retained native work.
-        [[nodiscard]] IO::Types::Status close() noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> close() noexcept;
 
         /// @}
 
@@ -194,7 +193,8 @@ namespace GameWIP::Desktop
         /// A failed publication leaves no usable notification identity.
         /// @param description Borrowed complete notification content and policy.
         /// @return Publication status and generated identity on success.
-        [[nodiscard]] Types::Result<Types::Shell::NotificationId> publish(const Types::Notifications::Description &description) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<Types::Shell::NotificationId> publish(
+            const Types::Notifications::Description &description) noexcept;
 
         /// @brief Replaces a previously published notification snapshot.
         /// @details The notification identity remains unchanged. A description containing actions
@@ -203,18 +203,20 @@ namespace GameWIP::Desktop
         /// @param id Published notification identity owned by this center.
         /// @param description Borrowed replacement content and policy.
         /// @return Success, NotFound for an unknown identity, or a validation, ownership, queue, allocation, or native failure.
-        [[nodiscard]] IO::Types::Status update(Types::Shell::NotificationId id, const Types::Notifications::Description &description) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> update(
+            Types::Shell::NotificationId id,
+            const Types::Notifications::Description &description) noexcept;
 
         /// @brief Dismisses one published notification programmatically.
         /// @param id Published notification identity owned by this center.
         /// @return Success, NotFound for an unknown identity, or an ownership/native failure.
-        [[nodiscard]] IO::Types::Status dismiss(Types::Shell::NotificationId id) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> dismiss(Types::Shell::NotificationId id) noexcept;
 
         /// @}
 
     private:
-        friend struct Detail::NotificationCenterAccess;
+        friend struct Internal::NotificationCenterAccess;
 
-        std::unique_ptr<Detail::NotificationCenterState> state_;
+        std::unique_ptr<Internal::NotificationCenterState> state_;
     };
 } // namespace GameWIP::Desktop

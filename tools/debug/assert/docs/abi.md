@@ -29,10 +29,8 @@ Assert has two package forms:
 | Runtime disabled | interface-only target | Public macros use header-only disabled behavior. Fatal and recoverable reporting are off. |
 
 The runtime uses Logger for reporting and links Unicode statically for popup text conversion. Unicode is a private implementation dependency, and
-Assert's public headers do not expose Unicode types. The installed runtime package resolves the matching Logger package through
-`find_dependency(Logger ... CONFIG)` so the required shared runtime is available to consumers.
-
-Both package forms resolve the matching `GameWIPApplication` package, which supplies the shared application manifest helper. Assert does not install
+Assert's public headers do not expose Unicode types. The runtime package resolves Logger for its imported target and `GameWIPApplication` for the
+manifest helper; the latter is not linked to the runtime. The interface-only target has no package dependencies. Assert does not install
 manifest resources or attach them to consumers. Applications select their process requirements explicitly; see @ref assert_configuration.
 
 ## Exported symbols
@@ -41,12 +39,12 @@ The reviewed Assert export allowlist contains:
 
 ```text
 GameWIP::Debug::Assert::debugBreak
-GameWIP::Debug::Assert::Detail::handleAssertFailure
-GameWIP::Debug::Assert::Detail::handleCheckFailure
-GameWIP::Debug::Assert::Detail::handleInteractiveAssertFailure
+GameWIP::Debug::Assert::Internal::handleAssertFailure
+GameWIP::Debug::Assert::Internal::handleCheckFailure
+GameWIP::Debug::Assert::Internal::handleInteractiveAssertFailure
 ```
 
-`debugBreak()` is public runtime API. The `Detail::handle*` symbols are exported ABI support for the public macros; consumers must not call them
+`debugBreak()` is public runtime API. The `Internal::handle*` symbols are exported ABI support for the public macros; consumers must not call them
 directly or depend on their signatures beyond using the supported macros.
 
 ## Binary compatibility

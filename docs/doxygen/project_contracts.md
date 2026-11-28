@@ -1,11 +1,8 @@
 @page project_contracts Project contracts and standards
 
-These pages describe the rules that keep the repository consistent. Use them
-when a change affects ownership, compatibility, backend behavior, documentation,
-versioning, or project direction.
-
-They also provide the review points for deciding where a change belongs, how it
-should be documented, and which boundaries it must preserve.
+Use these pages when a change affects ownership, compatibility, backend
+behavior, documentation, versioning, or project direction. They define where
+changes belong and which boundaries they must preserve.
 
 ## Standards and extension contracts
 
@@ -47,48 +44,9 @@ verbs and PascalCase parameters. `Assert-GameWip...` is the intentional naming
 exception for validation helpers whose contract is to throw on failure; a
 `Test-*` name remains reserved for Boolean queries.
 
-Exact version-sensitive quality-tool pins are declared centrally:
-
-| Tool | Registry version | Provider |
-| --- | --- | --- |
-| Ruff | 0.17.1 | MSYS2 |
-| ESLint | 10.13.0 | npm |
-| Prettier | 3.9.10 | npm |
-| prettier-plugin-powershell | 2.2.0 | npm dependency of Prettier |
-| Gersemi | 0.29.2 | verified GitHub release |
-| markdownlint-cli2 | 0.24.0 | npm |
-| yamllint | 1.38.0 | Python |
-| jsonschema | 4.26.0 | MSYS2 |
-| PSScriptAnalyzer | 1.25.0 | PowerShell Gallery |
-| actionlint | 1.7.12 | verified GitHub release |
-
-`gamewip tool status` is offline. `gamewip tool check-updates` performs an
-explicit online query without changing files or installations. `gamewip tool
-update <id|all>` builds and validates a complete staged plan before consent.
-The update applies source-preserving compare-and-set registry mutations and
-declared live references, verifies the planned provider state, then formats with
-the updated tools and runs the repository quality gate without committing or
-pushing. Informational `path`
-references, including historical release notes, are never rewritten. See
-@ref project_tools for reference kinds, the strict UTF-8 contract, preview and
-no-op behavior, and the provider rollback boundary.
-
-Explicit formatter and linter configuration lives under `config/quality/` and
-is passed to each owning tool. Optional hygiene profiles and their explanations
-follow the same rule without becoming part of the required quality gate.
-`.clang-format`, `.clang-tidy`, and `.editorconfig` remain at the repository
-root because editors and C++ tools discover them by searching upward.
-
-`setup.bat update` brings the machine into compliance with the versions already
-declared by the checkout. It does not advance exact project pins. Non-pacman
-tools persist under `C:\MSYS2\GameWIPTools` in the `bin`, `tools`, `npm`,
-`python`, and `powershell` subdirectories.
-
-Repository-local helper data is disposable and confined to
-`build/gamewip/{cache,state,temp,runs}`. Each operation owns a unique marked
-temporary directory and removes it in `finally`. Deleting `build/` is supported.
-Read-only status and quality actions recreate their required storage without
-reinstalling persistent tools.
+Tool versions, providers, setup and update behavior, quality configuration, and
+repository-local mutable storage are in @ref project_tools. Host package
+installation and editor integration are in @ref project_environment_setup.
 
 ## Related pages
 

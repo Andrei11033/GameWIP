@@ -1,18 +1,20 @@
 /// @file win32_mode.cpp
 /// @brief Transactional Win32 windowed and fullscreen mode transitions.
 
+#include "desktop/internal/results.h"
 #include "desktop/platform/win32/internal/win32_window_backend.h"
+#include "desktop/platform/win32/internal/win32_display_config.h"
 
 #include <algorithm>
 #include <new>
 #include <optional>
 #include <type_traits>
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
-    // ------------------------------------------------------------
-    // Transition state and rollback
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Transition state and rollback
+    /// ------------------------------------------------------------
 
     namespace
     {
@@ -84,7 +86,7 @@ namespace GameWIP::Desktop::Detail::Platform
         }
 
         /// @brief Saves windowed placement and styles before entering fullscreen.
-        [[nodiscard]] IO::Types::Status saveWindowedPlacement(WindowState &state) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status saveWindowedPlacement(WindowState &state) noexcept
         {
             WindowData &data = *state.platform;
             WINDOWPLACEMENT placement{};
@@ -93,12 +95,12 @@ namespace GameWIP::Desktop::Detail::Platform
             if(GetWindowPlacement(data.handle, &placement) == FALSE)
             {
                 const DWORD nativeCode = GetLastError();
-                return statusFromWin32(IO::Types::ErrorCode::StatFailed, nativeCode, "GetWindowPlacement");
+                return statusFromWin32(GameWIP::Status::Types::Code::StatFailed, nativeCode, "GetWindowPlacement");
             }
 
             LONG_PTR style = 0;
             LONG_PTR extendedStyle = 0;
-            IO::Types::Status status = queryWindowLong(data.handle, GWL_STYLE, style, "GetWindowLongPtrW saved windowed style");
+            GameWIP::Status::Types::Status status = queryWindowLong(data.handle, GWL_STYLE, style, "GetWindowLongPtrW saved windowed style");
 
             if(!status.ok())
             {
@@ -116,7 +118,7 @@ namespace GameWIP::Desktop::Detail::Platform
             data.windowedStyle = static_cast<DWORD>(style);
             data.windowedExtendedStyle = static_cast<DWORD>(extendedStyle);
             data.hasWindowedPlacement = true;
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
 
         /// @brief Compares a native display mode with the portable mode contract.
@@ -129,7 +131,7 @@ namespace GameWIP::Desktop::Detail::Platform
         }
 
         /// @brief Finds the exact native display mode requested by the caller.
-        [[nodiscard]] IO::Types::Status findNativeMode(std::wstring_view device, const Types::Display::Mode &requested, DEVMODEW &output)
+        [[nodiscard]] GameWIP::Status::Types::Status findNativeMode(std::wstring_view device, const Types::Display::Mode &requested, DEVMODEW &output)
         {
             const std::wstring deviceName(device);
 
@@ -146,11 +148,11 @@ namespace GameWIP::Desktop::Detail::Platform
                 if(displayModeMatches(candidate, requested))
                 {
                     output = candidate;
-                    return IO::successStatus();
+                    return GameWIP::Status::Types::Status{};
                 }
             }
 
-            return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::InvalidArgument);
         }
 
         /// @brief Publishes a mode transition and refreshes the current monitor identity.
@@ -180,7 +182,7 @@ namespace GameWIP::Desktop::Detail::Platform
         };
 
         /// @brief Captures every native and portable value needed for transactional rollback.
-        [[nodiscard]] IO::Types::Status captureModeSnapshot(WindowState &state, const RECT &rect, ModeSnapshot &snapshot)
+        [[nodiscard]] GameWIP::Status::Types::Status captureModeSnapshot(WindowState &state, const RECT &rect, ModeSnapshot &snapshot)
         {
             WindowData &data = *state.platform;
             snapshot = {};
@@ -188,7 +190,7 @@ namespace GameWIP::Desktop::Detail::Platform
             snapshot.fullscreen = state.fullscreen;
             LONG_PTR style = 0;
             LONG_PTR extendedStyle = 0;
-            IO::Types::Status status = queryWindowLong(data.handle, GWL_STYLE, style, "GetWindowLongPtrW mode style");
+            GameWIP::Status::Types::Status status = queryWindowLong(data.handle, GWL_STYLE, style, "GetWindowLongPtrW mode style");
 
             if(!status.ok())
             {
@@ -212,15 +214,16 @@ namespace GameWIP::Desktop::Detail::Platform
             snapshot.hasSavedDisplayMode = data.hasSavedDisplayMode;
             snapshot.exclusiveSuspended = data.exclusiveSuspended;
             snapshot.exactDisplayMode = data.exactDisplayMode;
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
 
         /// @brief Restores a captured mode snapshot after a failed transition.
-        [[nodiscard]] IO::Types::Status restoreModeSnapshot(WindowState &state, ModeSnapshot &snapshot) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status restoreModeSnapshot(WindowState &state, ModeSnapshot &snapshot) noexcept
         {
             WindowData &data = *state.platform;
-            IO::Types::Status rollback = IO::successStatus();
+            GameWIP::Status::Types::Status rollback = GameWIP::Status::Types::Status{};
 
+            // Restore the display mode before restoring window state.
             if(data.hasSavedDisplayMode && !data.exclusiveSuspended)
             {
                 const LONG result = ChangeDisplaySettingsExW(data.exclusiveDevice.c_str(), &data.savedDisplayMode, nullptr, 0, nullptr);
@@ -258,7 +261,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
             if(previousStyle == 0 && styleError != ERROR_SUCCESS)
             {
-                rollback = statusFromWin32(IO::Types::ErrorCode::NativeFailure, styleError, "restore previous window style");
+                rollback = statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, styleError, "restore previous window style");
             }
             SetLastError(ERROR_SUCCESS);
             const LONG_PTR previousExtendedStyle = SetWindowLongPtrW(data.handle, GWL_EXSTYLE, snapshot.extendedStyle);
@@ -266,7 +269,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
             if(previousExtendedStyle == 0 && extendedStyleError != ERROR_SUCCESS)
             {
-                rollback = statusFromWin32(IO::Types::ErrorCode::NativeFailure, extendedStyleError, "restore previous extended style");
+                rollback = statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, extendedStyleError, "restore previous extended style");
             }
 
             if(SetWindowPos(
@@ -278,9 +281,9 @@ namespace GameWIP::Desktop::Detail::Platform
                    snapshot.rect.bottom - snapshot.rect.top,
                    SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED) == FALSE)
             {
-                rollback = statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "restore previous window bounds");
+                rollback = statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, GetLastError(), "restore previous window bounds");
             }
-            const IO::Types::Status geometry = refreshCachedGeometry(state);
+            const GameWIP::Status::Types::Status geometry = refreshCachedGeometry(state);
 
             if(!geometry.ok())
             {
@@ -291,22 +294,25 @@ namespace GameWIP::Desktop::Detail::Platform
         }
 
         /// @brief Returns the original transition failure unless rollback also failed.
-        [[nodiscard]] IO::Types::Status failWithRollback(WindowState &state, ModeSnapshot &snapshot, IO::Types::Status failure) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status failWithRollback(
+            WindowState &state,
+            ModeSnapshot &snapshot,
+            GameWIP::Status::Types::Status failure) noexcept
         {
-            IO::Types::Status rollback = restoreModeSnapshot(state, snapshot);
+            GameWIP::Status::Types::Status rollback = restoreModeSnapshot(state, snapshot);
             return rollback.ok() ? std::move(failure) : std::move(rollback);
         }
     } // namespace
 
-    // ------------------------------------------------------------
-    // Fullscreen placement and mode transitions
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Fullscreen placement and mode transitions
+    /// ------------------------------------------------------------
 
-    IO::Types::Status placeFullscreenOnMonitor(WindowState &state, HMONITOR monitor, bool preserveZOrder) noexcept
+    GameWIP::Status::Types::Status placeFullscreenOnMonitor(WindowState &state, HMONITOR monitor, bool preserveZOrder) noexcept
     {
         if(monitor == nullptr)
         {
-            return statusFromWin32(IO::Types::ErrorCode::NotFound, ERROR_NOT_FOUND, "resolve fullscreen monitor");
+            return statusFromWin32(GameWIP::Status::Types::Code::NotFound, ERROR_NOT_FOUND, "resolve fullscreen monitor");
         }
 
         MONITORINFOEXW info{};
@@ -314,7 +320,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
         if(GetMonitorInfoW(monitor, &info) == FALSE)
         {
-            return statusFromWin32(IO::Types::ErrorCode::NotFound, GetLastError(), "resolve fullscreen monitor");
+            return statusFromWin32(GameWIP::Status::Types::Code::NotFound, GetLastError(), "resolve fullscreen monitor");
         }
 
         UINT flags = SWP_NOACTIVATE | SWP_FRAMECHANGED;
@@ -333,17 +339,18 @@ namespace GameWIP::Desktop::Detail::Platform
                info.rcMonitor.bottom - info.rcMonitor.top,
                flags) == FALSE)
         {
-            return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "place fullscreen window");
+            return statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, GetLastError(), "place fullscreen window");
         }
 
-        return IO::successStatus();
+        return GameWIP::Status::Types::Status{};
     }
 
-    IO::Types::Status applyWindowMode(WindowState &state, const Types::WindowModeRequest &request) noexcept
+    GameWIP::Status::Types::Status applyWindowMode(WindowState &state, const Types::WindowModeRequest &request) noexcept
     {
+        // Validate the Window and reject overlapping transitions.
         if(!state.platform || state.platform->handle == nullptr)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::NotOpen);
         }
 
         try
@@ -352,17 +359,24 @@ namespace GameWIP::Desktop::Detail::Platform
 
             if(data.modeTransitionDepth != 0)
             {
-                return IO::makeStatus(IO::Types::ErrorCode::ResourceBusy, ERROR_BUSY, "a native window mode transition is already active");
+                return GameWIP::Desktop::Internal::statusFor(
+                    GameWIP::Status::Types::Code::ResourceBusy,
+                    ERROR_BUSY,
+                    GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error,
+                    "a native window mode transition is already active");
             }
             const ResolvedWindowModeRequest resolved = resolveWindowModeRequest(request);
             const Types::WindowMode previousMode = state.mode;
 
             if(previousMode == Types::WindowMode::Windowed && resolved.mode == Types::WindowMode::Windowed)
             {
-                return IO::successStatus();
+                return GameWIP::Status::Types::Status{};
             }
+
+            // Resolve the target monitor and validate any requested display mode.
             HMONITOR monitor = nullptr;
-            Types::Result<Types::Display::Info> monitorInfo;
+            GameWIP::Status::Types::Result<Types::Display::Info> monitorInfo =
+                GameWIP::Status::Types::Result<Types::Display::Info>::failure(GameWIP::Status::Types::Status(GameWIP::Status::Types::Code::NotFound));
             std::wstring requestedDevice;
             DEVMODEW requestedNativeMode{};
             bool hasRequestedNativeMode = false;
@@ -374,18 +388,18 @@ namespace GameWIP::Desktop::Detail::Platform
 
                 if(!monitorInfo.ok())
                 {
-                    return monitorInfo.status;
+                    return monitorInfo.status();
                 }
-                requestedDevice = monitorDeviceName(monitorInfo->id);
+                requestedDevice = monitorDeviceName(monitorInfo.value().id);
 
                 if(requestedDevice.empty())
                 {
-                    return IO::makeStatus(IO::Types::ErrorCode::NotFound);
+                    return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::NotFound);
                 }
 
                 if(resolved.mode == Types::WindowMode::ExclusiveFullscreen && resolved.displayMode)
                 {
-                    IO::Types::Status validation = findNativeMode(requestedDevice, *resolved.displayMode, requestedNativeMode);
+                    GameWIP::Status::Types::Status validation = findNativeMode(requestedDevice, *resolved.displayMode, requestedNativeMode);
 
                     if(!validation.ok())
                     {
@@ -394,28 +408,29 @@ namespace GameWIP::Desktop::Detail::Platform
                     hasRequestedNativeMode = true;
                 }
 
-                if(previousMode == resolved.mode && state.fullscreen.monitor == monitorInfo->id && !state.fullscreen.suspended)
+                if(previousMode == resolved.mode && state.fullscreen.monitor == monitorInfo.value().id && !state.fullscreen.suspended)
                 {
                     if(resolved.mode == Types::WindowMode::ExclusiveFullscreen &&
                        ((resolved.displayMode && state.fullscreen.displayModeMatchedExactly &&
                          state.fullscreen.requestedDisplayMode == resolved.displayMode) ||
                         (!resolved.displayMode && !state.fullscreen.displayModeMatchedExactly)))
                     {
-                        return IO::successStatus();
+                        return GameWIP::Status::Types::Status{};
                     }
                 }
             }
 
+            // Save enough native and portable state to roll back partial changes.
             RECT previousRect{};
 
             if(GetWindowRect(data.handle, &previousRect) == FALSE)
             {
-                return statusFromWin32(IO::Types::ErrorCode::StatFailed, GetLastError(), "snapshot window mode");
+                return statusFromWin32(GameWIP::Status::Types::Code::StatFailed, GetLastError(), "snapshot window mode");
             }
 
             if(previousMode == Types::WindowMode::Windowed && resolved.mode != Types::WindowMode::Windowed)
             {
-                IO::Types::Status placementStatus = saveWindowedPlacement(state);
+                GameWIP::Status::Types::Status placementStatus = saveWindowedPlacement(state);
 
                 if(!placementStatus.ok())
                 {
@@ -424,7 +439,7 @@ namespace GameWIP::Desktop::Detail::Platform
             }
 
             ModeSnapshot snapshot;
-            IO::Types::Status snapshotStatus = captureModeSnapshot(state, previousRect, snapshot);
+            GameWIP::Status::Types::Status snapshotStatus = captureModeSnapshot(state, previousRect, snapshot);
 
             if(!snapshotStatus.ok())
             {
@@ -432,9 +447,10 @@ namespace GameWIP::Desktop::Detail::Platform
             }
             ModeTransitionScope transition(data);
 
+            // Apply the requested windowed or fullscreen state.
             if(resolved.mode == Types::WindowMode::Windowed)
             {
-                IO::Types::Status status = leaveExclusive(state);
+                GameWIP::Status::Types::Status status = leaveExclusive(state);
 
                 if(!status.ok())
                 {
@@ -454,13 +470,13 @@ namespace GameWIP::Desktop::Detail::Platform
                     return failWithRollback(
                         state,
                         snapshot,
-                        statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "SetWindowPlacement"));
+                        statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, GetLastError(), "SetWindowPlacement"));
                 }
                 reportModeChange(state, previousMode);
                 return refreshCachedGeometry(state);
             }
 
-            IO::Types::Status status = leaveExclusive(state);
+            GameWIP::Status::Types::Status status = leaveExclusive(state);
 
             if(!status.ok())
             {
@@ -477,7 +493,7 @@ namespace GameWIP::Desktop::Detail::Platform
                     return failWithRollback(
                         state,
                         snapshot,
-                        statusFromWin32(IO::Types::ErrorCode::StatFailed, GetLastError(), "query desktop display mode"));
+                        statusFromWin32(GameWIP::Status::Types::Code::StatFailed, GetLastError(), "query desktop display mode"));
                 }
 
                 DEVMODEW desired{};
@@ -519,19 +535,19 @@ namespace GameWIP::Desktop::Detail::Platform
                 data.activeDisplayMode = active;
                 data.exactDisplayMode = exact;
                 state.mode = resolved.mode;
-                state.fullscreen = {monitorInfo->id, resolved.displayMode, active, exact, false};
+                state.fullscreen = {monitorInfo.value().id, resolved.displayMode, active, exact, false};
             }
             else
             {
                 state.mode = Types::WindowMode::BorderlessFullscreen;
-                state.fullscreen = {monitorInfo->id, std::nullopt, std::nullopt, false, false};
+                state.fullscreen = {monitorInfo.value().id, std::nullopt, std::nullopt, false, false};
             }
 
             status = applyStyle(state);
 
-            if(status.ok() && Detail::consumeFailure(TestHooks::FailurePoint::FullscreenPartial))
+            if(status.ok() && Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::FullscreenPartial))
             {
-                status = IO::makeStatus(IO::Types::ErrorCode::NativeFailure);
+                status = GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::NativeFailure);
             }
 
             if(status.ok())
@@ -548,17 +564,17 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::OutOfMemory);
         }
         catch(...)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::Unknown);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::Unknown);
         }
     }
 
-    IO::Types::Status setWindowMode(WindowState &state, const Types::WindowModeRequest &request) noexcept
+    GameWIP::Status::Types::Status setWindowMode(WindowState &state, const Types::WindowModeRequest &request) noexcept
     {
-        IO::Types::Status transition = applyWindowMode(state, request);
+        GameWIP::Status::Types::Status transition = applyWindowMode(state, request);
 
         DWORD foregroundProcessId = 0;
         const HWND foreground = GetForegroundWindow();
@@ -567,20 +583,112 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             static_cast<void>(GetWindowThreadProcessId(foreground, &foregroundProcessId));
         }
-        IO::Types::Status activation = foregroundProcessId == GetCurrentProcessId() ? resumeExclusive(state) : suspendExclusive(state);
+        GameWIP::Status::Types::Status activation = foregroundProcessId == GetCurrentProcessId() ? resumeExclusive(state) : suspendExclusive(state);
 
         return transition.ok() ? std::move(activation) : std::move(transition);
     }
 
-    // ------------------------------------------------------------
-    // Display-change recovery
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Exclusive-mode cleanup
+    /// ------------------------------------------------------------
 
-    IO::Types::Status recoverAfterDisplayChange(WindowState &state, bool forceRemovedMonitor) noexcept
+    /// @brief Leaves exclusive mode and restores the saved desktop display mode.
+    GameWIP::Status::Types::Status leaveExclusive(WindowState &state) noexcept
     {
+        if(state.platform && state.mode != Types::WindowMode::Windowed &&
+           Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::DisplayRestoration))
+        {
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::NativeFailure);
+        }
+
+        if(!state.platform || !state.platform->hasSavedDisplayMode)
+        {
+            state.fullscreen = {};
+            return GameWIP::Status::Types::Status{};
+        }
+        WindowData &data = *state.platform;
+
+        if(!data.exclusiveSuspended)
+        {
+            const LONG result = ChangeDisplaySettingsExW(data.exclusiveDevice.c_str(), &data.savedDisplayMode, nullptr, 0, nullptr);
+
+            if(result != DISP_CHANGE_SUCCESSFUL)
+            {
+                return statusFromDisplayChange(result, "restore desktop display mode");
+            }
+        }
+        data.hasSavedDisplayMode = false;
+        data.exclusiveSuspended = false;
+        data.exclusiveDevice.clear();
+        data.activeDisplayMode = {};
+        data.activeNativeDisplayMode = {};
+        state.fullscreen = {};
+        return GameWIP::Status::Types::Status{};
+    }
+
+    /// @brief Temporarily releases exclusive mode while another process is active.
+    GameWIP::Status::Types::Status suspendExclusive(WindowState &state) noexcept
+    {
+        if(!state.platform || state.platform->modeTransitionDepth != 0 || !state.platform->hasSavedDisplayMode || state.platform->exclusiveSuspended)
+        {
+            return GameWIP::Status::Types::Status{};
+        }
+
+        const LONG result = ChangeDisplaySettingsExW(state.platform->exclusiveDevice.c_str(), &state.platform->savedDisplayMode, nullptr, 0, nullptr);
+
+        if(result != DISP_CHANGE_SUCCESSFUL)
+        {
+            return statusFromDisplayChange(result, "suspend exclusive fullscreen");
+        }
+
+        state.platform->exclusiveSuspended = true;
+        state.fullscreen.suspended = true;
+        return GameWIP::Status::Types::Status{};
+    }
+
+    /// @brief Reclaims exclusive mode after this process becomes active again.
+    GameWIP::Status::Types::Status resumeExclusive(WindowState &state) noexcept
+    {
+        if(!state.platform || state.platform->modeTransitionDepth != 0 || !state.platform->hasSavedDisplayMode || !state.platform->exclusiveSuspended)
+        {
+            return GameWIP::Status::Types::Status{};
+        }
+
+        const LONG validationResult =
+            ChangeDisplaySettingsExW(state.platform->exclusiveDevice.c_str(), &state.platform->activeNativeDisplayMode, nullptr, CDS_TEST, nullptr);
+
+        if(validationResult != DISP_CHANGE_SUCCESSFUL)
+        {
+            return statusFromDisplayChange(validationResult, "validate resumed exclusive fullscreen display mode");
+        }
+
+        const LONG result = ChangeDisplaySettingsExW(
+            state.platform->exclusiveDevice.c_str(),
+            &state.platform->activeNativeDisplayMode,
+            nullptr,
+            CDS_FULLSCREEN,
+            nullptr);
+
+        if(result != DISP_CHANGE_SUCCESSFUL)
+        {
+            return statusFromDisplayChange(result, "resume exclusive fullscreen");
+        }
+
+        state.platform->exclusiveSuspended = false;
+        state.fullscreen.suspended = false;
+        return GameWIP::Status::Types::Status{};
+    }
+
+    /// ------------------------------------------------------------
+    /// Display-change recovery
+    /// ------------------------------------------------------------
+
+    GameWIP::Status::Types::Status recoverAfterDisplayChange(WindowState &state, bool forceRemovedMonitor) noexcept
+    {
+        // Keep the current geometry and monitor state for change events.
         if(!state.platform || state.platform->handle == nullptr)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
+            return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::NotOpen);
         }
         const Types::WindowMode previousMode = state.mode;
         const Types::Display::MonitorId previousMonitor = state.monitor;
@@ -596,27 +704,28 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             routeEvent(state, Types::Events::DisplayConfigurationChanged{});
             updateCurrentMonitor(state);
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
 
+        // Resolve the primary monitor as the fallback after losing fullscreen output.
         HMONITOR primary = MonitorFromPoint(POINT{}, MONITOR_DEFAULTTOPRIMARY);
         MONITORINFO primaryInfo{};
         primaryInfo.cbSize = sizeof(primaryInfo);
-        Types::Result<Types::Display::Info> portablePrimary = monitorFromNative(primary);
-        IO::Types::Status monitorFailure = IO::successStatus();
+        GameWIP::Status::Types::Result<Types::Display::Info> portablePrimary = monitorFromNative(primary);
+        GameWIP::Status::Types::Status monitorFailure = GameWIP::Status::Types::Status{};
 
         if(!portablePrimary.ok())
         {
-            monitorFailure = std::move(portablePrimary.status);
+            monitorFailure = portablePrimary.status();
         }
         else if(primary == nullptr)
         {
-            monitorFailure = statusFromWin32(IO::Types::ErrorCode::NativeFailure, ERROR_NOT_FOUND, "resolve primary monitor after removal");
+            monitorFailure = statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, ERROR_NOT_FOUND, "resolve primary monitor after removal");
         }
         else if(GetMonitorInfoW(primary, &primaryInfo) == FALSE)
         {
             const DWORD error = GetLastError();
-            monitorFailure = statusFromWin32(IO::Types::ErrorCode::NativeFailure, error, "resolve primary monitor after removal");
+            monitorFailure = statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, error, "resolve primary monitor after removal");
         }
 
         if(!monitorFailure.ok())
@@ -633,7 +742,7 @@ namespace GameWIP::Desktop::Detail::Platform
         if(data.modeTransitionDepth != 0)
         {
             routeEvent(state, Types::Events::DisplayConfigurationChanged{});
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
         ModeTransitionScope transition(data);
         RECT desired = data.hasWindowedPlacement ? data.windowedPlacement.rcNormalPosition
@@ -651,13 +760,15 @@ namespace GameWIP::Desktop::Detail::Platform
 
         const bool previousSuppression = state.suppressEvents;
         state.suppressEvents = true;
-        IO::Types::Status firstFailure = leaveExclusive(state);
+
+        // Clear exclusive state and move the Window to a usable primary-monitor area.
+        GameWIP::Status::Types::Status firstFailure = leaveExclusive(state);
         // A disconnected target can reject restoration because it no longer exists. The
         // topology change has already removed that mode, so the failed restore is not an
         // actionable pump error. Clear stale ownership and continue recovery.
         if(!fullscreenMonitorConnected && !firstFailure.ok())
         {
-            firstFailure = IO::successStatus();
+            firstFailure = GameWIP::Status::Types::Status{};
         }
         data.hasSavedDisplayMode = false;
         data.exclusiveSuspended = false;
@@ -674,7 +785,7 @@ namespace GameWIP::Desktop::Detail::Platform
             state.presentationPublication->publishPresentationState(state.presentation);
         }
 
-        IO::Types::Status status = applyStyle(state);
+        GameWIP::Status::Types::Status status = applyStyle(state);
 
         if(!status.ok() && firstFailure.ok())
         {
@@ -683,7 +794,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
         if(SetWindowPos(data.handle, state.alwaysOnTop ? HWND_TOPMOST : HWND_TOP, x, y, width, height, SWP_NOACTIVATE | SWP_FRAMECHANGED) == FALSE)
         {
-            status = statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "place recovered window on primary monitor");
+            status = statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, GetLastError(), "place recovered window on primary monitor");
 
             if(firstFailure.ok())
             {
@@ -696,7 +807,7 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             firstFailure = std::move(status);
         }
-        state.monitor = portablePrimary->id;
+        state.monitor = portablePrimary.value().id;
 
         if(state.presentationPublication != nullptr)
         {
@@ -704,6 +815,7 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         state.suppressEvents = previousSuppression;
 
+        // Publish only the final recovered state.
         routeEvent(state, Types::Events::DisplayConfigurationChanged{});
         routeEvent(state, Types::Events::WindowModeChanged{previousMode, state.mode});
 
@@ -734,10 +846,10 @@ namespace GameWIP::Desktop::Detail::Platform
 
         return firstFailure;
     }
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Platform
 
 #if DESKTOP_INTERNAL_TEST_HOOKS
-namespace GameWIP::Desktop::TestHooks
+namespace GameWIP::Desktop::Internal::TestHooks
 {
     bool exactNativeDisplayModeMatches(
         const Types::Display::Mode &requested,
@@ -754,7 +866,7 @@ namespace GameWIP::Desktop::TestHooks
         native.dmDisplayFrequency = frequencyHertz;
         native.dmBitsPerPel = bitsPerPixel;
         native.dmDisplayFlags = isInterlaced ? DM_INTERLACED : 0;
-        return Detail::Platform::displayModeMatches(native, requested);
+        return Platform::displayModeMatches(native, requested);
     }
-} // namespace GameWIP::Desktop::TestHooks
+} // namespace GameWIP::Desktop::Internal::TestHooks
 #endif

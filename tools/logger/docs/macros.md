@@ -54,7 +54,7 @@ LOGGER_DEBUG(LogSource::Physics, "contact graph {}", buildContactGraphDump());
 Equivalent explicit guard:
 
 ```cpp
-if (Logger::shouldLog(Logger::Types::Level::Debug, LogSource::Physics))
+if(Logger::shouldLog(Logger::Types::Level::Debug, LogSource::Physics))
 {
     Logger::debug(LogSource::Physics, "contact graph {}", buildContactGraphDump());
 }

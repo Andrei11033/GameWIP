@@ -1,0 +1,102 @@
+{
+  "schemaVersion": 1,
+  "distributions": {
+    "ubuntu": "apt",
+    "debian": "apt",
+    "cachyos": "pacman"
+  },
+  "packageManagers": {
+    "apt": {
+      "updateArguments": ["update"],
+      "installArguments": ["install", "--yes", "--no-install-recommends", "--no-upgrade"],
+      "removeArguments": ["remove", "--yes"],
+      "packages": [
+        "build-essential",
+        "ca-certificates",
+        "clang",
+        "clang-format",
+        "clang-tidy",
+        "curl",
+        "doxygen",
+        "gcovr",
+        "gdb",
+        "gh",
+        "git",
+        "graphviz",
+        "libdbus-1-dev",
+        "libegl-dev",
+        "libwayland-bin",
+        "libwayland-dev",
+        "libx11-dev",
+        "libxcursor-dev",
+        "libxext-dev",
+        "libxi-dev",
+        "libxinerama-dev",
+        "libxkbcommon-dev",
+        "libxrandr-dev",
+        "ninja-build",
+        "nodejs",
+        "npm",
+        "pkg-config",
+        "python3",
+        "python3-pip",
+        "python3-venv",
+        "tar",
+        "xz-utils"
+      ]
+    },
+    "pacman": {
+      "updateArguments": [],
+      "installArguments": ["-Syu", "--needed", "--noconfirm"],
+      "removeArguments": ["-R", "--noconfirm"],
+      "packages": [
+        "base-devel",
+        "ca-certificates",
+        "clang",
+        "clang-tools-extra",
+        "curl",
+        "dbus",
+        "doxygen",
+        "gcovr",
+        "gdb",
+        "git",
+        "github-cli",
+        "graphviz",
+        "libglvnd",
+        "libx11",
+        "libxcursor",
+        "libxext",
+        "libxi",
+        "libxinerama",
+        "libxkbcommon",
+        "libxrandr",
+        "ninja",
+        "nodejs",
+        "npm",
+        "pkgconf",
+        "python",
+        "python-pip",
+        "tar",
+        "wayland",
+        "xz"
+      ]
+    }
+  },
+  "cmake": {
+    "repository": "Kitware/CMake",
+    "releases": {
+      "4.4.4": {
+        "linux-amd64": {
+          "archive": "cmake-4.4.4-linux-x86_64.tar.gz",
+          "sha256": "e5bb807f7728cb60cd8b27ebc97a2edb469b68655f21e844a600c3575b76f5bb",
+          "validationFiles": ["bin/cmake", "bin/ctest", "bin/cpack"]
+        },
+        "linux-arm64": {
+          "archive": "cmake-4.4.4-linux-aarch64.tar.gz",
+          "sha256": "a1b6cc63636a0e55c63257cf3315a8a5f129e42fade25db1afea4ff8ab06f25e",
+          "validationFiles": ["bin/cmake", "bin/ctest", "bin/cpack"]
+        }
+      }
+    }
+  }
+}

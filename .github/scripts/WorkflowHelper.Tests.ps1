@@ -7,11 +7,22 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $repositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
-$helperPath = Join-Path $repositoryRoot 'scripts\GameWIP.ps1'
+$workflowLibraryPath = Join-Path $repositoryRoot 'scripts\lib\Workflows.ps1'
 
-. $helperPath -Action help *> $null
+# Load the workflow functions and replace their external dependencies.
+. $workflowLibraryPath
+
+$script:ProjectConfig = [pscustomobject]@{
+    repository = 'GameWIP/GameWIP'
+    defaultBranch = 'master'
+}
 
 $script:WorkflowRunResponses = @()
+
+function Assert-GameWipNotCancelled
+{
+    # Cancellation is outside the run-correlation behavior under test.
+}
 
 function Start-Sleep
 {
@@ -30,6 +41,10 @@ function Invoke-GameWipGhJson
     @($script:WorkflowRunResponses)
 }
 
+# ------------------------------------------------------------
+# Workflow run correlation
+# ------------------------------------------------------------
+
 function Assert-GameWipRunId
 {
     param(
@@ -46,6 +61,10 @@ function Assert-GameWipRunId
 }
 
 $dispatchTime = [datetime]'2026-07-19T00:00:30Z'
+
+# ------------------------------------------------------------
+# Run matching and freshness
+# ------------------------------------------------------------
 
 $script:WorkflowRunResponses = @(
     [pscustomobject]@{
@@ -98,6 +117,10 @@ if ($null -ne $staleRun)
 {
     throw 'A workflow run older than the dispatch window was incorrectly correlated.'
 }
+
+# ------------------------------------------------------------
+# Ambiguous and missing runs
+# ------------------------------------------------------------
 
 $script:WorkflowRunResponses = @(
     [pscustomobject]@{

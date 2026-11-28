@@ -2,12 +2,11 @@
 
 `GameWIP::IO` is the platform-neutral byte-transfer contract shared by low-level GameWIP libraries.
 
-It defines status and result types, abstract reader and writer interfaces, memory-backed implementations, and helpers that complete whole-stream byte
+It uses shared Status results with abstract reader and writer interfaces, memory-backed implementations, and helpers that complete whole-stream byte
 transfers and strict UTF-8 text transfers. IO does not open operating-system resources and has no platform backend.
 
-The public headers follow those boundaries: `io/status.h`, `io/stream.h`,
-`io/memory.h`, and `io/transfer.h`. `io/io.h` is the complete convenience
-include. Either form exposes identical contracts and runtime behavior.
+The public headers follow those boundaries: `io/stream.h`, `io/memory.h`, and
+`io/transfer.h`. `io/io.h` is the complete convenience include.
 
 ## How the library is organized
 
@@ -41,8 +40,8 @@ validation without changing the underlying byte-transfer model.
 
 ## Generated API reference
 
-Use @ref GameWIP::IO for active interfaces, implementations, constants, and helpers. Use @ref GameWIP::IO::Types for passive status, option, and
-result types.
+Use `GameWIP::IO` for active interfaces, implementations, constants, and helpers. Use `GameWIP::IO::Types` for passive option and progress types;
+status and result types are in @ref status.
 
 The generated reference documents every public declaration from `io/io.h`. The manual explains how those declarations work together, which contracts
 backend implementations must preserve, and which caveats affect callers.
@@ -61,10 +60,11 @@ backend implementations must preserve, and which caveats affect callers.
 
 ## Dependency boundary
 
-IO is installed as the static target `GameWIP::IO`. Unicode is its private
-foundational text-correctness dependency and is resolved by the installed
-package. The low-level Reader, Writer, and byte-transfer paths are
-encoding-agnostic and perform no Unicode work.
+IO is installed as the static target `GameWIP::IO`. It publicly depends on
+Status for operation results and privately on Unicode for strict UTF-8 text
+helpers; the installed package resolves both dependencies. The low-level
+Reader, Writer, and byte-transfer paths are encoding-agnostic and perform no
+Unicode work.
 
 FileSystem and Terminal consume IO contracts; IO must not depend on either of them.
 

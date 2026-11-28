@@ -13,7 +13,9 @@ project_benchmarking. Library-specific test coverage and approved hooks remain d
 
 ## Common workflow
 
-Configure, build, and run all validation through CTest:
+Configure and build validation with CMake presets, then run it through CTest.
+Direct CMake commands use `build/native/<preset>`. The helper uses
+`build/<target>/<preset>` and defaults to `windows-amd64`:
 
 ```powershell
 cmake --preset test
@@ -22,12 +24,21 @@ ctest --preset test
 ```
 
 For the same workflow through the project helper, use an incremental run during
-ordinary iteration or request a complete preset-tree recreation explicitly:
+ordinary iteration or request a complete preset-tree recreation explicitly.
+Use `gamewip.bat` on Windows and `./gamewip.sh` on Linux:
 
-```powershell
+```text
+Windows:
 .\gamewip.bat test test
 .\gamewip.bat test test -CleanBuild
+
+Linux:
+./gamewip.sh test test
+./gamewip.sh test test -CleanBuild
 ```
+
+CTest runs binaries for the selected target. Cross-built binaries need a
+compatible host or configured emulator; the helper does not configure one.
 
 Clean-build mode cannot be combined with `-SkipBuild`, because deleting the selected
 tree makes configuration and compilation mandatory. Installed-package consumer
@@ -43,10 +54,15 @@ launches.
 
 ## Commands
 
+Executable examples below use the helper's default Windows AMD64 target. For Linux
+AMD64, use `./build/linux-amd64/test/GameWIPTests` in place of
+`build/windows-amd64/test/GameWIPTests.exe`. Direct CMake builds use
+`build/native/test`.
+
 Run all modules directly:
 
 ```powershell
-.\build\test\GameWIPTests.exe
+.\build\windows-amd64\test\GameWIPTests.exe
 ```
 
 CTest registers one entry per correctness module so failures remain focused and
@@ -63,40 +79,41 @@ they are deliberately not performance thresholds.
 Run one module and retain a focused report:
 
 ```powershell
-.\build\test\GameWIPTests.exe `
+.\build\windows-amd64\test\GameWIPTests.exe `
   --test-module=filesystem `
   --test-report=logs/validation/filesystem_test_report.txt
 ```
 
-Relative report paths are rooted beside `GameWIPTests.exe`, not in the caller's
-current directory or the operating-system temporary directory. The example
-above therefore writes `build/test/logs/validation/filesystem_test_report.txt`.
+Relative report paths are rooted beside the test executable, not in the caller's
+current directory or the operating-system temporary directory. Direct CMake
+builds write under `build/native/test/logs/validation`; helper builds write under
+`build/<target>/test/logs/validation`.
 
 Disable the retained report for quick local iteration:
 
 ```powershell
-.\build\test\GameWIPTests.exe --test-module=logger --no-test-report
+.\build\windows-amd64\test\GameWIPTests.exe --test-module=logger --no-test-report
 ```
 
 Mirror complete suite output to stdout:
 
 ```powershell
-.\build\test\GameWIPTests.exe --test-module=logger --verbose-tests --no-test-report
+.\build\windows-amd64\test\GameWIPTests.exe --test-module=logger --verbose-tests --no-test-report
 ```
 
 Run all modules except one project module:
 
 ```powershell
-.\build\test\GameWIPTests.exe --skip-test-module=terminal
+.\build\windows-amd64\test\GameWIPTests.exe --skip-test-module=terminal
 ```
 
 Run opt-in manual checks:
 
 ```powershell
-.\build\test\GameWIPTests.exe --test-module=test_support --manual-tests
-.\build\test\GameWIPTests.exe --test-module=terminal --manual-tests
-.\build\test\GameWIPTests.exe --test-module=logger --manual-tests
-.\build\test\GameWIPTests.exe --test-module=desktop --manual-tests
+.\build\windows-amd64\test\GameWIPTests.exe --test-module=test_support --manual-tests
+.\build\windows-amd64\test\GameWIPTests.exe --test-module=terminal --manual-tests
+.\build\windows-amd64\test\GameWIPTests.exe --test-module=logger --manual-tests
+.\build\windows-amd64\test\GameWIPTests.exe --test-module=desktop --manual-tests
 ```
 
 Each selected module owns its manual scenarios. The Desktop module groups the full visible, shell, DPI, cursor, fullscreen, topology, HDR, and
@@ -110,14 +127,15 @@ The complete runner argument contract is owned by @ref project_validation.
 
 ## Project command helper
 
-The root `gamewip.bat` helper provides interactive and noninteractive validation
-commands, a command builder, focused modules, and bounded parallel stress runs.
-Its complete syntax, defaults, catalog, retained-output behavior, failure model,
-and extension rules are owned by @ref project_command_line_tools.
+The root `gamewip.bat` and `gamewip.sh` helpers provide interactive and
+noninteractive validation commands, a command builder, focused modules, and
+bounded parallel stress runs. Their complete syntax, defaults, catalog,
+retained-output behavior, failure model, and extension rules are owned by
+@ref project_command_line_tools.
 
-Use `GameWIPTests.exe --help` to print current public runner options and module
-names without executing validation. The complete runner argument contract
-remains owned by @ref project_validation.
+Run the built `GameWIPTests` executable with `--help` to print current public
+runner options and module names without executing validation. The complete
+runner argument contract remains owned by @ref project_validation.
 
 ## Test-module source API
 
@@ -151,6 +169,7 @@ game/validation/tests/<module>/
   <module>_test.cpp
   <behavior>_test.inl           # optional TU-local focused case fragment
   <behavior>_test.cpp           # optional focused translation unit when justified
+  platform/<platform>/          # optional platform-specific cases
 ```
 
 - `<module>_test.h` defines the source-tree options and entry point.
@@ -161,6 +180,10 @@ game/validation/tests/<module>/
   small suites mechanically.
 - `module.cpp` maps shared runner policy and creates one static registration.
 - `CMakeLists.txt` explicitly lists compiled sources and linked libraries; private included fragments do not become separate validation modules.
+- Keep platform-specific cases in the module's `platform/<platform>/` directory.
+  Select the backend in `platform/CMakeLists.txt` and register its sources in
+  `platform/<platform>/CMakeLists.txt`. Shared platform test helpers belong
+  under `game/validation/tests/platform/<platform>/`.
 
 Splitting case files does not create new validation modules, executables, report contracts, or registration names. Promote a fixture to TestSupport
 only when it is genuinely reusable across modules rather than merely shared by files inside one module.
@@ -185,10 +208,10 @@ additionally mirrors passing checks, informational lines, metrics, stress diagno
 The retained report receives complete TestSupport output when file reporting is enabled. An invalid report path disables only retained output; it must
 not hide console failures or change test counts.
 
-TestSupport infrastructure helpers keep setup and operating-system failures separate from the behavior under test. Callers must inspect a result's
-`status` before using its payload. For child processes, infrastructure `status`, process `outcome`, and exact `exitCode` are independent: a nonzero
-child exit or an expected timeout is a domain outcome, not an infrastructure failure. Use `TestSupport::formatInfrastructureStatus()` only when a
-failed status needs to be recorded in diagnostics. See @ref test_support_public_api, @ref test_support_child_processes, and @ref
+TestSupport infrastructure helpers keep setup and operating-system failures separate from the behavior under test. Callers inspect `status()` and
+check `hasValue()` before using an optional payload. For child processes, infrastructure status, process outcome, and exact exit code are
+independent: a nonzero child exit or an expected timeout is a domain outcome, not an infrastructure failure. Use `TestSupport::formatStatus()` when
+a status needs to be recorded in diagnostics. See @ref test_support_public_api, @ref test_support_child_processes, and @ref
 test_support_files_environment for the complete API contract.
 
 - A failed expectation does not abort the suite.
@@ -204,12 +227,17 @@ and fallible, so inspect `status()` before using `path()`; a failed guard is ine
 exception unwinding but remains best effort; process termination or open native resources can leave diagnostics behind. Apply the same status-first
 rule to current-directory and environment guards before assuming their requested process-state change took effect.
 
-The validation runner scopes `TEMP`, `TMP`, and `TMPDIR` to `build/<preset>/temp` for the complete module invocation and restores their prior values
-before returning. TestSupport workspaces therefore stay inside the active preset tree during standalone and embedded validation, including inherited
-child-process activity. Standalone TestSupport consumers retain the library default of using the host temporary directory.
+The validation runner scopes `TEMP`, `TMP`, and `TMPDIR` to `<build-tree>/temp`
+for the complete module invocation and restores their prior values before
+returning. TestSupport workspaces therefore stay inside the active preset tree
+during standalone and embedded validation, including inherited child-process
+activity. Standalone TestSupport consumers retain the library default of using
+the host temporary directory.
 
-Final validation reports belong under `build/<preset>/logs/validation` unless a caller explicitly supplies an absolute path. Tests must not create
-persistent `logs/`, reports, or fixture output in the source tree or a different preset tree.
+Final validation reports belong under `<build-tree>/logs/validation` unless a
+caller explicitly supplies an absolute path. Tests must not create persistent
+`logs/`, reports, or fixture output in the source tree or a different preset
+tree.
 
 ## Test requirements
 

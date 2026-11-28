@@ -38,8 +38,7 @@ The optional accessibility façade has a separate threading contract. Complete
 owner-thread `enable()` before sharing it; publication, snapshot inspection,
 queue telemetry, and announcements may then run on other threads. Activation,
 deactivation, action draining, and native notification pumping remain on the
-owner thread. Join façade users before destroying the borrowed Window. See
-@ref desktop_accessibility for publication and close-race behavior.
+owner thread. See @ref desktop_accessibility for close-race and lifetime rules.
 
 Wrong-thread destruction does not destroy owner-thread-affine resources directly. Private state is transferred to the owner dispatcher without
 allocating, the dispatcher is woken, and cleanup is completed on the owner thread. Dispatcher teardown also drains deferred cleanup and finalizes
@@ -76,9 +75,9 @@ The same `Window` object may be opened again after finalization.
 ## Queue behavior
 
 The queue is fixed-capacity. `ClientPositionChanged`, `ClientSizeChanged`,
-`FramebufferSizeChanged`, and `ContentScaleChanged` may replace an earlier event
-of the same type within the trailing run of geometry/DPI events. A durable
-event ends that run. Scale changes retain the earliest previous scale/DPI and
+`FramebufferSizeChanged`, `ContentScaleChanged`, and `RedrawRequested` may
+replace an earlier event of the same type within the trailing run of coalescible
+events. A durable event ends that run. Scale changes retain the earliest previous scale/DPI and
 the latest scale/DPI/framebuffer size; a scale change that returns to its
 starting scale and DPI is removed. Replacement keeps the earlier slot and
 sequence number, so a sequence identifies queue insertion rather than the age
@@ -111,14 +110,15 @@ This snippet keeps the lifetime stable until the notifying thread has joined:
 #include <thread>
 
 std::atomic_bool workReady = false;
-std::thread notifier([&]
-{
-    workReady.store(true, std::memory_order_release);
-    static_cast<void>(window.wakeEventWait());
-});
+std::thread notifier(
+    [&]
+    {
+        workReady.store(true, std::memory_order_release);
+        static_cast<void>(window.wakeEventWait());
+    });
 const auto pump = GameWIP::Desktop::Events::wait(std::chrono::milliseconds{100});
 notifier.join();
-if (pump.status.ok() && workReady.load(std::memory_order_acquire))
+if(pump.ok() && workReady.load(std::memory_order_acquire))
 {
     // Consume application-owned work before returning to the event loop.
 }

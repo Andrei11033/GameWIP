@@ -5,7 +5,7 @@ Portable code uses `desktop/window.h`; platform-native access is explicit under 
 ## Win32 handles
 
 On Win32, include `desktop/native/win32.h` and call `GameWIP::Desktop::Native::Win32::getHandle(window)` (or the open-`ChildSurface` overload).
-The `Types::Result<HandleView>` holds one coherent view with both module instance and HWND.
+The shared `GameWIP::Status::Types::Result<HandleView>` holds one coherent view with both module instance and HWND.
 
 `getHandle()` is checked and owner-thread-affine, and returns `NotOpen` for a closed/pending Window. Do not destroy, reparent, subclass, or
 otherwise mutate ownership unless an interop contract allows it.
@@ -18,7 +18,8 @@ or overwrite its state. See @ref desktop_child_surfaces.
 ## Message sinks
 
 `attachMessageSink()` registers an external observer to receive owner-thread Win32 messages before Desktop's internal routing. The sink callback
-receives the window, message, wParam, and lParam; it does not replace Desktop's window procedure or override the returned native result.
+receives the window, message, wParam, and lParam and returns `Result<void>`. A failed result is reported by the active or next pump. The sink does
+not replace Desktop's window procedure or override the returned native result.
 
 The sink is invoked synchronously during Desktop's message pump for each message before internal routing. Blocking operations in the sink
 block the owner thread and delay all message delivery; keep implementations lightweight. Only one sink per window is supported;

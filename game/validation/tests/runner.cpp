@@ -3,11 +3,11 @@
 
 #include "validation/tests/runner.h"
 
-#include "validation/process_arguments.h"
 #include "validation/executable_path.h"
+#include "validation/process_arguments.h"
 #include "validation/tests/internal/runner_test_hooks.h"
 #include "validation/tests/registry.h"
-#include "validation/tests/runner_helpers.h"
+#include "validation/tests/internal/helpers/runner_helpers.h"
 
 #include "test_support/process.h"
 
@@ -30,6 +30,10 @@ namespace GameWIP::Validation::Tests
 {
     namespace
     {
+        /// ------------------------------------------------------------
+        /// Module selection and argument parsing
+        /// ------------------------------------------------------------
+
         /// @brief Command-line module selection and exclusions resolved before execution.
         struct Selection
         {
@@ -46,27 +50,14 @@ namespace GameWIP::Validation::Tests
                 selection.conflictingModules = true;
                 return;
             }
+
             selection.module = std::move(module);
-        }
-
-        /// @brief Returns whether the process arguments contain one exact option.
-        [[nodiscard]] bool hasArgument(ProcessArguments arguments, std::string_view argument)
-        {
-            for(char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
-            {
-                if(value != nullptr && std::string_view(value) == argument)
-                {
-                    return true;
-                }
-            }
-
-            return false;
         }
 
         /// @brief Returns the value following a matched argument prefix.
         [[nodiscard]] std::optional<std::string> argumentValue(ProcessArguments arguments, std::string_view prefix)
         {
-            for(char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
+            for(const char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
             {
                 if(value == nullptr)
                 {
@@ -89,7 +80,8 @@ namespace GameWIP::Validation::Tests
         {
             Selection selection;
 
-            for(char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
+            // Resolve module inclusion and exclusion first.
+            for(const char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
             {
                 if(value == nullptr)
                 {
@@ -113,33 +105,38 @@ namespace GameWIP::Validation::Tests
                 }
             }
 
+            // Apply report and execution options.
             if(const auto reportPath = argumentValue(arguments, "--test-report="))
             {
                 options.reportPath = *reportPath;
             }
 
-            if(hasArgument(arguments, "--no-test-report"))
+            if(GameWIP::Validation::hasProcessArgument(arguments, "--no-test-report"))
             {
                 options.writeReport = false;
             }
 
-            if(hasArgument(arguments, "--verbose-tests"))
+            if(GameWIP::Validation::hasProcessArgument(arguments, "--verbose-tests"))
             {
                 options.verboseConsole = true;
             }
 
-            if(hasArgument(arguments, "--manual-tests"))
+            if(GameWIP::Validation::hasProcessArgument(arguments, "--manual-tests"))
             {
                 options.enableManualTests = true;
             }
 
-            if(hasArgument(arguments, "--no-test-support-child-process"))
+            if(GameWIP::Validation::hasProcessArgument(arguments, "--no-test-support-child-process"))
             {
                 options.enableTestSupportChildProcessTests = false;
             }
 
             return selection;
         }
+
+        /// ------------------------------------------------------------
+        /// Report output
+        /// ------------------------------------------------------------
 
         /// @brief Resolves ordinary relative reports beneath the running executable directory and rejects parent traversal.
         /// @details Invalid or empty paths disable file reporting without changing test execution.
@@ -165,6 +162,7 @@ namespace GameWIP::Validation::Tests
                     {
                         throw std::invalid_argument("relative report paths cannot contain a root name or root directory");
                     }
+
                     const std::filesystem::path normalized = options.reportPath.lexically_normal();
 
                     for(const std::filesystem::path &component : normalized)
@@ -217,14 +215,17 @@ namespace GameWIP::Validation::Tests
 
                 if(!report.is_open())
                 {
-                    std::cerr << "[VALIDATION] could not append to report: " << options.reportPath.string() << '\n';
+                    std::cerr << "[VALIDATION] could not append to report: " << GameWIP::Test::Internal::RunnerHelpers::pathText(options.reportPath)
+                              << '\n';
                     return;
                 }
+
                 report << line << '\n';
 
                 if(!report)
                 {
-                    std::cerr << "[VALIDATION] report append failed: " << options.reportPath.string() << '\n';
+                    std::cerr << "[VALIDATION] report append failed: " << GameWIP::Test::Internal::RunnerHelpers::pathText(options.reportPath)
+                              << '\n';
                 }
             }
             catch(const std::exception &exception)
@@ -236,6 +237,10 @@ namespace GameWIP::Validation::Tests
                 std::cerr << "[VALIDATION] report append failed with an unknown error.\n";
             }
         }
+
+        /// ------------------------------------------------------------
+        /// Module validation and invocation
+        /// ------------------------------------------------------------
 
         /// @brief Copies static registrations into deterministic order for child routing and execution.
         [[nodiscard]] std::vector<Module> sortedModules(std::span<const Module> registrations)
@@ -300,7 +305,7 @@ namespace GameWIP::Validation::Tests
         }
     } // namespace
 
-    TestResult Detail::runWithModules(int argc, char **argv, RunOptions options, std::span<const Module> registrations)
+    TestResult Internal::TestHooks::runWithModules(int argc, char **argv, RunOptions options, std::span<const Module> registrations)
     {
         const ProcessArguments arguments = processArguments(argc, argv);
         const std::vector<Module> modules = sortedModules(registrations);
@@ -345,9 +350,10 @@ namespace GameWIP::Validation::Tests
             std::cerr << "Validation process-state setup failed.\n";
             return {.modulesFailed = 1, .exitCode = 1};
         }
-        TestSupport::ScopedEnvironmentVariable temporaryDirectory(processState, "TEMP", temporaryRootText);
-        TestSupport::ScopedEnvironmentVariable temporaryDirectoryAlias(processState, "TMP", temporaryRootText);
-        TestSupport::ScopedEnvironmentVariable posixTemporaryDirectory(processState, "TMPDIR", temporaryRootText);
+
+        const TestSupport::ScopedEnvironmentVariable temporaryDirectory(processState, "TEMP", temporaryRootText);
+        const TestSupport::ScopedEnvironmentVariable temporaryDirectoryAlias(processState, "TMP", temporaryRootText);
+        const TestSupport::ScopedEnvironmentVariable posixTemporaryDirectory(processState, "TMPDIR", temporaryRootText);
 
         if(!temporaryDirectory.status().ok() || !temporaryDirectoryAlias.status().ok() || !posixTemporaryDirectory.status().ok())
         {
@@ -361,7 +367,7 @@ namespace GameWIP::Validation::Tests
         const Module *childOwner = nullptr;
         std::size_t reservedChildArguments = 0;
 
-        for(char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
+        for(const char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
         {
             if(value != nullptr && isReservedChildArgument(value))
             {
@@ -437,6 +443,7 @@ namespace GameWIP::Validation::Tests
             return {.modulesFailed = 1, .exitCode = 1};
         }
 
+        // Validate the requested module set before writing reports or running modules.
         if(selection.module && std::ranges::none_of(
                                    modules,
                                    [&](const Module &module)
@@ -474,13 +481,15 @@ namespace GameWIP::Validation::Tests
 
         if(options.writeReport)
         {
-            const std::string reportLine = std::format("[VALIDATION] report={}", options.reportPath.string());
-            GameWIP::Test::RunnerHelpers::writeValidationConsoleLineOrDiagnose("INFO", reportLine);
+            const std::string reportLine =
+                std::format("[VALIDATION] report={}", GameWIP::Test::Internal::RunnerHelpers::pathText(options.reportPath));
+            GameWIP::Test::Internal::RunnerHelpers::writeValidationConsoleLineOrDiagnose("INFO", reportLine);
         }
 
         TestResult result;
         bool appendReport = options.appendReport;
 
+        // Run selected modules and retain each result.
         for(const Module &module : modules)
         {
             if((selection.module && module.name != *selection.module) || selection.excludedModules.contains(module.name))
@@ -499,7 +508,7 @@ namespace GameWIP::Validation::Tests
 
             const std::string moduleLine =
                 std::format("[VALIDATION] module={} result={} exitCode={}", module.name, moduleExitCode == 0 ? "PASS" : "FAIL", moduleExitCode);
-            GameWIP::Test::RunnerHelpers::writeValidationConsoleLineOrDiagnose(moduleExitCode == 0 ? "PASS" : "FAIL", moduleLine);
+            GameWIP::Test::Internal::RunnerHelpers::writeValidationConsoleLineOrDiagnose(moduleExitCode == 0 ? "PASS" : "FAIL", moduleLine);
             appendValidationLine(options, moduleLine);
 
             // Once one module has written the aggregate report, later modules
@@ -514,9 +523,10 @@ namespace GameWIP::Validation::Tests
             result.exitCode = 1;
         }
 
+        // Publish the aggregate result.
         const std::string resultLine =
             std::format("[VALIDATION] result={} modules={} failed={}", result.ok() ? "PASS" : "FAIL", result.modulesRun, result.modulesFailed);
-        GameWIP::Test::RunnerHelpers::writeValidationConsoleLineOrDiagnose(result.ok() ? "PASS" : "FAIL", resultLine);
+        GameWIP::Test::Internal::RunnerHelpers::writeValidationConsoleLineOrDiagnose(result.ok() ? "PASS" : "FAIL", resultLine);
         appendValidationLine(options, resultLine);
         return result;
     }
@@ -525,7 +535,7 @@ namespace GameWIP::Validation::Tests
     {
         const ProcessArguments arguments = processArguments(argc, argv);
 
-        for(char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
+        for(const char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
         {
             if(value == nullptr)
             {
@@ -571,6 +581,6 @@ namespace GameWIP::Validation::Tests
 
     TestResult run(int argc, char **argv, RunOptions options)
     {
-        return Detail::runWithModules(argc, argv, std::move(options), registeredModules());
+        return Internal::TestHooks::runWithModules(argc, argv, std::move(options), registeredModules());
     }
 } // namespace GameWIP::Validation::Tests

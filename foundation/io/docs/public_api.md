@@ -1,117 +1,69 @@
 @page io_public_api Public API
 
-Include `io/io.h` for the complete public surface. Focused entry headers are:
+Include `io/io.h` for the complete IO surface. Focused headers are:
 
-- `io/status.h`: error codes, status values, and status helpers;
-- `io/stream.h`: stream enums, transfer results, `Reader`, and `Writer`;
-- `io/memory.h`: memory-backed streams and `CopyTextResult`;
-- `io/transfer.h`: whole-stream results, constants, and transfer helpers.
+- `io/stream.h`: stream enums, progress payloads, `Reader`, and `Writer`.
+- `io/memory.h`: `MemoryReader` and `MemoryWriter`.
+- `io/transfer.h`: whole-stream helpers and limits.
 
-Narrow includes reduce dependencies and clarify intent. They expose the same API
-and behavior as the corresponding declarations reached through `io/io.h`.
+Every fallible operation returns `GameWIP::Status::Types::Result<T>` or `Result<void>`. See @ref status for result, status, and diagnostic rules.
 Installed consumers link `GameWIP::IO`; source-tree consumers link `IO`.
 
 ## Constants
 
 | API | Purpose |
 | --- | --- |
-| `kNoByteLimit` | Removes the caller-imposed limit from a whole-stream read. Result-container and address-space limits still apply. |
-| `kDefaultBufferSize` | Default temporary transfer-buffer size for the internally allocated unknown-size read path. |
+| `kNoByteLimit` | Removes the caller-imposed limit from a whole-stream read. Container and address-space limits still apply. |
+| `kDefaultBufferSize` | Temporary buffer size for internally buffered unknown-size reads. |
 
-## Status, option, and result types
+## Payload types
 
-The `GameWIP::IO::Types` namespace contains passive value types:
-
-| Type | Contract |
+| Type | Purpose |
 | --- | --- |
-| `ErrorCode` | Portable status category shared by IO and resource-owning libraries. |
-| `Status` | Fields `code`, `nativeCode`, and diagnostic `message`; `ok()` is true only for `Success`. |
-| `SeekOrigin` | `Begin`, `Current`, or `End` origin for signed seek offsets. |
-| `FlushMode` | `None`, `Data`, or `DataAndMetadataBestEffort`. |
-| `ReadResult` | Fields `status`, `bytesRead`, and independent `endOfStream` state. |
-| `WriteResult` | Fields `status` and accepted-byte count `bytesWritten`. |
-| `PositionResult` | Fields `status` and current byte `position`. |
-| `SizeResult` | Fields `status` and total byte count `sizeBytes`. |
-| `ReadAllBytesResult` | Fields `status` and collected binary `bytes`. |
-| `ReadAllTextResult` | Fields `status` and `text`; see @ref io_utf8_policy. |
-| `CopyTextResult` | Fields `status` and an owned `text` copy. |
+| `Types::SeekOrigin` | `Begin`, `Current`, or `End` for signed seek offsets. |
+| `Types::FlushMode` | `None`, `Data`, or best-effort data and metadata flush. |
+| `Types::ReadProgress` | Bytes copied and independent end-of-stream state. |
+| `Types::WriteProgress` | Bytes accepted by a write. |
 
-A nonzero transfer count may accompany a failure status. `ReadResult::endOfStream`
-is independent of `bytesRead` and may be true on the final non-empty read
-(@ref io_error_model).
+The result value carries payload only. Status is read with `.status()`, success with `.ok()`, and an optional partial payload with `.hasValue()` and
+`.value()`.
 
-## Status helpers
+## Reader and Writer
 
-| API | Purpose |
-| --- | --- |
-| `isValidFlushMode()` | Validates defined `FlushMode` enumerators. It is `constexpr` and non-throwing. |
-| `makeStatus()` | Creates a status from portable, native, and diagnostic details. |
-| `successStatus()` | Creates a successful status. |
-| `errorCodeName()` | Returns a stable symbolic name for a known error code, or `"Unknown"` for an unknown enumerator. |
-
-@ref io_error_model owns error-code selection and diagnostic rules.
-
-## Reader interface
-
-`Reader` is the platform-neutral input contract. It is movable, non-copyable, and has one required operation:
+`Reader` and `Writer` are movable, non-copyable, platform-neutral interfaces. Each requires one operation:
 
 ```cpp
-virtual Types::ReadResult read(std::span<std::byte> destination) noexcept = 0;
+virtual GameWIP::Status::Types::Result<Types::ReadProgress>
+read(std::span<std::byte> destination) noexcept = 0;
+
+virtual GameWIP::Status::Types::Result<Types::WriteProgress>
+write(std::span<const std::byte> bytes) noexcept = 0;
 ```
 
-The base class supplies defaults for `isOpen()`, `canSeek()`, `close()`, `position()`, `size()`, and `seek()`. This lets a stateless streaming adapter
-implement only `read()` while resource-owning readers override the capabilities they support.
+The base classes provide defaults for lifecycle and optional stream capabilities. Unsupported position, size, and seek operations return
+`NotSeekable`.
 
-`MemoryReader` is the provided concrete reader. It borrows its source (byte span, character-backed string view, or lvalue byte vector; temporaries
-are rejected) and supports bounded seeking while open. See @ref io_reader_writer_contract.
-
-## Writer interface
-
-`Writer` is the platform-neutral output contract. It is movable, non-copyable, and has one required operation:
-
-```cpp
-virtual Types::WriteResult write(std::span<const std::byte> bytes) noexcept = 0;
-```
-
-The base class supplies defaults for `isOpen()`, `canSeek()`, `flush()`, `close()`, `position()`, and `seek()`.
-
-`MemoryWriter` is the provided concrete writer. It owns append-only byte storage and exposes:
-
-- Span and vector write overloads.
-- Checked capacity reservation and reuse through `reserve()`.
-- Borrowed byte inspection through `bytes()`.
-- Checked owned text copies through `copyText()`.
-- Ownership transfer through `takeBytes()`.
-- `size()`, `capacity()`, `empty()`, and `clear()` state access.
-
-Collected output remains available after `close()`, but writing, flushing, and position queries require open state.
-
-Every checked Reader, Writer, MemoryReader, MemoryWriter, and whole-stream operation is `noexcept`. Extension implementations must translate expected
-failures into statuses and must not let exceptions escape an override.
+`MemoryReader` borrows its source and supports bounded seeking while open. Construction from temporary `std::string` and `std::vector<std::byte>`
+storage is rejected. `MemoryWriter` owns append-only byte storage and exposes reservation, borrowed inspection, ownership transfer, and validated
+UTF-8 copies.
 
 ## Whole-stream helpers
 
-| API | Overloads | Behavior |
+| API | Payload | Behavior |
 | --- | --- | --- |
-| `readAllBytes()` | Internal buffer or caller-owned scratch buffer. | Drains a reader into `std::vector<std::byte>` with a hard accepted-size limit. |
-| `readAllText()` | Internal buffer or caller-owned scratch buffer. | Like `readAllBytes()`, returning validated text (@ref io_utf8_policy). |
-| `writeAllBytes()` | Span or byte vector. | Retries successful short writes until complete or failed. |
-| `writeAllText()` | String view. | Validates all input before the first write (@ref io_utf8_policy), then writes all bytes. |
+| `readAllBytes()` | `std::vector<std::byte>` | Drains a reader under a hard size limit. |
+| `readAllText()` | `std::string` | Drains and validates strict UTF-8 (@ref io_utf8_policy). |
+| `writeAllBytes()` | `Types::WriteProgress` | Retries successful short writes. |
+| `writeAllText()` | `Types::WriteProgress` | Validates all input before writing. |
 
-The scratch buffer is used only for unknown-size readers; it is borrowed for the call and not retained.
+Read and write helpers preserve partial data or progress in a failed result when available. Scratch buffers are borrowed for the call, used only for
+unknown-size readers, and never retained.
 
-@ref io_reader_writer_contract owns exact transfer and failure behavior. @ref io_runtime_performance owns allocation and limit details.
+## Package boundary
 
-## Package and binary boundary
-
-IO is installed as a static `GameWIP::IO` target with the public header `io/io.h`. It has no shared-library export surface. Its implementation depends
-on `GameWIP::Unicode`; the installed IO package resolves that dependency automatically, so consumers still request and link only `GameWIP::IO`.
-
-Its public boundary includes C++ standard-library containers, spans, strings, and virtual interfaces. Consumers therefore follow the project compiler,
-standard-library, and exact-version compatibility policy documented in @ref project_library_compatibility. Public type layout, virtual function order,
-declarations, and inline/template behavior are compatibility-relevant even though IO is static.
-
-The source-tree target name, implementation source, validation code, and internal implementation namespaces are not installed interfaces.
+IO is a static `GameWIP::IO` package. It publicly depends on `GameWIP::Status` for operation results and privately on `GameWIP::Unicode` for text
+validation. Its public boundary includes standard-library containers, spans, strings, and virtual interfaces; public layouts and virtual function
+order are compatibility-relevant.
 
 ## Related pages
 

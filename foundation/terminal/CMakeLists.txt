@@ -13,7 +13,7 @@ endif()
 
 option(TERMINAL_ENABLE_TEST_HOOKS "Enable Terminal internal test hooks" OFF)
 
-if(NOT COMMAND gamewip_target_platform_backend)
+if(NOT COMMAND gamewip_add_platform_backend)
     include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPlatform.cmake")
     gamewip_resolve_platform_id(GAMEWIP_PLATFORM_ID)
 endif()
@@ -25,7 +25,7 @@ set(TERMINAL_GENERATED_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
 file(MAKE_DIRECTORY "${TERMINAL_GENERATED_INCLUDE_DIR}/terminal")
 gamewip_generate_export_header(
     # TERMINAL_EXPORT is the installed production/runtime ABI. Source-tree
-    # validation hooks use terminal_test_export.h and are never installed.
+    # validation hooks use test_export.h and are never installed.
     TARGET Terminal
     OUTPUT "${TERMINAL_GENERATED_INCLUDE_DIR}/terminal/terminal_export.h"
     EXPORT_MACRO TERMINAL_EXPORT
@@ -34,7 +34,6 @@ gamewip_generate_export_header(
 
 target_sources(
     Terminal
-    PRIVATE core/line_input.cpp core/output_buffer.cpp core/session.cpp core/style.cpp core/terminal.cpp core/terminal_test_hooks.cpp
     PUBLIC
         FILE_SET public_headers
             TYPE HEADERS
@@ -43,13 +42,16 @@ target_sources(
                 "${CMAKE_CURRENT_SOURCE_DIR}/types.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/input.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/output.h"
+                "${CMAKE_CURRENT_SOURCE_DIR}/output_types.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/session.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/style.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/terminal.h"
                 "${TERMINAL_GENERATED_INCLUDE_DIR}/terminal/terminal_export.h"
 )
 
-gamewip_target_platform_backend(TARGET Terminal ROOT "${CMAKE_CURRENT_SOURCE_DIR}/platform")
+add_subdirectory(core)
+add_subdirectory(internal)
+add_subdirectory(platform)
 
 # ------------------------------------------------------------
 # Compile, test-hook, and dependency contracts
@@ -70,7 +72,7 @@ target_compile_definitions(
     INTERFACE $<BUILD_INTERFACE:TERMINAL_INTERNAL_TEST_HOOKS=$<BOOL:${TERMINAL_ENABLE_TEST_HOOKS}>>
 )
 
-target_link_libraries(Terminal PUBLIC IO PRIVATE Unicode $<BUILD_INTERFACE:GameWIPBase>)
+target_link_libraries(Terminal PUBLIC IO GameWIP::Status PRIVATE Unicode $<BUILD_INTERFACE:GameWIPBase>)
 
 set_target_properties(
     Terminal
@@ -96,6 +98,7 @@ if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
             "${CMAKE_CURRENT_SOURCE_DIR}/types.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/input.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/output.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/output_types.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/session.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/style.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/terminal.h"

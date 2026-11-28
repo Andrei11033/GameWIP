@@ -14,14 +14,22 @@ project_build. Correctness tests are documented in @ref project_validation and
 
 ## Environment
 
-The GameWIP helper is the preferred Windows entry point. It selects project-owned
-tool paths, records native command logs, and reports failures consistently:
+Run the GameWIP helper from the repository root. It selects project tool paths,
+records native command logs, and reports failures consistently. Use
+`gamewip.bat` on Windows and `./gamewip.sh` on Linux:
 
-```powershell
+```text
+Windows:
 .\gamewip.bat quality check
 .\gamewip.bat quality fix
 .\gamewip.bat analyze
 .\gamewip.bat quality hygiene status
+
+Linux:
+./gamewip.sh quality check
+./gamewip.sh quality fix
+./gamewip.sh analyze
+./gamewip.sh quality hygiene status
 ```
 
 `quality check` is the complete non-mutating maintained-file quality-policy gate.
@@ -31,28 +39,37 @@ whitespace, and then runs the
 same complete check. The interactive GameWIP `Q` menu exposes both workflows
 directly.
 
-The `analyze` preset selects `clang++` and requires the UCRT64 packages for
-CMake, Ninja, Clang, clang-tools-extra, GCC runtime support, Git, and Python.
-AddressSanitizer and UndefinedBehaviorSanitizer use the MSYS2 CLANG64
-environment and are documented in @ref project_build.
+The `analyze` preset uses Clang and the selected build target's compiler. CMake,
+Ninja, Clang, clang-tools-extra, and Python must be available in the host
+environment. On Windows, direct AddressSanitizer and UndefinedBehaviorSanitizer
+builds use MSYS2 CLANG64, and Windows targets use the selected LLVM-MinGW
+compiler. Target selection is described in @ref project_build.
 
-When invoking CMake or clang tools directly, use the MSYS2 UCRT64 environment
-or put that toolchain first on `PATH`. The analyze preset, `clang-tidy`,
-`run-clang-tidy`, and `clang-format` must come from the same toolchain. A
-Visual Studio, standalone LLVM, or different MSYS2 configure can produce a
-database that the selected tools cannot use reliably.
+When invoking CMake or Clang tools directly on Windows, use the MSYS2 UCRT64
+environment or put it first on `PATH`. `clang-tidy`, `run-clang-tidy`, and
+`clang-format` should come from the same LLVM distribution. Configuring with
+Visual Studio or another compiler can produce a database those tools cannot use
+reliably.
 
 ## C++ static analysis
 
-The `analyze` preset configures a compilation database under `build/analyze` and enables the `static-analysis` build target.
+The `analyze` preset enables the `static-analysis` build target. Direct CMake
+places its compilation database under `build/native/analyze`; the helper uses the
+selected target's build tree, such as `build/<target>/analyze` for a cross-target
+build.
 
 Run the full local C++ analysis target from the repository root:
 
-```powershell
+```text
+Windows:
 .\gamewip.bat analyze
+
+Linux:
+./gamewip.sh analyze
 ```
 
-For low-level investigation from a correctly configured UCRT64 shell, the equivalent CMake workflow is:
+For low-level investigation from a configured development environment, the
+equivalent CMake workflow is:
 
 ```bash
 cmake --preset analyze
@@ -70,11 +87,10 @@ The target includes:
 `clang-tidy` processes used by the target and defaults to `4`.
 
 The VS Code workspace disables the C/C++ extension's integrated clang-tidy
-runner. Workspace IntelliSense uses the GCC-backed `dev` compilation database,
-while supported static analysis uses the Clang-backed `analyze` database.
-Mixing the GCC database with the extension's Clang frontend can produce false
-diagnostics in GCC standard-library and intrinsic headers. Run the
-`GameWIP: Analyze` task for editor-integrated static analysis output.
+runner. Workspace IntelliSense can select a configured target's `dev`
+compilation database; supported static analysis uses the Clang-backed `analyze`
+database. Run the `GameWIP: Analyze` task for editor-integrated static analysis
+output.
 
 Run one C++ check target when investigating a focused failure:
 
@@ -101,12 +117,20 @@ gates. It is useful for periodic investigation, but its
 results can depend on translation-unit structure, platform selection, and the
 representative build graph.
 
-```powershell
+```text
+Windows:
 .\gamewip.bat quality hygiene
 .\gamewip.bat quality hygiene deep
 .\gamewip.bat quality hygiene unused-includes
 .\gamewip.bat quality hygiene list
 .\gamewip.bat quality hygiene status
+
+Linux:
+./gamewip.sh quality hygiene
+./gamewip.sh quality hygiene deep
+./gamewip.sh quality hygiene unused-includes
+./gamewip.sh quality hygiene list
+./gamewip.sh quality hygiene status
 ```
 
 The standard profile runs the available Clang-backed unused-include,
@@ -153,15 +177,22 @@ by the normal configure and build path.
 
 The static-analysis target checks formatting but does not rewrite files. Check or apply the same maintained-source scope through the project helper:
 
-```powershell
+```text
+Windows:
 .\gamewip.bat format check
 .\gamewip.bat format apply
+
+Linux:
+./gamewip.sh format check
+./gamewip.sh format apply
 ```
 
 Both actions use the repository `.clang-format` and the GameWIP-owned `.cpp`, `.h`, `.hpp`, and `.inl` files under `foundation/`, `tools/`, `engine/`,
 and `game/`, whether or not a first-party file has been added to Git yet.
 `check` is non-mutating; `apply` reports the maintained files whose content
 changed.
+
+Manual grouping and function-phase spacing are defined in @ref project_documentation.
 
 Review formatter output before committing:
 
@@ -193,7 +224,7 @@ checks:
 
 - clang-format for maintained C/C++ formatting.
 - Ruff lint/format checks for maintained Python.
-- PSScriptAnalyzer formatting and warning/error analysis for maintained PowerShell.
+- PSScriptAnalyzer style and warning/error analysis for maintained PowerShell.
 - ESLint plus Prettier for maintained JavaScript and structured text; PowerShell
   formatting uses a guarded Prettier candidate followed by PSScriptAnalyzer
   validation and fallback formatting.
@@ -221,17 +252,26 @@ validation to the maintained scope it can affect.
 
 Run the maintained-file quality gate locally from the repository root:
 
-```powershell
+```text
+Windows:
 .\gamewip.bat quality check
+
+Linux:
+./gamewip.sh quality check
 ```
 
 To apply deterministic formatter changes first:
 
-```powershell
+```text
+Windows:
 .\gamewip.bat quality fix
+
+Linux:
+./gamewip.sh quality fix
 ```
 
-`.\gamewip.bat links` remains available as a focused Markdown-link diagnostic.
+`.\gamewip.bat links` and `./gamewip.sh links` remain available as focused
+Markdown-link diagnostics.
 The helper forms use project-owned tool resolution and retain run logs. When
 developing the checkers themselves, run their direct interfaces:
 
@@ -329,7 +369,7 @@ upstream dependency versions, not by rewriting vendor code.
 
 | Symptom | Likely cause | Action |
 | --- | --- | --- |
-| clang-tidy cannot find `compile_commands.json`. | The analyze preset was not configured, or the command is running against the wrong build tree. | Run `cmake --preset analyze` from the MSYS2 UCRT64 environment. |
+| clang-tidy cannot find `compile_commands.json`. | The analyze preset was not configured, or the command is running against the wrong build tree. | Run `cmake --preset analyze` from the configured development environment. |
 | clang-tidy fails on a new diagnostic. | The code violates an enabled check. | Fix the code or add a narrow justified suppression. |
 | clang-format check fails. | Maintained C++ formatting differs from `.clang-format`. | Run the formatter locally, review the diff, and commit the result. |
 | A public header is not checked directly. | No validation translation unit includes it as a public boundary. | Add or update the matching file under `game/validation/public_headers/`. |

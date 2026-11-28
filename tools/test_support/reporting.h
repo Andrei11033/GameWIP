@@ -6,6 +6,7 @@
 #include "test_support/types.h"
 
 #include <chrono>
+#include <cstddef>
 #include <exception>
 #include <filesystem>
 #include <memory>
@@ -45,21 +46,27 @@ namespace GameWIP::TestSupport
         {
             SinkState state = SinkState::Disabled; ///< Current report-sink lifecycle state.
             std::filesystem::path reportPath;      ///< Requested report destination, when supplied.
-            InfrastructureStatus failureStatus;    ///< First report-sink infrastructure failure, if any.
+            Status failureStatus;                  ///< First report-sink infrastructure failure, if any.
         };
 
         /// @brief Receives a category and formatted line without a line ending; return true when written successfully.
+        /// @note Called while the report sink is locked; do not re-enter the same sink from the callback.
         using ConsoleWriter = bool (*)(std::string_view category, std::string_view line) noexcept;
 
         /// @brief Runtime report-output settings shared by test suites.
         struct Options
         {
-            bool writeConsole = true;                                   ///< Mirrors enabled report categories to stdout.
-            bool writeReport = true;                                    ///< Enables report-file setup when reportPath is non-empty.
-            bool appendReport = false;                                  ///< Appends instead of truncating when the report sink opens.
-            bool flushReportEachLine = false;                           ///< Flushes report-file output after each written line.
+            // Output behavior
+            bool writeConsole = true;         ///< Mirrors enabled report categories to stdout.
+            bool writeReport = true;          ///< Enables report-file setup when reportPath is non-empty.
+            bool appendReport = false;        ///< Appends instead of truncating when the report sink opens.
+            bool flushReportEachLine = false; ///< Flushes report-file output after each written line.
+
+            // Console presentation
             ConsoleVerbosity consoleVerbosity = ConsoleVerbosity::Full; ///< Categories mirrored to stdout.
             ConsoleWriter consoleWriter = nullptr;                      ///< Optional console-only writer; null uses plain stdout.
+
+            // Report destination
             std::filesystem::path reportPath = "logs/validation/latest_test_report.txt"; ///< Report-file destination.
         };
 
@@ -97,7 +104,7 @@ namespace GameWIP::TestSupport
     } // namespace Types::Reporting
 
     /// @cond INTERNAL_TEST_SUPPORT
-    namespace Detail
+    namespace Internal
     {
         class ReportSink;
 
@@ -123,12 +130,12 @@ namespace GameWIP::TestSupport
                 return "<unprintable>";
             }
         }
-    } // namespace Detail
+    } // namespace Internal
     /// @endcond
 
-    // ------------------------------------------------------------
-    // Timing diagnostics
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Timing diagnostics
+    /// ------------------------------------------------------------
 
     /// @brief Monotonic elapsed-time helper for test diagnostics.
     /// @note Timer uses std::chrono::steady_clock and is not benchmark-grade measurement.
@@ -149,9 +156,9 @@ namespace GameWIP::TestSupport
         Clock::time_point start_; ///< Current measurement origin.
     };
 
-    // ------------------------------------------------------------
-    // Test context
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Test context
+    /// ------------------------------------------------------------
 
     /// @brief Test context that records outcomes and routes categorized report lines.
     /// @note Names, messages, and formatted values must be valid UTF-8; reporting does not validate or repair their encoding.
@@ -169,6 +176,7 @@ namespace GameWIP::TestSupport
         Context(const Context &) = delete;            ///< Context synchronization/sink ownership cannot be copied.
         Context &operator=(const Context &) = delete; ///< Context synchronization/sink ownership cannot be copy-assigned.
 
+        // Informational reporting
         /// @brief Writes an informational line without changing result counts.
         void info(std::string_view message);
         /// @brief Writes a manual-check instruction without changing result counts.
@@ -180,6 +188,7 @@ namespace GameWIP::TestSupport
         /// @brief Writes a summary line without changing result counts.
         void summary(std::string_view message);
 
+        // Outcome recording
         /// @brief Records one passing check or scenario.
         void pass(std::string_view name);
         /// @brief Records one failing check or scenario with source-location details.
@@ -187,6 +196,7 @@ namespace GameWIP::TestSupport
         /// @brief Records one skipped check or scenario.
         void skip(std::string_view name, std::string_view reason);
 
+        // Expectations
         /// @brief Expects value to be true and records exactly one pass or failure.
         [[nodiscard]] bool expectTrue(std::string_view name, bool value, std::source_location location = std::source_location::current());
         /// @brief Expects value to be false and records exactly one pass or failure.
@@ -238,6 +248,7 @@ namespace GameWIP::TestSupport
             std::size_t expectedCount,
             std::source_location location = std::source_location::current());
 
+        // Context state and report sink
         /// @brief Returns the context-owned suite name.
         [[nodiscard]] const std::string &suiteName() const noexcept;
         /// @brief Returns a coherent snapshot of this context's counts.
@@ -252,11 +263,14 @@ namespace GameWIP::TestSupport
     private:
         friend class Runner;
 
-        Context(std::string_view suiteName, std::shared_ptr<Detail::ReportSink> reportSink);
+        Context(std::string_view suiteName, std::shared_ptr<Internal::ReportSink> reportSink);
 
+        // Context identity and sink ownership
         std::string suiteName_;
-        std::shared_ptr<Detail::ReportSink> reportSink_;
+        std::shared_ptr<Internal::ReportSink> reportSink_;
         bool ownsReportLifecycle_ = true;
+
+        // Recorded outcomes
         mutable std::mutex mutex_;
         Types::Reporting::Summary summary_;
 
@@ -264,9 +278,9 @@ namespace GameWIP::TestSupport
         void writeFailureLine(std::string_view name, std::string_view reason, const std::source_location &location);
     };
 
-    // ------------------------------------------------------------
-    // Test runner
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Test runner
+    /// ------------------------------------------------------------
 
     /// @brief Runs named suites and aggregates one shared report.
     /// @thread_safety Suite execution, reporting, and count queries may run concurrently. The caller coordinates shared suite state and
@@ -283,16 +297,19 @@ namespace GameWIP::TestSupport
         Runner(const Runner &) = delete;            ///< Runner ownership cannot be copied.
         Runner &operator=(const Runner &) = delete; ///< Runner ownership cannot be copy-assigned.
 
+        // Suite execution
         /// @brief Runs a named suite and converts an uncaught suite exception into one failed check.
         /// @note Join workers borrowing the suite's Context before the callable returns. Allocation, formatting, and reporting failures
         /// outside the callable's exception boundary can propagate.
         template <typename SuiteFunction> Types::Reporting::SuiteResult runSuite(std::string_view suiteName, SuiteFunction &&function);
 
+        // Run-level reporting
         /// @brief Writes a run-level informational line.
         void info(std::string_view message);
         /// @brief Writes a run-level summary line.
         void summary(std::string_view message);
 
+        // Results and sink lifecycle
         /// @brief Returns aggregate counts across suites that have finished.
         [[nodiscard]] Types::Reporting::Summary result() const noexcept;
         /// @brief Reports whether no completed suite has recorded a failure.
@@ -306,16 +323,19 @@ namespace GameWIP::TestSupport
         [[nodiscard]] Types::Reporting::SinkStatus finalize();
 
     private:
-        std::shared_ptr<Detail::ReportSink> reportSink_;
+        // Shared sink
+        std::shared_ptr<Internal::ReportSink> reportSink_;
+
+        // Aggregate suite results
         mutable std::mutex mutex_;
         Types::Reporting::Summary summary_;
 
         void recordSuiteResult(const Types::Reporting::SuiteResult &result);
     };
 
-    // ------------------------------------------------------------
-    // Sections and manual checks
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Sections and manual checks
+    /// ------------------------------------------------------------
 
     /// @brief RAII helper that reports a named section and its elapsed time.
     /// @note Borrows its Context; the context must outlive this section and its destructor's reporting call.
@@ -339,12 +359,12 @@ namespace GameWIP::TestSupport
     /// @brief Repeatedly prompts for a recognized yes/no/skip line.
     /// @return Selected answer, or Skipped on end-of-input.
     Types::Reporting::ManualAnswer promptManualCheck(std::string_view question);
-    /// @brief Prompts for a manual answer and preserves an optional "s <reason>" or end-of-input reason.
+    /// @brief Prompts for a manual answer and preserves any skip reason.
     Types::Reporting::ManualAnswer promptManualCheck(std::string_view question, std::string &skipReason);
 
-    // ------------------------------------------------------------
-    // Template implementations
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Template implementations
+    /// ------------------------------------------------------------
 
     template <typename Expected, typename Actual>
     bool Context::expectEq(std::string_view name, const Expected &expected, const Actual &actual, std::source_location location)
@@ -356,7 +376,7 @@ namespace GameWIP::TestSupport
         }
 
         std::ostringstream reason;
-        reason << "expected " << Detail::valueToString(expected) << ", got " << Detail::valueToString(actual);
+        reason << "expected " << Internal::valueToString(expected) << ", got " << Internal::valueToString(actual);
         fail(name, reason.str(), location);
         return false;
     }
@@ -371,16 +391,17 @@ namespace GameWIP::TestSupport
         }
 
         std::ostringstream reason;
-        reason << "did not expect " << Detail::valueToString(actual);
+        reason << "did not expect " << Internal::valueToString(actual);
         fail(name, reason.str(), location);
         return false;
     }
 
     template <typename SuiteFunction> Types::Reporting::SuiteResult Runner::runSuite(std::string_view suiteName, SuiteFunction &&function)
     {
-        Timer timer;
+        Timer const timer;
         Context context(suiteName, reportSink_);
 
+        // Run the suite and record any uncaught callback exception.
         try
         {
             if constexpr(std::is_invocable_v<SuiteFunction, Context &>)
@@ -405,6 +426,7 @@ namespace GameWIP::TestSupport
             context.fail("uncaught exception", "unknown exception");
         }
 
+        // Aggregate and report the completed suite.
         Types::Reporting::SuiteResult suiteResult;
         suiteResult.name = std::string(suiteName);
         suiteResult.summary = context.result();

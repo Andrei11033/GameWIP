@@ -1,0 +1,22 @@
+target_sources(
+    Desktop
+    PRIVATE
+        test_hooks.h
+        win32_accessibility.h
+        win32_accessibility_helpers.h
+        win32_accessibility_provider.h
+        win32_accessibility_text_helpers.h
+        win32_com.h
+        win32_compat.h
+        win32_data_transfer.h
+        win32_display_config.h
+        win32_drag_drop.h
+        win32_dialog_helpers.h
+        win32_pixel_helpers.h
+        win32_shell_helpers.h
+        win32_shell_launch.h
+        win32_unicode.h
+        win32_window_backend.h
+)
+
+add_subdirectory(helpers)

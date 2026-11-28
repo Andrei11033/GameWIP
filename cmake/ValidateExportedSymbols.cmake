@@ -6,6 +6,7 @@ foreach(required_variable IN ITEMS NM LIBRARY_FILE ALLOWLIST_FILE)
     endif()
 endforeach()
 
+# Collect the GameWIP symbols exported by the library.
 execute_process(COMMAND "${NM}" -gC --defined-only "${LIBRARY_FILE}" RESULT_VARIABLE nm_result OUTPUT_VARIABLE nm_output ERROR_VARIABLE nm_error)
 if(NOT nm_result EQUAL 0)
     message(FATAL_ERROR "Could not inspect ${LIBRARY_FILE}.\n${nm_error}")
@@ -20,9 +21,8 @@ foreach(line IN LISTS nm_lines)
     endif()
 
     set(symbol "${CMAKE_MATCH_1}")
-    # Hook exports are permitted only in explicitly hook-enabled validation builds;
-    # permanent allowlists continue to describe production ABI only.
-    if(ALLOW_TEST_HOOKS AND symbol MATCHES "::(Detail::)?TestHooks::")
+    # Exclude validation hooks regardless of their internal namespace nesting.
+    if(ALLOW_TEST_HOOKS AND symbol MATCHES "::TestHooks::")
         continue()
     endif()
 
@@ -36,6 +36,7 @@ endforeach()
 list(REMOVE_DUPLICATES actual_symbols)
 list(SORT actual_symbols)
 
+# Compare the exported symbols with the checked-in allowlist.
 file(STRINGS "${ALLOWLIST_FILE}" expected_symbols)
 list(FILTER expected_symbols EXCLUDE REGEX "^[ \\t]*(#|$)")
 list(SORT expected_symbols)

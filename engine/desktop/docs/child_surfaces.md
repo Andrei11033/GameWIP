@@ -7,6 +7,8 @@ renderer surface, Input source, layout system, nested portable Window, or third-
 Include `desktop/child_surface.h` and link the existing `GameWIP::Desktop` target. The normal `desktop/window.h` header does not include this optional
 surface.
 
+Fallible operations return `GameWIP::Status::Types::Result<T>`; coordinate conversions return the converted value in the result.
+
 ## Ownership and lifetime
 
 A default `ChildSurface` is closed. It is non-copyable and non-movable, so its address remains stable. `open(parent, description)` requires an open

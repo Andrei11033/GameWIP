@@ -14,6 +14,7 @@ if(NOT DEFINED GAMEWIP_PACKAGE_VERSION)
 endif()
 
 set(supported_packages
+    Status
     Unicode
     IO
     FileSystem
@@ -52,35 +53,34 @@ elseif(GAMEWIP_CONSUMER_PACKAGE STREQUAL "Desktop")
     target_sources(
         GameWIPIsolatedConsumer
         PRIVATE
-            desktop_types.cpp
             desktop_accessibility.cpp
-            desktop_clipboard.cpp
-            desktop_data_transfer.cpp
             desktop_child_surface.cpp
+            desktop_clipboard.cpp
             desktop_cursor.cpp
+            desktop_data_transfer.cpp
             desktop_description.cpp
             desktop_dialogs.cpp
-            desktop_events.cpp
             desktop_display.cpp
             desktop_display_info.cpp
             desktop_drag_drop.cpp
-            desktop_window.cpp
+            desktop_events.cpp
+            desktop_icon_types.cpp
             desktop_renderer_bridge.cpp
             desktop_shell.cpp
-            desktop_shell_types.cpp
+            desktop_shell_jump_lists.cpp
+            desktop_shell_notifications.cpp
+            desktop_shell_registration.cpp
             desktop_shell_taskbar.cpp
             desktop_shell_tray.cpp
-            desktop_shell_notifications.cpp
-            desktop_shell_jump_lists.cpp
-            desktop_shell_registration.cpp
+            desktop_shell_types.cpp
+            desktop_types.cpp
+            desktop_window.cpp
     )
-    if(WIN32)
-        target_sources(GameWIPIsolatedConsumer PRIVATE desktop_native_win32.cpp)
-    endif()
+    add_subdirectory(platform)
 elseif(GAMEWIP_CONSUMER_PACKAGE STREQUAL "TestSupport")
     target_sources(
         GameWIPIsolatedConsumer
-        PRIVATE test_support_types.cpp test_support_reporting.cpp test_support_files.cpp test_support_process.cpp test_support_stress.cpp
+        PRIVATE test_support_files.cpp test_support_process.cpp test_support_reporting.cpp test_support_stress.cpp test_support_types.cpp
     )
 endif()
 
@@ -88,7 +88,7 @@ target_compile_features(GameWIPIsolatedConsumer PRIVATE cxx_std_23)
 target_compile_definitions(GameWIPIsolatedConsumer PRIVATE "GAMEWIP_CONSUMER_${GAMEWIP_CONSUMER_PACKAGE}=1")
 target_link_libraries(GameWIPIsolatedConsumer PRIVATE "GameWIP::${GAMEWIP_CONSUMER_PACKAGE}")
 
-if(GAMEWIP_CONSUMER_PACKAGE STREQUAL "Assert")
+if(GAMEWIP_CONSUMER_PACKAGE STREQUAL "Assert" AND NOT GAMEWIP_ASSERT_INTERFACE_ONLY)
     gamewip_attach_application_manifest(TARGET GameWIPIsolatedConsumer COMMON_CONTROLS_V6)
 elseif(GAMEWIP_CONSUMER_PACKAGE STREQUAL "Desktop")
     gamewip_attach_application_manifest(TARGET GameWIPIsolatedConsumer COMMON_CONTROLS_V6 PER_MONITOR_V2)

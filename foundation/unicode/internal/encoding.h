@@ -31,6 +31,7 @@ namespace GameWIP::Unicode::Internal
         {
             return {};
         }
+
         const std::uint8_t first = byteValue(bytes[0]);
 
         if(first <= 0x7FU)
@@ -53,12 +54,14 @@ namespace GameWIP::Unicode::Internal
             {
                 return {};
             }
+
             const std::uint8_t second = byteValue(bytes[1]);
 
             if((second & 0xC0U) != 0x80U)
             {
                 return {.outcome = Types::DecodeOutcome::InvalidEncoding};
             }
+
             const char32_t scalar = static_cast<char32_t>(((first & 0x1FU) << 6U) | (second & 0x3FU));
             return {.scalar = scalar, .bytesConsumed = 2, .outcome = Types::DecodeOutcome::Decoded};
         }
@@ -69,6 +72,7 @@ namespace GameWIP::Unicode::Internal
             {
                 return {};
             }
+
             const std::uint8_t second = byteValue(bytes[1]);
             const bool secondIsValid = first == 0xE0U   ? second >= 0xA0U && second <= 0xBFU
                                        : first == 0xEDU ? second >= 0x80U && second <= 0x9FU
@@ -83,12 +87,14 @@ namespace GameWIP::Unicode::Internal
             {
                 return {};
             }
+
             const std::uint8_t third = byteValue(bytes[2]);
 
             if((third & 0xC0U) != 0x80U)
             {
                 return {.outcome = Types::DecodeOutcome::InvalidEncoding};
             }
+
             const char32_t scalar = static_cast<char32_t>(((first & 0x0FU) << 12U) | ((second & 0x3FU) << 6U) | (third & 0x3FU));
             return {.scalar = scalar, .bytesConsumed = 3, .outcome = Types::DecodeOutcome::Decoded};
         }
@@ -99,6 +105,7 @@ namespace GameWIP::Unicode::Internal
             {
                 return {};
             }
+
             const std::uint8_t second = byteValue(bytes[1]);
             const bool secondIsValid = first == 0xF0U   ? second >= 0x90U && second <= 0xBFU
                                        : first == 0xF4U ? second >= 0x80U && second <= 0x8FU
@@ -113,6 +120,7 @@ namespace GameWIP::Unicode::Internal
             {
                 return {};
             }
+
             const std::uint8_t third = byteValue(bytes[2]);
 
             if((third & 0xC0U) != 0x80U)
@@ -124,12 +132,14 @@ namespace GameWIP::Unicode::Internal
             {
                 return {};
             }
+
             const std::uint8_t fourth = byteValue(bytes[3]);
 
             if((fourth & 0xC0U) != 0x80U)
             {
                 return {.outcome = Types::DecodeOutcome::InvalidEncoding};
             }
+
             const char32_t scalar =
                 static_cast<char32_t>(((first & 0x07U) << 18U) | ((second & 0x3FU) << 12U) | ((third & 0x3FU) << 6U) | (fourth & 0x3FU));
             return {.scalar = scalar, .bytesConsumed = 4, .outcome = Types::DecodeOutcome::Decoded};
@@ -184,6 +194,7 @@ namespace GameWIP::Unicode::Internal
             destination[2] = static_cast<char>(0x80U | (value & 0x3FU));
             return;
         }
+
         destination[0] = static_cast<char>(0xF0U | (value >> 18U));
         destination[1] = static_cast<char>(0x80U | ((value >> 12U) & 0x3FU));
         destination[2] = static_cast<char>(0x80U | ((value >> 6U) & 0x3FU));
@@ -197,6 +208,7 @@ namespace GameWIP::Unicode::Internal
         {
             return {};
         }
+
         const char16_t first = codeUnits[0];
 
         if(!Utf16::isSurrogate(first))
@@ -217,6 +229,7 @@ namespace GameWIP::Unicode::Internal
         {
             return {};
         }
+
         const char16_t second = codeUnits[1];
 
         if(!Utf16::isLowSurrogate(second))
@@ -250,6 +263,7 @@ namespace GameWIP::Unicode::Internal
             destination[0] = static_cast<char16_t>(value);
             return;
         }
+
         const std::uint32_t supplementary = value - 0x10000U;
         destination[0] = static_cast<char16_t>(0xD800U + (supplementary >> 10U));
         destination[1] = static_cast<char16_t>(0xDC00U + (supplementary & 0x3FFU));
@@ -269,6 +283,7 @@ namespace GameWIP::Unicode::Internal
         {
             return {};
         }
+
         std::size_t startOffset = byteOffset - 1;
 
         while(startOffset > 0 && isContinuationByte(text[startOffset]))

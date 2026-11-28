@@ -1,16 +1,17 @@
 /// @file accessibility_snapshot.cpp
 /// @brief Owned authoring storage and indexed immutable snapshot inspection.
 
+#include "desktop/internal/results.h"
 #include "desktop/internal/accessibility_state.h"
 
 #include <algorithm>
 #include <new>
 
-namespace GameWIP::Desktop::Detail
+namespace GameWIP::Desktop::Internal
 {
-    // ------------------------------------------------------------
-    // Owned payload copies
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Owned payload copies
+    /// ------------------------------------------------------------
 
     std::string_view OwnedAccessibilityNode::copyString(std::string_view source)
     {
@@ -121,9 +122,9 @@ namespace GameWIP::Desktop::Detail
         }
     }
 
-    // ------------------------------------------------------------
-    // Published snapshot lookup
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Published snapshot lookup
+    /// ------------------------------------------------------------
 
     std::size_t PublishedSnapshot::findIndex(A::NodeId id) const noexcept
     {
@@ -143,7 +144,7 @@ namespace GameWIP::Desktop::Detail
         const auto found = findIndex(id);
         return found < storage.nodes.size() ? &storage.nodes[found] : nullptr;
     }
-} // namespace GameWIP::Desktop::Detail
+} // namespace GameWIP::Desktop::Internal
 
 namespace GameWIP::Desktop::Accessibility
 {
@@ -153,7 +154,10 @@ namespace GameWIP::Desktop::Accessibility
 
         bool boundedNode(const A::Node &node, const A::Limits &limits, std::uint64_t &bytes)
         {
-            std::uint64_t nodeBytes = 0, values = 0;
+            std::uint64_t nodeBytes = 0;
+            std::uint64_t extensionValues = 0;
+
+            // Bound the node's scalar text and direct child counts.
             const auto string = [&](std::string_view text)
             {
                 if(text.size() > limits.maximumTextBytesPerNode)
@@ -178,6 +182,7 @@ namespace GameWIP::Desktop::Accessibility
                 return false;
             }
 
+            // Bound the combined target count across all relations.
             std::uint64_t targets = 0;
 
             for(const auto &relation : node.relations)
@@ -190,9 +195,10 @@ namespace GameWIP::Desktop::Accessibility
                 }
             }
 
+            // Bound nested extension depth, count, and text.
             const auto extension = [&](const auto &self, const A::ExtensionValue &value, std::uint32_t depth) -> bool
             {
-                if(depth > limits.maximumExtensionDepth || ++values > limits.maximumExtensionValuesPerNode)
+                if(depth > limits.maximumExtensionDepth || ++extensionValues > limits.maximumExtensionValuesPerNode)
                 {
                     return false;
                 }
@@ -229,6 +235,7 @@ namespace GameWIP::Desktop::Accessibility
                 }
             }
 
+            // Bound optional selection and text payloads.
             if(node.selection && node.selection->selectedNodes.size() > limits.maximumNodes)
             {
                 return false;
@@ -258,9 +265,9 @@ namespace GameWIP::Desktop::Accessibility
         }
     } // namespace
 
-    // ------------------------------------------------------------
-    // Snapshot authoring
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Snapshot authoring
+    /// ------------------------------------------------------------
 
     SnapshotBuilder::SnapshotBuilder() noexcept = default;
 
@@ -282,79 +289,96 @@ namespace GameWIP::Desktop::Accessibility
         return limits_;
     }
 
-    IO::Types::Status SnapshotBuilder::setGeneration(A::Generation generation) noexcept
+    GameWIP::Status::Types::Result<void> SnapshotBuilder::setGeneration(A::Generation generation) noexcept
     {
         if(generation == 0)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
+            return GameWIP::Status::Types::Result<void>::failure(
+                GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::InvalidArgument));
         }
 
         try
         {
             if(!state_)
             {
-                state_ = std::make_unique<Detail::SnapshotBuilderState>();
+                state_ = std::make_unique<Internal::SnapshotBuilderState>();
             }
             state_->generation = generation;
-            return {};
+            return GameWIP::Status::Types::Result<void>::success();
         }
         catch(...)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
+            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::OutOfMemory));
         }
     }
 
-    IO::Types::Status SnapshotBuilder::setRoot(A::NodeId root) noexcept
+    GameWIP::Status::Types::Result<void> SnapshotBuilder::setRoot(A::NodeId root) noexcept
     {
         if(root == 0)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
+            return GameWIP::Status::Types::Result<void>::failure(
+                GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::InvalidArgument));
         }
 
         try
         {
             if(!state_)
             {
-                state_ = std::make_unique<Detail::SnapshotBuilderState>();
+                state_ = std::make_unique<Internal::SnapshotBuilderState>();
             }
             state_->root = root;
-            return {};
+            return GameWIP::Status::Types::Result<void>::success();
         }
         catch(...)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
+            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::OutOfMemory));
         }
     }
 
-    IO::Types::Status SnapshotBuilder::addNode(const A::Node &node) noexcept
+    GameWIP::Status::Types::Result<void> SnapshotBuilder::addNode(const A::Node &node) noexcept
     {
-        if(validate({}, limits_).issue == A::ValidationIssue::InvalidLimits || node.id == 0)
+        // Validate limits and the node's identity before allocating.
+        const auto limitsValidation = validate({}, limits_);
+
+        if(!limitsValidation.hasValue())
         {
-            return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
+            return GameWIP::Status::Types::Result<void>::failure(limitsValidation.status());
+        }
+
+        if(limitsValidation.value().issue == A::ValidationIssue::InvalidLimits || node.id == 0)
+        {
+            return GameWIP::Status::Types::Result<void>::failure(
+                GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::InvalidArgument));
         }
 
         try
         {
             if(state_ && state_->nodes.size() >= limits_.maximumNodes)
             {
-                return IO::makeStatus(IO::Types::ErrorCode::SizeLimitExceeded);
+                return GameWIP::Status::Types::Result<void>::failure(
+                    GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::SizeLimitExceeded));
             }
 
             if(state_ && state_->nodeIds.contains(node.id))
             {
-                return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
+                return GameWIP::Status::Types::Result<void>::failure(
+                    GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::InvalidArgument));
             }
+
+            // Check per-node and aggregate copy budgets before deep-copying views.
             std::uint64_t bytes = state_ ? state_->textBytes : 0;
 
             if(!boundedNode(node, limits_, bytes))
             {
-                return IO::makeStatus(IO::Types::ErrorCode::SizeLimitExceeded);
+                return GameWIP::Status::Types::Result<void>::failure(
+                    GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::SizeLimitExceeded));
             }
-            auto owned = std::make_shared<Detail::OwnedAccessibilityNode>(node);
+            auto owned = std::make_shared<Internal::OwnedAccessibilityNode>(node);
 
+            // Reserve every indexed container before committing the new node.
             if(!state_)
             {
-                state_ = std::make_unique<Detail::SnapshotBuilderState>();
+                state_ = std::make_unique<Internal::SnapshotBuilderState>();
             }
 
             if(state_->nodes.size() == state_->nodes.capacity())
@@ -365,19 +389,21 @@ namespace GameWIP::Desktop::Accessibility
                 state_->nodes.reserve(capacity);
             }
 
+            // Publish ownership, the borrowed node view, and its ID together.
             state_->nodeIds.insert(node.id);
             state_->owned.push_back(std::move(owned));
             state_->nodes.push_back(state_->owned.back()->node);
             state_->textBytes = bytes;
-            return {};
+            return GameWIP::Status::Types::Result<void>::success();
         }
         catch(const std::bad_alloc &)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
+            return GameWIP::Status::Types::Result<void>::failure(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::OutOfMemory));
         }
         catch(...)
         {
-            return IO::makeStatus(IO::Types::ErrorCode::SizeLimitExceeded);
+            return GameWIP::Status::Types::Result<void>::failure(
+                GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::SizeLimitExceeded));
         }
     }
 
@@ -391,11 +417,11 @@ namespace GameWIP::Desktop::Accessibility
         return state_ ? state_->view() : A::SnapshotView{};
     }
 
-    // ------------------------------------------------------------
-    // Immutable snapshot inspection
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Immutable snapshot inspection
+    /// ------------------------------------------------------------
 
-    SnapshotReader::SnapshotReader(std::shared_ptr<const Detail::PublishedSnapshot> snapshot) noexcept
+    SnapshotReader::SnapshotReader(std::shared_ptr<const Internal::PublishedSnapshot> snapshot) noexcept
         : snapshot_(std::move(snapshot))
     {
     }

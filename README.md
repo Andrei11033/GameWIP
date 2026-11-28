@@ -8,35 +8,50 @@
 GameWIP is an early-stage C++23 sandbox game project about player-built
 vehicles, structures, weapons, components, and meaningful destruction.
 
-I use the project to learn C++ and systems programming while keeping API
-contracts, ownership, builds, and validation deliberately strict.
+The game currently targets Windows 11. The helpers can select Linux AMD64 and
+ARM64 compiler targets from Windows or Linux; full Linux builds await Linux
+platform backends. GameWIP is pre-1.0; active work is tracked in the
+[R01 milestone](https://github.com/Andrei11033/GameWIP/milestone/176) and the
+[roadmap](docs/roadmap.md).
 
-GameWIP supports Windows 11 and is pre-1.0. Active work is tracked
-in the [R01 milestone](https://github.com/Andrei11033/GameWIP/milestone/176)
-and the [roadmap](docs/roadmap.md).
+## Setup
 
-## Development approach
-
-I develop and document the project, using AI to support me in research, review, testing, and maintenance.
-
-## Start here
-
-From a fresh checkout or extracted ZIP, run the repository bootstrap utility:
+From a fresh checkout or extracted ZIP, run the repository setup utility.
+Windows:
 
 ```powershell
 .\setup.bat
 ```
 
-Setup prepares the development environment, pinned dependencies, and profiler
-tools, and handles updates, repair, and uninstall. See the
+Linux:
+
+```bash
+./setup.sh
+```
+
+Setup prepares the development environment and pinned dependencies. Windows setup also prepares profiler tools.
+Linux setup supports Ubuntu, Debian, and CachyOS. If PowerShell 7 is missing,
+`setup.sh` offers to install its verified runtime. See the
 [development environment guide](docs/doxygen/environment_setup.md).
 
-Open `GameWIP.code-workspace`, then build and run the `dev` preset. In PowerShell,
-use the helper to select the configured toolchain:
+The `dev` preset is the main build target.
+In PowerShell, the helper defaults to Windows AMD64 and keeps each target in its own build tree:
 
 ```powershell
+.\gamewip.bat target -TargetPlatform windows -TargetArchitecture amd64
 .\gamewip.bat build dev
-.\build\dev\GameWIP.exe
+.\build\windows-amd64\dev\GameWIP.exe
+```
+
+Use `arm64` instead of `amd64` to cross-compile for Windows ARM64. Setup installs
+the pinned LLVM-MinGW toolchain when needed.
+
+On Linux, setup prepares the host tools and both cross-compilers. To build the
+Windows AMD64 target:
+
+```bash
+bash ./gamewip.sh target -TargetPlatform windows -TargetArchitecture amd64
+bash ./gamewip.sh build dev
 ```
 
 Or use CMake directly from MSYS2 UCRT64 Bash:
@@ -44,7 +59,7 @@ Or use CMake directly from MSYS2 UCRT64 Bash:
 ```bash
 cmake --preset dev
 cmake --build --preset dev
-./build/dev/GameWIP.exe
+./build/native/dev/GameWIP.exe
 ```
 
 See the [getting started guide](docs/doxygen/getting_started.md), the
@@ -54,10 +69,9 @@ See the [getting started guide](docs/doxygen/getting_started.md), the
 ## Documentation
 
 The API reference and developer manual are on the
-[documentation site](https://andrei11033.github.io/GameWIP/); the
-[manual index](docs/doxygen/index.md) is the entry point. Public headers carry
-short contracts for IntelliSense; manual pages cover the surrounding design (see
-the [documentation guide](docs/doxygen/documentation.md)).
+[documentation site](https://andrei11033.github.io/GameWIP/). Public headers
+carry short IntelliSense contracts; manual pages cover the surrounding design
+(see the [documentation guide](docs/doxygen/documentation.md)).
 
 ## Project links
 

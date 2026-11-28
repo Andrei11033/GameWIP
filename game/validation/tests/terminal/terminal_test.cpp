@@ -8,7 +8,8 @@
 
 #include "validation/executable_path.h"
 #include "validation/process_arguments.h"
-#include "validation/tests/runner_helpers.h"
+#include "validation/tests/internal/helpers/runner_helpers.h"
+#include "validation/tests/terminal/platform.h"
 
 #include "terminal/terminal.h"
 #include "test_support/test_support.h"
@@ -18,11 +19,9 @@
 #endif
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
-#include "terminal/internal/terminal_platform.h"
-#include "terminal/internal/terminal_test_hooks.h"
+#include "terminal/internal/test_hooks.h"
 #endif
 
-#include <algorithm>
 #include <array>
 #include <atomic>
 #include <chrono>
@@ -45,13 +44,6 @@
 #include <variant>
 #include <vector>
 
-#if defined(_WIN32)
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#include <windows.h>
-#endif
-
 /// @brief Marker value whose formatter deliberately throws during output tests.
 struct TerminalThrowingFormat
 {
@@ -73,7 +65,7 @@ struct TerminalSessionReentrantFormat
 struct TerminalSessionCloseFormat
 {
     GameWIP::Terminal::Session *session = nullptr;
-    GameWIP::IO::Types::ErrorCode *closeCode = nullptr;
+    GameWIP::Status::Types::Code *closeCode = nullptr;
 };
 
 /// @brief Marker value whose formatter pauses so close-wait behavior can be observed deterministically.
@@ -94,7 +86,7 @@ template <> struct std::formatter<TerminalThrowingFormat>
     /// @brief Throws deliberately so Terminal formatting error conversion can be verified.
     template <typename FormatContext> auto format(const TerminalThrowingFormat &, FormatContext &context) const
     {
-        auto output = std::format_to(context.out(), "partial");
+        const auto output = std::format_to(context.out(), "partial");
         throw std::format_error("terminal test formatter failure");
         return output;
     }
@@ -111,9 +103,9 @@ template <> struct std::formatter<TerminalReentrantFormat>
     /// @brief Writes a nested record before producing the outer formatted value.
     template <typename FormatContext> auto format(const TerminalReentrantFormat &, FormatContext &context) const
     {
-        const GameWIP::IO::Types::Status status = GameWIP::Terminal::writeText("inner");
+        const auto result = GameWIP::Terminal::writeText("inner");
 
-        if(!status.ok())
+        if(!result.ok())
         {
             throw std::runtime_error("terminal reentrant formatter write failed");
         }
@@ -131,9 +123,9 @@ template <> struct std::formatter<TerminalSessionReentrantFormat>
 
     template <typename FormatContext> auto format(const TerminalSessionReentrantFormat &value, FormatContext &context) const
     {
-        const GameWIP::IO::Types::Status status = value.useGlobalOutput ? GameWIP::Terminal::writeText("global") : value.session->writeText("inner");
+        const auto result = value.useGlobalOutput ? GameWIP::Terminal::writeText("global") : value.session->writeText("inner");
 
-        if(!status.ok())
+        if(!result.ok())
         {
             throw std::runtime_error("terminal Session reentrant formatter write failed");
         }
@@ -151,7 +143,7 @@ template <> struct std::formatter<TerminalSessionCloseFormat>
 
     template <typename FormatContext> auto format(const TerminalSessionCloseFormat &value, FormatContext &context) const
     {
-        *value.closeCode = value.session->close().code;
+        *value.closeCode = value.session->close().status().code();
         return std::format_to(context.out(), "outer");
     }
 };
@@ -176,14 +168,13 @@ namespace
     namespace IO = GameWIP::IO;
     namespace Terminal = GameWIP::Terminal;
     namespace TestSupport = GameWIP::TestSupport;
-    namespace PlatformHooks = GameWIP::Terminal::Detail::Platform::TestHooks;
 
     using GameWIP::Test::TerminalTestOptions;
-    using IO::Types::ErrorCode;
+    using ErrorCode = GameWIP::Status::Types::Code;
+    using IOErrorCode = GameWIP::Status::Types::Code;
 
     inline constexpr std::string_view kReentrantFormatChildArgument = "--terminal-test-child=reentrant-format";
     inline constexpr std::string_view kSessionReentrantFormatChildArgument = "--terminal-test-child=session-reentrant-format";
-    inline constexpr std::string_view kCancellationSignalFailureChildArgument = "--terminal-test-child=cancellation-signal-failure";
 
     static_assert(!std::is_aggregate_v<Terminal::Types::Style::Color>);
     static_assert(!std::is_aggregate_v<Terminal::Types::Output::Segment>);
@@ -213,22 +204,6 @@ namespace
     {
         const std::span<const std::byte> bytes = bytesOf(text);
         return std::vector<std::byte>(bytes.begin(), bytes.end());
-    }
-
-    /// @brief Returns true when the process arguments contain one exact value.
-    [[nodiscard]] bool hasArgument(int argc, char **argv, std::string_view expected)
-    {
-        const auto arguments = GameWIP::Validation::processArguments(argc, argv);
-
-        for(char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
-        {
-            if(value != nullptr && std::string_view(value) == expected)
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /// @brief Exercises reentrant print and println calls in an isolated child process.
@@ -284,9 +259,9 @@ namespace
         return session.close().ok() ? 0 : 6;
     }
 
-    // ------------------------------------------------------------
-    // Manual test reporting
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Manual test reporting
+    /// ------------------------------------------------------------
 
     thread_local TestSupport::Types::Reporting::Summary manualObservations;
 
@@ -329,25 +304,35 @@ namespace
         TestSupport::Context &context,
         std::string_view name,
         std::string_view operation,
-        const IO::Types::Status &status)
+        const GameWIP::Status::Types::Status &status)
     {
         if(status.ok())
         {
             return true;
         }
 
-        std::string reason = std::format("{} failed with {}", operation, IO::errorCodeName(status.code));
+        std::string reason = std::format("{} failed with {}", operation, GameWIP::Status::Types::codeName(status.code()));
 
-        if(!status.message.empty())
+        if(const GameWIP::Status::Types::Diagnostic *diagnostic = status.diagnostic(); diagnostic != nullptr && !diagnostic->message.empty())
         {
-            reason += std::format(": {}", status.message);
+            reason += std::format(": {}", diagnostic->message);
         }
         context.fail(name, reason);
         return false;
     }
 
+    template <typename T>
+    [[nodiscard]] bool requireManualOperation(
+        TestSupport::Context &context,
+        std::string_view name,
+        std::string_view operation,
+        const GameWIP::Status::Types::Result<T> &result)
+    {
+        return requireManualOperation(context, name, operation, result.status());
+    }
+
 #if TERMINAL_INTERNAL_TEST_HOOKS
-    namespace Hooks = GameWIP::Terminal::TestHooks;
+    namespace Hooks = GameWIP::Terminal::Internal::TestHooks;
 
     /// @brief Returns a fixture that enables every style capability.
     [[nodiscard]] Terminal::Types::Style::Capabilities allStyleCapabilities() noexcept
@@ -439,9 +424,9 @@ namespace
             .supportsCancellation = true};
     }
 
-    // ------------------------------------------------------------
-    // Test fixtures and suites
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Test fixtures and suites
+    /// ------------------------------------------------------------
 
     /// @brief Resets hooks, installs output capabilities, and enables byte capture.
     void setupCapturedOutput(
@@ -490,56 +475,59 @@ namespace
     void testManagedLineEditing(TestSupport::Context &context);
     void testSessions(TestSupport::Context &context);
 
-#if defined(_WIN32)
-    void testWin32EventDecoder(TestSupport::Context &context);
-    void testInputEndpointReplacement(TestSupport::Context &context);
-    void testCancellationSignalFailure(TestSupport::Context &context, const std::filesystem::path &executablePath);
-    void testCancellationResetFailure(TestSupport::Context &context);
-#endif
 #else
     void testHookDependentSuitesSkipped(TestSupport::Context &context);
 #endif
 
+    // Contracts and output controls
 #include "validation/tests/terminal/contracts_test.inl"
 #include "validation/tests/terminal/controls_test.inl"
+#include "validation/tests/terminal/formatting_test.inl"
+#include "validation/tests/terminal/text_output_test.inl"
+#include "validation/tests/terminal/segment_output_test.inl"
+
+    // Input and session behavior
 #include "validation/tests/terminal/input_test.inl"
 #include "validation/tests/terminal/line_input_test.inl"
-#include "validation/tests/terminal/manual_test.inl"
-#include "validation/tests/terminal/output_test.inl"
 #include "validation/tests/terminal/session_test.inl"
+
+    // Manual terminal checks
+#include "validation/tests/terminal/manual_input_test.inl"
+#include "validation/tests/terminal/manual_output_test.inl"
+#include "validation/tests/terminal/manual_screen_test.inl"
+#include "validation/tests/terminal/manual_state_test.inl"
 } // namespace
 
 namespace GameWIP::Test
 {
-    // ------------------------------------------------------------
-    // Test runner
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Test runner
+    /// ------------------------------------------------------------
 
     int runTerminalTests(int argc, char **argv, const TerminalTestOptions &options)
     {
-        if(hasArgument(argc, argv, kReentrantFormatChildArgument))
+        if(GameWIP::Validation::hasProcessArgument(argc, argv, kReentrantFormatChildArgument))
         {
             return runReentrantFormatChild();
         }
 
-        if(hasArgument(argc, argv, kSessionReentrantFormatChildArgument))
+        if(GameWIP::Validation::hasProcessArgument(argc, argv, kSessionReentrantFormatChildArgument))
         {
             return runSessionReentrantFormatChild();
         }
 
-#if TERMINAL_INTERNAL_TEST_HOOKS && defined(_WIN32)
-        if(hasArgument(argc, argv, kCancellationSignalFailureChildArgument))
+        if(GameWIP::Validation::hasProcessArgument(argc, argv, GameWIP::Test::TerminalPlatform::kCancellationSignalFailureChildArgument))
         {
-            return runCancellationSignalFailureChild();
+            return GameWIP::Test::TerminalPlatform::runCancellationSignalFailureChild();
         }
 
-#endif
-
-        TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::RunnerHelpers::makeReportingOptions(options);
+        const TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::Internal::RunnerHelpers::makeReportingOptions(options);
 
         TestSupport::Runner runner(reportOptions);
         runner.info(
-            std::format("Terminal test options: report={}", options.writeReport ? options.reportPath.string() : std::string_view{"disabled"}));
+            std::format(
+                "Terminal test options: report={}",
+                options.writeReport ? GameWIP::Test::Internal::RunnerHelpers::pathText(options.reportPath) : std::string_view{"disabled"}));
 
         runner.runSuite("Terminal passive helpers", testPassiveHelpers);
 #if TERMINAL_INTERNAL_TEST_HOOKS
@@ -567,17 +555,7 @@ namespace GameWIP::Test
         runner.runSuite("Terminal controls", testControls);
         runner.runSuite("Terminal input reads", testInputReads);
         runner.runSuite("Terminal managed line editing", testManagedLineEditing);
-#if defined(_WIN32)
-        runner.runSuite("Terminal Win32 event decoder", testWin32EventDecoder);
-        runner.runSuite("Terminal stdin endpoint replacement", testInputEndpointReplacement);
-        runner.runSuite(
-            "Terminal cancellation signal failure",
-            [&](TestSupport::Context &context)
-            {
-                testCancellationSignalFailure(context, GameWIP::Validation::currentExecutablePath());
-            });
-        runner.runSuite("Terminal cancellation reset failure", testCancellationResetFailure);
-#endif
+        GameWIP::Test::TerminalPlatform::registerWin32Suites(runner);
         runner.runSuite("Terminal sessions and ownership", testSessions);
 #else
         runner.runSuite("Terminal hook-dependent suites", testHookDependentSuitesSkipped);
@@ -595,6 +573,6 @@ namespace GameWIP::Test
                     manualObservations.skipped));
         }
         runner.summary(std::format("Terminal library self-tests passed={} failed={} skipped={}", result.passed, result.failed, result.skipped));
-        return GameWIP::Test::RunnerHelpers::finalizeRunner(runner);
+        return GameWIP::Test::Internal::RunnerHelpers::finalizeRunner(runner);
     }
 } // namespace GameWIP::Test

@@ -85,6 +85,7 @@ namespace GameWIP::Unicode::Utf8
         {
             return {.byteOffset = byteOffset, .outcome = Types::Utf8::BoundaryOutcome::AtEnd};
         }
+
         const Types::Utf8::DecodeResult decoded = Internal::decodeUtf8Scalar(text.substr(byteOffset));
 
         if(decoded.outcome != Types::DecodeOutcome::Decoded)
@@ -114,12 +115,14 @@ namespace GameWIP::Unicode::Utf8
         {
             return {.byteOffset = 0, .outcome = Types::Utf8::BoundaryOutcome::AtBeginning};
         }
+
         const Internal::PreviousUtf8ScalarResult previous = Internal::decodePreviousUtf8Scalar(text, byteOffset);
 
         if(previous.decoded.outcome != Types::DecodeOutcome::Decoded)
         {
             return {.byteOffset = byteOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidEncoding};
         }
+
         return {.byteOffset = previous.startOffset, .outcome = Types::Utf8::BoundaryOutcome::Found};
     }
 } // namespace GameWIP::Unicode::Utf8

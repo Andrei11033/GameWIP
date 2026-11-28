@@ -5,57 +5,59 @@
 /// symlink policy, whole-file I/O, mutation, atomic replacement, and locking.
 
 #include "validation/tests/filesystem/filesystem_test.h"
+#include "validation/tests/filesystem/platform.h"
 
 #include "filesystem/filesystem.h"
-#include "filesystem/internal/filesystem_platform.h"
-#include "validation/tests/runner_helpers.h"
+#include "filesystem/internal/platform.h"
+#include "validation/tests/internal/helpers/runner_helpers.h"
 #include "test_support/test_support.h"
 
 #include <chrono>
 #include <cstddef>
-#include <cstdlib>
 #include <filesystem>
 #include <format>
 #include <iostream>
 #include <span>
 #include <string>
 #include <string_view>
-#include <system_error>
 #include <thread>
 #include <type_traits>
 #include <utility>
-
-#if defined(_WIN32)
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#include <windows.h>
-#endif
+#include <vector>
 
 namespace
 {
     namespace FileSystem = GameWIP::FileSystem;
     namespace IO = GameWIP::IO;
+    namespace Status = GameWIP::Status::Types;
+    namespace FileSystemPlatform = GameWIP::Test::FileSystemPlatform;
 
     using FileSystem::Types::Path;
     using ConstByteSpan = std::span<const std::byte>;
 
+    // Whole-file result types
+    static_assert(std::is_same_v<
+                  decltype(FileSystem::writeAllBytes(std::declval<const Path &>(), std::declval<ConstByteSpan>())),
+                  Status::Result<IO::Types::WriteProgress>>);
+    static_assert(std::is_same_v<
+                  decltype(FileSystem::writeAllText(std::declval<const Path &>(), std::declval<std::string_view>())),
+                  Status::Result<IO::Types::WriteProgress>>);
+    static_assert(std::is_same_v<
+                  decltype(FileSystem::appendBytes(std::declval<const Path &>(), std::declval<ConstByteSpan>())),
+                  Status::Result<IO::Types::WriteProgress>>);
+    static_assert(std::is_same_v<
+                  decltype(FileSystem::appendText(std::declval<const Path &>(), std::declval<std::string_view>())),
+                  Status::Result<IO::Types::WriteProgress>>);
     static_assert(
-        std::is_same_v<decltype(FileSystem::writeAllBytes(std::declval<const Path &>(), std::declval<ConstByteSpan>())), IO::Types::WriteResult>);
-    static_assert(
-        std::is_same_v<decltype(FileSystem::writeAllText(std::declval<const Path &>(), std::declval<std::string_view>())), IO::Types::WriteResult>);
-    static_assert(
-        std::is_same_v<decltype(FileSystem::appendBytes(std::declval<const Path &>(), std::declval<ConstByteSpan>())), IO::Types::WriteResult>);
-    static_assert(
-        std::is_same_v<decltype(FileSystem::appendText(std::declval<const Path &>(), std::declval<std::string_view>())), IO::Types::WriteResult>);
-    static_assert(
-        std::is_same_v<decltype(FileSystem::writeAllBytesAtomic(std::declval<const Path &>(), std::declval<ConstByteSpan>())), IO::Types::Status>);
+        std::is_same_v<decltype(FileSystem::writeAllBytesAtomic(std::declval<const Path &>(), std::declval<ConstByteSpan>())), Status::Result<void>>);
 
+    // Non-throwing operation contracts
     static_assert(noexcept(FileSystem::writeAllBytes(std::declval<const Path &>(), std::declval<ConstByteSpan>())));
     static_assert(noexcept(FileSystem::appendBytes(std::declval<const Path &>(), std::declval<ConstByteSpan>())));
     static_assert(noexcept(FileSystem::resizeFile(std::declval<const Path &>(), 0)));
     static_assert(noexcept(FileSystem::truncateFile(std::declval<const Path &>())));
 
+    // Default options and share flags
     constexpr FileSystem::Types::File::Share kReadDelete = FileSystem::Types::File::Share::Read | FileSystem::Types::File::Share::Delete;
     static_assert((kReadDelete & FileSystem::Types::File::Share::Read) == FileSystem::Types::File::Share::Read);
     static_assert((kReadDelete & FileSystem::Types::File::Share::Write) == FileSystem::Types::File::Share::None);
@@ -73,6 +75,7 @@ namespace
     static_assert(FileSystem::Types::EntryOptions{}.symlinkPolicy == FileSystem::Types::SymlinkPolicy::DoNotFollow);
     static_assert(FileSystem::Types::RemoveOptions{}.symlinkPolicy == FileSystem::Types::SymlinkPolicy::DoNotFollow);
 
+    // Handle ownership contracts
     static_assert(std::is_move_constructible_v<FileSystem::File>);
     static_assert(!std::is_move_assignable_v<FileSystem::File>);
     static_assert(std::is_move_constructible_v<FileSystem::FileReader>);
@@ -85,16 +88,19 @@ namespace
     static_assert(std::is_move_assignable_v<FileSystem::DirectoryCursor>);
     static_assert(!std::is_copy_constructible_v<FileSystem::DirectoryCursor>);
     static_assert(!std::is_copy_assignable_v<FileSystem::DirectoryCursor>);
+
+    // Public result and option types
     static_assert(std::is_same_v<decltype(FileSystem::Types::File::AtomicWriteOptions{}.temporaryNamePrefix), std::string>);
-    static_assert(std::is_same_v<decltype(FileSystem::Types::Directory::ListResult{}.entries), std::vector<FileSystem::Types::Directory::Entry>>);
-    static_assert(std::is_same_v<decltype(FileSystem::Types::Lock::Result{}.outcome), FileSystem::Types::Lock::Outcome>);
+    static_assert(std::is_same_v<
+                  decltype(std::declval<Status::Result<std::vector<FileSystem::Types::Directory::Entry>> &>().value()),
+                  std::vector<FileSystem::Types::Directory::Entry> &>);
 
     namespace TestSupport = GameWIP::TestSupport;
-    using IO::Types::ErrorCode;
+    using ErrorCode = GameWIP::Status::Types::Code;
 
-    // ------------------------------------------------------------
-    // Test helpers
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Test helpers
+    /// ------------------------------------------------------------
 
     /// @brief Creates entry-query options for one explicit symlink policy.
     FileSystem::Types::EntryOptions queryOptions(FileSystem::Types::SymlinkPolicy policy) noexcept
@@ -109,11 +115,15 @@ namespace
     }
 
     /// @brief Checks native query success before comparing its payload.
-    bool expectStatus(TestSupport::Context &context, std::string_view name, const IO::Types::Status &status)
+    template <typename T> bool expectStatus(TestSupport::Context &context, std::string_view name, const Status::Result<T> &result)
     {
-        if(!status.ok())
+        const Status::Status &status = result.status();
+
+        if(!result.ok())
         {
-            context.fail(name, std::format("code={} native={} message={}", IO::errorCodeName(status.code), status.nativeCode, status.message));
+            const Status::Diagnostic *diagnostic = status.diagnostic();
+            const std::string message = status.ok() ? "missing result value" : diagnostic == nullptr ? std::string{} : diagnostic->message;
+            context.fail(name, std::format("code={} detail={}", static_cast<int>(status.code()), message));
             return false;
         }
 
@@ -126,96 +136,46 @@ namespace
     {
         const auto result = FileSystem::readAllText(path);
 
-        if(expectStatus(context, std::string(name) + " query", result.status))
+        if(expectStatus(context, std::string(name) + " query", result))
         {
-            static_cast<void>(context.expectEq(name, expected, result.text));
+            static_cast<void>(context.expectEq(name, expected, result.value()));
         }
     }
 
     /// @brief Checks a predicate query before inspecting its boolean value.
-    void expectPredicate(TestSupport::Context &context, std::string_view name, const FileSystem::Types::BoolResult &result, bool expected)
+    void expectPredicate(TestSupport::Context &context, std::string_view name, const Status::Result<bool> &result, bool expected)
     {
-        if(expectStatus(context, std::string(name) + " query", result.status))
+        if(expectStatus(context, std::string(name) + " query", result))
         {
-            static_cast<void>(context.expectEq(name, expected, result.value));
+            static_cast<void>(context.expectEq(name, expected, result.value()));
         }
     }
 
     /// @brief Creates a file or directory symlink and records unavailable host support as a skip.
-    bool createSymlink(TestSupport::Context &context, const std::filesystem::path &target, const std::filesystem::path &link, bool directory)
+    [[nodiscard]] bool createSymlink(
+        TestSupport::Context &context,
+        const std::filesystem::path &target,
+        const std::filesystem::path &link,
+        bool directory)
     {
-#if defined(_WIN32)
-        const DWORD flags = (directory ? SYMBOLIC_LINK_FLAG_DIRECTORY : 0U) | SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE;
-
-        if(CreateSymbolicLinkW(link.wstring().c_str(), target.wstring().c_str(), flags) == FALSE)
-        {
-            const DWORD error = GetLastError();
-            const bool unavailable =
-                error == ERROR_PRIVILEGE_NOT_HELD || error == ERROR_ACCESS_DENIED || error == ERROR_NOT_SUPPORTED || error == ERROR_INVALID_FUNCTION;
-
-            if(std::getenv("GAMEWIP_REQUIRE_SYMLINK_TESTS") != nullptr || !unavailable)
-            {
-                context.fail(
-                    directory ? "intermediate symlink policy checks" : "file symlink policy checks",
-                    std::format("symlink creation failed: native={} message={}", error, std::system_category().message(static_cast<int>(error))));
-                return false;
-            }
-            context.skip(
-                directory ? "intermediate symlink policy checks" : "file symlink policy checks",
-                std::format("symlink creation unavailable: {}", std::system_category().message(static_cast<int>(error))));
-            return false;
-        }
-
-        return true;
-#else
-        std::error_code error;
-
-        if(directory)
-        {
-            std::filesystem::create_directory_symlink(target, link, error);
-        }
-        else
-        {
-            std::filesystem::create_symlink(target, link, error);
-        }
-
-        if(error)
-        {
-            const bool unavailable = error == std::errc::permission_denied || error == std::errc::operation_not_permitted ||
-                                     error == std::errc::function_not_supported || error == std::errc::operation_not_supported;
-
-            if(std::getenv("GAMEWIP_REQUIRE_SYMLINK_TESTS") != nullptr || !unavailable)
-            {
-                context.fail(
-                    directory ? "intermediate symlink policy checks" : "file symlink policy checks",
-                    std::format("symlink creation failed: native={} message={}", error.value(), error.message()));
-                return false;
-            }
-            context.skip(
-                directory ? "intermediate symlink policy checks" : "file symlink policy checks",
-                std::format("symlink creation unavailable: {}", error.message()));
-            return false;
-        }
-
-        return true;
-#endif
+        return FileSystemPlatform::createSymlink(context, target, link, directory);
     }
 
-    /// @brief Creates a file symlink through the shared privilege-aware helper.
-    bool createFileSymlink(TestSupport::Context &context, const std::filesystem::path &target, const std::filesystem::path &link)
+    /// @brief Creates a file symlink.
+    [[nodiscard]] bool createFileSymlink(TestSupport::Context &context, const std::filesystem::path &target, const std::filesystem::path &link)
     {
         return createSymlink(context, target, link, false);
     }
 
     /// @brief Creates a directory symlink through the shared privilege-aware helper.
-    bool createDirectorySymlink(TestSupport::Context &context, const std::filesystem::path &target, const std::filesystem::path &link)
+    [[nodiscard]] bool createDirectorySymlink(TestSupport::Context &context, const std::filesystem::path &target, const std::filesystem::path &link)
     {
         return createSymlink(context, target, link, true);
     }
 
-    // ------------------------------------------------------------
-    // Test suites
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Test suites
+    /// ------------------------------------------------------------
 
     // Focused suite declarations keep cross-suite calls independent of fragment include order.
     void testBasicEntryQueries(TestSupport::Context &context, const std::filesystem::path &root);
@@ -227,16 +187,20 @@ namespace
     void testMutationCopyMoveAndRemoval(TestSupport::Context &context, const std::filesystem::path &root);
     void testAtomicWriteAndLocks(TestSupport::Context &context, const std::filesystem::path &root);
 
-#include "validation/tests/filesystem/file_test.inl"
+#include "validation/tests/filesystem/symlink_test.inl"
+#include "validation/tests/filesystem/text_test.inl"
+#include "validation/tests/filesystem/handles_test.inl"
+#include "validation/tests/filesystem/mutation_test.inl"
+#include "validation/tests/filesystem/atomic_lock_test.inl"
 #include "validation/tests/filesystem/metadata_test.inl"
 #include "validation/tests/filesystem/path_test.inl"
 } // namespace
 
 namespace GameWIP::Test
 {
-    // ------------------------------------------------------------
-    // Test runner
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Test runner
+    /// ------------------------------------------------------------
 
     int runFileSystemTests(int, char **, const FileSystemTestOptions &options)
     {
@@ -244,15 +208,15 @@ namespace GameWIP::Test
 
         if(!workspace.status().ok())
         {
-            std::cerr << "FileSystem could not create its test workspace: " << TestSupport::formatInfrastructureStatus(workspace.status()) << '\n';
+            std::cerr << "FileSystem could not create its test workspace: " << TestSupport::formatStatus(workspace.status()) << '\n';
             return 1;
         }
         const std::filesystem::path &runRoot = workspace.path();
 
-        TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::RunnerHelpers::makeReportingOptions(options);
+        const TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::Internal::RunnerHelpers::makeReportingOptions(options);
 
         TestSupport::Runner runner(reportOptions);
-        runner.info(std::format("FileSystem library test root: {}", runRoot.string()));
+        runner.info(std::format("FileSystem library test root: {}", GameWIP::Test::Internal::RunnerHelpers::pathText(runRoot)));
 
         runner.runSuite(
             "FileSystem entry queries",
@@ -302,10 +266,11 @@ namespace GameWIP::Test
             {
                 testAtomicWriteAndLocks(context, runRoot);
             });
+        FileSystemPlatform::registerSuites(runner, runRoot);
 
         const TestSupport::Types::Reporting::Summary result = runner.result();
         runner.summary(std::format("FileSystem library self-tests passed={} failed={} skipped={}", result.passed, result.failed, result.skipped));
 
-        return GameWIP::Test::RunnerHelpers::finalizeRunner(runner);
+        return GameWIP::Test::Internal::RunnerHelpers::finalizeRunner(runner);
     }
 } // namespace GameWIP::Test

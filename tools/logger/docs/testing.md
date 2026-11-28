@@ -7,7 +7,7 @@
 Validation covers normal/disabled initialization, checked invalid configuration, adjustment flags and effective limits, file setup fallback with
 directly associated failure status, AlreadyOpen lifecycle rejection, shutdown/reinitialize, and health epoch reset.
 
-It covers direct IO statuses for runtime filters, concurrent filter mutation with producers, UTF-8 configuration/source validation, scalar-safe
+It covers shared operation results for runtime filters, concurrent filter mutation with producers, UTF-8 configuration/source validation, scalar-safe
 message truncation, normal file output, and queue-backed producer behavior.
 
 Flush validation distinguishes completed, timed-out, invalid-timeout, and sink-failure cases. Report validation checks direct delivery status,
@@ -30,15 +30,13 @@ output, filters, reports, health, and process/manual cases easier to scan withou
 
 Project validation must check self-containment of `logger/types.h`, `logger/config.h`, `logger/logger.h`, `logger/record.h`,
 `logger/message_format.h`, `logger/logging.h`, `logger/reports.h`, and `logger/logger_macros.h`. It must also check installed
-`GameWIP::Logger` consumption, exact IO/Terminal dependency resolution,
+`GameWIP::Logger` consumption, exact package-version dependency resolution,
 exported-symbol allowlists, sanitizer builds, and Logger benchmarks.
 
 ## Performance review
 
 The hot normal logging/filter path must not gain structured results, UTF-8 whole-message scans, or success-path diagnostic allocation. Benchmarks
 retain output-disabled, filtered formatted, accepted file, registered-source, and multi-producer scenarios.
-
-Manual runs report prompted observations separately from setup and contract assertions.
 
 ## Related pages
 

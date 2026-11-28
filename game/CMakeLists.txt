@@ -10,7 +10,8 @@ if(GAMEWIP_BUILD_GAME)
         VERBATIM
     )
 
-    add_executable(GameWIP main.cpp runtime/game.cpp runtime/display_report.cpp)
+    add_executable(GameWIP main.cpp)
+    add_subdirectory(runtime)
     add_dependencies(GameWIP GameWIPVersionHeader)
 
     # Keep executable-only compile settings and generated include paths local to GameWIP.
@@ -21,6 +22,7 @@ if(GAMEWIP_BUILD_GAME)
             GAMEWIP_STARTUP_TESTS_ENABLED=$<BOOL:${GAMEWIP_ENABLE_STARTUP_TESTS}>
             GAMEWIP_STARTUP_BENCHMARKS_ENABLED=$<BOOL:${GAMEWIP_RUN_BENCHMARKS_AT_STARTUP}>
             GAMEWIP_STANDALONE_BENCHMARKS_ENABLED=$<BOOL:${GAMEWIP_BUILD_BENCHMARKS}>
+            GAMEWIP_RUNTIME_DEFAULT_LOG_LEVEL_INFO=$<OR:$<CONFIG:Release>,$<CONFIG:MinSizeRel>>
             GAMEWIP_TRACY_ENABLED=$<BOOL:${GAMEWIP_ENABLE_TRACY}>
     )
     target_include_directories(GameWIP PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${PROJECT_BINARY_DIR}/generated")
@@ -49,12 +51,12 @@ if(GAMEWIP_BUILD_GAME)
         if(GAMEWIP_BUILD_BENCHMARKS)
             set_tests_properties(
                 validation.game.help
-                PROPERTIES PASS_REGULAR_EXPRESSION "Usage:;GameWIP.exe --version;GameWIPBenchmarks.exe --help" TIMEOUT 60
+                PROPERTIES PASS_REGULAR_EXPRESSION "Usage:;GameWIP --version;GameWIPBenchmarks --help" TIMEOUT 60
             )
         else()
             set_tests_properties(
                 validation.game.help
-                PROPERTIES PASS_REGULAR_EXPRESSION "Usage:;GameWIP.exe --version" FAIL_REGULAR_EXPRESSION "GameWIPBenchmarks.exe --help" TIMEOUT 60
+                PROPERTIES PASS_REGULAR_EXPRESSION "Usage:;GameWIP --version" FAIL_REGULAR_EXPRESSION "GameWIPBenchmarks --help" TIMEOUT 60
             )
         endif()
         set_tests_properties(validation.game.version PROPERTIES TIMEOUT 60)

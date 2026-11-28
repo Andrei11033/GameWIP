@@ -73,23 +73,8 @@ focused headers expose renderer integration and native interoperation.
 
 ## Generated API reference
 
-Use @ref GameWIP::Desktop for library-wide capability operations and the non-copyable, non-movable @ref GameWIP::Desktop::Window owner. Passive values
-live under @ref GameWIP::Desktop::Types, with child-host values under `Types::ChildSurface`, transfer values under `Types::DataTransfer`, drag-and-drop
-values under `Types::DragDrop`, Clipboard results under `Types::Clipboard`, event payloads under `Types::Events`, display values under `Types::Display`,
-shell values under `Types::Shell`, accessibility values under `Types::Accessibility`, and renderer-bridge values under `Types::Renderer`.
-
-Global event pumping lives under `Desktop::Events`, Clipboard operations under
-`Desktop::Clipboard`, drag sources under `Desktop::DragDrop`, display inspection
-under `Desktop::Display`, and renderer integration under `Desktop::Renderer`.
-Win32 native handles are exposed through @ref GameWIP::Desktop::Native::Win32.
-
-Dialog values live under `Types::Dialogs`, synchronous one-shot operations
-under `Desktop::Dialogs`, and persistent modeless progress under
-@ref GameWIP::Desktop::ProgressDialog.
-
-Accessibility authoring, immutable inspection, and the non-owning Window façade
-live under `Desktop::Accessibility`. Shell operations live under `Desktop::Shell`;
-focused resource classes remain under `Desktop`.
+See @ref desktop_public_api for header ownership, namespaces, and operation
+names. The generated reference documents each declaration.
 
 ## Key behavior
 
@@ -104,28 +89,10 @@ focused resource classes remain under `Desktop`.
 
 ## Public header boundary
 
-The normal portable surface is assembled by `desktop/window.h` from focused
-`desktop/types.h`, `desktop/description.h`, `desktop/events.h`,
-`desktop/result.h`, and `desktop/display.h`. `Types::Result<T>` is the common
-status-plus-optional-value contract for all-or-nothing Desktop queries. Rich
-monitor/color inspection is opt-in through
-`desktop/display_info.h`.
-
-Custom native cursors use `desktop/cursor.h`, native child hosts use
-`desktop/child_surface.h`, and renderer integration uses
-`desktop/renderer_bridge.h`. Semantic accessibility snapshots and their Window
-façade use `desktop/accessibility.h`.
-
-Shared transfer values and Clipboard use `desktop/data_transfer.h` and
-`desktop/clipboard.h`; native data drag and drop uses `desktop/drag_drop.h`.
-Native dialogs and modeless progress use `desktop/dialogs.h`.
-
-Shell capability queries and the shared shell event queue use `desktop/shell.h`;
-passive shell values use `desktop/shell_types.h`. Focused taskbar, tray,
-notification, jump-list/recent-item, and current-user registration APIs use
-`desktop/shell_taskbar.h`, `desktop/shell_tray.h`, `desktop/shell_notifications.h`,
-`desktop/shell_jump_lists.h`, and `desktop/shell_registration.h`, respectively.
-Win32 interoperability uses `desktop/native/win32.h`.
+`desktop/window.h` assembles the common Window surface. Rich display inspection,
+cursors, child hosts, accessibility, transfer, dialogs, shell, renderer
+integration, and native interop stay opt-in. See @ref desktop_public_api for
+the complete header map and operation ownership.
 
 Installed consumers link `GameWIP::Desktop`. Desktop is built as a shared library: process-local Window and monitor identities, native
 class ownership, dispatchers, and registries must remain coherent through one runtime instance rather than being duplicated across statically linked
@@ -133,9 +100,9 @@ modules.
 
 ## Dependency boundary
 
-Desktop is installed as the shared target `GameWIP::Desktop`. IO and FileSystem
-are public package dependencies because Desktop headers expose their contracts;
-Unicode is a private native-text conversion dependency.
+Desktop is installed as the shared target `GameWIP::Desktop`. Status and
+FileSystem are public package dependencies; Unicode is a private native-text
+conversion dependency. FileSystem supplies Desktop's transitive IO dependency.
 
 Desktop owns top-level native state, cached geometry, event translation, queried
 display/color facts, and the persistent packed pointer mask published through

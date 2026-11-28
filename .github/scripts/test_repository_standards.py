@@ -29,7 +29,7 @@ class UnicodeAuthorityTests(unittest.TestCase):
 
             try:
                 failures: list[str] = []
-                CHECKER.check_unicode_conversion_authority(failures)
+                CHECKER.check_unicode_conversion_authority(failures, [fixture])
                 return failures
 
             finally:
@@ -129,6 +129,57 @@ class UnicodeAuthorityTests(unittest.TestCase):
 
     def test_compliant_unicode_usage_passes(self) -> None:
         self.assertEqual(self.check_fixture("fixture.cpp", "return GameWIP::Unicode::Utf8::measureToUtf16(text);\n"), [])
+
+
+# ------------------------------------------------------------
+# Validation module discovery
+# ------------------------------------------------------------
+
+
+class ValidationModuleDiscoveryTests(unittest.TestCase):
+    def test_discovers_registered_modules_and_ignores_support_folders(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            fixtures = {
+                "alpha": "gamewip_add_test_module(\n    NAME alpha\n    SOURCES alpha.cpp\n)\n",
+                "internal": "add_library(SharedTestSupport OBJECT support.cpp)\n",
+                "platform": "# gamewip_add_test_module(NAME ignored SOURCES ignored.cpp)\ngamewip_add_platform_backend(TARGET Tests ROOT .)\n",
+                "zeta": "gamewip_add_test_module(NAME zeta SOURCES zeta.cpp)\n",
+            }
+
+            for name, contents in fixtures.items():
+                module = root / "game/validation/tests" / name
+                module.mkdir(parents=True)
+                (module / "CMakeLists.txt").write_text(contents, encoding="utf-8")
+
+            previous_root = CHECKER.ROOT
+            CHECKER.ROOT = root
+
+            try:
+                failures: list[str] = []
+                module_names = CHECKER.validation_test_module_names(failures)
+                self.assertEqual(failures, [])
+                self.assertEqual(module_names, ["alpha", "zeta"])
+
+            finally:
+                CHECKER.ROOT = previous_root
+
+
+# ------------------------------------------------------------
+# Validation tool references
+# ------------------------------------------------------------
+
+
+class ValidationToolReferenceTests(unittest.TestCase):
+    def test_discovers_only_explicit_tool_ensure_commands(self) -> None:
+        workflow = """
+        run: ./scripts/GameWIP.ps1 tool ensure llvm-mingw -Yes -NonInteractive
+        run: ./scripts/GameWIP.ps1 build dev -Yes -NonInteractive
+        """
+        self.assertEqual(CHECKER.validation_tool_ids(workflow), {"llvm-mingw"})
+
+    def test_tool_reference_is_case_insensitive(self) -> None:
+        self.assertEqual(CHECKER.validation_tool_ids("tool ENSURE Zig"), {"zig"})
 
 
 if __name__ == "__main__":

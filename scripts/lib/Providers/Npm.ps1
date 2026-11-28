@@ -23,29 +23,18 @@ function Get-GameWipNpmToolLatestVersion
     return Get-GameWipNpmPackageLatestVersion -Package ([string]$Tool.provider.package)
 }
 
-function Get-GameWipNpmGlobalModuleRoot
+function Get-GameWipNpmManagedModuleRoot
 {
-    if (Test-GameWipWindowsHost)
+    $modulePath = if (Test-GameWipWindowsHost)
     {
-        return Join-Path ((Get-GameWipManagedToolRoot)) 'npm\lib\node_modules'
+        'npm\lib\node_modules'
+    }
+    else
+    {
+        'npm/lib/node_modules'
     }
 
-    $npm = Resolve-GameWipToolCommand -Command npm
-
-    if ($null -eq $npm)
-    {
-        throw 'npm is unavailable; cannot resolve the global module root.'
-    }
-
-    $result = Invoke-GameWipProcess -FilePath $npm -Arguments @('root', '--global') -OutputMode LogOnly -TimeoutSeconds 20
-    $output = ($result.Stdout -join "`n").Trim()
-
-    if ($result.ExitCode -ne 0 -or [string]::IsNullOrWhiteSpace($output))
-    {
-        throw 'Unable to resolve the global npm module root.'
-    }
-
-    return $output
+    return Join-Path (Get-GameWipManagedToolRoot) $modulePath
 }
 
 function Get-GameWipNpmPackageInstallPath
@@ -126,7 +115,12 @@ function Get-GameWipNpmInstalledPackageVersion
 
     if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf))
     {
-        return [pscustomobject]@{ State = 'missing'; Version = $null; Location = $null; Reason = "Installed npm package '$Package' was not found." }
+        return [pscustomobject]@{
+            State = 'missing'
+            Version = $null
+            Location = $null
+            Reason = "Installed npm package '$Package' was not found."
+        }
     }
 
     try
@@ -136,15 +130,30 @@ function Get-GameWipNpmInstalledPackageVersion
 
         if ([string]::IsNullOrWhiteSpace($version))
         {
-            return [pscustomobject]@{ State = 'unknown'; Version = $null; Location = $manifestPath; Reason = "Installed npm package '$Package' has no version in its package metadata." }
+            return [pscustomobject]@{
+                State = 'unknown'
+                Version = $null
+                Location = $manifestPath
+                Reason = "Installed npm package '$Package' has no version in its package metadata."
+            }
         }
 
-        return [pscustomobject]@{ State = 'installed'; Version = $version; Location = $manifestPath; Reason = $null }
+        return [pscustomobject]@{
+            State = 'installed'
+            Version = $version
+            Location = $manifestPath
+            Reason = $null
+        }
     }
 
     catch
     {
-        return [pscustomobject]@{ State = 'unknown'; Version = $null; Location = $manifestPath; Reason = "Installed npm package '$Package' has unreadable package metadata: $($_.Exception.Message)" }
+        return [pscustomobject]@{
+            State = 'unknown'
+            Version = $null
+            Location = $manifestPath
+            Reason = "Installed npm package '$Package' has unreadable package metadata: $($_.Exception.Message)"
+        }
     }
 }
 
@@ -152,7 +161,7 @@ function Get-GameWipNpmToolDependencyStatus
 {
     param([Parameter(Mandatory = $true)][hashtable]$Tool)
 
-    $moduleRoot = Get-GameWipNpmGlobalModuleRoot
+    $moduleRoot = Get-GameWipNpmManagedModuleRoot
 
     foreach ($dependency in @($Tool.provider.dependencies))
     {
@@ -203,8 +212,9 @@ function Get-GameWipNpmToolDependencyStatus
 function Install-GameWipNpmTool
 {
     param([hashtable]$Tool, [AllowNull()][string]$Version)
+
     Initialize-GameWipManagedToolRoot
-    $root = Join-Path ((Get-GameWipManagedToolRoot)) 'npm'
+    $root = Join-Path (Get-GameWipManagedToolRoot) 'npm'
     $specification = if ($Version)
     {
         "$($Tool.provider.package)@$Version"
@@ -214,24 +224,43 @@ function Install-GameWipNpmTool
         [string]$Tool.provider.package
     }
     $specifications = @($specification)
+    $dependencies = if ($Tool.provider.Contains('dependencies'))
+    {
+        @($Tool.provider.dependencies)
+    }
+    else
+    {
+        @()
+    }
 
-    foreach ($dependency in $(if ($Tool.provider.Contains('dependencies'))
-            {
-                @($Tool.provider.dependencies)
-            }
-            else
-            {
-                @()
-            }))
+    foreach ($dependency in $dependencies)
     {
         $specifications += "$($dependency.package)@$($dependency.version)"
     }
+
+    # Resolve npm and keep package downloads in the managed cache.
     $npm = Resolve-GameWipToolCommand -Command npm
 
     if ($null -eq $npm)
     {
-        throw "npm is unavailable for '$($Tool.id)'. Run setup.bat repair."
+        $repairCommand = if (Test-GameWipWindowsHost)
+        {
+            'setup.bat repair'
+        }
+        else
+        {
+            'bash ./setup.sh repair'
+        }
+        throw "npm is unavailable for '$($Tool.id)'. Run '$repairCommand'."
     }
 
-    Invoke-GameWipProviderNative -Name "npm-install-$($Tool.id)" -FilePath $npm -Arguments (@('install', '--global', '--prefix', $root, '--no-audit', '--no-fund') + $specifications) | Out-Null
+    $cacheRoot = Join-Path (Get-GameWipStorageAreaPath -Area cache) 'npm'
+    New-Item -ItemType Directory -Force -Path $cacheRoot | Out-Null
+    $pathPrefix = @(Get-GameWipManagedToolPath) -join [IO.Path]::PathSeparator
+
+    Invoke-GameWipProviderNative `
+        -Name "npm-install-$($Tool.id)" `
+        -FilePath $npm `
+        -Arguments (@('install', '--global', '--prefix', $root, '--cache', $cacheRoot, '--no-audit', '--no-fund') + $specifications) `
+        -PathPrefix $pathPrefix | Out-Null
 }

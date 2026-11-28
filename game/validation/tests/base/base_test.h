@@ -10,17 +10,17 @@ namespace GameWIP::Test
     /// @brief Runtime reporting options for internal Base mechanism tests.
     struct BaseTestOptions
     {
-        /// @brief Mirrors complete suite output to stdout instead of only failures, skips, and manual instructions.
-        bool verboseConsole = false;
-        /// @brief Writes test progress and summaries to reportPath and stdout.
-        bool writeReport = true;
-        /// @brief Appends to reportPath instead of replacing it when report writing is enabled.
-        bool appendReport = true;
-        /// @brief Report destination before shared-runner resolution.
-        std::filesystem::path reportPath = "logs/validation/latest_test_report.txt";
+        // Console output
+        bool verboseConsole = false; ///< Enables full console output instead of the default minimal output.
+
+        // Report output
+        bool writeReport = true;  ///< Writes the suite report to reportPath.
+        bool appendReport = true; ///< Appends to reportPath instead of replacing it when report writing is enabled.
+        std::filesystem::path reportPath = "logs/validation/latest_test_report.txt"; ///< Report destination before shared-runner resolution.
     };
 
     /// @brief Runs internal Base mechanism tests.
     /// @param options Runtime report toggles.
-    int runBaseTests(const BaseTestOptions &options = {});
+    /// @return Zero when every Base test passes, nonzero otherwise.
+    [[nodiscard]] int runBaseTests(const BaseTestOptions &options = {});
 } // namespace GameWIP::Test

@@ -3,10 +3,14 @@
 
 #pragma once
 
-#include "desktop/internal/renderer_integration_state.h"
+#include "desktop/internal/helpers/event_storage.h"
 #include "desktop/internal/presentation_publication_state.h"
+#include "desktop/internal/renderer_integration_state.h"
 #include "desktop/window.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <limits>
 #include <memory>
 #include <optional>
 #include <span>
@@ -14,7 +18,7 @@
 #include <thread>
 #include <vector>
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
     struct WindowData;
 
@@ -22,9 +26,9 @@ namespace GameWIP::Desktop::Detail::Platform
     {
         void operator()(WindowData *data) const noexcept;
     };
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Platform
 
-namespace GameWIP::Desktop::Detail
+namespace GameWIP::Desktop::Internal
 {
     /// @brief Mirrors owner-thread cached geometry into an active accessibility bridge.
     void publishAccessibilityGeometry(WindowState &window) noexcept;
@@ -49,24 +53,17 @@ namespace GameWIP::Desktop::Detail
         /// @brief Clears queued payloads and releases the caller-storage view.
         void clearRetainedEvents() noexcept
         {
-            if(!eventStorage.empty())
-            {
-                for(std::size_t index = 0; index < eventCount; ++index)
-                {
-                    eventStorage[(eventHead + index) % eventStorage.size()] = {};
-                }
-            }
-            eventHead = 0;
-            eventCount = 0;
-            eventStorage = {};
+            clearRetainedEventStorage(eventStorage, eventHead, eventCount);
         }
 
+        // Native ownership and thread binding
         std::unique_ptr<Platform::WindowData, Platform::WindowDataDeleter> platform;
         WindowState *deferredCleanupNext = nullptr;
         std::thread::id ownerThread;
         Types::WindowId id;
         Types::WindowId owner;
 
+        // Event storage and sequencing
         std::vector<Types::Event> internalEvents;
         std::span<Types::Event> eventStorage; ///< Internal or caller-owned slots retained until close.
         Types::Events::StorageKind eventStorageKind = Types::Events::StorageKind::Internal;
@@ -75,41 +72,51 @@ namespace GameWIP::Desktop::Detail
         std::uint64_t nextSequence = 1;
         std::uint64_t droppedEvents = 0;
 
+        // Window geometry and presentation
         std::string title;
         Types::LogicalSize clientSize;
         Types::PixelSize framebufferSize;
         Types::ScreenPosition clientPosition;
         Types::ScreenRect frameRect;
         Types::Insets frameInsets;
-        Types::ContentScale contentScale;
-        Types::Dpi dpi;
-        Types::DpiResizePolicy dpiResizePolicy = Types::DpiResizePolicy::PreserveLogicalClientSize;
-        Types::Display::MonitorId monitor;
-        Types::WindowMode mode = Types::WindowMode::Windowed;
-        Types::FullscreenState fullscreen;
-        Types::PresentationState presentation = Types::PresentationState::Normal;
-        Types::DecorationMode decoration = Types::DecorationMode::System;
-        Types::Controls controls;
         Types::SizeLimits sizeLimits;
         std::optional<Types::AspectRatio> aspectRatio;
-        Types::CursorMode cursorMode = Types::CursorMode::Normal;
-        Types::CursorShape cursorShape = Types::CursorShape::Arrow;
-        Types::PointerInputMode pointerInputMode = Types::PointerInputMode::Normal;
+        Types::ContentScale contentScale;
+        Types::Dpi dpi;
+        Types::Display::MonitorId monitor;
+        Types::FullscreenState fullscreen;
+        Types::Controls controls;
+        Types::DpiResizePolicy dpiResizePolicy = Types::DpiResizePolicy::PreserveLogicalClientSize;
+        Types::WindowMode mode = Types::WindowMode::Windowed;
+        Types::PresentationState presentation = Types::PresentationState::Normal;
+        Types::DecorationMode decoration = Types::DecorationMode::System;
+
+        // Cursor and input regions
         std::vector<Types::LogicalRect> pointerInputRegions;
         std::vector<Types::LogicalRect> draggableRegions;
         std::optional<Types::LogicalRect> systemMenuRegion;
         std::optional<Types::LogicalRect> minimizeButtonRegion;
         std::optional<Types::LogicalRect> maximizeButtonRegion;
         std::optional<Types::LogicalRect> closeButtonRegion;
+        Types::CursorMode cursorMode = Types::CursorMode::Normal;
+        Types::CursorShape cursorShape = Types::CursorShape::Arrow;
+        Types::PointerInputMode pointerInputMode = Types::PointerInputMode::Normal;
+
+        // Visual state
         Types::BackdropEffect backdrop = Types::BackdropEffect::None;
         float opacity = 1.0F;
+
+        // Visibility, focus, and active transitions
         bool closeRequested = false;
         bool visible = false;
         bool focused = false;
         bool interactiveMoveResizeActive = false;
+
+        // Optional renderer publication
         RendererIntegrationState *rendererIntegration = nullptr;         ///< Optional lazy renderer bridge owned by Window.
         PresentationPublicationState *presentationPublication = nullptr; ///< Optional non-owning link to stable atomic publication.
 
+        // Window options
         bool cursorInside = false;
         bool resizable = true;
         bool focusable = true;
@@ -117,13 +124,18 @@ namespace GameWIP::Desktop::Detail
         bool alwaysOnTop = false;
         bool fileDropEnabled = false;
         bool transparentFramebuffer = false;
+
+        // Native event and teardown state
         bool suppressEvents = false;                 ///< Suppresses construction-time native callbacks.
-        bool nativeDestroyedPendingFinalize = false; ///< Native HWND is gone; owner-thread finalization remains.
+        bool nativeDestroyedPendingFinalize = false; ///< Native Window is gone; owner-thread finalization remains.
+
+        // Shell and accessibility integrations
         TaskbarItemState *taskbarItem = nullptr;
         AccessibilityState *accessibility = nullptr;
-        // A foreign-thread Window destructor transfers this optional owner with deferred native state.
-        // Keep the callback pointer stable and readable until the owner destroys the HWND.
-        std::unique_ptr<AccessibilityState, AccessibilityStateDeleter> deferredAccessibilityOwner;
+
+        // Deferred accessibility cleanup
+        std::unique_ptr<AccessibilityState, AccessibilityStateDeleter>
+            deferredAccessibilityOwner; ///< Retained when cleanup moves to the owner thread.
     };
 
     /// @brief Returns whether a Window payload may be superseded by a later payload of the same type.
@@ -182,6 +194,7 @@ namespace GameWIP::Desktop::Detail
     {
         const RendererIntegrationState *renderer = state.rendererIntegration;
 
+        // Use native hit testing when the published mask cannot answer this point.
         if(renderer == nullptr || renderer->pointerHitMask.empty() || renderer->pointerHitMaskActiveGeneration == 0 ||
            renderer->pointerHitMaskSize != state.framebufferSize || state.clientSize.width == 0 || state.clientSize.height == 0 || position.x < 0 ||
            position.y < 0 || static_cast<std::uint32_t>(position.x) >= state.clientSize.width ||
@@ -189,6 +202,8 @@ namespace GameWIP::Desktop::Detail
         {
             return true;
         }
+
+        // Map the logical client point into framebuffer pixels.
         const std::uint64_t x = static_cast<std::uint64_t>(position.x) * state.framebufferSize.width / state.clientSize.width;
         const std::uint64_t y = static_cast<std::uint64_t>(position.y) * state.framebufferSize.height / state.clientSize.height;
 
@@ -197,6 +212,7 @@ namespace GameWIP::Desktop::Detail
             return true;
         }
 
+        // Read the corresponding bit from the packed hit mask.
         constexpr std::uint64_t bitsPerWord = std::numeric_limits<Types::Renderer::PointerHitMaskWord>::digits;
         const std::uint64_t width = state.framebufferSize.width;
         const std::uint64_t wordsPerRow = width / bitsPerWord + (width % bitsPerWord != 0 ? 1U : 0U);
@@ -277,4 +293,4 @@ namespace GameWIP::Desktop::Detail
             return window.presentationPublication_;
         }
     };
-} // namespace GameWIP::Desktop::Detail
+} // namespace GameWIP::Desktop::Internal

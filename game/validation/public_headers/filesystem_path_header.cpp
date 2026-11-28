@@ -7,7 +7,7 @@ namespace
 {
     [[maybe_unused]] void usePathBooleanResult(const GameWIP::FileSystem::Types::Path &path)
     {
-        const GameWIP::FileSystem::Types::BoolResult result = GameWIP::FileSystem::isAbsolutePath(path);
+        const GameWIP::Status::Types::Result<bool> result = GameWIP::FileSystem::isAbsolutePath(path);
         (void)result;
     }
 } // namespace

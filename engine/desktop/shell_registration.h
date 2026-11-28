@@ -5,7 +5,7 @@
 
 #include "desktop/desktop_export.h"
 #include "desktop/shell_types.h"
-#include "io/status.h"
+#include "status/result.h"
 
 #include <cstdint>
 #include <optional>
@@ -43,13 +43,15 @@ namespace GameWIP::Desktop::Types::Registration
         std::string ownerKey;                        ///< Existing owner identity when available.
     };
 
-    /// @brief Result of one registration or unregistration operation.
-    struct Result
+    /// @brief Conflict and replacement information returned by a registration operation.
+    struct RegistrationInfo
     {
-        IO::Types::Status status;        ///< Operation status.
         std::vector<Conflict> conflicts; ///< Reported foreign or otherwise incompatible conflicts.
         bool replacedOwned = false;      ///< Whether an existing same-owner registration was replaced.
     };
+
+    /// @brief Shared status result for a registration or unregistration operation.
+    using Result = GameWIP::Status::Types::Result<RegistrationInfo>;
 
     /// @brief One caller-defined shell context-menu verb.
     /// @details The verb name, label, and structured launch action are borrowed until the receiving
@@ -106,7 +108,7 @@ namespace GameWIP::Desktop::Registration
     /// application. All descriptor views are copied before the operation returns. A failed
     /// replacement leaves the prior same-owner registration unchanged.
     /// @param description Reusable file-extension registration descriptor.
-    /// @return Operation status, conflict report, and replacement information.
+    /// @return Operation status and conflict/replacement information when available.
     [[nodiscard]] DESKTOP_EXPORT Types::Registration::Result registerFileExtension(
         const Types::Registration::FileExtensionDescription &description) noexcept;
 

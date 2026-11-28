@@ -6,8 +6,10 @@ and progress presentations. It is separate from @c desktop/window.h; non-users a
 ## File and folder selection
 
 @c Dialogs::openFile(), @c openFiles(), @c saveFile(), @c selectFolder(), and
-@c selectFolders() enter the platform dialog synchronously and return after the
-user accepts or dismisses it. @c status says whether the operation ran; a dismissal is a successful
+@c selectFolders() enter the platform dialog synchronously and return a
+@c GameWIP::Status::Types::Result containing the selection. Check @c ok(), read
+the operation status with @c status(), and access the selection with @c value().
+A failed operation may retain a selection already collected; check @c hasValue() before reading it. A dismissal is a successful
 @c Types::Dialogs::Outcome::Cancelled, not a native failure.
 
 Filters keep caller order. Each extension is a literal token such as @c png or @c tar.gz, with no leading period, wildcard, semicolon,

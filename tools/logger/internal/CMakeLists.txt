@@ -1,0 +1,4 @@
+target_sources(
+    Logger
+    PRIVATE core.h core_types.h format_scratch.h queue_storage.h source_registry.h state.h test_export.h test_hooks.h text_storage.h
+)

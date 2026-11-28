@@ -1,8 +1,10 @@
 /// @file win32_data_transfer.cpp
 /// @brief Shared Win32 conversion between portable DataTransfer values and HGLOBAL wire formats.
 
+#include "desktop/internal/results.h"
 #include "desktop/platform/win32/internal/win32_data_transfer.h"
 #include "desktop/platform/win32/internal/win32_window_backend.h"
+#include "desktop/platform/win32/internal/win32_unicode.h"
 #include "base/checked_arithmetic.h"
 
 #include <shellapi.h>
@@ -15,21 +17,21 @@
 #include <string>
 #include <variant>
 
-namespace GameWIP::Desktop::Detail::Platform::DataTransfer
+namespace GameWIP::Desktop::Platform::DataTransfer
 {
-    // ------------------------------------------------------------
-    // Checked native storage and ownership
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Checked native storage and ownership
+    /// ------------------------------------------------------------
 
     namespace
     {
-        using IO::Types::ErrorCode;
+        using ErrorCode = GameWIP::Status::Types::Code;
         namespace Transfer = Types::DataTransfer;
 
         /// @brief Creates a data-transfer status with an optional native error value.
-        [[nodiscard]] IO::Types::Status failure(ErrorCode code, DWORD native = 0) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status failure(ErrorCode code, DWORD native = 0) noexcept
         {
-            return IO::makeStatus(code, native);
+            return GameWIP::Desktop::Internal::statusFor(code, native, GameWIP::Desktop::Internal::NativeCodeDomain::Win32Error);
         }
 
         /// @brief Multiplies sizes while rejecting native allocation overflow.
@@ -175,7 +177,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
                 return &value_;
             }
 
-            HGLOBAL global() const noexcept
+            [[nodiscard]] HGLOBAL global() const noexcept
             {
                 return valid_ && value_.tymed == TYMED_HGLOBAL ? value_.hGlobal : nullptr;
             }
@@ -191,7 +193,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
         };
 
         /// @brief Requests one HGLOBAL representation from a foreign data object.
-        [[nodiscard]] IO::Types::Status getGlobal(IDataObject &object, CLIPFORMAT format, Medium &medium) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status getGlobal(IDataObject &object, CLIPFORMAT format, Medium &medium) noexcept
         {
             FORMATETC request{format, nullptr, DVASPECT_CONTENT, -1, TYMED_HGLOBAL};
             const HRESULT result = object.GetData(&request, medium.out());
@@ -202,20 +204,20 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
             }
 
             medium.acquired();
-            return medium.global() ? IO::successStatus() : failure(ErrorCode::ReadFailed);
+            return medium.global() ? GameWIP::Status::Types::Status{} : failure(ErrorCode::ReadFailed);
         }
     } // namespace
 
-    // ------------------------------------------------------------
-    // Native format identity
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Native format identity
+    /// ------------------------------------------------------------
 
     /// @brief Resolves a portable format to its Win32 clipboard identifier.
-    CLIPFORMAT nativeFormat(const Transfer::Format &format, IO::Types::Status &result) noexcept
+    CLIPFORMAT nativeFormat(const Transfer::Format &format, GameWIP::Status::Types::Status &result) noexcept
     {
         try
         {
-            result = IO::successStatus();
+            result = GameWIP::Status::Types::Status{};
 
             switch(format.kind)
             {
@@ -279,24 +281,24 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
             return true;
         }
 
-        IO::Types::Status leftStatus;
-        IO::Types::Status rightStatus;
+        GameWIP::Status::Types::Status leftStatus;
+        GameWIP::Status::Types::Status rightStatus;
         const CLIPFORMAT left = nativeFormat(a, leftStatus);
         const CLIPFORMAT right = nativeFormat(b, rightStatus);
         return leftStatus.ok() && rightStatus.ok() && left == right;
     }
 
-    // ------------------------------------------------------------
-    // Source preparation
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Source preparation
+    /// ------------------------------------------------------------
 
     /// @brief Encodes text, paths, images, or custom bytes into native clipboard storage.
-    IO::Types::Status prepare(const Transfer::ItemView &item, PreparedItem &out) noexcept
+    GameWIP::Status::Types::Status prepare(const Transfer::ItemView &item, PreparedItem &out) noexcept
     {
         try
         {
             return std::visit(
-                [&](const auto &value) -> IO::Types::Status
+                [&](const auto &value) -> GameWIP::Status::Types::Status
                 {
                     using T = std::remove_cvref_t<decltype(value)>;
                     if constexpr(std::is_same_v<T, Transfer::TextView>)
@@ -322,7 +324,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
                         out.format = CF_UNICODETEXT;
                         out.bytes.assign(bytes, std::byte{});
                         std::ranges::copy(std::as_bytes(std::span{wide}), out.bytes.begin());
-                        return IO::successStatus();
+                        return GameWIP::Status::Types::Status{};
                     }
                     else if constexpr(std::is_same_v<T, Transfer::FileListView>)
                     {
@@ -376,7 +378,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
                             offset += bytes.size() + sizeof(wchar_t);
                         }
 
-                        return IO::successStatus();
+                        return GameWIP::Status::Types::Status{};
                     }
                     else if constexpr(std::is_same_v<T, Transfer::ImageView>)
                     {
@@ -432,12 +434,12 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
                             }
                         }
 
-                        return IO::successStatus();
+                        return GameWIP::Status::Types::Status{};
                     }
                     else
                     {
                         Transfer::Format f{Transfer::FormatKind::Custom, std::string(value.formatName)};
-                        IO::Types::Status result;
+                        GameWIP::Status::Types::Status result;
                         out.format = nativeFormat(f, result);
 
                         if(!result.ok())
@@ -450,7 +452,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
                             return failure(ErrorCode::Unsupported);
                         }
                         out.bytes.assign(value.bytes.begin(), value.bytes.end());
-                        return IO::successStatus();
+                        return GameWIP::Status::Types::Status{};
                     }
                 },
                 item);
@@ -466,7 +468,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
     }
 
     /// @brief Allocates movable global memory and copies one prepared payload into it.
-    IO::Types::Status copyToGlobal(const PreparedItem &item, HGLOBAL &output) noexcept
+    GameWIP::Status::Types::Status copyToGlobal(const PreparedItem &item, HGLOBAL &output) noexcept
     {
         output = GlobalAlloc(GMEM_MOVEABLE, item.bytes.size());
 
@@ -484,15 +486,15 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
             return failure(ErrorCode::LockFailed, code);
         }
         std::ranges::copy(item.bytes, span<std::byte>(lock.get(), item.bytes.size()).begin());
-        return IO::successStatus();
+        return GameWIP::Status::Types::Status{};
     }
 
-    // ------------------------------------------------------------
-    // Foreign format enumeration
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Foreign format enumeration
+    /// ------------------------------------------------------------
 
     /// @brief Enumerates supported HGLOBAL formats exposed by a foreign object.
-    IO::Types::Status formats(IDataObject &object, std::vector<FormatIdentity> &out) noexcept
+    GameWIP::Status::Types::Status formats(IDataObject &object, std::vector<FormatIdentity> &out) noexcept
     {
         try
         {
@@ -504,7 +506,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
                 return failure(ErrorCode::ReadFailed, static_cast<DWORD>(hr));
             }
             std::size_t seen = 0;
-            IO::Types::Status result = IO::successStatus();
+            GameWIP::Status::Types::Status result = GameWIP::Status::Types::Status{};
 
             for(;;)
             {
@@ -596,12 +598,216 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
         }
     }
 
-    // ------------------------------------------------------------
-    // Target materialization
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Target materialization
+    /// ------------------------------------------------------------
+
+    namespace
+    {
+        /// @brief Decodes a terminated UTF-16 clipboard string into portable UTF-8 text.
+        [[nodiscard]] GameWIP::Status::Types::Status materializeText(const void *raw, std::size_t size, Transfer::Item &out)
+        {
+            if(size < sizeof(wchar_t) || size % sizeof(wchar_t))
+            {
+                return failure(ErrorCode::EncodingFailed);
+            }
+
+            const auto wide = span<const wchar_t>(raw, size / sizeof(wchar_t));
+            const auto end = std::ranges::find(wide, L'\0');
+
+            if(end == wide.end())
+            {
+                return failure(ErrorCode::EncodingFailed);
+            }
+
+            Transfer::Text text;
+            DWORD code = 0;
+
+            if(!utf16ToUtf8({wide.data(), static_cast<std::size_t>(end - wide.begin())}, text.text, code))
+            {
+                return failure(unicodeConversionError(code, ErrorCode::EncodingFailed), code);
+            }
+
+            out = std::move(text);
+            return GameWIP::Status::Types::Status{};
+        }
+
+        /// @brief Decodes an HDROP path list into portable filesystem paths.
+        [[nodiscard]] GameWIP::Status::Types::Status materializeFiles(HGLOBAL global, Transfer::Item &out)
+        {
+            const UINT count = DragQueryFileW(static_cast<HDROP>(global), 0xFFFFFFFF, nullptr, 0);
+
+            if(!count)
+            {
+                return failure(ErrorCode::EncodingFailed);
+            }
+
+            Transfer::FileList list;
+            list.paths.reserve(count);
+
+            for(UINT index = 0; index < count; ++index)
+            {
+                const UINT length = DragQueryFileW(static_cast<HDROP>(global), index, nullptr, 0);
+
+                if(!length)
+                {
+                    return failure(ErrorCode::EncodingFailed);
+                }
+
+                std::wstring path(length + 1, L'\0');
+
+                if(DragQueryFileW(static_cast<HDROP>(global), index, path.data(), length + 1) != length)
+                {
+                    return failure(ErrorCode::ReadFailed);
+                }
+
+                path.resize(length);
+                std::string validated;
+                DWORD code = 0;
+
+                if(!utf16ToUtf8(path, validated, code))
+                {
+                    return failure(unicodeConversionError(code, ErrorCode::EncodingFailed), code);
+                }
+
+                list.paths.emplace_back(std::move(path));
+            }
+
+            out = std::move(list);
+            return GameWIP::Status::Types::Status{};
+        }
+
+        /// @brief Copies opaque custom clipboard bytes into the portable value.
+        [[nodiscard]] GameWIP::Status::Types::Status materializeCustom(
+            const void *raw,
+            std::size_t size,
+            const Transfer::Format &format,
+            Transfer::Item &out)
+        {
+            Transfer::CustomData data;
+            data.formatName = format.customName;
+            const auto bytes = span<const std::byte>(raw, size);
+            data.bytes.assign(bytes.begin(), bytes.end());
+            out = std::move(data);
+            return GameWIP::Status::Types::Status{};
+        }
+
+        /// @brief Decodes a supported DIB layout into tightly packed RGBA8 pixels.
+        [[nodiscard]] GameWIP::Status::Types::Status materializeImage(const void *raw, std::size_t size, Transfer::Item &out)
+        {
+            // Validate the header and supported pixel encodings before reading channel data.
+            if(size < sizeof(BITMAPINFOHEADER))
+            {
+                return failure(ErrorCode::ReadFailed);
+            }
+
+            BITMAPINFOHEADER header{};
+            std::ranges::copy(span<const std::byte>(raw, sizeof(header)), std::as_writable_bytes(std::span{&header, std::size_t{1}}).begin());
+            const bool dimensionsValid = header.biSize >= sizeof(BITMAPINFOHEADER) && header.biSize <= size && header.biWidth > 0 &&
+                                         header.biHeight != 0 && header.biHeight != LONG_MIN;
+            const bool encodingSupported =
+                header.biPlanes == 1 && ((header.biBitCount == 24 && header.biCompression == BI_RGB) ||
+                                         (header.biBitCount == 32 && (header.biCompression == BI_RGB || header.biCompression == BI_BITFIELDS)));
+
+            if(!dimensionsValid)
+            {
+                return failure(ErrorCode::ReadFailed);
+            }
+
+            if(!encodingSupported)
+            {
+                return failure(ErrorCode::Unsupported);
+            }
+
+            const std::size_t width = static_cast<std::size_t>(header.biWidth);
+            const std::size_t height = header.biHeight < 0 ? static_cast<std::size_t>(-header.biHeight) : static_cast<std::size_t>(header.biHeight);
+            std::size_t bits = 0;
+            std::size_t rounded = 0;
+            std::size_t row = 0;
+            std::size_t bytes = 0;
+            std::size_t packed = 0;
+            std::size_t pixelRow = 0;
+            std::size_t pixelOffset = header.biSize;
+            bool explicitAlpha = false;
+            bool masksSupported = true;
+
+            // Accept only the documented RGB channel masks for bitfield DIBs.
+            if(header.biCompression == BI_BITFIELDS && header.biSize == sizeof(BITMAPINFOHEADER))
+            {
+                std::size_t masksEnd = 0;
+
+                if(!add(pixelOffset, 3 * sizeof(DWORD), masksEnd) || masksEnd > size)
+                {
+                    masksSupported = false;
+                }
+                else
+                {
+                    std::array<DWORD, 3> masks{};
+                    std::ranges::copy(
+                        span<const std::byte>(raw, size).subspan(pixelOffset, sizeof(masks)),
+                        std::as_writable_bytes(std::span{masks}).begin());
+                    masksSupported = masks[0] == 0x00FF0000U && masks[1] == 0x0000FF00U && masks[2] == 0x000000FFU;
+                    pixelOffset = masksEnd;
+                }
+            }
+            else if(header.biCompression == BI_BITFIELDS)
+            {
+                if(header.biSize < sizeof(BITMAPV4HEADER))
+                {
+                    masksSupported = false;
+                }
+                else
+                {
+                    BITMAPV4HEADER extended{};
+                    std::ranges::copy(
+                        span<const std::byte>(raw, sizeof(extended)),
+                        std::as_writable_bytes(std::span{&extended, std::size_t{1}}).begin());
+                    masksSupported = extended.bV4RedMask == 0x00FF0000U && extended.bV4GreenMask == 0x0000FF00U &&
+                                     extended.bV4BlueMask == 0x000000FFU && (extended.bV4AlphaMask == 0 || extended.bV4AlphaMask == 0xFF000000U);
+                    explicitAlpha = extended.bV4AlphaMask == 0xFF000000U;
+                }
+            }
+
+            if(!masksSupported)
+            {
+                return failure(ErrorCode::Unsupported);
+            }
+
+            // Check every row and destination extent before converting pixels.
+            if(!multiply(width, header.biBitCount, bits) || !add(bits, 31, rounded) || !multiply((rounded / 32), 4, row) ||
+               !multiply(row, height, bytes) || !multiply(width, 4, pixelRow) || !multiply(pixelRow, height, packed) || pixelOffset > size ||
+               bytes > size - pixelOffset)
+            {
+                return failure(ErrorCode::ReadFailed);
+            }
+
+            Transfer::Image image;
+            image.size = {static_cast<std::uint32_t>(width), static_cast<std::uint32_t>(height)};
+            image.rgba8.resize(packed);
+            const auto source = span<const std::byte>(raw, size).subspan(pixelOffset, bytes);
+
+            for(std::size_t y = 0; y < height; ++y)
+            {
+                const auto sourceRow = source.subspan((header.biHeight < 0 ? y : height - 1 - y) * row, row);
+                auto destinationRow = std::span{image.rgba8}.subspan(y * pixelRow, pixelRow);
+
+                for(std::size_t x = 0; x < width; ++x)
+                {
+                    const std::size_t pixel = x * (header.biBitCount / 8);
+                    destinationRow[x * 4] = sourceRow[pixel + 2];
+                    destinationRow[x * 4 + 1] = sourceRow[pixel + 1];
+                    destinationRow[x * 4 + 2] = sourceRow[pixel];
+                    destinationRow[x * 4 + 3] = explicitAlpha ? sourceRow[pixel + 3] : std::byte{0xFF};
+                }
+            }
+
+            out = std::move(image);
+            return GameWIP::Status::Types::Status{};
+        }
+    } // namespace
 
     /// @brief Decodes one locked HGLOBAL into a portable data-transfer item.
-    IO::Types::Status materializeGlobal(HGLOBAL global, const Transfer::Format &format, Transfer::Item &out) noexcept
+    GameWIP::Status::Types::Status materializeGlobal(HGLOBAL global, const Transfer::Format &format, Transfer::Item &out) noexcept
     {
         try
         {
@@ -614,7 +820,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
             if(format.kind == Transfer::FormatKind::Custom && size == 0)
             {
                 out = Transfer::CustomData{format.customName, {}};
-                return IO::successStatus();
+                return GameWIP::Status::Types::Status{};
             }
             GlobalMemoryLock lock(global);
             const void *raw = lock.get();
@@ -626,173 +832,18 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
 
             if(format.kind == Transfer::FormatKind::Text)
             {
-                // Reject unterminated or misaligned UTF-16 before converting foreign clipboard memory.
-                if(size < sizeof(wchar_t) || size % sizeof(wchar_t))
-                {
-                    return failure(ErrorCode::EncodingFailed);
-                }
-                auto wide = span<const wchar_t>(raw, size / sizeof(wchar_t));
-                auto end = std::ranges::find(wide, L'\0');
-
-                if(end == wide.end())
-                {
-                    return failure(ErrorCode::EncodingFailed);
-                }
-                Transfer::Text text;
-                DWORD code = 0;
-
-                if(!utf16ToUtf8({wide.data(), static_cast<std::size_t>(end - wide.begin())}, text.text, code))
-                {
-                    return failure(unicodeConversionError(code, ErrorCode::EncodingFailed), code);
-                }
-                out = std::move(text);
+                return materializeText(raw, size, out);
             }
-            else if(format.kind == Transfer::FormatKind::FileList)
+            if(format.kind == Transfer::FormatKind::FileList)
             {
-                const UINT count = DragQueryFileW(static_cast<HDROP>(global), 0xFFFFFFFF, nullptr, 0);
-
-                if(!count)
-                {
-                    return failure(ErrorCode::EncodingFailed);
-                }
-                Transfer::FileList list;
-                list.paths.reserve(count);
-
-                for(UINT i = 0; i < count; ++i)
-                {
-                    UINT n = DragQueryFileW(static_cast<HDROP>(global), i, nullptr, 0);
-
-                    if(!n)
-                    {
-                        return failure(ErrorCode::EncodingFailed);
-                    }
-                    std::wstring path(n + 1, L'\0');
-
-                    if(DragQueryFileW(static_cast<HDROP>(global), i, path.data(), n + 1) != n)
-                    {
-                        return failure(ErrorCode::ReadFailed);
-                    }
-                    path.resize(n);
-                    std::string validated;
-                    DWORD code = 0;
-
-                    if(!utf16ToUtf8(path, validated, code))
-                    {
-                        return failure(unicodeConversionError(code, ErrorCode::EncodingFailed), code);
-                    }
-                    list.paths.emplace_back(std::move(path));
-                }
-
-                out = std::move(list);
+                return materializeFiles(global, out);
             }
-            else if(format.kind == Transfer::FormatKind::Custom)
+            if(format.kind == Transfer::FormatKind::Custom)
             {
-                Transfer::CustomData data;
-                data.formatName = format.customName;
-                data.bytes.assign(span<const std::byte>(raw, size).begin(), span<const std::byte>(raw, size).end());
-                out = std::move(data);
-            }
-            else
-            {
-                if(size < sizeof(BITMAPINFOHEADER))
-                {
-                    return failure(ErrorCode::ReadFailed);
-                }
-                BITMAPINFOHEADER h{};
-                std::ranges::copy(span<const std::byte>(raw, sizeof(h)), std::as_writable_bytes(std::span{&h, std::size_t{1}}).begin());
-                const bool dimensionsValid =
-                    h.biSize >= sizeof(BITMAPINFOHEADER) && h.biSize <= size && h.biWidth > 0 && h.biHeight != 0 && h.biHeight != LONG_MIN;
-                const bool encodingSupported =
-                    h.biPlanes == 1 && ((h.biBitCount == 24 && h.biCompression == BI_RGB) ||
-                                        (h.biBitCount == 32 && (h.biCompression == BI_RGB || h.biCompression == BI_BITFIELDS)));
-
-                if(!dimensionsValid)
-                {
-                    return failure(ErrorCode::ReadFailed);
-                }
-
-                if(!encodingSupported)
-                {
-                    return failure(ErrorCode::Unsupported);
-                }
-                const std::size_t w = static_cast<std::size_t>(h.biWidth),
-                                  height = h.biHeight < 0 ? static_cast<std::size_t>(-h.biHeight) : static_cast<std::size_t>(h.biHeight);
-                std::size_t bits = 0, rounded = 0, row = 0, bytes = 0, packed = 0, pixelRow = 0;
-                std::size_t pixelOffset = h.biSize;
-                bool explicitAlpha = false;
-                bool masksSupported = true;
-
-                if(h.biCompression == BI_BITFIELDS && h.biSize == sizeof(BITMAPINFOHEADER))
-                {
-                    std::size_t masksEnd = 0;
-
-                    if(!add(pixelOffset, 3 * sizeof(DWORD), masksEnd) || masksEnd > size)
-                    {
-                        masksSupported = false;
-                    }
-                    else
-                    {
-                        std::array<DWORD, 3> masks{};
-                        std::ranges::copy(
-                            span<const std::byte>(raw, size).subspan(pixelOffset, sizeof(masks)),
-                            std::as_writable_bytes(std::span{masks}).begin());
-                        masksSupported = masks[0] == 0x00FF0000U && masks[1] == 0x0000FF00U && masks[2] == 0x000000FFU;
-                        pixelOffset = masksEnd;
-                    }
-                }
-                else if(h.biCompression == BI_BITFIELDS)
-                {
-                    if(h.biSize < sizeof(BITMAPV4HEADER))
-                    {
-                        masksSupported = false;
-                    }
-                    else
-                    {
-                        BITMAPV4HEADER extended{};
-                        std::ranges::copy(
-                            span<const std::byte>(raw, sizeof(extended)),
-                            std::as_writable_bytes(std::span{&extended, std::size_t{1}}).begin());
-                        masksSupported = extended.bV4RedMask == 0x00FF0000U && extended.bV4GreenMask == 0x0000FF00U &&
-                                         extended.bV4BlueMask == 0x000000FFU && (extended.bV4AlphaMask == 0 || extended.bV4AlphaMask == 0xFF000000U);
-                        explicitAlpha = extended.bV4AlphaMask == 0xFF000000U;
-                    }
-                }
-
-                if(!masksSupported)
-                {
-                    return failure(ErrorCode::Unsupported);
-                }
-
-                if(!multiply(w, h.biBitCount, bits) || !add(bits, 31, rounded) || !multiply((rounded / 32), 4, row) ||
-                   !multiply(row, height, bytes) || !multiply(w, 4, pixelRow) || !multiply(pixelRow, height, packed) || pixelOffset > size ||
-                   bytes > size - pixelOffset)
-                {
-                    return failure(ErrorCode::ReadFailed);
-                }
-                Transfer::Image image;
-                image.size = {static_cast<std::uint32_t>(w), static_cast<std::uint32_t>(height)};
-                image.rgba8.resize(packed);
-                auto src = span<const std::byte>(raw, size).subspan(pixelOffset, bytes);
-
-                for(std::size_t y = 0; y < height; ++y)
-                {
-                    auto s = src.subspan((h.biHeight < 0 ? y : height - 1 - y) * row, row);
-                    auto d = std::span{image.rgba8}.subspan(y * pixelRow, pixelRow);
-
-                    for(std::size_t x = 0; x < w; ++x)
-                    {
-                        auto p = x * (h.biBitCount / 8);
-                        d[x * 4] = s[p + 2];
-                        d[x * 4 + 1] = s[p + 1];
-                        d[x * 4 + 2] = s[p];
-                        d[x * 4 + 3] = explicitAlpha ? s[p + 3] : std::byte{0xFF};
-                    }
-                }
-
-                out = std::move(image);
+                return materializeCustom(raw, size, format, out);
             }
 
-            return IO::successStatus();
+            return materializeImage(raw, size, out);
         }
         catch(const std::bad_alloc &)
         {
@@ -805,9 +856,9 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
     }
 
     /// @brief Requests and decodes one portable item from a foreign data object.
-    IO::Types::Status materialize(IDataObject &object, const Transfer::Format &format, Transfer::Item &out) noexcept
+    GameWIP::Status::Types::Status materialize(IDataObject &object, const Transfer::Format &format, Transfer::Item &out) noexcept
     {
-        IO::Types::Status result;
+        GameWIP::Status::Types::Status result;
         CLIPFORMAT native = nativeFormat(format, result);
 
         if(!result.ok())
@@ -828,4 +879,4 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
         result = getGlobal(object, native, medium);
         return result.ok() ? materializeGlobal(medium.global(), format, out) : result;
     }
-} // namespace GameWIP::Desktop::Detail::Platform::DataTransfer
+} // namespace GameWIP::Desktop::Platform::DataTransfer

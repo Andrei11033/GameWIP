@@ -3,11 +3,12 @@
 
 #include "desktop/child_surface.h"
 
-#include "desktop/internal/child_surface_platform.h"
 #include "desktop/internal/child_surface_state.h"
-#include "desktop/internal/window_platform.h"
-#include "desktop/internal/window_state.h"
 #include "desktop/internal/desktop_test_hooks.h"
+#include "desktop/internal/results.h"
+#include "desktop/internal/window_state.h"
+#include "desktop/platform/child_surface.h"
+#include "desktop/platform/window.h"
 
 #include <cmath>
 #include <new>
@@ -16,30 +17,30 @@
 
 namespace GameWIP::Desktop
 {
-    // ------------------------------------------------------------
-    // Validation and cached-state helpers
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Validation and cached-state helpers
+    /// ------------------------------------------------------------
 
     namespace
     {
-        using IO::Types::ErrorCode;
+        using ErrorCode = GameWIP::Status::Types::Code;
 
         /// @brief Builds a portable status from a single error code.
-        [[nodiscard]] IO::Types::Status error(ErrorCode code) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status error(ErrorCode code) noexcept
         {
-            return IO::makeStatus(code);
+            return GameWIP::Desktop::Internal::statusFor(code);
         }
 
         /// @brief Returns the state only when the current thread owns the ChildSurface lifetime.
-        [[nodiscard]] Detail::ChildSurfaceState *owned(Detail::ChildSurfaceState *state) noexcept
+        [[nodiscard]] Internal::ChildSurfaceState *owned(Internal::ChildSurfaceState *state) noexcept
         {
             return state != nullptr && state->ownerThread == std::this_thread::get_id() ? state : nullptr;
         }
 
         /// @brief Validates both native liveness and owner-thread access for a mutating operation.
-        [[nodiscard]] IO::Types::Status requireOpen(Detail::ChildSurfaceState *state) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status requireOpen(Internal::ChildSurfaceState *state) noexcept
         {
-            if(state == nullptr || !Detail::Platform::hasLiveNativeChildSurface(*state))
+            if(state == nullptr || !Platform::hasLiveNativeChildSurface(*state))
             {
                 return error(ErrorCode::NotOpen);
             }
@@ -49,7 +50,7 @@ namespace GameWIP::Desktop
                 return error(ErrorCode::ResourceBusy);
             }
 
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
 
         /// @brief Converts baseline logical units to physical pixels using the current effective DPI.
@@ -62,7 +63,7 @@ namespace GameWIP::Desktop
         }
 
         /// @brief Seeds portable state before native creation and suppresses construction-time events.
-        void initializeCachedState(Detail::ChildSurfaceState &state, const Types::ChildSurface::Description &description) noexcept
+        void initializeCachedState(Internal::ChildSurfaceState &state, const Types::ChildSurface::Description &description) noexcept
         {
             state.ownerThread = std::this_thread::get_id();
             state.rect = description.rect;
@@ -72,34 +73,34 @@ namespace GameWIP::Desktop
         }
 
         /// @brief Releases retained queue entries before state storage is destroyed or replaced.
-        void releaseEventStorage(Detail::ChildSurfaceState &state) noexcept
+        void releaseEventStorage(Internal::ChildSurfaceState &state) noexcept
         {
             state.clearRetainedEvents();
         }
 
         /// @brief Publishes only the geometry events whose cached values changed.
-        void queueGeometryChanges(Detail::ChildSurfaceState &state, Types::LogicalRect previous, Types::PixelSize previousPixels) noexcept
+        void queueGeometryChanges(Internal::ChildSurfaceState &state, Types::LogicalRect previous, Types::PixelSize previousPixels) noexcept
         {
             if(previous.position != state.rect.position)
             {
-                static_cast<void>(Detail::enqueueChildSurfaceEvent(state, Types::ChildSurface::Events::PositionChanged{state.rect.position}));
+                static_cast<void>(Internal::enqueueChildSurfaceEvent(state, Types::ChildSurface::Events::PositionChanged{state.rect.position}));
             }
 
             if(previous.size != state.rect.size)
             {
-                static_cast<void>(Detail::enqueueChildSurfaceEvent(state, Types::ChildSurface::Events::SizeChanged{state.rect.size}));
+                static_cast<void>(Internal::enqueueChildSurfaceEvent(state, Types::ChildSurface::Events::SizeChanged{state.rect.size}));
             }
 
             if(previousPixels != state.pixelSize)
             {
-                static_cast<void>(Detail::enqueueChildSurfaceEvent(state, Types::ChildSurface::Events::PixelSizeChanged{state.pixelSize}));
+                static_cast<void>(Internal::enqueueChildSurfaceEvent(state, Types::ChildSurface::Events::PixelSizeChanged{state.pixelSize}));
             }
         }
     } // namespace
 
-    // ------------------------------------------------------------
-    // Lifecycle and ownership
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Lifecycle and ownership
+    /// ------------------------------------------------------------
 
     ChildSurface::ChildSurface() noexcept = default;
 
@@ -110,27 +111,28 @@ namespace GameWIP::Desktop
             return;
         }
 
-        if(!Detail::Platform::isChildSurfaceOwnedByCurrentThread(*state_) && Detail::Platform::deferChildSurfaceCleanupToOwner(state_))
+        if(!Platform::isChildSurfaceOwnedByCurrentThread(*state_) && Platform::deferChildSurfaceCleanupToOwner(state_))
         {
             return;
         }
-        Detail::Platform::closeChildSurfaceBestEffort(*state_);
+        Platform::closeChildSurfaceBestEffort(*state_);
         releaseEventStorage(*state_);
     }
 
-    IO::Types::Status ChildSurface::open(Window &parent, const Types::ChildSurface::Description &description) noexcept
+    GameWIP::Status::Types::Result<void> ChildSurface::open(Window &parent, const Types::ChildSurface::Description &description) noexcept
     {
         return open(parent, description, Types::ChildSurface::QueueConfiguration::owned());
     }
 
-    IO::Types::Status ChildSurface::open(
+    GameWIP::Status::Types::Result<void> ChildSurface::open(
         Window &parent,
         const Types::ChildSurface::Description &description,
         Types::ChildSurface::QueueConfiguration queue) noexcept
     {
+        // Validate the wrapper and requested queue storage.
         if(state_)
         {
-            return error(ErrorCode::AlreadyOpen);
+            return Internal::result(error(ErrorCode::AlreadyOpen));
         }
 
         const auto *ownedQueue = std::get_if<Types::ChildSurface::QueueConfiguration::Owned>(&queue.storage);
@@ -138,36 +140,38 @@ namespace GameWIP::Desktop
 
         if((ownedQueue != nullptr && ownedQueue->capacity == 0) || (borrowedQueue != nullptr && borrowedQueue->storage.empty()))
         {
-            return error(ErrorCode::InvalidArgument);
+            return Internal::result(error(ErrorCode::InvalidArgument));
         }
 
-        Detail::WindowState *parentState = Detail::WindowAccess::state(parent);
+        // Require a live parent owned by the calling thread.
+        Internal::WindowState *parentState = Internal::WindowAccess::state(parent);
 
-        if(parentState == nullptr || !Detail::Platform::hasLiveNativeWindow(*parentState))
+        if(parentState == nullptr || !Platform::hasLiveNativeWindow(*parentState))
         {
-            return error(ErrorCode::NotOpen);
+            return Internal::result(error(ErrorCode::NotOpen));
         }
 
-        if(!Detail::Platform::ownedByCurrentThread(*parentState))
+        if(!Platform::ownedByCurrentThread(*parentState))
         {
-            return error(ErrorCode::ResourceBusy);
+            return Internal::result(error(ErrorCode::ResourceBusy));
         }
 
-        if(Detail::consumeFailure(TestHooks::FailurePoint::Allocation))
+        if(Internal::consumeFailure(Internal::TestHooks::FailurePoint::Allocation))
         {
-            return error(ErrorCode::OutOfMemory);
+            return Internal::result(error(ErrorCode::OutOfMemory));
         }
 
         try
         {
-            auto candidate = std::make_unique<Detail::ChildSurfaceState>();
+            // Allocate state and bind the selected event-storage policy.
+            auto candidate = std::make_unique<Internal::ChildSurfaceState>();
             initializeCachedState(*candidate, description);
 
             if(ownedQueue != nullptr)
             {
                 if(ownedQueue->capacity > candidate->internalEvents.max_size())
                 {
-                    return error(ErrorCode::InvalidArgument);
+                    return Internal::result(error(ErrorCode::InvalidArgument));
                 }
                 candidate->internalEvents.resize(ownedQueue->capacity);
                 candidate->eventStorage = candidate->internalEvents;
@@ -180,29 +184,31 @@ namespace GameWIP::Desktop
             }
 
             candidate->parentId = parentState->id;
-            IO::Types::Status status = Detail::Platform::openChildSurface(*candidate, *parentState);
+
+            // Open the native surface before publishing the candidate state.
+            GameWIP::Status::Types::Status status = Platform::openChildSurface(*candidate, *parentState);
             if(!status.ok())
             {
-                Detail::Platform::closeChildSurfaceBestEffort(*candidate);
-                return status;
+                Platform::closeChildSurfaceBestEffort(*candidate);
+                return Internal::result(status);
             }
             candidate->suppressEvents = false;
             state_ = std::move(candidate);
-            return IO::successStatus();
+            return GameWIP::Status::Types::Result<void>::success();
         }
         catch(const std::bad_alloc &)
         {
-            return error(ErrorCode::OutOfMemory);
+            return Internal::result(error(ErrorCode::OutOfMemory));
         }
         catch(...)
         {
-            return error(ErrorCode::Unknown);
+            return Internal::result(error(ErrorCode::Unknown));
         }
     }
 
     bool ChildSurface::isOpen() const noexcept
     {
-        return state_ != nullptr && Detail::Platform::hasLiveNativeChildSurface(*state_);
+        return state_ != nullptr && Platform::hasLiveNativeChildSurface(*state_);
     }
 
     Types::LifetimeState ChildSurface::lifetimeState() const noexcept
@@ -220,8 +226,9 @@ namespace GameWIP::Desktop
         return isOpen() ? Types::LifetimeState::Open : Types::LifetimeState::Closed;
     }
 
-    IO::Types::Status ChildSurface::close() noexcept
+    GameWIP::Status::Types::Result<void> ChildSurface::close() noexcept
     {
+        // Release portable state when no native cleanup remains.
         if(!isOpen() && (!state_ || !state_->nativeDestroyedPendingFinalize))
         {
             if(state_)
@@ -229,28 +236,30 @@ namespace GameWIP::Desktop
                 releaseEventStorage(*state_);
             }
             state_.reset();
-            return IO::successStatus();
+            return GameWIP::Status::Types::Result<void>::success();
         }
 
+        // Native teardown must run on the surface's owner thread.
         if(owned(state_.get()) == nullptr)
         {
-            return error(ErrorCode::ResourceBusy);
+            return Internal::result(error(ErrorCode::ResourceBusy));
         }
 
-        Detail::Platform::CloseResult result = Detail::Platform::closeChildSurface(*state_);
+        Platform::CloseResult result = Platform::closeChildSurface(*state_);
 
-        if(result.resourceClosed)
+        // Retain state only when the backend still owns a native resource.
+        if(result.hasValue() && result.value())
         {
             releaseEventStorage(*state_);
             state_.reset();
         }
 
-        return result.status;
+        return Internal::result(result.status());
     }
 
-    // ------------------------------------------------------------
-    // Cached state and event queue
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Cached state and event queue
+    /// ------------------------------------------------------------
 
     Types::WindowId ChildSurface::parentId() const noexcept
     {
@@ -372,182 +381,184 @@ namespace GameWIP::Desktop
         return state_ && state_->interactionEnabled;
     }
 
-    // ------------------------------------------------------------
-    // Geometry and coordinate conversion
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Geometry and coordinate conversion
+    /// ------------------------------------------------------------
 
-    IO::Types::Status ChildSurface::setRect(Types::LogicalRect newRect) noexcept
+    GameWIP::Status::Types::Result<void> ChildSurface::setRect(Types::LogicalRect newRect) noexcept
     {
-        IO::Types::Status status = requireOpen(state_.get());
+        GameWIP::Status::Types::Status status = requireOpen(state_.get());
 
         if(!status.ok())
         {
-            return status;
+            return Internal::result(status);
         }
 
         const Types::LogicalRect previous = state_->rect;
         const Types::PixelSize previousPixels = state_->pixelSize;
-        status = Detail::Platform::setChildSurfaceRect(*state_, newRect);
+        status = Platform::setChildSurfaceRect(*state_, newRect);
 
         if(!status.ok())
         {
-            return status;
+            return Internal::result(status);
         }
 
         state_->rect = newRect;
         state_->pixelSize = physicalSize(newRect.size, state_->dpi);
         queueGeometryChanges(*state_, previous, previousPixels);
-        return IO::successStatus();
+        return GameWIP::Status::Types::Result<void>::success();
     }
 
-    IO::Types::Status ChildSurface::setPosition(Types::LogicalPosition newPosition) noexcept
+    GameWIP::Status::Types::Result<void> ChildSurface::setPosition(Types::LogicalPosition newPosition) noexcept
     {
         Types::LogicalRect newRect = rect();
         newRect.position = newPosition;
         return setRect(newRect);
     }
 
-    IO::Types::Status ChildSurface::setSize(Types::LogicalSize newSize) noexcept
+    GameWIP::Status::Types::Result<void> ChildSurface::setSize(Types::LogicalSize newSize) noexcept
     {
         Types::LogicalRect newRect = rect();
         newRect.size = newSize;
         return setRect(newRect);
     }
 
-    Types::Result<Types::ScreenPosition> ChildSurface::clientToScreen(Types::LogicalPosition position) const noexcept
+    GameWIP::Status::Types::Result<Types::ScreenPosition> ChildSurface::clientToScreen(Types::LogicalPosition position) const noexcept
     {
-        IO::Types::Status status = requireOpen(state_.get());
+        GameWIP::Status::Types::Status status = requireOpen(state_.get());
 
         if(!status.ok())
         {
-            return {.status = std::move(status)};
+            return GameWIP::Status::Types::Result<Types::ScreenPosition>::failure(status);
         }
 
-        return Detail::Platform::childSurfaceClientToScreen(*state_, position);
+        auto result = Platform::childSurfaceClientToScreen(*state_, position);
+        return result;
     }
 
-    Types::Result<Types::LogicalPosition> ChildSurface::screenToClient(Types::ScreenPosition position) const noexcept
+    GameWIP::Status::Types::Result<Types::LogicalPosition> ChildSurface::screenToClient(Types::ScreenPosition position) const noexcept
     {
-        IO::Types::Status status = requireOpen(state_.get());
+        GameWIP::Status::Types::Status status = requireOpen(state_.get());
 
         if(!status.ok())
         {
-            return {.status = std::move(status)};
+            return GameWIP::Status::Types::Result<Types::LogicalPosition>::failure(status);
         }
 
-        return Detail::Platform::childSurfaceScreenToClient(*state_, position);
+        auto result = Platform::childSurfaceScreenToClient(*state_, position);
+        return result;
     }
 
-    // ------------------------------------------------------------
-    // Visibility and sibling ordering
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Visibility and sibling ordering
+    /// ------------------------------------------------------------
 
-    IO::Types::Status ChildSurface::show() noexcept
+    GameWIP::Status::Types::Result<void> ChildSurface::show() noexcept
     {
-        IO::Types::Status status = requireOpen(state_.get());
+        GameWIP::Status::Types::Status status = requireOpen(state_.get());
 
         if(!status.ok() || state_->visible)
         {
-            return status;
+            return Internal::result(status);
         }
 
-        status = Detail::Platform::showChildSurface(*state_, true);
+        status = Platform::showChildSurface(*state_, true);
 
         if(status.ok())
         {
             state_->visible = true;
-            static_cast<void>(Detail::enqueueChildSurfaceEvent(*state_, Types::ChildSurface::Events::VisibilityChanged{true}));
+            static_cast<void>(Internal::enqueueChildSurfaceEvent(*state_, Types::ChildSurface::Events::VisibilityChanged{true}));
         }
 
-        return status;
+        return Internal::result(status);
     }
 
-    IO::Types::Status ChildSurface::hide() noexcept
+    GameWIP::Status::Types::Result<void> ChildSurface::hide() noexcept
     {
-        IO::Types::Status status = requireOpen(state_.get());
+        GameWIP::Status::Types::Status status = requireOpen(state_.get());
 
         if(!status.ok() || !state_->visible)
         {
-            return status;
+            return Internal::result(status);
         }
 
-        status = Detail::Platform::showChildSurface(*state_, false);
+        status = Platform::showChildSurface(*state_, false);
 
         if(status.ok())
         {
             state_->visible = false;
-            static_cast<void>(Detail::enqueueChildSurfaceEvent(*state_, Types::ChildSurface::Events::VisibilityChanged{false}));
+            static_cast<void>(Internal::enqueueChildSurfaceEvent(*state_, Types::ChildSurface::Events::VisibilityChanged{false}));
         }
 
-        return status;
+        return Internal::result(status);
     }
 
-    IO::Types::Status ChildSurface::setUserInteractionEnabled(bool enabled) noexcept
+    GameWIP::Status::Types::Result<void> ChildSurface::setUserInteractionEnabled(bool enabled) noexcept
     {
-        IO::Types::Status status = requireOpen(state_.get());
+        GameWIP::Status::Types::Status status = requireOpen(state_.get());
 
         if(!status.ok() || state_->interactionEnabled == enabled)
         {
-            return status;
+            return Internal::result(status);
         }
 
-        status = Detail::Platform::setChildSurfaceInteractionEnabled(*state_, enabled);
+        status = Platform::setChildSurfaceInteractionEnabled(*state_, enabled);
 
         if(status.ok())
         {
             state_->interactionEnabled = enabled;
         }
 
-        return status;
+        return Internal::result(status);
     }
 
-    IO::Types::Status ChildSurface::bringToFront() noexcept
+    GameWIP::Status::Types::Result<void> ChildSurface::bringToFront() noexcept
     {
-        IO::Types::Status status = requireOpen(state_.get());
-        return status.ok() ? Detail::Platform::orderChildSurfaceEdge(*state_, true) : status;
+        GameWIP::Status::Types::Status status = requireOpen(state_.get());
+        return Internal::result(status.ok() ? Platform::orderChildSurfaceEdge(*state_, true) : status);
     }
 
-    IO::Types::Status ChildSurface::sendToBack() noexcept
+    GameWIP::Status::Types::Result<void> ChildSurface::sendToBack() noexcept
     {
-        IO::Types::Status status = requireOpen(state_.get());
-        return status.ok() ? Detail::Platform::orderChildSurfaceEdge(*state_, false) : status;
+        GameWIP::Status::Types::Status status = requireOpen(state_.get());
+        return Internal::result(status.ok() ? Platform::orderChildSurfaceEdge(*state_, false) : status);
     }
 
-    IO::Types::Status ChildSurface::placeAbove(const ChildSurface &sibling) noexcept
+    GameWIP::Status::Types::Result<void> ChildSurface::placeAbove(const ChildSurface &sibling) noexcept
     {
-        IO::Types::Status status = requireOpen(state_.get());
+        GameWIP::Status::Types::Status status = requireOpen(state_.get());
 
         if(!status.ok())
         {
-            return status;
+            return Internal::result(status);
         }
 
-        const Detail::ChildSurfaceState *siblingState = sibling.state_.get();
+        const Internal::ChildSurfaceState *siblingState = sibling.state_.get();
 
-        if(&sibling == this || siblingState == nullptr || !Detail::Platform::hasLiveNativeChildSurface(*siblingState) ||
+        if(&sibling == this || siblingState == nullptr || !Platform::hasLiveNativeChildSurface(*siblingState) ||
            siblingState->parentId != state_->parentId || siblingState->ownerThread != state_->ownerThread)
         {
-            return error(ErrorCode::InvalidArgument);
+            return Internal::result(error(ErrorCode::InvalidArgument));
         }
-        return Detail::Platform::orderChildSurface(*state_, siblingState, true);
+        return Internal::result(Platform::orderChildSurface(*state_, siblingState, true));
     }
 
-    IO::Types::Status ChildSurface::placeBelow(const ChildSurface &sibling) noexcept
+    GameWIP::Status::Types::Result<void> ChildSurface::placeBelow(const ChildSurface &sibling) noexcept
     {
-        IO::Types::Status status = requireOpen(state_.get());
+        GameWIP::Status::Types::Status status = requireOpen(state_.get());
 
         if(!status.ok())
         {
-            return status;
+            return Internal::result(status);
         }
 
-        const Detail::ChildSurfaceState *siblingState = sibling.state_.get();
+        const Internal::ChildSurfaceState *siblingState = sibling.state_.get();
 
-        if(&sibling == this || siblingState == nullptr || !Detail::Platform::hasLiveNativeChildSurface(*siblingState) ||
+        if(&sibling == this || siblingState == nullptr || !Platform::hasLiveNativeChildSurface(*siblingState) ||
            siblingState->parentId != state_->parentId || siblingState->ownerThread != state_->ownerThread)
         {
-            return error(ErrorCode::InvalidArgument);
+            return Internal::result(error(ErrorCode::InvalidArgument));
         }
-        return Detail::Platform::orderChildSurface(*state_, siblingState, false);
+        return Internal::result(Platform::orderChildSurface(*state_, siblingState, false));
     }
 } // namespace GameWIP::Desktop

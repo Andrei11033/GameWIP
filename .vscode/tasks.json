@@ -4,8 +4,12 @@
     {
       "label": "GameWIP: Configure Development",
       "type": "process",
-      "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["config", "dev"],
+      "command": "bash",
+      "args": ["./gamewip.sh", "config", "dev"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["config", "dev"]
+      },
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -18,8 +22,12 @@
     {
       "label": "GameWIP: Build Development",
       "type": "process",
-      "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["build", "dev"],
+      "command": "bash",
+      "args": ["./gamewip.sh", "build", "dev"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["build", "dev"]
+      },
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -32,17 +40,53 @@
       }
     },
     {
+      "label": "GameWIP: Clean Build Development",
+      "type": "process",
+      "command": "bash",
+      "args": ["./gamewip.sh", "build", "dev", "-CleanBuild"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["build", "dev", "-CleanBuild"]
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "GameWIP: Run Development",
       "type": "process",
-      "command": "${workspaceFolder}\\build\\dev\\GameWIP.exe",
+      "command": "bash",
+      "args": ["./gamewip.sh", "run", "game-dev", "-SkipBuild"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["run", "game-dev", "-SkipBuild"]
+      },
       "options": {
-        "cwd": "${workspaceFolder}\\build\\dev",
-        "env": {
-          "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
-        }
+        "cwd": "${workspaceFolder}"
       },
       "problemMatcher": [],
       "dependsOn": "GameWIP: Build Development",
+      "dependsOrder": "sequence",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "GameWIP: Run Development (Clean Build)",
+      "type": "process",
+      "command": "bash",
+      "args": ["./gamewip.sh", "run", "game-dev", "-SkipBuild"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["run", "game-dev", "-SkipBuild"]
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "dependsOn": "GameWIP: Clean Build Development",
       "dependsOrder": "sequence",
       "presentation": {
         "reveal": "always",
@@ -52,13 +96,14 @@
     {
       "label": "GameWIP: Run Development With Startup Tests",
       "type": "process",
-      "command": "${workspaceFolder}\\build\\dev\\GameWIP.exe",
-      "args": ["--startup-tests"],
+      "command": "bash",
+      "args": ["./gamewip.sh", "run", "game-dev-startup-tests", "-SkipBuild"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["run", "game-dev-startup-tests", "-SkipBuild"]
+      },
       "options": {
-        "cwd": "${workspaceFolder}\\build\\dev",
-        "env": {
-          "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
-        }
+        "cwd": "${workspaceFolder}"
       },
       "problemMatcher": [],
       "dependsOn": "GameWIP: Build Development",
@@ -69,10 +114,34 @@
       }
     },
     {
+      "label": "GameWIP: Run Development With Startup Tests (Clean Build)",
+      "type": "process",
+      "command": "bash",
+      "args": ["./gamewip.sh", "run", "game-dev-startup-tests", "-SkipBuild"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["run", "game-dev-startup-tests", "-SkipBuild"]
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "dependsOn": "GameWIP: Clean Build Development",
+      "dependsOrder": "sequence",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
       "label": "GameWIP: Configure Tests",
       "type": "process",
-      "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["config", "test"],
+      "command": "bash",
+      "args": ["./gamewip.sh", "config", "test"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["config", "test"]
+      },
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -85,8 +154,12 @@
     {
       "label": "GameWIP: Build Tests",
       "type": "process",
-      "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["build", "test"],
+      "command": "bash",
+      "args": ["./gamewip.sh", "build", "test"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["build", "test"]
+      },
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -96,10 +169,114 @@
       "hide": true
     },
     {
+      "label": "GameWIP: Configure Profile",
+      "type": "process",
+      "command": "bash",
+      "args": ["./gamewip.sh", "config", "profile"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["config", "profile"]
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent"
+      },
+      "hide": true
+    },
+    {
+      "label": "GameWIP: Build Profile",
+      "type": "process",
+      "command": "bash",
+      "args": ["./gamewip.sh", "build", "profile"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["build", "profile"]
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "dependsOn": "GameWIP: Configure Profile",
+      "dependsOrder": "sequence",
+      "hide": true
+    },
+    {
+      "label": "GameWIP: Clean Build Profile",
+      "type": "process",
+      "command": "bash",
+      "args": ["./gamewip.sh", "build", "profile", "-CleanBuild"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["build", "profile", "-CleanBuild"]
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "hide": true
+    },
+    {
+      "label": "GameWIP: Configure Release",
+      "type": "process",
+      "command": "bash",
+      "args": ["./gamewip.sh", "config", "release"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["config", "release"]
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent"
+      },
+      "hide": true
+    },
+    {
+      "label": "GameWIP: Build Release",
+      "type": "process",
+      "command": "bash",
+      "args": ["./gamewip.sh", "build", "release"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["build", "release"]
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "dependsOn": "GameWIP: Configure Release",
+      "dependsOrder": "sequence",
+      "hide": true
+    },
+    {
+      "label": "GameWIP: Clean Build Release",
+      "type": "process",
+      "command": "bash",
+      "args": ["./gamewip.sh", "build", "release", "-CleanBuild"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["build", "release", "-CleanBuild"]
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "hide": true
+    },
+    {
       "label": "GameWIP: Test",
       "type": "process",
-      "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["test", "test", "-SkipBuild"],
+      "command": "bash",
+      "args": ["./gamewip.sh", "test", "test", "-SkipBuild"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["test", "test", "-SkipBuild"]
+      },
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -112,10 +289,28 @@
       }
     },
     {
+      "label": "GameWIP: Test (Clean Build)",
+      "type": "process",
+      "command": "bash",
+      "args": ["./gamewip.sh", "test", "test", "-CleanBuild"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["test", "test", "-CleanBuild"]
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "GameWIP: Benchmark",
       "type": "process",
-      "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["bench", "run"],
+      "command": "bash",
+      "args": ["./gamewip.sh", "bench", "run"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["bench", "run"]
+      },
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -123,41 +318,73 @@
     },
     {
       "label": "GameWIP: Profile",
-      "type": "shell",
-      "command": "cmake --preset profile; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; cmake --build --preset profile --parallel; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; $profiler = 'C:\\MSYS2\\GameWIPTools\\tools\\tracy\\tracy-profiler.exe'; if (!(Test-Path -LiteralPath $profiler)) { throw 'Matching Tracy profiler tools are missing; run setup.bat profiler.' }; if ($null -eq (Get-Process -Name tracy-profiler -ErrorAction SilentlyContinue)) { Start-Process -FilePath $profiler -WorkingDirectory (Split-Path $profiler) }; & '${workspaceFolder}\\build\\profile\\GameWIP.exe'",
-      "options": {
-        "cwd": "${workspaceFolder}",
-        "env": {
-          "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
-        },
-        "shell": {
-          "executable": "powershell.exe",
-          "args": ["-NoProfile", "-Command"]
-        }
+      "type": "process",
+      "command": "bash",
+      "args": ["./gamewip.sh", "run", "game-profile", "-SkipBuild"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["run", "game-profile", "-SkipBuild"]
       },
-      "problemMatcher": []
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "dependsOn": "GameWIP: Build Profile",
+      "dependsOrder": "sequence",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "GameWIP: Profile (Clean Build)",
+      "type": "process",
+      "command": "bash",
+      "args": ["./gamewip.sh", "run", "game-profile", "-SkipBuild"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["run", "game-profile", "-SkipBuild"]
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "dependsOn": "GameWIP: Clean Build Profile",
+      "dependsOrder": "sequence",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
     },
     {
       "label": "GameWIP: Profile Startup Tests",
-      "type": "shell",
-      "command": "cmake --preset profile; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; cmake --build --preset profile --parallel; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; $profiler = 'C:\\MSYS2\\GameWIPTools\\tools\\tracy\\tracy-profiler.exe'; if (!(Test-Path -LiteralPath $profiler)) { throw 'Matching Tracy profiler tools are missing; run setup.bat profiler.' }; if ($null -eq (Get-Process -Name tracy-profiler -ErrorAction SilentlyContinue)) { Start-Process -FilePath $profiler -WorkingDirectory (Split-Path $profiler) }; Push-Location '${workspaceFolder}\\build\\profile'; & '.\\GameWIP.exe' --startup-tests; $exitCode = $LASTEXITCODE; Pop-Location; exit $exitCode",
-      "options": {
-        "cwd": "${workspaceFolder}",
-        "env": {
-          "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
-        },
-        "shell": {
-          "executable": "powershell.exe",
-          "args": ["-NoProfile", "-Command"]
-        }
+      "type": "process",
+      "command": "bash",
+      "args": ["./gamewip.sh", "run", "game-profile-startup-tests", "-SkipBuild"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["run", "game-profile-startup-tests", "-SkipBuild"]
       },
-      "problemMatcher": []
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "dependsOn": "GameWIP: Build Profile",
+      "dependsOrder": "sequence",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
     },
     {
       "label": "GameWIP: Coverage",
       "type": "process",
-      "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["cov"],
+      "command": "bash",
+      "args": ["./gamewip.sh", "cov"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["cov"]
+      },
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -166,34 +393,52 @@
     {
       "label": "GameWIP: Address Sanitizer",
       "type": "process",
-      "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["asan"],
-      "options": {
-        "cwd": "${workspaceFolder}",
-        "env": {
-          "PATH": "C:\\MSYS2\\clang64\\bin;${env:PATH}"
+      "command": "bash",
+      "args": ["./gamewip.sh", "asan"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["asan"],
+        "options": {
+          "cwd": "${workspaceFolder}",
+          "env": {
+            "PATH": "${command:gamewip-workflows.targetRuntimePath}"
+          }
         }
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
       },
       "problemMatcher": []
     },
     {
       "label": "GameWIP: Undefined Behavior Sanitizer",
       "type": "process",
-      "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["ubsan"],
-      "options": {
-        "cwd": "${workspaceFolder}",
-        "env": {
-          "PATH": "C:\\MSYS2\\clang64\\bin;${env:PATH}"
+      "command": "bash",
+      "args": ["./gamewip.sh", "ubsan"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["ubsan"],
+        "options": {
+          "cwd": "${workspaceFolder}",
+          "env": {
+            "PATH": "${command:gamewip-workflows.targetRuntimePath}"
+          }
         }
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
       },
       "problemMatcher": []
     },
     {
       "label": "GameWIP: Analyze",
       "type": "process",
-      "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["analyze"],
+      "command": "bash",
+      "args": ["./gamewip.sh", "analyze"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["analyze"]
+      },
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -202,8 +447,12 @@
     {
       "label": "GameWIP: Quality Check",
       "type": "process",
-      "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["quality", "check"],
+      "command": "bash",
+      "args": ["./gamewip.sh", "quality", "check"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["quality", "check"]
+      },
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -212,8 +461,12 @@
     {
       "label": "GameWIP: Tools Status",
       "type": "process",
-      "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["tool", "status"],
+      "command": "bash",
+      "args": ["./gamewip.sh", "tool", "status"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["tool", "status"]
+      },
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -222,8 +475,26 @@
     {
       "label": "GameWIP: Documentation",
       "type": "process",
-      "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["doc"],
+      "command": "bash",
+      "args": ["./gamewip.sh", "doc"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["doc"]
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "GameWIP: Documentation (Clean Build)",
+      "type": "process",
+      "command": "bash",
+      "args": ["./gamewip.sh", "doc", "-CleanBuild"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["doc", "-CleanBuild"]
+      },
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -231,19 +502,43 @@
     },
     {
       "label": "GameWIP: Run Release",
-      "type": "shell",
-      "command": "& '${workspaceFolder}\\gamewip.bat' build release; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; & '${workspaceFolder}\\build\\release\\GameWIP.exe'",
-      "options": {
-        "cwd": "${workspaceFolder}",
-        "env": {
-          "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
-        },
-        "shell": {
-          "executable": "powershell.exe",
-          "args": ["-NoProfile", "-Command"]
-        }
+      "type": "process",
+      "command": "bash",
+      "args": ["./gamewip.sh", "run", "game-release", "-SkipBuild"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["run", "game-release", "-SkipBuild"]
       },
-      "problemMatcher": []
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "dependsOn": "GameWIP: Build Release",
+      "dependsOrder": "sequence",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "GameWIP: Run Release (Clean Build)",
+      "type": "process",
+      "command": "bash",
+      "args": ["./gamewip.sh", "run", "game-release", "-SkipBuild"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["run", "game-release", "-SkipBuild"]
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "dependsOn": "GameWIP: Clean Build Release",
+      "dependsOrder": "sequence",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
     }
   ]
 }

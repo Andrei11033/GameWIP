@@ -167,11 +167,11 @@ A failed platform write can have emitted a prefix. Terminal reports completion s
 
 ## Byte writes
 
-`writeBytes()` returns `IO::Types::WriteResult`. Real Win32 console handles do not support arbitrary byte output; redirected endpoints can accept
-bytes.
+`writeBytes()` returns `GameWIP::Status::Types::Result<IO::Types::WriteProgress>`. Real Win32 console handles do not support arbitrary byte output;
+redirected endpoints can accept bytes.
 
-`bytesWritten` reports bytes accepted before the operation stopped. If a requested flush fails after all bytes were written, `bytesWritten` can equal
-the full input size while `status` is a failure.
+The value's `bytesWritten` field reports bytes accepted before the operation stopped. If a requested flush fails after all bytes were written, the
+result can fail while retaining the full input size as progress.
 
 ## Segmented writes
 
@@ -231,7 +231,8 @@ is not retried later out of order.
 
 ## Failure and exception model
 
-Expected option, endpoint, ownership, capability, Unicode, cancellation, formatting, allocation, and backend failures use IO statuses/results. Checked
+Expected option, endpoint, ownership, capability, Unicode, cancellation, formatting, allocation, and backend failures use the shared
+`GameWIP::Status` results. Checked
 direct Terminal operations, Session operations, and `OutputBuffer` allocating mutations/formatting are `noexcept`; once control enters a checked
 Terminal operation, implementation-owned failure is represented through its status/result. Caller argument construction still occurs before that
 boundary.

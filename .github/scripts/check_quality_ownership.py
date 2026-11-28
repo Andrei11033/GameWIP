@@ -12,6 +12,11 @@ ROOT = Path(__file__).resolve().parents[2]
 POLICY_PATH = ROOT / "config/quality/file-ownership.json"
 
 
+# ------------------------------------------------------------
+# File ownership rules
+# ------------------------------------------------------------
+
+
 def maintained_worktree_files() -> list[Path]:
     result = subprocess.run(
         ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"],
@@ -46,6 +51,11 @@ def classify(path: Path, policies: list[dict[str, object]]) -> dict[str, object]
         return matches[0] if len(matches) == 1 else None
     matches = [policy for policy in policies if extension in {str(item).lower() for item in policy.get("extensions", [])}]
     return matches[0] if len(matches) == 1 else None
+
+
+# ------------------------------------------------------------
+# Text and syntax checks
+# ------------------------------------------------------------
 
 
 def generic_text_failures(path: Path, allow_trailing: bool) -> list[str]:
@@ -91,6 +101,11 @@ def owner_syntax_failures(path: Path, policy_id: str) -> list[str]:
     return []
 
 
+# ------------------------------------------------------------
+# Validation entry point
+# ------------------------------------------------------------
+
+
 def main() -> int:
     config = json.loads(POLICY_PATH.read_text(encoding="utf-8"))
     excludes = tuple(config["excludePrefixes"])
@@ -102,6 +117,7 @@ def main() -> int:
     intentional_no_format = 0
     binary_count = 0
 
+    # Apply one owner policy to each maintained text file.
     for path in maintained_worktree_files():
         rel = relative(path)
 

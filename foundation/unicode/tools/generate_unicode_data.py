@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the compact Unicode 17 grapheme-property trie used by GameWIP.
+"""Generate the compact Unicode 18 grapheme-property trie used by GameWIP.
 
 The script consumes an unpacked Unicode Character Database directory. It never
 runs as part of an ordinary configure, build, test, package, or consumer flow.
@@ -12,8 +12,9 @@ from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
-UNICODE_VERSION = "17.0.0"
-EMOJI_VERSION = "17.0"
+UNICODE_VERSION = "18.0.0"
+UNICODE_VERSION_MAJOR, UNICODE_VERSION_MINOR, UNICODE_VERSION_PATCH = map(int, UNICODE_VERSION.split("."))
+EMOJI_VERSION = ".".join(UNICODE_VERSION.split(".")[:2])
 MAX_CODE_POINT = 0x10FFFF
 CODE_POINT_COUNT = MAX_CODE_POINT + 1
 MIN_BLOCK_SHIFT = 5
@@ -83,7 +84,7 @@ def parse_arguments() -> argparse.Namespace:
         "--ucd-dir",
         type=Path,
         required=True,
-        help="Path to the unpacked Unicode 17.0.0 ucd directory.",
+        help=f"Path to the unpacked Unicode {UNICODE_VERSION} ucd directory.",
     )
     parser.add_argument(
         "--output",
@@ -206,6 +207,7 @@ def build_trie(data: bytearray, block_shift: int) -> GeneratedTrie:
     last_non_default = max(index for index, value in enumerate(data) if value != 0)
     high_start = (last_non_default + block_size) & ~block_mask
 
+    # Deduplicate equal property blocks while building the index.
     unique_blocks: list[bytes] = []
     block_ids: dict[bytes, int] = {}
     indexes: list[int] = []
@@ -220,6 +222,7 @@ def build_trie(data: bytearray, block_shift: int) -> GeneratedTrie:
             unique_blocks.append(block)
         indexes.append(block_id)
 
+    # Pick the narrowest index type that can address every unique block.
     if len(unique_blocks) <= 0x100:
         index_type = "std::uint8_t"
 
@@ -283,9 +286,9 @@ def render_header(trie: GeneratedTrie) -> str:
 
 namespace GameWIP::Unicode::Internal::Generated
 {{
-    inline constexpr std::uint8_t kUnicodeVersionMajor = 17;
-    inline constexpr std::uint8_t kUnicodeVersionMinor = 0;
-    inline constexpr std::uint8_t kUnicodeVersionPatch = 0;
+    inline constexpr std::uint8_t kUnicodeVersionMajor = {UNICODE_VERSION_MAJOR};
+    inline constexpr std::uint8_t kUnicodeVersionMinor = {UNICODE_VERSION_MINOR};
+    inline constexpr std::uint8_t kUnicodeVersionPatch = {UNICODE_VERSION_PATCH};
 
     inline constexpr std::size_t kBlockShift = {trie.block_shift};
     inline constexpr std::size_t kBlockSize = {block_size};
@@ -306,16 +309,19 @@ namespace GameWIP::Unicode::Internal::Generated
 
 
 def generate(paths: SourcePaths, output: Path) -> tuple[GeneratedTrie, tuple[GeneratedTrie, ...]]:
+    # Check the pinned sources before reading their records.
     require_source(paths.grapheme_break, (UNICODE_VERSION,))
     require_source(paths.derived_core, (UNICODE_VERSION,))
     require_source(paths.emoji_data, (UNICODE_VERSION, f"Version: {EMOJI_VERSION}"))
 
+    # Merge the three properties into one packed code-point table.
     data = bytearray(CODE_POINT_COUNT)
     apply_grapheme_break(data, paths.grapheme_break)
     apply_indic_conjunct_break(data, paths.derived_core)
     apply_extended_pictographic(data, paths.emoji_data)
     remove_algorithmic_ranges(data)
 
+    # Select and write the smallest supported trie layout.
     trie, candidates = select_trie(data)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(render_header(trie), encoding="utf-8", newline="\n")

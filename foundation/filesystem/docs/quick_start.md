@@ -12,7 +12,8 @@ FileSystem consumer.
 
 `filesystem/filesystem.h` is the complete convenience include. Consumers may
 instead include `filesystem/path.h`, `filesystem/entry.h`,
-`filesystem/file.h`, or `filesystem/directory.h` for the declarations they use.
+`filesystem/file_types.h`, `filesystem/file.h`, or `filesystem/directory.h`
+for the declarations they use.
 
 ## Installed CMake
 
@@ -39,23 +40,23 @@ target_link_libraries(MyTarget PRIVATE FileSystem)
 
 namespace FileSystem = GameWIP::FileSystem;
 
-GameWIP::IO::Types::Status saveAndLoadSettings()
+GameWIP::Status::Types::Result<void> saveAndLoadSettings()
 {
     const auto write = FileSystem::writeAllText("config/player.cfg", "volume=80\n");
-    if (!write.status.ok())
+    if(!write.ok())
     {
-        return write.status;
+        return GameWIP::Status::Types::Result<void>::failure(write.status());
     }
 
     const auto read = FileSystem::readAllText("config/player.cfg");
-    if (!read.status.ok())
+    if(!read.ok())
     {
-        return read.status;
+        return GameWIP::Status::Types::Result<void>::failure(read.status());
     }
 
-    return GameWIP::IO::successStatus();
+    // Use read.value() while its status is successful.
+    return GameWIP::Status::Types::Result<void>::success();
 }
-
 ```
 
 Text helpers enforce strict UTF-8 (@ref io_utf8_policy). Use the byte helpers for arbitrary content.
@@ -69,31 +70,29 @@ Text helpers enforce strict UTF-8 (@ref io_utf8_policy). Use the byte helpers fo
 #include <cstddef>
 #include <span>
 
-GameWIP::IO::Types::Status inspectPrefix(const GameWIP::FileSystem::Types::Path& path)
+GameWIP::Status::Types::Result<void> inspectPrefix(const GameWIP::FileSystem::Types::Path &path)
 {
     namespace FileSystem = GameWIP::FileSystem;
 
     FileSystem::FileReader reader;
-    auto status = reader.open(path);
-    if (!status.ok())
+    auto opened = reader.open(path);
+    if(!opened.ok())
     {
-        return status;
+        return GameWIP::Status::Types::Result<void>::failure(opened.status());
     }
 
     std::array<std::byte, 4096> scratch{};
     const auto read = reader.read(scratch);
-    if (!read.status.ok())
+    if(!read.ok())
     {
-        const auto closeStatus = reader.close();
-        return read.status;
+        (void)reader.close();
+        return GameWIP::Status::Types::Result<void>::failure(read.status());
     }
 
-    // Process scratch[0..read.bytesRead). A final read may contain bytes and set endOfStream.
+    // Process scratch[0..read.value().bytesRead). A final read may contain bytes and set endOfStream.
 
-    status = reader.close();
-    return status;
+    return reader.close();
 }
-
 ```
 
 Close explicitly when close or configured flush-on-close failure must be observed. Destructors perform best-effort cleanup and cannot report failure.
@@ -103,7 +102,7 @@ Close explicitly when close or configured flush-on-close failure must be observe
 ```cpp
 #include "filesystem/filesystem.h"
 
-GameWIP::IO::Types::Status replaceSave(std::string_view json)
+GameWIP::Status::Types::Result<void> replaceSave(std::string_view json)
 {
     GameWIP::FileSystem::Types::File::AtomicWriteOptions options{};
     options.flushMode = GameWIP::IO::Types::FlushMode::Data;
@@ -111,7 +110,6 @@ GameWIP::IO::Types::Status replaceSave(std::string_view json)
 
     return GameWIP::FileSystem::writeAllTextAtomic("saves/profile.json", json, options);
 }
-
 ```
 
 There is no non-atomic fallback. Failure before commit preserves an existing destination. A late parent-directory flush failure can be returned after
@@ -128,7 +126,7 @@ intentionally preserve progress:
 - tree removal may report entries already removed before failure;
 - a failed `close()` or `unlock()` leaves the resource active so the operation can be retried.
 
-`Types::Lock::Outcome::WouldBlock` is a successful non-acquisition result, not a failed status.
+Lock contention is a failed result with `status().code() == Code::WouldBlock`.
 
 ## Where to go next
 

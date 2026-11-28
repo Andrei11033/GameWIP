@@ -16,8 +16,8 @@ into the condition expression or surrounding code.
 
 ## A popup appears during automated tests
 
-Automated tests must not depend on real UI. Suppress popups through the
-documented environment controls; see @ref assert_testing.
+Suppress popups through the documented environment controls; see
+@ref assert_testing.
 
 ## Popup settings did not change after reconfiguring Assert
 
@@ -51,10 +51,10 @@ interface.
 `CHECK_ONCE` is per macro expansion site. Two identical-looking calls on different lines are separate sites. Concurrent failures at the same site can
 race on which thread performs the first report.
 
-## The installed package cannot find Logger
+## The installed package cannot find a dependency
 
-A runtime-enabled Assert package depends on Logger. Install matching GameWIP packages and configure the consumer with a `CMAKE_PREFIX_PATH` that can
-find the same exact project version.
+Runtime-enabled Assert resolves Logger and `GameWIPApplication`; interface-only Assert needs neither package. Install matching GameWIP packages and configure
+the consumer with a `CMAKE_PREFIX_PATH` that can find the same exact project version.
 
 ## Related pages
 

@@ -17,14 +17,15 @@ namespace GameWIP::Validation::Tests
     /// @brief Arguments and shared policy passed to one registered module.
     struct ModuleInvocation
     {
-        /// @brief Borrowed original process argument count.
-        int argc = 0;
-        /// @brief Borrowed original process argument values, valid for the callback duration.
-        char **argv = nullptr;
-        /// @brief Shared runner policy reference, valid for the callback duration.
-        const RunOptions &options;
-        /// @brief True when this module must append to an existing aggregate report.
-        bool appendReport = false;
+        // Original process arguments
+        int argc = 0;          ///< Borrowed original process argument count.
+        char **argv = nullptr; ///< Borrowed original process argument values, valid for the callback duration.
+
+        // Shared runner policy
+        const RunOptions &options; ///< Shared runner policy reference, valid for the callback duration.
+
+        // Report aggregation
+        bool appendReport = false; ///< True when this module must append to an existing aggregate report.
     };
 
     /// @brief Function signature used to invoke one correctness-test module.
@@ -37,14 +38,13 @@ namespace GameWIP::Validation::Tests
     /// @brief Static registration record for one correctness-test module.
     struct Module
     {
-        /// @brief Stable command-line and CTest module name backed by process-lifetime storage.
-        std::string_view name;
-        /// @brief Stable startup order; name breaks equal-order ties.
-        int order = 0;
-        /// @brief Module entry point.
-        ModuleRunFunction run = nullptr;
-        /// @brief Optional matcher for child-process protocol arguments.
-        ChildArgumentMatcher handlesChildArguments = nullptr;
+        // Registration identity
+        std::string_view name; ///< Stable command-line and CTest module name backed by process-lifetime storage.
+        int order = 0;         ///< Stable startup order; name breaks equal-order ties.
+
+        // Module callbacks
+        ModuleRunFunction run = nullptr;                      ///< Module entry point.
+        ChildArgumentMatcher handlesChildArguments = nullptr; ///< Optional matcher for child-process protocol arguments.
     };
 
     /// @brief Adds one module to the process-local registry during static initialization.

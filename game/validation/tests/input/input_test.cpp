@@ -1,33 +1,29 @@
 /// @file input_test.cpp
-/// @brief Deterministic portable Input behavior and Win32 Desktop attachment tests.
+/// @brief Deterministic portable Input behavior tests.
 
 #include "validation/tests/input/input_test.h"
+#include "validation/tests/input/platform.h"
 
-#include "desktop/events.h"
-#include "desktop/window.h"
 #include "input/input.h"
 #include "input/synthetic.h"
 #include "test_support/test_support.h"
-#include "validation/tests/runner_helpers.h"
+#include "validation/tests/internal/helpers/runner_helpers.h"
 
-#if defined(_WIN32)
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#include "desktop/native/win32.h"
-#include "input/native/desktop_win32.h"
-
-#include <windows.h>
-#endif
-
+#include <cmath>
+#include <cstdint>
+#include <span>
 #include <string_view>
 #include <variant>
 
 namespace
 {
     namespace Input = GameWIP::Input;
-    namespace Desktop = GameWIP::Desktop;
+    namespace Status = GameWIP::Status::Types;
     namespace TestSupport = GameWIP::TestSupport;
+
+    /// ------------------------------------------------------------
+    /// Portable session and synthetic input
+    /// ------------------------------------------------------------
 
     /// @brief Verifies the owner-thread-affine System lifecycle and closed-state contract.
     void testSystemLifecycle(TestSupport::Context &context)
@@ -36,12 +32,11 @@ namespace
         Input::Types::Frame frame;
 
         static_cast<void>(context.expectFalse("new Input system is closed", input.isOpen()));
-        static_cast<void>(
-            context.expectEq("capture on closed system reports NotOpen", GameWIP::IO::Types::ErrorCode::NotOpen, input.capture(frame).status.code));
+        static_cast<void>(context.expectEq("capture on closed system reports NotOpen", Status::Code::NotOpen, input.capture(frame).status().code()));
 
         static_cast<void>(context.expectTrue("Input system opens", input.open().ok()));
         static_cast<void>(context.expectTrue("opened Input system reports open", input.isOpen()));
-        static_cast<void>(context.expectEq("second open reports AlreadyOpen", GameWIP::IO::Types::ErrorCode::AlreadyOpen, input.open().code));
+        static_cast<void>(context.expectEq("second open reports AlreadyOpen", Status::Code::AlreadyOpen, input.open().status().code()));
         static_cast<void>(context.expectTrue("Input system closes", input.close().ok()));
     }
 
@@ -58,7 +53,7 @@ namespace
         {
             return;
         }
-        Input::Types::SyntheticDeviceDescription description{
+        const Input::Types::SyntheticDeviceDescription description{
             .name = "Synthetic Test Device",
             .persistentKey = "test:synthetic-device",
             .elements =
@@ -79,17 +74,20 @@ namespace
                 },
         };
 
-        Input::Types::DeviceId device{};
-        if(!context.expectTrue("synthetic device is added", source.addDevice(description, device).ok()))
+        // Add the device and resolve its standard and persistent controls.
+        const auto addDeviceResult = source.addDevice(description);
+        if(!context.expectTrue("synthetic device is added", addDeviceResult.ok()))
         {
             return;
         }
+        const Input::Types::DeviceId device = addDeviceResult.value();
 
-        std::span<const Input::Types::DeviceInfo> devices;
-        if(!context.expectTrue("synthetic devices are queryable", input.devices(devices).ok()))
+        const auto devicesResult = input.devices();
+        if(!context.expectTrue("synthetic devices are queryable", devicesResult.ok()))
         {
             return;
         }
+        const std::span<const Input::Types::DeviceInfo> devices = devicesResult.value();
         const Input::Types::DeviceInfo *deviceInfo = Input::Query::findDevice(devices, device);
         if(!context.expectTrue("synthetic device is discoverable", deviceInfo != nullptr))
         {
@@ -115,7 +113,7 @@ namespace
 
         Input::Types::Frame frame;
         const auto connectedCapture = input.capture(frame);
-        if(!context.expectTrue("initial synthetic capture succeeds", connectedCapture.status.ok()))
+        if(!context.expectTrue("initial synthetic capture succeeds", connectedCapture.ok()))
         {
             return;
         }
@@ -134,13 +132,14 @@ namespace
 
         static_cast<void>(context.expectTrue("device connection event is published", connectedEvent));
 
+        // Publish button transitions and accumulate relative movement.
         const Input::Types::ElementId buttonElement = button.value();
         static_cast<void>(context.expectTrue("button value publishes", source.setAbsoluteValue(buttonElement, Input::Types::Value{true}).ok()));
         static_cast<void>(context.expectTrue("first relative delta publishes", source.addRelativeDelta(axis, Input::Types::Value{1.25F}).ok()));
         static_cast<void>(context.expectTrue("second relative delta publishes", source.addRelativeDelta(axis, Input::Types::Value{2.75F}).ok()));
 
         const auto pressedCapture = input.capture(frame);
-        if(!context.expectTrue("pressed synthetic capture succeeds", pressedCapture.status.ok()))
+        if(!context.expectTrue("pressed synthetic capture succeeds", pressedCapture.ok()))
         {
             return;
         }
@@ -155,36 +154,42 @@ namespace
         static_cast<void>(context.expectTrue("negative relative delta publishes", source.addRelativeDelta(axis, Input::Types::Value{-1.5F}).ok()));
 
         const auto releasedCapture = input.capture(frame);
-        if(!context.expectTrue("released synthetic capture succeeds", releasedCapture.status.ok()))
+        if(!context.expectTrue("released synthetic capture succeeds", releasedCapture.ok()))
         {
             return;
         }
         static_cast<void>(context.expectTrue("button is released", !frame.isDown(buttonElement)));
         static_cast<void>(context.expectTrue("button was released", frame.wasReleased(buttonElement)));
+        static_cast<void>(context.expectTrue("button release is a generic value change", frame.wasChanged(buttonElement)));
+        static_cast<void>(context.expectEq("button records one generic value change", std::uint32_t{1}, frame.changeCount(buttonElement)));
+        static_cast<void>(context.expectFalse("boolean button has no numeric component change", frame.wasChanged({buttonElement, 0})));
+        static_cast<void>(context.expectFalse("boolean button has no numeric component delta", frame.componentDelta({buttonElement, 0}).has_value()));
 
         axisValue = std::get_if<float>(frame.value(axis));
         static_cast<void>(context.expectTrue("relative value resets for the next frame", axisValue != nullptr && *axisValue == -1.5F));
 
+        // Reject value types and update modes that do not match each element.
         static_cast<void>(context.expectEq(
             "wrong absolute value type is rejected",
-            GameWIP::IO::Types::ErrorCode::InvalidArgument,
-            source.setAbsoluteValue(buttonElement, Input::Types::Value{1.0F}).code));
+            Status::Code::InvalidArgument,
+            source.setAbsoluteValue(buttonElement, Input::Types::Value{1.0F}).status().code()));
 
         static_cast<void>(context.expectEq(
             "relative update on absolute element is rejected",
-            GameWIP::IO::Types::ErrorCode::InvalidArgument,
-            source.addRelativeDelta(buttonElement, Input::Types::Value{1.0F}).code));
+            Status::Code::InvalidArgument,
+            source.addRelativeDelta(buttonElement, Input::Types::Value{1.0F}).status().code()));
 
         static_cast<void>(context.expectEq(
             "wrong relative value type is rejected",
-            GameWIP::IO::Types::ErrorCode::InvalidArgument,
-            source.addRelativeDelta(axis, Input::Types::Value{true}).code));
+            Status::Code::InvalidArgument,
+            source.addRelativeDelta(axis, Input::Types::Value{true}).status().code()));
 
+        // Capture committed text and repeat events without a new press.
         static_cast<void>(
             context.expectTrue("synthetic text commit succeeds", source.commitText(Input::Types::SurfaceId{77}, "Synthetic text").ok()));
 
         const auto textCapture = input.capture(frame);
-        if(!context.expectTrue("synthetic text capture succeeds", textCapture.status.ok()))
+        if(!context.expectTrue("synthetic text capture succeeds", textCapture.ok()))
         {
             return;
         }
@@ -207,7 +212,7 @@ namespace
         static_cast<void>(context.expectTrue("element repeat succeeds", source.repeat(buttonElement).ok()));
 
         const auto repeatCapture = input.capture(frame);
-        if(!context.expectTrue("repeat capture succeeds", repeatCapture.status.ok()))
+        if(!context.expectTrue("repeat capture succeeds", repeatCapture.ok()))
         {
             return;
         }
@@ -227,11 +232,14 @@ namespace
         }
 
         static_cast<void>(context.expectTrue("element repeat event is published", repeatedEvent));
+        static_cast<void>(context.expectFalse("element repeat is not a value change", frame.wasChanged(buttonElement)));
+        static_cast<void>(context.expectEq("element repeat does not increment change count", std::uint32_t{0}, frame.changeCount(buttonElement)));
 
+        // Invalidate the button, then remove its device and source.
         static_cast<void>(context.expectTrue("element invalidation succeeds", source.invalidate(buttonElement).ok()));
 
         const auto invalidationCapture = input.capture(frame);
-        if(!context.expectTrue("invalidation capture succeeds", invalidationCapture.status.ok()))
+        if(!context.expectTrue("invalidation capture succeeds", invalidationCapture.ok()))
         {
             return;
         }
@@ -258,7 +266,7 @@ namespace
         static_cast<void>(context.expectTrue("synthetic device removal succeeds", source.removeDevice(device).ok()));
 
         const auto disconnectedCapture = input.capture(frame);
-        if(!context.expectTrue("disconnected synthetic capture succeeds", disconnectedCapture.status.ok()))
+        if(!context.expectTrue("disconnected synthetic capture succeeds", disconnectedCapture.ok()))
         {
             return;
         }
@@ -280,97 +288,294 @@ namespace
         static_cast<void>(context.expectTrue("synthetic system closes", input.close().ok()));
     }
 
-#if defined(_WIN32)
-    /// @brief Verifies Desktop message forwarding into the Win32 Input attachment.
-    void testWin32DesktopAttachment(TestSupport::Context &context)
+    /// @brief Verifies frame change summaries for absolute and relative numeric controls.
+    void testFrameChangeSummaries(TestSupport::Context &context)
     {
         Input::System input;
-        Desktop::Window window;
-        Input::Platform::Win32::Attachment attachment;
-
-        Desktop::Types::Description description;
-        description.title = "Input validation window";
-        description.windowed.clientSize = {320, 200};
-        description.activation.visible = false;
-        description.activation.requestFocus = false;
-
-        if(!context.expectTrue("Win32 test window opens", window.open(description, Desktop::Events::owned(8)).ok()))
+        if(!context.expectTrue("summary system opens", input.open().ok()))
         {
             return;
         }
 
-        if(!context.expectTrue("Win32 Input system opens", input.open().ok()))
+        Input::Synthetic::Source source;
+        if(!context.expectTrue("summary source attaches", source.attach(input).ok()))
         {
             return;
         }
 
-        if(!context.expectTrue("Input attaches to Desktop window", Input::Platform::Win32::attachToWindow(input, attachment, window).ok()))
+        const Input::Types::SyntheticDeviceDescription description{
+            .name = "Frame Summary Device",
+            .persistentKey = "test:frame-summary-device",
+            .elements =
+                {
+                    {
+                        .name = "Absolute Axis",
+                        .persistentKey = "absolute-axis",
+                        .kind = Input::Types::ValueKind::Float32,
+                        .reporting = Input::Types::ReportingMode::Absolute,
+                    },
+                    {
+                        .name = "Absolute Stick",
+                        .persistentKey = "absolute-stick",
+                        .kind = Input::Types::ValueKind::Vector2F32,
+                        .reporting = Input::Types::ReportingMode::Absolute,
+                    },
+                    {
+                        .name = "Relative Motion",
+                        .persistentKey = "relative-motion",
+                        .kind = Input::Types::ValueKind::Vector2F32,
+                        .reporting = Input::Types::ReportingMode::Relative,
+                    },
+                    {
+                        .name = "Spatial Pose",
+                        .persistentKey = "spatial-pose",
+                        .kind = Input::Types::ValueKind::Spatial,
+                    },
+                },
+        };
+
+        const auto deviceResult = source.addDevice(description);
+        if(!context.expectTrue("summary device adds", deviceResult.ok()))
         {
             return;
         }
-        static_cast<void>(context.expectTrue("Win32 attachment reports attached", attachment.isAttached()));
-        static_cast<void>(context.expectTrue("Win32 attachment exposes a surface", attachment.surfaceId().isValid()));
+        const Input::Types::DeviceId device = deviceResult.value();
 
-        const auto nativeHandle = Desktop::Native::Win32::getHandle(window);
-        if(!context.expectTrue("Win32 test window exposes a native handle", nativeHandle.ok() && nativeHandle->window != nullptr))
+        const auto devicesResult = input.devices();
+        if(!context.expectTrue("summary descriptors query", devicesResult.ok()))
+        {
+            return;
+        }
+
+        const std::span<const Input::Types::DeviceInfo> devices = devicesResult.value();
+        const Input::Types::ElementInfo *absoluteInfo = Input::Query::findElementByPersistentKey(devices, "absolute-axis", device);
+        const Input::Types::ElementInfo *stickInfo = Input::Query::findElementByPersistentKey(devices, "absolute-stick", device);
+        const Input::Types::ElementInfo *relativeInfo = Input::Query::findElementByPersistentKey(devices, "relative-motion", device);
+        const Input::Types::ElementInfo *spatialInfo = Input::Query::findElementByPersistentKey(devices, "spatial-pose", device);
+        if(absoluteInfo == nullptr || stickInfo == nullptr || relativeInfo == nullptr || spatialInfo == nullptr)
+        {
+            static_cast<void>(context.expectTrue("summary controls resolve", false));
+            return;
+        }
+        static_cast<void>(context.expectTrue("summary controls resolve", true));
+
+        const Input::Types::ElementId absolute = absoluteInfo->id;
+        const Input::Types::ElementId stick = stickInfo->id;
+        const Input::Types::ElementId relative = relativeInfo->id;
+        const Input::Types::ElementId spatial = spatialInfo->id;
+        const Input::Types::ComponentId stickX{stick, 0};
+        const Input::Types::ComponentId stickY{stick, 1};
+        const Input::Types::ComponentId relativeX{relative, 0};
+        Input::Types::Frame frame;
+
+        if(!context.expectTrue("empty summary frame captures", input.capture(frame).ok()))
+        {
+            return;
+        }
+        static_cast<void>(context.expectTrue("absolute baseline is initially unknown", !frame.componentDelta({absolute, 0}).has_value()));
+        static_cast<void>(context.expectTrue("unknown initial sample is not a change", !frame.wasChanged(absolute)));
+        static_cast<void>(context.expectEq("unknown initial sample count is zero", std::uint32_t{0}, frame.changeCount(absolute)));
+
+        // Establish known absolute baselines; the first observations are not changes.
+        static_cast<void>(context.expectTrue("absolute axis baseline publishes", source.setAbsoluteValue(absolute, 0.25F).ok()));
+        static_cast<void>(context.expectTrue(
+            "absolute stick baseline publishes",
+            source.setAbsoluteValue(stick, Input::Types::Value{Input::Types::Vector2F32{0.0F, 0.0F}}).ok()));
+        static_cast<void>(context.expectTrue(
+            "spatial baseline publishes",
+            source.setAbsoluteValue(spatial, Input::Types::Value{Input::Types::Spatial{.position = {1.0, 2.0, 3.0}, .positionValid = true}}).ok()));
+        if(!context.expectTrue("baseline frame captures", input.capture(frame).ok()))
+        {
+            return;
+        }
+        static_cast<void>(context.expectTrue("first absolute sample has no delta", !frame.componentDelta({absolute, 0}).has_value()));
+        static_cast<void>(context.expectEq("first absolute sample is not a change", std::uint32_t{0}, frame.changeCount(absolute)));
+
+        // Identical reports keep a known zero delta without incrementing counts.
+        static_cast<void>(context.expectTrue("same absolute axis report publishes", source.setAbsoluteValue(absolute, 0.25F).ok()));
+        static_cast<void>(context.expectTrue(
+            "same absolute stick report publishes",
+            source.setAbsoluteValue(stick, Input::Types::Value{Input::Types::Vector2F32{0.0F, 0.0F}}).ok()));
+        if(!context.expectTrue("unchanged frame captures", input.capture(frame).ok()))
+        {
+            return;
+        }
+        const auto unchangedDelta = frame.componentDelta({absolute, 0});
+        const float *unchangedValue = unchangedDelta.has_value() ? std::get_if<float>(&*unchangedDelta) : nullptr;
+        static_cast<void>(context.expectTrue("unchanged absolute delta is zero", unchangedValue != nullptr && *unchangedValue == 0.0F));
+        static_cast<void>(context.expectFalse("identical reports are not changes", frame.wasChanged(absolute)));
+        static_cast<void>(context.expectEq("identical report count is zero", std::uint32_t{0}, frame.changeCount(absolute)));
+        const auto spatialDelta = frame.componentDelta({spatial, 0});
+        const double *spatialValue = spatialDelta.has_value() ? std::get_if<double>(&*spatialDelta) : nullptr;
+        static_cast<void>(context.expectTrue("unchanged spatial component has zero delta", spatialValue != nullptr && *spatialValue == 0.0));
+
+        // Count both observed transitions even when the axis returns to its starting value.
+        static_cast<void>(context.expectTrue("absolute axis moves forward", source.setAbsoluteValue(absolute, 0.5F).ok()));
+        static_cast<void>(context.expectTrue("absolute axis returns", source.setAbsoluteValue(absolute, 0.25F).ok()));
+        if(!context.expectTrue("net-zero absolute frame captures", input.capture(frame).ok()))
+        {
+            return;
+        }
+        const auto netZeroDelta = frame.componentDelta({absolute, 0});
+        const float *netZeroValue = netZeroDelta.has_value() ? std::get_if<float>(&*netZeroDelta) : nullptr;
+        static_cast<void>(context.expectTrue("absolute net delta is zero", netZeroValue != nullptr && *netZeroValue == 0.0F));
+        static_cast<void>(context.expectTrue("absolute axis changed despite net zero", frame.wasChanged(absolute)));
+        static_cast<void>(context.expectEq("absolute axis records both changes", std::uint32_t{2}, frame.changeCount(absolute)));
+        static_cast<void>(context.expectEq("absolute component records both changes", std::uint32_t{2}, frame.changeCount({absolute, 0})));
+
+        // Track vector components independently while counting element-level reports.
+        static_cast<void>(
+            context.expectTrue("stick X changes", source.setAbsoluteValue(stick, Input::Types::Value{Input::Types::Vector2F32{1.0F, 0.0F}}).ok()));
+        static_cast<void>(
+            context.expectTrue("stick Y changes", source.setAbsoluteValue(stick, Input::Types::Value{Input::Types::Vector2F32{1.0F, 2.0F}}).ok()));
+        if(!context.expectTrue("vector change frame captures", input.capture(frame).ok()))
+        {
+            return;
+        }
+        const auto stickXDelta = frame.componentDelta(stickX);
+        const auto stickYDelta = frame.componentDelta(stickY);
+        const float *stickXValue = stickXDelta.has_value() ? std::get_if<float>(&*stickXDelta) : nullptr;
+        const float *stickYValue = stickYDelta.has_value() ? std::get_if<float>(&*stickYDelta) : nullptr;
+        static_cast<void>(context.expectTrue("stick X delta is one", stickXValue != nullptr && *stickXValue == 1.0F));
+        static_cast<void>(context.expectTrue("stick Y delta is two", stickYValue != nullptr && *stickYValue == 2.0F));
+        static_cast<void>(context.expectEq("stick element records both updates", std::uint32_t{2}, frame.changeCount(stick)));
+        static_cast<void>(context.expectEq("stick X records one change", std::uint32_t{1}, frame.changeCount(stickX)));
+        static_cast<void>(context.expectEq("stick Y records one change", std::uint32_t{1}, frame.changeCount(stickY)));
+
+        // Relative reports remain deltas and count nonzero movement reports.
+        static_cast<void>(context.expectTrue(
+            "relative motion advances",
+            source.addRelativeDelta(relative, Input::Types::Value{Input::Types::Vector2F32{4.0F, 0.0F}}).ok()));
+        static_cast<void>(context.expectTrue(
+            "relative motion returns",
+            source.addRelativeDelta(relative, Input::Types::Value{Input::Types::Vector2F32{-4.0F, 0.0F}}).ok()));
+        if(!context.expectTrue("relative change frame captures", input.capture(frame).ok()))
+        {
+            return;
+        }
+        const Input::Types::ElementState *relativeState = frame.state(relative);
+        static_cast<void>(context.expectTrue(
+            "frame retains relative reporting mode",
+            relativeState != nullptr && relativeState->reporting == Input::Types::ReportingMode::Relative));
+        const auto relativeDelta = frame.componentDelta(relativeX);
+        const float *relativeValue = relativeDelta.has_value() ? std::get_if<float>(&*relativeDelta) : nullptr;
+        static_cast<void>(context.expectTrue("relative net delta is zero", relativeValue != nullptr && *relativeValue == 0.0F));
+        static_cast<void>(context.expectTrue("relative control changed despite net zero", frame.wasChanged(relativeX)));
+        static_cast<void>(context.expectEq("relative control records both reports", std::uint32_t{2}, frame.changeCount(relativeX)));
+        static_cast<void>(context.expectEq("relative element records both reports", std::uint32_t{2}, frame.changeCount(relative)));
+
+        static_cast<void>(context.expectTrue(
+            "relative motion publishes in the next interval",
+            source.addRelativeDelta(relative, Input::Types::Value{Input::Types::Vector2F32{2.0F, 0.0F}}).ok()));
+        if(!context.expectTrue("next relative frame captures", input.capture(frame).ok()))
+        {
+            return;
+        }
+        const auto nextRelativeDelta = frame.componentDelta(relativeX);
+        const float *nextRelativeValue = nextRelativeDelta.has_value() ? std::get_if<float>(&*nextRelativeDelta) : nullptr;
+        static_cast<void>(context.expectTrue("relative delta is frame-local", nextRelativeValue != nullptr && *nextRelativeValue == 2.0F));
+        static_cast<void>(context.expectTrue("relative control changes in the next frame", frame.wasChanged(relativeX)));
+        static_cast<void>(context.expectEq("relative next-frame count is one", std::uint32_t{1}, frame.changeCount(relativeX)));
+
+        static_cast<void>(context.expectTrue("empty relative frame captures", input.capture(frame).ok()));
+        const auto emptyRelativeDelta = frame.componentDelta(relativeX);
+        const float *emptyRelativeValue = emptyRelativeDelta.has_value() ? std::get_if<float>(&*emptyRelativeDelta) : nullptr;
+        static_cast<void>(context.expectTrue("relative delta resets to zero", emptyRelativeValue != nullptr && *emptyRelativeValue == 0.0F));
+        static_cast<void>(context.expectFalse("relative control is unchanged in an empty frame", frame.wasChanged(relativeX)));
+        static_cast<void>(context.expectEq("empty relative-frame count is zero", std::uint32_t{0}, frame.changeCount(relativeX)));
+
+        static_cast<void>(context.expectTrue("summary source detaches", source.detach().ok()));
+        static_cast<void>(context.expectTrue("summary system closes", input.close().ok()));
+    }
+
+    /// @brief Verifies observed summaries remain available when an interval is discontinuous.
+    void testDiscontinuousFrameChangeSummaries(TestSupport::Context &context)
+    {
+        Input::System input;
+        const Input::Types::Configuration configuration{.eventCapacity = 1};
+        if(!context.expectTrue("discontinuous summary system opens", input.open(configuration).ok()))
+        {
+            return;
+        }
+
+        Input::Synthetic::Source source;
+        if(!context.expectTrue("discontinuous summary source attaches", source.attach(input).ok()))
+        {
+            return;
+        }
+
+        const Input::Types::SyntheticDeviceDescription description{
+            .name = "Discontinuous Summary Device",
+            .persistentKey = "test:discontinuous-summary-device",
+            .elements = {{
+                .name = "Absolute Axis",
+                .persistentKey = "absolute-axis",
+                .kind = Input::Types::ValueKind::Float32,
+                .reporting = Input::Types::ReportingMode::Absolute,
+            }},
+        };
+        const auto deviceResult = source.addDevice(description);
+        if(!context.expectTrue("discontinuous summary device adds", deviceResult.ok()))
+        {
+            return;
+        }
+
+        const auto devicesResult = input.devices();
+        if(!context.expectTrue("discontinuous summary descriptors query", devicesResult.ok()))
+        {
+            return;
+        }
+        const Input::Types::ElementInfo *axis =
+            Input::Query::findElementByPersistentKey(devicesResult.value(), "absolute-axis", deviceResult.value());
+        if(!context.expectTrue("discontinuous summary axis resolves", axis != nullptr))
         {
             return;
         }
 
         Input::Types::Frame frame;
-        if(!context.expectTrue("initial Win32 Input capture succeeds", input.capture(frame).status.ok()))
+        if(!context.expectTrue("discontinuous summary starts with a capture", input.capture(frame).ok()))
+        {
+            return;
+        }
+        static_cast<void>(context.expectTrue("discontinuous axis baseline publishes", source.setAbsoluteValue(axis->id, 0.1F).ok()));
+        if(!context.expectTrue("discontinuous summary baseline captures", input.capture(frame).ok()))
         {
             return;
         }
 
-        HWND windowHandle = nativeHandle->window;
-        static_cast<void>(SendMessageW(windowHandle, WM_MOUSEMOVE, 0, MAKELPARAM(123, 45)));
-        static_cast<void>(SendMessageW(windowHandle, WM_CHAR, static_cast<WPARAM>(L'A'), 0));
-
-        const auto messageCapture = input.capture(frame);
-        if(!context.expectTrue("Win32 message capture succeeds", messageCapture.status.ok()))
+        static_cast<void>(context.expectTrue("first observed change publishes", source.setAbsoluteValue(axis->id, 0.2F).ok()));
+        static_cast<void>(context.expectTrue("dropped change updates state", source.setAbsoluteValue(axis->id, 0.3F).ok()));
+        if(!context.expectTrue("discontinuous summary captures", input.capture(frame).ok()))
         {
             return;
         }
-        static_cast<void>(context.expectEq("Win32 text is forwarded", std::string_view{"A"}, frame.textUtf8()));
 
-        std::span<const Input::Types::DeviceInfo> devices;
-        if(!context.expectTrue("Win32 devices are queryable", input.devices(devices).ok()))
-        {
-            return;
-        }
-        const auto pointer = Input::Query::findStandard(devices, Input::Standard::Pointer::Position);
-        if(!pointer.has_value())
-        {
-            static_cast<void>(context.expectTrue("window pointer is discoverable", false));
-            return;
-        }
-        static_cast<void>(context.expectTrue("window pointer is discoverable", true));
+        static_cast<void>(context.expectTrue("event loss marks the frame discontinuous", frame.discontinuity()));
+        static_cast<void>(context.expectEq("only the observed change is counted", std::uint32_t{1}, frame.changeCount({axis->id, 0})));
+        const auto delta = frame.componentDelta({axis->id, 0});
+        const float *deltaValue = delta.has_value() ? std::get_if<float>(&*delta) : nullptr;
+        static_cast<void>(
+            context.expectTrue("observed absolute delta remains available", deltaValue != nullptr && std::fabs(*deltaValue - 0.2F) < 0.000001F));
 
-        const auto *position = std::get_if<Input::Types::Vector2I64>(frame.value(pointer.value()));
-        static_cast<void>(context.expectTrue("window pointer position is forwarded", position != nullptr && position->x == 123 && position->y == 45));
-
-        static_cast<void>(context.expectTrue("Desktop message sink detaches", Desktop::Native::Win32::detachMessageSink(window).ok()));
-        static_cast<void>(context.expectTrue("Win32 Input attachment detaches", attachment.detach().ok()));
-        static_cast<void>(context.expectTrue("Win32 Input system closes", input.close().ok()));
-        static_cast<void>(context.expectTrue("Win32 test window closes", window.close().ok()));
+        static_cast<void>(context.expectTrue("discontinuous source detaches", source.detach().ok()));
+        static_cast<void>(context.expectTrue("discontinuous system closes", input.close().ok()));
     }
-#endif
+
 } // namespace
 
 namespace GameWIP::Test
 {
     int runInputTests(const InputTestOptions &options)
     {
-        TestSupport::Types::Reporting::Options reportOptions = RunnerHelpers::makeReportingOptions(options);
+        const TestSupport::Types::Reporting::Options reportOptions = Internal::RunnerHelpers::makeReportingOptions(options);
 
         TestSupport::Runner runner(reportOptions);
         runner.runSuite("Input system lifecycle", testSystemLifecycle);
         runner.runSuite("Synthetic input source", testSyntheticSource);
-#if defined(_WIN32)
-        runner.runSuite("Win32 Desktop attachment", testWin32DesktopAttachment);
-#endif
+        runner.runSuite("Input frame change summaries", testFrameChangeSummaries);
+        runner.runSuite("Discontinuous frame change summaries", testDiscontinuousFrameChangeSummaries);
+        InputPlatform::registerSuites(runner);
 
-        return RunnerHelpers::finalizeRunner(runner);
+        return Internal::RunnerHelpers::finalizeRunner(runner);
     }
 } // namespace GameWIP::Test

@@ -2,14 +2,94 @@
   "schemaVersion": 1,
   "tools": [
     {
+      "id": "powershell",
+      "name": "PowerShell",
+      "category": "runtime",
+      "provider": {
+        "kind": "githubRelease",
+        "repository": "PowerShell/PowerShell",
+        "releaseTag": "v7.7.0",
+        "installMode": "directoryArchive",
+        "managedDirectory": "tools/powershell",
+        "binaryDirectory": ".",
+        "validationFiles": ["pwsh", "pwsh.exe", "pwsh.dll", "System.Management.Automation.dll"],
+        "assets": {
+          "windows-amd64": {
+            "archive": "PowerShell-7.7.0-win-x64.zip",
+            "sha256": "7c74e03b20a75b59715847439d046a6214b1863ee79b187872980f139bb4a05f",
+            "validationFiles": ["pwsh.exe", "pwsh.dll", "System.Management.Automation.dll"]
+          },
+          "windows-arm64": {
+            "archive": "PowerShell-7.7.0-win-arm64.zip",
+            "sha256": "5dc7440cd98f0ba786a44d7db9205df5058474fd4db143caf7171e8375f34f75",
+            "validationFiles": ["pwsh.exe", "pwsh.dll", "System.Management.Automation.dll"]
+          },
+          "linux-amd64": {
+            "archive": "powershell-7.7.0-linux-x64.tar.gz",
+            "sha256": "c89d9c682d2c403dfe726f3df948e359675235a5bd6fab535776de69729ca0cb",
+            "validationFiles": ["pwsh", "pwsh.dll", "System.Management.Automation.dll"]
+          },
+          "linux-arm64": {
+            "archive": "powershell-7.7.0-linux-arm64.tar.gz",
+            "sha256": "e59c89776eaa59790d44b3edd14277435225ab08b6e7603763101b89de83d935",
+            "validationFiles": ["pwsh", "pwsh.dll", "System.Management.Automation.dll"]
+          }
+        }
+      },
+      "versionPolicy": "minimum",
+      "requiredVersion": "7.7.0",
+      "detection": {
+        "command": "pwsh",
+        "versionArguments": ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", "$PSVersionTable.PSVersion.ToString()"],
+        "versionPattern": "(?m)^([0-9]+\\.[0-9]+\\.[0-9]+)$"
+      },
+      "capabilities": {
+        "detectInstalled": true,
+        "checkLatest": true,
+        "update": true,
+        "updatePin": true,
+        "reuseCompatibleExternal": true
+      },
+      "references": [
+        {
+          "path": "docs/doxygen/project_tools.md",
+          "kind": "text",
+          "pattern": "| PowerShell | {version} or newer | verified GitHub release |"
+        },
+        {
+          "path": "scripts/platform/linux/powershell_bootstrap.sh",
+          "kind": "text",
+          "pattern": "GAMEWIP_POWERSHELL_VERSION='{version}'"
+        },
+        {
+          "path": "scripts/platform/linux/powershell_bootstrap.sh",
+          "kind": "releaseAsset",
+          "assetKey": "linux-amd64",
+          "assetField": "sha256",
+          "pattern": "GAMEWIP_POWERSHELL_X64_SHA256='{value}'"
+        },
+        {
+          "path": "scripts/platform/linux/powershell_bootstrap.sh",
+          "kind": "releaseAsset",
+          "assetKey": "linux-arm64",
+          "assetField": "sha256",
+          "pattern": "GAMEWIP_POWERSHELL_ARM64_SHA256='{value}'"
+        }
+      ]
+    },
+    {
       "id": "msys2",
       "name": "MSYS2",
       "category": "environment",
       "provider": {
-        "kind": "winget",
-        "package": "MSYS2.MSYS2",
+        "kind": "external",
+        "homepage": "https://www.msys2.org/",
+        "hostPlatform": "windows",
         "managedPath": "usr/bin/bash.exe",
-        "installArguments": ["--override", "install --confirm-command --root {msys2Root}"]
+        "bootstrap": "msys2BaseArchive",
+        "latestQuery": {
+          "kind": "msys2PackageUpdates"
+        }
       },
       "versionPolicy": "managed",
       "detection": {
@@ -19,30 +99,8 @@
       },
       "capabilities": {
         "detectInstalled": true,
-        "checkLatest": false,
-        "update": false
-      },
-      "references": []
-    },
-    {
-      "id": "msys2-git",
-      "name": "MSYS2 Git",
-      "category": "source-control",
-      "provider": {
-        "kind": "msys2",
-        "environment": "common",
-        "package": "git"
-      },
-      "versionPolicy": "managed",
-      "detection": {
-        "command": "git",
-        "versionArguments": ["--version"],
-        "versionPattern": "git version ([0-9.]+)"
-      },
-      "capabilities": {
-        "detectInstalled": true,
         "checkLatest": true,
-        "update": true
+        "update": false
       },
       "references": []
     },
@@ -102,6 +160,176 @@
         "update": true
       },
       "references": []
+    },
+    {
+      "id": "llvm-mingw",
+      "name": "LLVM-MinGW",
+      "category": "compiler",
+      "provider": {
+        "kind": "githubRelease",
+        "repository": "mstorsjo/llvm-mingw",
+        "releaseTag": "20261117",
+        "installMode": "directoryArchive",
+        "managedDirectory": "tools/llvm-mingw",
+        "binaryDirectory": "bin",
+        "cmakeToolchain": "GameWIPLLVMMinGW.cmake",
+        "validationFiles": [
+          "bin/x86_64-w64-mingw32-clang.exe",
+          "bin/x86_64-w64-mingw32-clang++.exe",
+          "bin/aarch64-w64-mingw32-clang.exe",
+          "bin/aarch64-w64-mingw32-clang++.exe",
+          "bin/llvm-ar.exe",
+          "bin/llvm-ranlib.exe",
+          "bin/llvm-rc.exe",
+          "bin/llvm-objdump.exe",
+          "bin/llvm-strip.exe",
+          "include/c++/v1/vector",
+          "x86_64-w64-mingw32/lib/libc++.a",
+          "x86_64-w64-mingw32/bin/libc++.dll",
+          "x86_64-w64-mingw32/bin/libclang_rt.asan_dynamic-x86_64.dll",
+          "lib/clang/23/lib/windows/libclang_rt.asan_dynamic-x86_64.dll.a",
+          "aarch64-w64-mingw32/lib/libc++.a",
+          "aarch64-w64-mingw32/bin/libc++.dll"
+        ],
+        "assets": {
+          "windows-amd64": {
+            "archive": "llvm-mingw-20261117-ucrt-x86_64.zip",
+            "sha256": "4d002e330a0f703625aa5ccbc37e96f8f824413e163bfc7336774aabd2c3a412",
+            "format": "archive"
+          },
+          "linux-amd64": {
+            "archive": "llvm-mingw-20261117-ucrt-ubuntu-22.04-x86_64.tar.xz",
+            "sha256": "e7a15a49a2ea95e9f3d8a9d0cfabe5052a4b10fb4777cc54de5a8c27b64bb701",
+            "format": "archive",
+            "validationFiles": [
+              "bin/x86_64-w64-mingw32-clang",
+              "bin/x86_64-w64-mingw32-clang++",
+              "bin/aarch64-w64-mingw32-clang",
+              "bin/aarch64-w64-mingw32-clang++",
+              "bin/llvm-ar",
+              "bin/llvm-ranlib",
+              "bin/llvm-rc",
+              "bin/llvm-objdump",
+              "bin/llvm-strip",
+              "generic-w64-mingw32/include/c++/v1/vector",
+              "x86_64-w64-mingw32/lib/libc++.a",
+              "x86_64-w64-mingw32/bin/libc++.dll",
+              "x86_64-w64-mingw32/bin/libclang_rt.asan_dynamic-x86_64.dll",
+              "lib/clang/23/lib/windows/libclang_rt.asan_dynamic-x86_64.dll.a",
+              "aarch64-w64-mingw32/lib/libc++.a",
+              "aarch64-w64-mingw32/bin/libc++.dll"
+            ]
+          },
+          "linux-arm64": {
+            "archive": "llvm-mingw-20261117-ucrt-ubuntu-22.04-aarch64.tar.xz",
+            "sha256": "6d9442ead9ace3b3e4c3389bfef69f93f873305e0705e6cc60978ac895320872",
+            "format": "archive",
+            "validationFiles": [
+              "bin/x86_64-w64-mingw32-clang",
+              "bin/x86_64-w64-mingw32-clang++",
+              "bin/aarch64-w64-mingw32-clang",
+              "bin/aarch64-w64-mingw32-clang++",
+              "bin/llvm-ar",
+              "bin/llvm-ranlib",
+              "bin/llvm-rc",
+              "bin/llvm-objdump",
+              "bin/llvm-strip",
+              "generic-w64-mingw32/include/c++/v1/vector",
+              "x86_64-w64-mingw32/lib/libc++.a",
+              "x86_64-w64-mingw32/bin/libc++.dll",
+              "x86_64-w64-mingw32/bin/libclang_rt.asan_dynamic-x86_64.dll",
+              "lib/clang/23/lib/windows/libclang_rt.asan_dynamic-x86_64.dll.a",
+              "aarch64-w64-mingw32/lib/libc++.a",
+              "aarch64-w64-mingw32/bin/libc++.dll"
+            ]
+          }
+        }
+      },
+      "versionPolicy": "exact",
+      "requiredVersion": "20261117",
+      "detection": {
+        "command": "x86_64-w64-mingw32-clang++",
+        "versionArguments": ["--version"],
+        "versionPattern": "clang version ([0-9.]+)"
+      },
+      "capabilities": {
+        "detectInstalled": true,
+        "checkLatest": true,
+        "update": true
+      },
+      "references": [
+        {
+          "path": "docs/doxygen/project_tools.md",
+          "kind": "text",
+          "pattern": "| LLVM-MinGW | {version} | verified GitHub release |",
+          "expectedCount": 1
+        }
+      ]
+    },
+    {
+      "id": "zig",
+      "name": "Zig",
+      "category": "compiler",
+      "provider": {
+        "kind": "archive",
+        "baseUrl": "https://ziglang.org/download",
+        "installMode": "directoryArchive",
+        "managedDirectory": "tools/zig",
+        "binaryDirectory": ".",
+        "compiler": "zig",
+        "cmakeToolchain": "GameWIPZig.cmake",
+        "latestIndex": {
+          "url": "https://ziglang.org/download/index.json",
+          "assetKeys": {
+            "windows-amd64": "x86_64-windows",
+            "windows-arm64": "aarch64-windows",
+            "linux-amd64": "x86_64-linux",
+            "linux-arm64": "aarch64-linux"
+          }
+        },
+        "assets": {
+          "windows-amd64": {
+            "archive": "zig-x86_64-windows-0.17.1.zip",
+            "sha256": "b03f477a1943673e02aca0f570e8030dffd536ce1f45cbc4d3326ec31159562e",
+            "validationFiles": ["zig.exe", "lib/std/std.zig"]
+          },
+          "windows-arm64": {
+            "archive": "zig-aarch64-windows-0.17.1.zip",
+            "sha256": "4789895bdb1e312a2ea73b2a7c0a0cc8d2ab62ba6976e834a7c54cf443377c15",
+            "validationFiles": ["zig.exe", "lib/std/std.zig"]
+          },
+          "linux-amd64": {
+            "archive": "zig-x86_64-linux-0.17.1.tar.xz",
+            "sha256": "3581863e3cbcfd0fce0efc682ce7e9e93da96668a977791d356a26d2a7e9b17a",
+            "validationFiles": ["zig", "lib/std/std.zig"]
+          },
+          "linux-arm64": {
+            "archive": "zig-aarch64-linux-0.17.1.tar.xz",
+            "sha256": "a1546d5646eb184437918d6635ca6b762a0e889eac09cef720ee7a1ed3fe7795",
+            "validationFiles": ["zig", "lib/std/std.zig"]
+          }
+        }
+      },
+      "versionPolicy": "exact",
+      "requiredVersion": "0.17.1",
+      "detection": {
+        "command": "zig",
+        "versionArguments": ["version"],
+        "versionPattern": "(?m)^([0-9]+\\.[0-9]+\\.[0-9]+)$"
+      },
+      "capabilities": {
+        "detectInstalled": true,
+        "checkLatest": true,
+        "update": true
+      },
+      "references": [
+        {
+          "path": "docs/doxygen/project_tools.md",
+          "kind": "text",
+          "pattern": "| Zig | {version} | verified archive |",
+          "expectedCount": 1
+        }
+      ]
     },
     {
       "id": "clang",
@@ -355,12 +583,26 @@
       "name": "Ruff",
       "category": "quality",
       "provider": {
-        "kind": "msys2",
-        "environment": "ucrt64",
-        "package": "mingw-w64-ucrt-x86_64-ruff"
+        "kind": "githubRelease",
+        "repository": "astral-sh/ruff",
+        "releaseTag": "0.17.6",
+        "assets": {
+          "windows-amd64": {
+            "archive": "ruff-x86_64-pc-windows-msvc.zip",
+            "sha256": "00c5d5793d308e8575b16b7303527110dd49bd02d46db0a8668b0eefdca14c2e"
+          },
+          "linux-amd64": {
+            "archive": "ruff-x86_64-unknown-linux-gnu.tar.gz",
+            "sha256": "94b33791f48cd54ab35ad673a443a5c001d3e6d87effeaba9899070b700d45f3"
+          },
+          "linux-arm64": {
+            "archive": "ruff-aarch64-unknown-linux-gnu.tar.gz",
+            "sha256": "d4eea36ee6228f6c6bbcf0aea4ebf66fe0e595eedc6cffe628d7b8ba3623390f"
+          }
+        }
       },
-      "versionPolicy": "minimum",
-      "requiredVersion": "0.17.1",
+      "versionPolicy": "exact",
+      "requiredVersion": "0.17.6",
       "detection": {
         "command": "ruff",
         "versionArguments": ["--version"],
@@ -373,9 +615,9 @@
       },
       "references": [
         {
-          "path": "docs/doxygen/project_contracts.md",
+          "path": "docs/doxygen/project_tools.md",
           "kind": "text",
-          "pattern": "| Ruff | {version} | MSYS2 |",
+          "pattern": "| Ruff | {version} | verified GitHub release |",
           "expectedCount": 1
         }
       ]
@@ -415,7 +657,7 @@
       },
       "references": [
         {
-          "path": "docs/doxygen/project_contracts.md",
+          "path": "docs/doxygen/project_tools.md",
           "kind": "text",
           "pattern": "| Gersemi | {version} | verified GitHub release |",
           "expectedCount": 1
@@ -450,7 +692,7 @@
       },
       "references": [
         {
-          "path": "docs/doxygen/project_contracts.md",
+          "path": "docs/doxygen/project_tools.md",
           "kind": "text",
           "pattern": "| yamllint | {version} | Python |",
           "expectedCount": 1
@@ -462,9 +704,12 @@
       "name": "jsonschema",
       "category": "quality",
       "provider": {
-        "kind": "msys2",
-        "environment": "ucrt64",
-        "package": "mingw-w64-ucrt-x86_64-python-jsonschema"
+        "kind": "python",
+        "package": "jsonschema",
+        "windowsMsys2": {
+          "environment": "ucrt64",
+          "package": "mingw-w64-ucrt-x86_64-python-jsonschema"
+        }
       },
       "versionPolicy": "minimum",
       "requiredVersion": "4.26.0",
@@ -480,9 +725,9 @@
       },
       "references": [
         {
-          "path": "docs/doxygen/project_contracts.md",
+          "path": "docs/doxygen/project_tools.md",
           "kind": "text",
-          "pattern": "| jsonschema | {version} | MSYS2 |",
+          "pattern": "| jsonschema | {version} | Python (minimum) |",
           "expectedCount": 1
         }
       ]
@@ -502,7 +747,7 @@
         ]
       },
       "versionPolicy": "exact",
-      "requiredVersion": "10.13.0",
+      "requiredVersion": "10.16.0",
       "detection": {
         "command": "eslint",
         "versionArguments": ["--version"],
@@ -515,7 +760,7 @@
       },
       "references": [
         {
-          "path": "docs/doxygen/project_contracts.md",
+          "path": "docs/doxygen/project_tools.md",
           "kind": "text",
           "pattern": "| ESLint | {version} | npm |",
           "expectedCount": 1
@@ -532,12 +777,12 @@
         "dependencies": [
           {
             "package": "prettier-plugin-powershell",
-            "version": "2.2.0"
+            "version": "2.2.1"
           }
         ]
       },
       "versionPolicy": "exact",
-      "requiredVersion": "3.9.10",
+      "requiredVersion": "3.10.1",
       "detection": {
         "command": "prettier",
         "versionArguments": ["--version"],
@@ -550,7 +795,7 @@
       },
       "references": [
         {
-          "path": "docs/doxygen/project_contracts.md",
+          "path": "docs/doxygen/project_tools.md",
           "kind": "text",
           "pattern": "| Prettier | {version} | npm |",
           "expectedCount": 1
@@ -566,7 +811,7 @@
         "package": "markdownlint-cli2"
       },
       "versionPolicy": "exact",
-      "requiredVersion": "0.24.0",
+      "requiredVersion": "0.24.2",
       "detection": {
         "command": "markdownlint-cli2",
         "versionArguments": ["--version"],
@@ -579,7 +824,7 @@
       },
       "references": [
         {
-          "path": "docs/doxygen/project_contracts.md",
+          "path": "docs/doxygen/project_tools.md",
           "kind": "text",
           "pattern": "| markdownlint-cli2 | {version} | npm |",
           "expectedCount": 1
@@ -608,7 +853,7 @@
       },
       "references": [
         {
-          "path": "docs/doxygen/project_contracts.md",
+          "path": "docs/doxygen/project_tools.md",
           "kind": "text",
           "pattern": "| PSScriptAnalyzer | {version} | PowerShell Gallery |",
           "expectedCount": 1
@@ -622,7 +867,6 @@
       "provider": {
         "kind": "githubRelease",
         "repository": "rhysd/actionlint",
-        "archiveName": "actionlint_{version}_{os}_{arch}.{extension}",
         "assets": {
           "linux-amd64": {
             "archive": "actionlint_1.7.12_linux_amd64.tar.gz",
@@ -649,7 +893,7 @@
       },
       "references": [
         {
-          "path": "docs/doxygen/project_contracts.md",
+          "path": "docs/doxygen/project_tools.md",
           "kind": "text",
           "pattern": "| actionlint | {version} | verified GitHub release |",
           "expectedCount": 1
@@ -689,7 +933,7 @@
       "detection": {
         "command": "git",
         "versionArguments": ["--version"],
-        "versionPattern": "git version ([0-9.]+)"
+        "versionPattern": "git version ([0-9]+\\.[0-9]+\\.[0-9]+)(?:\\.windows\\.[0-9]+)?"
       },
       "capabilities": {
         "detectInstalled": true,
@@ -704,19 +948,26 @@
       "category": "data",
       "provider": {
         "kind": "external",
-        "homepage": "https://www.unicode.org/versions/"
+        "homepage": "https://www.unicode.org/versions/",
+        "latestVersion": {
+          "url": "https://www.unicode.org/Public/UCD/latest/ReadMe.txt",
+          "pattern": "(?im)^This directory contains final data files and charts for version ([0-9]+\\.[0-9]+\\.[0-9]+)"
+        }
       },
       "versionPolicy": "informational",
       "detection": {
         "command": "gamewip",
         "versionArguments": ["unicode", "status"],
         "versionPattern": "Unicode ([0-9.]+)",
-        "repositoryPath": "gamewip.bat",
+        "repositoryPaths": {
+          "windows": "gamewip.bat",
+          "linux": "gamewip.sh"
+        },
         "commandConfigVersionPath": "unicode.version"
       },
       "capabilities": {
         "detectInstalled": true,
-        "checkLatest": false,
+        "checkLatest": true,
         "update": false
       },
       "references": [

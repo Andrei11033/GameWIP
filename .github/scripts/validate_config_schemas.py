@@ -14,8 +14,10 @@ REGISTRIES = {
     ROOT / "scripts/config/project.json": ROOT / "scripts/schemas/project.schema.json",
     ROOT / "scripts/config/commands.json": ROOT / "scripts/schemas/commands.schema.json",
     ROOT / "scripts/config/project-tools.json": ROOT / "scripts/schemas/project-tools.schema.json",
+    ROOT / "scripts/config/build-targets.json": ROOT / "scripts/schemas/build-targets.schema.json",
     ROOT / "scripts/setup/config/setup.json": ROOT / "scripts/schemas/setup.schema.json",
     ROOT / "scripts/setup/config/editors.json": ROOT / "scripts/schemas/editors.schema.json",
+    ROOT / "scripts/setup/platform/linux/host.json": ROOT / "scripts/schemas/linux-host.schema.json",
     ROOT / "config/quality/file-ownership.json": ROOT / "scripts/schemas/quality-file-ownership.schema.json",
     ROOT / "config/quality/hygiene.json": ROOT / "scripts/schemas/hygiene.schema.json",
 }
@@ -33,6 +35,7 @@ def main() -> int:
     schemas: dict[Path, dict] = {}
     schema_registry = Registry()
 
+    # Load shared schemas before validating any configuration registry.
     for schema_path in sorted(set(REGISTRIES.values()) | SHARED_SCHEMAS):
         schema = read_json(schema_path)
 
@@ -46,6 +49,7 @@ def main() -> int:
         if schema_id is not None:
             schema_registry = schema_registry.with_resource(schema_id, Resource.from_contents(schema))
 
+    # Validate each authoritative registry against its declared schema.
     for registry_path, schema_path in REGISTRIES.items():
         schema = schemas.get(schema_path)
 

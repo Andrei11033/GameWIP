@@ -6,22 +6,18 @@ exact merge commit that was validated after that pull request. Neither stage
 derives a version from issue counts, bypasses branch protection, or writes
 release changes directly to `master`.
 
+Examples use Windows PowerShell. On Linux, replace `.\gamewip.bat` with
+`bash ./gamewip.sh`; GitHub CLI commands are unchanged.
+
 ## Required configuration
 
-Configure these Actions variables:
+Use the shared `ACTIVE_MILESTONE` variable listed in
+@ref project_repository_maintenance. It must name the milestone being released;
+advance it only after the prior release and handoff are complete. The same
+workflow applies to promoted release milestones and compatible PATCH releases.
 
-```text
-ACTIVE_MILESTONE=R01 - Desktop, Input, and Action Foundation
-```
-
-Change `ACTIVE_MILESTONE` to the next milestone only after the previous
-milestone's tag, GitHub release, closure issue, and handoff are complete. The
-same workflow applies to R00, R01, later promoted release milestones, and
-compatible PATCH releases. `ACTIVE_MILESTONE` names only the milestone being
-released now.
-
-Configure `PROJECT_TOKEN` as an Actions secret. The token must be a dedicated GitHub App token or dedicated maintainer token with the minimum
-permissions needed to:
+Configure `PROJECT_TOKEN` as an Actions secret. Use a dedicated GitHub App or
+maintainer token with only the permissions needed to:
 
 - Read repository contents, issues, milestones, pull requests, workflow runs, tags, and releases.
 - Create release-preparation branches.
@@ -86,8 +82,7 @@ Exactly one issue in the milestone must use `type:release` as its only type or
 have a title beginning with `release:`. Automation discovers that issue from
 the milestone's issues; an issue number in the description does not select it.
 
-The release issue must stay open during readiness checks and release-preparation pull-request creation. It closes only after finalization has created
-the immutable tag and GitHub release and the milestone handoff is complete.
+Keep the release issue open for readiness checks and pull-request creation.
 
 ## Readiness check
 
@@ -110,7 +105,8 @@ The check verifies that:
 
 - The selected milestone matches `ACTIVE_MILESTONE`.
 - The milestone has explicit `Release version:` metadata.
-- The milestone has exactly one valid `Next milestone:` value, and any named successor resolves to exactly one different open milestone.
+- The milestone has exactly one valid `Next milestone:` value. Any named
+  successor resolves to exactly one different open milestone.
 - The milestone has exactly one release issue, resolved from a `type:release` label or a `release:` title.
 - The root CMake project version matches the milestone release version.
 - The milestone has no open implementation issues except its release issue.
@@ -118,7 +114,8 @@ The check verifies that:
 - The latest `master` commit has the required validation workflows passing.
 - Release-preparation branches and pull requests can be reused safely.
 
-Automatic issue and milestone events run the same readiness logic without mutating source, creating tags, or creating releases.
+Issue and milestone events run the same readiness logic without mutating source,
+creating tags, or creating releases.
 
 ## Prepare the release pull request
 
@@ -138,8 +135,9 @@ The workflow creates or reuses:
 - `release: prepare vX.Y.Z`
 - `docs/releases/vX.Y.Z.md`
 
-The generated pull request references the release issue but does not close it. The release issue remains open until the tag, GitHub release, and
-milestone handoff exist.
+The generated pull request references, but does not close, the release issue.
+Finalization closes it after creating the tag and GitHub release and completing
+the milestone handoff.
 
 The final validation evidence must be filled in before a maintainer reviews and
 merges the release-preparation pull request. The workflow must not write
@@ -152,10 +150,17 @@ described by the generated release-process section.
 
 ## Finalize the release
 
-After the release-preparation pull request merges and post-merge validation passes on `master`, capture the exact master commit:
+After the release-preparation pull request merges and post-merge validation
+passes on `master`, capture the exact master commit:
 
 ```powershell
 $releaseCommit = gh api repos/Andrei11033/GameWIP/branches/master --jq .commit.sha
+```
+
+In Bash, use:
+
+```bash
+releaseCommit=$(gh api repos/Andrei11033/GameWIP/branches/master --jq .commit.sha)
 ```
 
 Run a finalization dry run:
@@ -175,8 +180,9 @@ gh workflow run release-preparation.yml -f command=finalize -f dry_run=false -f 
 The write requires a typed phrase containing the exact commit SHA and approval
 through the `release-production` environment.
 
-Finalization creates an annotated `vX.Y.Z` tag and a matching GitHub release. Existing matching artifacts are reused. Conflicting tags, releases,
-branches, or pull requests cause a safe failure.
+Finalization creates an annotated `vX.Y.Z` tag and a matching GitHub release.
+Existing matching artifacts are reused. Conflicting tags, releases, branches,
+or pull requests cause a safe failure.
 
 ## Recovery behavior
 

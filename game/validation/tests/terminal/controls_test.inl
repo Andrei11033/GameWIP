@@ -8,6 +8,7 @@ void testControls(TestSupport::Context &context)
     Hooks::reset();
     setupCapturedOutput(Terminal::Types::Output::Stream::Stdout);
 
+    // Emit the requested terminal control sequences.
     static_cast<void>(context.expectTrue("move cursor succeeds", Terminal::moveCursor(Terminal::Types::Cursor::MoveDirection::Up, 2).ok()));
     static_cast<void>(context.expectTrue("set cursor succeeds", Terminal::setCursorPosition({.column = 4, .row = 2}).ok()));
     static_cast<void>(context.expectTrue("save cursor succeeds", Terminal::saveCursorPosition().ok()));
@@ -32,6 +33,7 @@ void testControls(TestSupport::Context &context)
         std::string{"\x1b[2A\x1b[3;5H\x1b[s\x1b[u\x1b[?25l\x1b[?25h\x1b[3J\x1b[3T\x1b[?1049h\x1b[?1049l\x1b]0;A B C\a\a"},
         Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout)));
 
+    // Restore cursor state through nested scopes and retry failures.
     Hooks::clearCapturedOutput(Terminal::Types::Output::Stream::Stdout);
     {
         Terminal::CursorHiddenScope outer = Terminal::scopedCursorHidden();
@@ -55,8 +57,8 @@ void testControls(TestSupport::Context &context)
     Hooks::clearCapturedOutput(Terminal::Types::Output::Stream::Stdout);
     {
         Terminal::CursorHiddenScope scope = Terminal::scopedCursorHidden();
-        Hooks::forceNextTextWriteFailure(ErrorCode::WriteFailed);
-        static_cast<void>(context.expectEq("cursor restore failure propagates", ErrorCode::WriteFailed, scope.restore().code));
+        Hooks::forceNextTextWriteFailure(IOErrorCode::WriteFailed);
+        static_cast<void>(context.expectEq("cursor restore failure propagates", ErrorCode::WriteFailed, scope.restore().status().code()));
         static_cast<void>(context.expectTrue("failed cursor restore remains active", scope.active()));
         static_cast<void>(context.expectTrue("cursor restore retry succeeds", scope.restore().ok()));
         static_cast<void>(context.expectFalse("successful cursor restore becomes inactive", scope.active()));
@@ -64,9 +66,9 @@ void testControls(TestSupport::Context &context)
 
     Hooks::clearCapturedOutput(Terminal::Types::Output::Stream::Stdout);
     {
-        Hooks::forceNextFlushFailure(ErrorCode::FlushFailed);
+        Hooks::forceNextFlushFailure(IOErrorCode::FlushFailed);
         Terminal::CursorHiddenScope scope = Terminal::scopedCursorHidden({.flushMode = IO::Types::FlushMode::Data});
-        static_cast<void>(context.expectEq("cursor setup flush failure propagates", ErrorCode::FlushFailed, scope.status().code));
+        static_cast<void>(context.expectEq("cursor setup flush failure propagates", ErrorCode::FlushFailed, scope.status().code()));
         static_cast<void>(context.expectTrue("cursor setup flush failure retains restoration ownership", scope.active()));
         static_cast<void>(context.expectTrue("cursor setup flush failure can still restore", scope.restore().ok()));
     }
@@ -78,8 +80,8 @@ void testControls(TestSupport::Context &context)
     Hooks::clearCapturedOutput(Terminal::Types::Output::Stream::Stdout);
     {
         Terminal::CursorHiddenScope scope = Terminal::scopedCursorHidden({.flushMode = IO::Types::FlushMode::Data});
-        Hooks::forceNextFlushFailure(ErrorCode::FlushFailed);
-        static_cast<void>(context.expectEq("cursor restore flush failure propagates", ErrorCode::FlushFailed, scope.restore().code));
+        Hooks::forceNextFlushFailure(IOErrorCode::FlushFailed);
+        static_cast<void>(context.expectEq("cursor restore flush failure propagates", ErrorCode::FlushFailed, scope.restore().status().code()));
         static_cast<void>(context.expectTrue("cursor restore flush failure remains retryable", scope.active()));
         static_cast<void>(context.expectTrue("cursor restore flush retry succeeds", scope.restore().ok()));
         static_cast<void>(context.expectFalse("cursor restore flush retry releases ownership", scope.active()));
@@ -91,8 +93,8 @@ void testControls(TestSupport::Context &context)
 
     Hooks::clearCapturedOutput(Terminal::Types::Output::Stream::Stdout);
     {
-        Terminal::CursorHiddenScope failedDestructorScope = Terminal::scopedCursorHidden();
-        Hooks::forceNextTextWriteFailure(ErrorCode::WriteFailed);
+        const Terminal::CursorHiddenScope failedDestructorScope = Terminal::scopedCursorHidden();
+        Hooks::forceNextTextWriteFailure(IOErrorCode::WriteFailed);
     }
     {
         Terminal::CursorHiddenScope laterScope = Terminal::scopedCursorHidden();
@@ -103,6 +105,7 @@ void testControls(TestSupport::Context &context)
         std::string{"\x1b[?25l\x1b[?25l\x1b[?25h"},
         Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout)));
 
+    // Restore alternate-screen state through nested scopes.
     Hooks::clearCapturedOutput(Terminal::Types::Output::Stream::Stdout);
     {
         Terminal::AlternateScreenScope outer = Terminal::scopedAlternateScreen();
@@ -123,21 +126,22 @@ void testControls(TestSupport::Context &context)
         std::string{"\x1b[?1049h\x1b[?1049l"},
         Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout)));
 
+    // Reject unsupported operations and invalid arguments.
     Hooks::clearCapturedOutput(Terminal::Types::Output::Stream::Stdout);
     Hooks::setOutputCapabilitiesOverride(Terminal::Types::Output::Stream::Stdout, redirectedOutputCapabilities());
     static_cast<void>(context.expectEq(
         "unsupported cursor movement fails",
         ErrorCode::Unsupported,
-        Terminal::moveCursor(Terminal::Types::Cursor::MoveDirection::Down, 1).code));
+        Terminal::moveCursor(Terminal::Types::Cursor::MoveDirection::Down, 1).status().code()));
     static_cast<void>(
         context.expectTrue("unsupported cursor movement writes nothing", Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout).empty()));
 
     Hooks::setOutputCapabilitiesOverride(Terminal::Types::Output::Stream::Stdout, unpreparedTerminalOutputCapabilities());
-    Hooks::forceNextOutputPreparationFailure(ErrorCode::NativeFailure);
+    Hooks::forceNextOutputPreparationFailure(IOErrorCode::NativeFailure);
     static_cast<void>(context.expectEq(
         "control preparation failure propagates",
         ErrorCode::NativeFailure,
-        Terminal::moveCursor(Terminal::Types::Cursor::MoveDirection::Down, 1).code));
+        Terminal::moveCursor(Terminal::Types::Cursor::MoveDirection::Down, 1).status().code()));
     static_cast<void>(
         context.expectTrue("control preparation failure writes nothing", Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout).empty()));
 
@@ -146,42 +150,43 @@ void testControls(TestSupport::Context &context)
     static_cast<void>(context.expectEq(
         "zero move still validates direction",
         ErrorCode::InvalidArgument,
-        Terminal::moveCursor(static_cast<Terminal::Types::Cursor::MoveDirection>(-1), 0).code));
+        Terminal::moveCursor(static_cast<Terminal::Types::Cursor::MoveDirection>(-1), 0).status().code()));
     static_cast<void>(context.expectEq(
         "zero scroll still validates direction",
         ErrorCode::InvalidArgument,
-        Terminal::scroll(static_cast<Terminal::Types::Output::ScrollDirection>(-1), 0).code));
+        Terminal::scroll(static_cast<Terminal::Types::Output::ScrollDirection>(-1), 0).status().code()));
     static_cast<void>(context.expectEq(
         "cursor movement rejects values beyond VT limit",
         ErrorCode::InvalidArgument,
-        Terminal::moveCursor(Terminal::Types::Cursor::MoveDirection::Down, 32768).code));
+        Terminal::moveCursor(Terminal::Types::Cursor::MoveDirection::Down, 32768).status().code()));
     static_cast<void>(context.expectEq(
         "cursor position rejects values beyond VT limit",
         ErrorCode::InvalidArgument,
-        Terminal::setCursorPosition({.column = 32767, .row = 0}).code));
+        Terminal::setCursorPosition({.column = 32767, .row = 0}).status().code()));
     static_cast<void>(context.expectEq(
         "scroll rejects values beyond VT limit",
         ErrorCode::InvalidArgument,
-        Terminal::scroll(Terminal::Types::Output::ScrollDirection::Down, 32768).code));
+        Terminal::scroll(Terminal::Types::Output::ScrollDirection::Down, 32768).status().code()));
 
     const auto invalidOutputStream = static_cast<Terminal::Types::Output::Stream>(99);
     static_cast<void>(context.expectEq(
         "invalid output stream is rejected",
         ErrorCode::InvalidArgument,
-        Terminal::writeText(invalidOutputStream, "must-not-write").code));
+        Terminal::writeText(invalidOutputStream, "must-not-write").status().code()));
     static_cast<void>(context.expectEq(
         "invalid output capability stream is rejected",
         ErrorCode::InvalidArgument,
-        Terminal::getOutputCapabilities(invalidOutputStream).status.code));
+        Terminal::getOutputCapabilities(invalidOutputStream).status().code()));
 
     const std::string oversizedTitle(255, 'x');
-    static_cast<void>(context.expectEq("title rejects values beyond VT limit", ErrorCode::InvalidArgument, Terminal::setTitle(oversizedTitle).code));
+    static_cast<void>(
+        context.expectEq("title rejects values beyond VT limit", ErrorCode::InvalidArgument, Terminal::setTitle(oversizedTitle).status().code()));
 
-    Hooks::forceNextFlushFailure(ErrorCode::FlushFailed);
+    Hooks::forceNextFlushFailure(IOErrorCode::FlushFailed);
     static_cast<void>(context.expectEq(
         "forced flush failure through control",
         ErrorCode::FlushFailed,
-        Terminal::moveCursor(Terminal::Types::Cursor::MoveDirection::Down, 0, {.flushMode = IO::Types::FlushMode::Data}).code));
+        Terminal::moveCursor(Terminal::Types::Cursor::MoveDirection::Down, 0, {.flushMode = IO::Types::FlushMode::Data}).status().code()));
 
     Hooks::reset();
 }

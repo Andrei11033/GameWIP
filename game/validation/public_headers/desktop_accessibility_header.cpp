@@ -4,6 +4,7 @@
 #include "desktop/accessibility.h"
 
 #include <type_traits>
+#include <utility>
 
 static_assert(!std::is_copy_constructible_v<GameWIP::Desktop::Accessibility::SnapshotBuilder>);
 static_assert(std::is_nothrow_move_constructible_v<GameWIP::Desktop::Accessibility::SnapshotBuilder>);

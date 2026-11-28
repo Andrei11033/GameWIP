@@ -12,6 +12,10 @@ namespace GameWIP::TestSupport
 {
     class ScopedProcessState;
 
+    /// ------------------------------------------------------------
+    /// Scoped filesystem state
+    /// ------------------------------------------------------------
+
     /// @brief Owns one unique directory beneath the process temporary directory.
     /// @details The validation runner scopes the process temporary directory to its active preset; standalone consumers use the host default.
     /// Construction is non-throwing and leaves an inert guard on failure. Destruction performs best-effort recursive cleanup.
@@ -31,12 +35,15 @@ namespace GameWIP::TestSupport
         /// @brief Returns the owned temporary directory path.
         [[nodiscard]] const std::filesystem::path &path() const noexcept;
         /// @brief Returns the construction status; a failed guard owns no path.
-        [[nodiscard]] Types::InfrastructureStatus status() const noexcept;
+        [[nodiscard]] Types::Status status() const noexcept;
 
     private:
-        std::filesystem::path path_;         ///< Owned temporary directory.
-        std::filesystem::path root_;         ///< TestSupport temporary root used for best-effort parent cleanup.
-        Types::InfrastructureStatus status_; ///< Construction status.
+        // Owned temporary paths
+        std::filesystem::path path_; ///< Owned temporary directory.
+        std::filesystem::path root_; ///< TestSupport temporary root used for best-effort parent cleanup.
+
+        // Construction status
+        Types::Status status_; ///< Construction status.
     };
 
     /// @brief Temporarily changes the process current directory under an owned process-state scope.
@@ -56,18 +63,27 @@ namespace GameWIP::TestSupport
         /// @brief Returns the directory that a successful guard will restore.
         [[nodiscard]] const std::filesystem::path &previousPath() const noexcept;
         /// @brief Returns the construction status; a failed guard performs no restoration.
-        [[nodiscard]] Types::InfrastructureStatus status() const noexcept;
+        [[nodiscard]] Types::Status status() const noexcept;
         /// @brief Restores the captured directory and reports failures or concurrent state changes.
-        [[nodiscard]] Types::InfrastructureStatus restore() noexcept;
+        [[nodiscard]] Types::Result<void> restore() noexcept;
 
     private:
-        ScopedProcessState *processState_ = nullptr;    ///< Owning process-state scope used for restoration diagnostics.
-        std::filesystem::path previousPath_;            ///< Captured process current directory.
-        std::filesystem::path expectedPath_;            ///< Directory expected to remain current until restoration.
-        Types::InfrastructureStatus status_;            ///< Construction status.
-        Types::InfrastructureStatus restorationStatus_; ///< Most recent restoration status.
-        bool restored_ = false;                         ///< True once restoration succeeds.
+        // Process-state ownership
+        ScopedProcessState *processState_ = nullptr; ///< Owning process-state scope used for restoration diagnostics.
+
+        // Directories to verify and restore
+        std::filesystem::path previousPath_; ///< Captured process current directory.
+        std::filesystem::path expectedPath_; ///< Directory expected to remain current until restoration.
+
+        // Guard status
+        Types::Status status_;            ///< Construction status.
+        Types::Status restorationStatus_; ///< Most recent restoration status.
+        bool restored_ = false;           ///< True once restoration succeeds.
     };
+
+    /// ------------------------------------------------------------
+    /// UTF-8 text files
+    /// ------------------------------------------------------------
 
     /// @brief Reads one complete file as strict UTF-8 text.
     /// @return Status plus valid UTF-8 text. Encoding failure may preserve the complete valid prefix.
@@ -79,7 +95,11 @@ namespace GameWIP::TestSupport
     /// @param text Valid UTF-8 bytes to write unchanged.
     /// @return Success or an explicit infrastructure failure.
     /// @note UTF-8 is validated before parent creation or a truncating destination open.
-    [[nodiscard]] Types::InfrastructureStatus writeTextFile(const std::filesystem::path &path, std::string_view text) noexcept;
+    [[nodiscard]] Types::Result<void> writeTextFile(const std::filesystem::path &path, std::string_view text) noexcept;
+
+    /// ------------------------------------------------------------
+    /// File queries and cleanup
+    /// ------------------------------------------------------------
 
     /// @brief Queries whether path exists without collapsing inspection failure into absence.
     [[nodiscard]] Types::BoolResult fileExists(const std::filesystem::path &path) noexcept;
@@ -88,7 +108,7 @@ namespace GameWIP::TestSupport
     /// @brief Counts non-overlapping UTF-8 substring occurrences and preserves the read status.
     [[nodiscard]] Types::CountResult countFileOccurrences(const std::filesystem::path &path, std::string_view text) noexcept;
     /// @brief Creates a directory tree; an empty path is a successful no-op.
-    [[nodiscard]] Types::InfrastructureStatus createDirectories(const std::filesystem::path &path) noexcept;
+    [[nodiscard]] Types::Result<void> createDirectories(const std::filesystem::path &path) noexcept;
     /// @brief Removes a file or complete directory tree; absence is successful.
-    [[nodiscard]] Types::InfrastructureStatus removeIfExists(const std::filesystem::path &path) noexcept;
+    [[nodiscard]] Types::Result<void> removeIfExists(const std::filesystem::path &path) noexcept;
 } // namespace GameWIP::TestSupport

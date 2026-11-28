@@ -27,7 +27,7 @@ int runStartGateChild()
                         [&](std::size_t)
                         {
                             {
-                                std::lock_guard lock(mutex);
+                                const std::lock_guard lock(mutex);
                                 ++approaching;
                             }
                             condition.notify_all();
@@ -56,7 +56,7 @@ int runStartGateChild()
                 {
                     gate.open();
                 }
-            } release{gate};
+            } const release{gate};
             {
                 std::unique_lock lock(mutex);
                 const bool ready = condition.wait_for(
@@ -99,7 +99,7 @@ int runStartGateChild()
             static_cast<void>(
                 context.expectEq("StartGate remains open for future waiters", std::size_t{4}, lateWaiters.load(std::memory_order_relaxed)));
         });
-    return GameWIP::Test::RunnerHelpers::finalizeRunner(runner);
+    return GameWIP::Test::Internal::RunnerHelpers::finalizeRunner(runner);
 }
 
 /// @brief Verifies worker coordination, callable variants, and exception propagation.
@@ -111,6 +111,7 @@ void testStressHelpers(TestSupport::Context &context, const std::filesystem::pat
         return;
     }
 
+    // Exercise the blocking gate and future waiters in a child process.
     if(options.enableChildProcessTests)
     {
         TestSupport::Types::Process::Options childOptions;
@@ -119,16 +120,16 @@ void testStressHelpers(TestSupport::Context &context, const std::filesystem::pat
         childOptions.waitTimeout = 30s;
         const auto child = TestSupport::runChildProcess(childOptions);
 
-        if(!child.status.ok() || child.outcome != TestSupport::Types::Process::Outcome::Exited || child.exitCode != 0)
+        if(!child.ok() || child.value().outcome != TestSupport::Types::Process::Outcome::Exited || child.value().exitCode != 0)
         {
             context.fail(
                 "StartGate blocking, release and future waiters",
                 std::format(
                     "{} outcome={} exit={}\n{}",
-                    TestSupport::formatInfrastructureStatus(child.status),
-                    static_cast<int>(child.outcome),
-                    child.exitCode,
-                    child.outputBytes));
+                    TestSupport::formatStatus(child.status()),
+                    static_cast<int>(child.value().outcome),
+                    child.value().exitCode,
+                    child.value().outputBytes));
         }
         else
         {
@@ -140,6 +141,7 @@ void testStressHelpers(TestSupport::Context &context, const std::filesystem::pat
         context.skip("StartGate child", "child process tests disabled by TestSupportTestOptions");
     }
 
+    // Verify the cooperative stop flag and callable forms.
     TestSupport::StopFlag stopFlag;
     static_cast<void>(context.expectFalse("StopFlag starts without a request", stopFlag.stopRequested()));
     stopFlag.requestStop();
@@ -197,14 +199,14 @@ void testStressHelpers(TestSupport::Context &context, const std::filesystem::pat
         /// @brief Records the identity of this per-worker callable copy.
         void operator()(std::size_t)
         {
-            std::lock_guard lock(*mutex);
+            const std::lock_guard lock(*mutex);
             ids->insert(id);
         }
     };
 
-    auto nextWorkerId = std::make_shared<std::atomic<std::size_t>>(0);
-    auto addressMutex = std::make_shared<std::mutex>();
-    auto workerIds = std::make_shared<std::set<std::size_t>>();
+    const auto nextWorkerId = std::make_shared<std::atomic<std::size_t>>(0);
+    const auto addressMutex = std::make_shared<std::mutex>();
+    const auto workerIds = std::make_shared<std::set<std::size_t>>();
     TestSupport::runWorkers(4, WorkerCopyRecorder{nextWorkerId, addressMutex, workerIds});
     static_cast<void>(context.expectEq("runWorkers gives each worker its own callable copy", std::size_t{4}, workerIds->size()));
 
@@ -214,11 +216,12 @@ void testStressHelpers(TestSupport::Context &context, const std::filesystem::pat
         4,
         [&](std::size_t workerIndex)
         {
-            std::lock_guard lock(workerIndexMutex);
+            const std::lock_guard lock(workerIndexMutex);
             workerIndices.insert(workerIndex);
         });
     static_cast<void>(context.expectEq("runWorkers passes each worker its index", std::set<std::size_t>{0, 1, 2, 3}, workerIndices));
 
+    // Confirm worker failures propagate only after all started workers finish.
     std::atomic<std::size_t> enteredFailureWorkers{0};
     std::atomic<std::size_t> completedFailureWorkers{0};
     bool rethrown = false;

@@ -4,13 +4,16 @@
 #pragma once
 
 #include "desktop/child_surface.h"
+#include "desktop/internal/helpers/event_storage.h"
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <span>
 #include <thread>
 #include <vector>
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
     struct ChildSurfaceData;
 
@@ -18,9 +21,9 @@ namespace GameWIP::Desktop::Detail::Platform
     {
         void operator()(ChildSurfaceData *data) const noexcept;
     };
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Platform
 
-namespace GameWIP::Desktop::Detail
+namespace GameWIP::Desktop::Internal
 {
     /// @brief Outcome of inserting one ChildSurface event into fixed storage.
     enum class ChildSurfaceEnqueueResult
@@ -41,22 +44,16 @@ namespace GameWIP::Desktop::Detail
         /// @brief Clears queued payloads and releases the caller-storage view.
         void clearRetainedEvents() noexcept
         {
-            if(!eventStorage.empty())
-            {
-                for(std::size_t index = 0; index < eventCount; ++index)
-                {
-                    eventStorage[(eventHead + index) % eventStorage.size()] = {};
-                }
-            }
-            eventHead = 0;
-            eventCount = 0;
-            eventStorage = {};
+            clearRetainedEventStorage(eventStorage, eventHead, eventCount);
         }
 
+        // Native ownership and parent binding
         std::unique_ptr<Platform::ChildSurfaceData, Platform::ChildSurfaceDataDeleter> platform;
         ChildSurfaceState *deferredCleanupNext = nullptr;
         std::thread::id ownerThread;
         Types::WindowId parentId;
+
+        // Event storage and sequencing
         std::vector<Types::ChildSurface::Event> internalEvents;
         std::span<Types::ChildSurface::Event> eventStorage; ///< Internal or caller-owned slots retained until close.
         Types::Events::StorageKind eventStorageKind = Types::Events::StorageKind::Internal;
@@ -64,15 +61,19 @@ namespace GameWIP::Desktop::Detail
         std::size_t eventCount = 0;
         std::uint64_t nextSequence = 1;
         std::uint64_t droppedEvents = 0;
+
+        // Cached geometry and scale
         Types::LogicalRect rect;
         Types::PixelSize pixelSize;
         Types::ScreenRect screenRect;
         Types::ContentScale contentScale;
         Types::Dpi dpi;
+
+        // Visibility and teardown
         bool visible = false;
         bool interactionEnabled = true;
         bool suppressEvents = true;                  ///< Suppresses construction-time native callbacks.
-        bool nativeDestroyedPendingFinalize = false; ///< Native HWND is gone; owner-thread finalization remains.
+        bool nativeDestroyedPendingFinalize = false; ///< Native child surface is gone; owner-thread finalization remains.
     };
 
     [[nodiscard]] bool isChildSurfaceEventCoalescible(const Types::ChildSurface::Events::Payload &data) noexcept;
@@ -95,4 +96,4 @@ namespace GameWIP::Desktop::Detail
             return surface.state_;
         }
     };
-} // namespace GameWIP::Desktop::Detail
+} // namespace GameWIP::Desktop::Internal

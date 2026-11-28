@@ -22,15 +22,12 @@ Checks: >
   portability-*,
 
   misc-definitions-in-headers,
-  misc-misplaced-const,
   misc-new-delete-overloads,
   misc-non-copyable-objects,
-  misc-redundant-expression,
   misc-static-assert,
   misc-unconventional-assign-operator,
 
   modernize-deprecated-headers,
-  modernize-loop-convert,
   modernize-make-shared,
   modernize-make-unique,
   modernize-pass-by-value,

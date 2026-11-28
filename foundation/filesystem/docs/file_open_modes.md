@@ -29,7 +29,8 @@ only while open.
 
 ## Transfer behavior
 
-Reads and writes can complete partially. Inspect `bytesRead`, `endOfStream`, and `bytesWritten` even when the status is successful.
+Reads and writes return `Result<IO::Types::ReadProgress>` or `Result<IO::Types::WriteProgress>`. Inspect `value()` when `hasValue()` is true; a
+failed result can retain partial progress. A successful read may contain bytes and set `endOfStream`.
 
 An empty read performs no transfer but reports the current end-of-stream state. An empty write succeeds without transferring bytes.
 
@@ -77,7 +78,7 @@ Lock acquisition is non-blocking and covers the complete file:
 - `FileWriter` offers exclusive locking;
 - `File` offers both.
 
-A successful status with `Types::Lock::Outcome::WouldBlock` means no lock was acquired. Backend failures use a failed status.
+Contention returns a failed result with `status().code() == Code::WouldBlock`. Other acquisition failures use their corresponding status code.
 
 `FileLock` owns enough native state to remain active after the originating handle object is destroyed. This supports detached lock ownership but has
 an important lifecycle distinction:

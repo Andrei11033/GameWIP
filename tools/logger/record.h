@@ -23,7 +23,7 @@
 namespace GameWIP::Logger
 {
     /// @cond INTERNAL
-    namespace Detail::Core
+    namespace Internal::Core
     {
         struct RecordAccess;
     }
@@ -33,34 +33,40 @@ namespace GameWIP::Logger
     class Record
     {
     public:
+        // Field values
         /// @brief Adds a formatted key-value field when the key and configured limits allow it.
         template <typename Value> Record &field(std::string_view key, Value &&value)
         {
+            // Reject invalid keys and fields beyond the configured limit.
             if(key.empty() || GameWIP::Unicode::Utf8::validate(key).outcome != GameWIP::Unicode::Types::ValidationOutcome::Valid)
             {
                 return *this;
             }
-            const Detail::Core::RecordLimits limits = Detail::Core::getRecordLimitsForFormatting();
+
+            const Internal::Core::RecordLimits limits = Internal::Core::getRecordLimitsForFormatting();
             if(fields_.size() >= limits.maxFields)
             {
                 return *this;
             }
 
-            key = key.substr(0, Detail::Core::utf8PrefixBoundary(key, limits.maxKeyLength));
+            // Bound the key and format the value within its configured limit.
+            key = key.substr(0, Internal::Core::utf8PrefixBoundary(key, limits.maxKeyLength));
             if(key.empty())
             {
                 return *this;
             }
 
             std::string text;
+            // Include room for a four-byte UTF-8 scalar that crosses the retained boundary.
             const std::size_t outputLimit = limits.maxValueLength == 0                                            ? 0
                                             : limits.maxValueLength > std::numeric_limits<std::size_t>::max() - 3 ? limits.maxValueLength
                                                                                                                   : limits.maxValueLength + 3;
             const std::size_t maxIteratorDistance = static_cast<std::size_t>(std::numeric_limits<std::ptrdiff_t>::max());
             const std::ptrdiff_t boundedOutputLimit = static_cast<std::ptrdiff_t>(std::min(outputLimit, maxIteratorDistance));
             static_cast<void>(std::format_to_n(std::back_inserter(text), boundedOutputLimit, "{}", std::forward<Value>(value)));
-            text.resize(Detail::Core::utf8PrefixBoundary(text, limits.maxValueLength));
+            text.resize(Internal::Core::utf8PrefixBoundary(text, limits.maxValueLength));
 
+            // Retain only valid UTF-8 field values.
             if(GameWIP::Unicode::Utf8::validate(text).outcome != GameWIP::Unicode::Types::ValidationOutcome::Valid)
             {
                 return *this;
@@ -69,6 +75,8 @@ namespace GameWIP::Logger
             fields_.emplace_back(key, std::move(text));
             return *this;
         }
+
+        // Source metadata
 
         /// @brief Includes the current thread identifier in this record.
         Record &threadId() noexcept
@@ -114,10 +122,12 @@ namespace GameWIP::Logger
             return *this;
         }
 
+        // Field layout
+
         /// @brief Selects a built-in layout for this record's fields.
         Record &layout(FieldLayout value) noexcept
         {
-            layout_ = Detail::isValidFieldLayout(value) ? value : FieldLayout::Adaptive;
+            layout_ = Internal::isValidFieldLayout(value) ? value : FieldLayout::Adaptive;
             hasLayout_ = true;
             return *this;
         }
@@ -125,9 +135,9 @@ namespace GameWIP::Logger
         /// @brief Selects a validated custom layout template for this record.
         Record &layout(LayoutTemplate value)
         {
-            customLayout_ = Detail::isValidLayoutTemplate(value.text) &&
+            customLayout_ = Internal::isValidLayoutTemplate(value.text) &&
                                     GameWIP::Unicode::Utf8::validate(value.text).outcome == GameWIP::Unicode::Types::ValidationOutcome::Valid
-                                ? Detail::compileLayoutTemplate(value.text)
+                                ? Internal::compileLayoutTemplate(value.text)
                                 : std::string{};
             return *this;
         }
@@ -138,20 +148,28 @@ namespace GameWIP::Logger
         {
         }
 
-        [[nodiscard]] std::string prefix() const
+        // Message formatting
+
+        [[nodiscard]] std::string prefixContent() const
         {
+            // Start with the formatted record fields.
             std::string result = fieldText();
 
+            // Append selected call-site and runtime metadata.
             if(includeFile_ || includeFunction_ || includeLine_ || includeThreadId_ || includeProcessId_)
             {
+                // Separate existing fields from optional metadata.
                 if(!result.empty())
                 {
                     result.append(" | ");
                 }
+
+                // Format the selected call-site location.
                 if(includeFile_)
                 {
                     result.append(location_.file_name());
                 }
+
                 if(includeLine_)
                 {
                     if(includeFile_)
@@ -160,6 +178,7 @@ namespace GameWIP::Logger
                     }
                     result.append(std::format("{}", location_.line()));
                 }
+
                 if(includeFunction_)
                 {
                     if(includeFile_ || includeLine_)
@@ -169,6 +188,7 @@ namespace GameWIP::Logger
                     result.append(location_.function_name());
                 }
 
+                // Append selected runtime identifiers.
                 if(includeThreadId_)
                 {
                     if(!result.empty())
@@ -177,20 +197,17 @@ namespace GameWIP::Logger
                     }
                     result.append(std::format("thread={}", std::this_thread::get_id()));
                 }
+
                 if(includeProcessId_)
                 {
                     if(!result.empty())
                     {
                         result.push_back(' ');
                     }
-                    result.append(std::format("process={}", Detail::Core::currentProcessId()));
+                    result.append(std::format("process={}", Internal::Core::currentProcessId()));
                 }
             }
 
-            if(!result.empty())
-            {
-                result.append(": ");
-            }
             return result;
         }
 
@@ -203,10 +220,10 @@ namespace GameWIP::Logger
                 {
                     result.push_back(' ');
                 }
-                result.push_back(Detail::Core::Protocol::kStyleBegin);
+                result.push_back(Internal::Core::Protocol::kStyleBegin);
                 result.push_back('F');
                 result.append(key);
-                result.push_back(Detail::Core::Protocol::kStyleEnd);
+                result.push_back(Internal::Core::Protocol::kStyleEnd);
                 result.push_back('=');
                 result.append(value);
             }
@@ -215,44 +232,49 @@ namespace GameWIP::Logger
 
         [[nodiscard]] std::string decorate(std::string_view message, FieldLayout defaultLayout, LayoutTemplate defaultTemplate = {}) const
         {
-            std::string prefixText = prefix();
+            constexpr std::size_t kAdaptiveExpansionThreshold = 96;
             const std::string_view selectedTemplate = customLayout_.empty() ? defaultTemplate.text : std::string_view(customLayout_);
+
+            // Apply a validated custom template when one is available.
             if(!selectedTemplate.empty())
             {
-                if(!prefixText.empty())
-                {
-                    prefixText.resize(prefixText.size() - 2);
-                }
+                const std::string fields = fieldText();
                 std::string result;
-                result.reserve(selectedTemplate.size() + prefixText.size() + message.size() + 8);
-                result.push_back(Detail::Core::Protocol::kLayoutBegin);
-                result.append(selectedTemplate);
-                result.push_back(Detail::Core::Protocol::kLayoutSeparator);
-                result.append(fieldText());
-                result.push_back(Detail::Core::Protocol::kLayoutSeparator);
+                result.reserve(selectedTemplate.size() + fields.size() + message.size() + 8);
 
+                // Store the selected layout and structured fields.
+                result.push_back(Internal::Core::Protocol::kLayoutBegin);
+                result.append(selectedTemplate);
+                result.push_back(Internal::Core::Protocol::kLayoutSeparator);
+                result.append(fields);
+                result.push_back(Internal::Core::Protocol::kLayoutSeparator);
+
+                // Serialize optional source and runtime metadata in envelope order.
                 const auto appendMetadata = [&result](std::string_view value)
                 {
                     result.append(value);
-                    result.push_back(Detail::Core::Protocol::kLayoutSeparator);
+                    result.push_back(Internal::Core::Protocol::kLayoutSeparator);
                 };
                 appendMetadata(includeFile_ ? location_.file_name() : std::string_view{});
                 appendMetadata(includeFunction_ ? location_.function_name() : std::string_view{});
                 appendMetadata(includeLine_ ? std::format("{}", location_.line()) : std::string{});
                 appendMetadata(includeThreadId_ ? std::format("{}", std::this_thread::get_id()) : std::string{});
-                result.append(includeProcessId_ ? std::format("{}", Detail::Core::currentProcessId()) : std::string{});
+                result.append(includeProcessId_ ? std::format("{}", Internal::Core::currentProcessId()) : std::string{});
 
-                result.push_back(Detail::Core::Protocol::kLayoutBegin);
+                // Close the metadata envelope before appending the message.
+                result.push_back(Internal::Core::Protocol::kLayoutBegin);
                 result.append(message);
                 return result;
             }
 
+            // Build prefix content before selecting the configured field layout.
+            std::string prefixText = prefixContent();
+
+            // Use the built-in layout when no custom template was selected.
             if(prefixText.empty())
             {
                 return std::string(message);
             }
-
-            prefixText.resize(prefixText.size() - 2);
 
             const FieldLayout selected = hasLayout_ ? layout_ : defaultLayout;
             bool expanded = selected == FieldLayout::Expanded;
@@ -264,9 +286,10 @@ namespace GameWIP::Logger
                     totalFieldBytes += key.size() + value.size() + 1;
                     expanded = expanded || value.contains('\n');
                 }
-                expanded = expanded || totalFieldBytes > 96;
+                expanded = expanded || totalFieldBytes > kAdaptiveExpansionThreshold;
             }
 
+            // Render either a multiline record or the selected inline layout.
             if(expanded)
             {
                 std::string result(message);
@@ -274,18 +297,24 @@ namespace GameWIP::Logger
                 result.append(prefixText);
                 return result;
             }
-            if(selected == FieldLayout::Parenthesized)
+
+            if(selected == FieldLayout::Adaptive || selected == FieldLayout::Parenthesized)
             {
-                return std::format("({}) {}", prefixText, message);
+                return std::format("{} ({})", message, prefixText);
             }
             return std::format("{}: {}", prefixText, message);
         }
 
+        // Stored fields and call site
         std::vector<std::pair<std::string, std::string>> fields_;
         std::source_location location_;
+
+        // Field layout selection
         FieldLayout layout_ = FieldLayout::Adaptive;
         std::string customLayout_;
         bool hasLayout_ = false;
+
+        // Optional call-site metadata
         bool includeThreadId_ = false;
         bool includeProcessId_ = false;
         bool includeFile_ = false;
@@ -293,7 +322,7 @@ namespace GameWIP::Logger
         bool includeLine_ = false;
 
         friend Record record(std::source_location location) noexcept;
-        friend struct Detail::Core::RecordAccess;
+        friend struct Internal::Core::RecordAccess;
     };
 
     /// @brief Starts building optional per-record metadata.
@@ -303,7 +332,7 @@ namespace GameWIP::Logger
     }
 
     /// @cond INTERNAL
-    namespace Detail::Core
+    namespace Internal::Core
     {
         struct RecordAccess
         {
@@ -326,11 +355,11 @@ namespace GameWIP::Logger
                 return record.decorate(message, defaultLayout, layout);
             }
         };
-    } // namespace Detail::Core
+    } // namespace Internal::Core
     /// @endcond
 
     /// @cond INTERNAL
-    namespace Detail::Core
+    namespace Internal::Core
     {
         template <typename Source>
         void preformattedLogWithRecord(Types::Level level, Source source, const Record &record, std::string_view message) noexcept
@@ -353,7 +382,7 @@ namespace GameWIP::Logger
                 recordAllocationFailure();
             }
         }
-    } // namespace Detail::Core
+    } // namespace Internal::Core
     /// @endcond
 
 } // namespace GameWIP::Logger

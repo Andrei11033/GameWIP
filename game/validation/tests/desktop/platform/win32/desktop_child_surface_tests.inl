@@ -1,0 +1,504 @@
+/// @file desktop_child_surface_tests.inl
+/// @brief ChildSurface lifecycle, queue, geometry, threading, and native-host validation.
+
+namespace ChildEvents = Desktop::Types::ChildSurface::Events;
+
+/// ------------------------------------------------------------
+/// Automated child-surface coverage
+/// ------------------------------------------------------------
+
+void testChildSurfaces(TestSupport::Context &context)
+{
+    // Verify the closed contract and reject parentless operations.
+    using ChildEvent = Desktop::Types::ChildSurface::Event;
+    using StatusCode = GameWIP::Status::Types::Code;
+
+    static_cast<void>(
+        context.expectTrue("Win32 advertises complete ChildSurface support", Desktop::supports(Desktop::Types::Capability::ChildSurface)));
+
+    Desktop::ChildSurface closed;
+    static_cast<void>(context.expectFalse("default ChildSurface is closed", closed.isOpen()));
+    static_cast<void>(context.expectEq("default ChildSurface lifetime is Closed", Desktop::Types::LifetimeState::Closed, closed.lifetimeState()));
+    static_cast<void>(context.expectEq("closed ChildSurface has no parent identity", Desktop::Types::WindowId{}, closed.parentId()));
+    static_cast<void>(context.expectEq("closed ChildSurface rect is empty", Desktop::Types::LogicalRect{}, closed.rect()));
+    static_cast<void>(context.expectEq("closed ChildSurface mutation reports NotOpen", StatusCode::NotOpen, closed.show().status().code()));
+    static_cast<void>(context.expectTrue("repeated closed ChildSurface close succeeds", closed.close().ok()));
+
+    Desktop::Window closedParent;
+    static_cast<void>(context.expectEq("closed parent is rejected", StatusCode::NotOpen, closed.open(closedParent).status().code()));
+
+    Desktop::Types::Description parentDescription;
+    parentDescription.title = "ChildSurface validation parent";
+    parentDescription.windowed.clientSize = {640, 480};
+    parentDescription.activation.visible = false;
+    Desktop::Window parent;
+    static_cast<void>(context.expectTrue("ChildSurface parent opens", parent.open(parentDescription, Desktop::Events::owned(32)).ok()));
+
+    if(!parent.isOpen())
+    {
+        return;
+    }
+
+    // Reject invalid queues and verify the default owned queue.
+    const std::span<ChildEvent> emptyStorage;
+    static_cast<void>(context.expectEq(
+        "empty caller-owned ChildSurface queue is invalid",
+        StatusCode::InvalidArgument,
+        closed.open(parent, {}, Desktop::Types::ChildSurface::QueueConfiguration::borrowed(emptyStorage)).status().code()));
+    static_cast<void>(context.expectEq(
+        "zero ChildSurface queue capacity is invalid",
+        StatusCode::InvalidArgument,
+        closed.open(parent, {}, Desktop::Types::ChildSurface::QueueConfiguration::owned(0)).status().code()));
+
+    Desktop::ChildSurface surface;
+    static_cast<void>(context.expectTrue("default zero-sized ChildSurface description opens", surface.open(parent).ok()));
+
+    if(!surface.isOpen())
+    {
+        static_cast<void>(parent.close());
+        return;
+    }
+
+    const Desktop::Types::WindowId firstParentId = parent.id();
+    static_cast<void>(context.expectEq("ChildSurface retains parent lifetime identity", firstParentId, surface.parentId()));
+    static_cast<void>(context.expectTrue("ChildSurface inherits current owner thread", surface.ownedByCurrentThread()));
+    static_cast<void>(context.expectEq(
+        "default ChildSurface queue uses internal storage",
+        Desktop::Types::Events::StorageKind::Internal,
+        surface.eventQueueInfo().storage));
+    static_cast<void>(context.expectEq(
+        "default ChildSurface queue uses the Desktop default capacity",
+        Desktop::Events::kDefaultQueueCapacity,
+        surface.eventQueueInfo().capacity));
+    static_cast<void>(context.expectEq("default ChildSurface size remains zero", Desktop::Types::LogicalSize{}, surface.size()));
+    static_cast<void>(context.expectEq("default ChildSurface pixels remain zero", Desktop::Types::PixelSize{}, surface.pixelSize()));
+    static_cast<void>(context.expectFalse("default ChildSurface is hidden", surface.visible()));
+    static_cast<void>(context.expectTrue("default ChildSurface enables interaction", surface.userInteractionEnabled()));
+    static_cast<void>(
+        context.expectEq("second ChildSurface open reports AlreadyOpen", StatusCode::AlreadyOpen, surface.open(parent).status().code()));
+
+    // Check the native host, then reopen with caller-owned event storage.
+    const auto parentHandle = Desktop::Native::Win32::getHandle(parent);
+    const auto childHandle = Desktop::Native::Win32::getHandle(surface);
+    if(!context.expectTrue(
+           "ChildSurface native handles resolve",
+           parentHandle.ok() && parentHandle.value().window != nullptr && childHandle.ok() && childHandle.value().window != nullptr))
+    {
+        static_cast<void>(surface.close());
+        static_cast<void>(parent.close());
+        return;
+    }
+
+    const HWND parentHwnd = parentHandle.value().window;
+    const HWND initialSurfaceHwnd = childHandle.value().window;
+    static_cast<void>(context.expectEq("native host is directly parented", parentHwnd, GetParent(initialSurfaceHwnd)));
+    const DWORD initialStyle = static_cast<DWORD>(GetWindowLongPtrW(initialSurfaceHwnd, GWL_STYLE));
+    static_cast<void>(context.expectTrue("native host uses WS_CHILD", (initialStyle & WS_CHILD) != 0));
+    static_cast<void>(context.expectTrue("native host clips descendants", (initialStyle & WS_CLIPCHILDREN) != 0));
+    static_cast<void>(context.expectTrue("native host clips siblings", (initialStyle & WS_CLIPSIBLINGS) != 0));
+    static_cast<void>(context.expectTrue("initial ChildSurface close succeeds", surface.close().ok()));
+
+    std::array<ChildEvent, 4> externalStorage;
+    Desktop::Types::ChildSurface::Description childDescription;
+    childDescription.rect = {{-25, 18}, {0, 0}};
+    childDescription.visible = true;
+    childDescription.userInteractionEnabled = false;
+    if(!context.expectTrue(
+           "ChildSurface reopens with negative position and external storage",
+           surface.open(parent, childDescription, Desktop::Types::ChildSurface::QueueConfiguration::borrowed(externalStorage)).ok()))
+    {
+        static_cast<void>(parent.close());
+        return;
+    }
+    static_cast<void>(
+        context.expectEq("external queue ownership is reported", Desktop::Types::Events::StorageKind::External, surface.eventQueueInfo().storage));
+    static_cast<void>(context.expectEq("external queue capacity is reported", externalStorage.size(), surface.eventQueueInfo().capacity));
+    static_cast<void>(context.expectEq("negative parent-relative position is retained", childDescription.rect.position, surface.position()));
+    static_cast<void>(context.expectTrue("requested native visibility is retained while parent is hidden", surface.visible()));
+    static_cast<void>(context.expectFalse("initial interaction disablement is retained", surface.userInteractionEnabled()));
+
+    // Verify logical geometry, DPI-scaled pixels, and coordinate conversion.
+    surface.clearEvents();
+    static_cast<void>(context.expectTrue("setPosition accepts negative coordinates", surface.setPosition({-40, -12}).ok()));
+    static_cast<void>(context.expectTrue("setSize accepts zero-to-nonzero transition", surface.setSize({160, 90}).ok()));
+    static_cast<void>(context.expectTrue("setRect changes position and size together", surface.setRect({{24, 30}, {180, 100}}).ok()));
+    static_cast<void>(
+        context.expectEq("setRect updates authoritative logical rect", Desktop::Types::LogicalRect{{24, 30}, {180, 100}}, surface.rect()));
+    static_cast<void>(context.expectTrue("physical size follows effective DPI", surface.pixelSize().width >= surface.size().width));
+    static_cast<void>(context.expectEq("screenRect extent matches pixel size", surface.pixelSize(), surface.screenRect().size));
+    bool foundPositionEvent = false;
+    bool foundSizeEvent = false;
+    bool foundPixelSizeEvent = false;
+    ChildEvent geometryEvent;
+
+    while(surface.popEvent(geometryEvent))
+    {
+        foundPositionEvent = foundPositionEvent || geometryEvent.getIf<ChildEvents::PositionChanged>() != nullptr;
+        foundSizeEvent = foundSizeEvent || geometryEvent.getIf<ChildEvents::SizeChanged>() != nullptr;
+        foundPixelSizeEvent = foundPixelSizeEvent || geometryEvent.getIf<ChildEvents::PixelSizeChanged>() != nullptr;
+    }
+    static_cast<void>(context.expectTrue("ChildSurface geometry queues PositionChanged", foundPositionEvent));
+    static_cast<void>(context.expectTrue("ChildSurface geometry queues SizeChanged", foundSizeEvent));
+    static_cast<void>(context.expectTrue("ChildSurface geometry queues PixelSizeChanged", foundPixelSizeEvent));
+    const Desktop::Types::LogicalRect authoritativeBeforeParentChange = surface.rect();
+    const Desktop::Types::ScreenPosition screenBeforeParentMove = surface.screenRect().position;
+    static_cast<void>(context.expectTrue(
+        "parent movement succeeds",
+        parent.setClientPosition({parent.clientPosition().x + 20, parent.clientPosition().y + 15}).ok()));
+    static_cast<void>(context.expectEq("parent movement preserves ChildSurface logical geometry", authoritativeBeforeParentChange, surface.rect()));
+    static_cast<void>(context.expectTrue(
+        "parent movement immediately updates ChildSurface screen geometry",
+        screenBeforeParentMove != surface.screenRect().position));
+    static_cast<void>(parent.setClientSize({700, 520}));
+    static_cast<void>(Desktop::Events::poll());
+    static_cast<void>(context.expectEq("parent resize performs no ChildSurface layout", authoritativeBeforeParentChange, surface.rect()));
+
+    static_cast<void>(surface.setRect({{-30, -20}, {180, 100}}));
+    const auto clippingHandle = Desktop::Native::Win32::getHandle(surface);
+    HWND surfaceHwnd = nullptr;
+    if(context.expectTrue("reopened ChildSurface native handle resolves", clippingHandle.ok() && clippingHandle.value().window != nullptr))
+    {
+        surfaceHwnd = clippingHandle.value().window;
+        POINT parentOrigin{};
+        RECT childFrame{};
+        const bool parentOriginResolved = ClientToScreen(parentHwnd, &parentOrigin) != FALSE;
+        const bool childFrameResolved = GetWindowRect(surfaceHwnd, &childFrame) != FALSE;
+        static_cast<void>(context.expectTrue("parent client origin resolves", parentOriginResolved));
+        static_cast<void>(context.expectTrue("ChildSurface frame resolves", childFrameResolved));
+
+        if(parentOriginResolved && childFrameResolved)
+        {
+            static_cast<void>(context.expectTrue(
+                "native child may extend beyond parent while native hierarchy clips it",
+                childFrame.left < parentOrigin.x && childFrame.top < parentOrigin.y && GetParent(surfaceHwnd) == parentHwnd));
+        }
+    }
+    static_cast<void>(surface.setRect(authoritativeBeforeParentChange));
+    const auto origin = surface.clientToScreen({0, 0});
+    if(context.expectTrue("ChildSurface clientToScreen succeeds", origin.ok()))
+    {
+        const auto local = surface.screenToClient(origin.value());
+        if(context.expectTrue("ChildSurface screenToClient succeeds", local.ok()))
+        {
+            static_cast<void>(
+                context.expectEq("ChildSurface coordinate conversion round-trips origin", Desktop::Types::LogicalPosition{}, local.value()));
+        }
+    }
+
+    // Verify visibility, interaction, and sibling stacking behavior.
+    static_cast<void>(context.expectTrue("ChildSurface show is idempotent", surface.show().ok()));
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::WindowStyleQuery);
+    static_cast<void>(context.expectEq("visibility query failure is returned", StatusCode::NativeFailure, surface.hide().status().code()));
+    static_cast<void>(context.expectTrue("visibility query failure preserves cache", surface.visible()));
+    if(surfaceHwnd != nullptr)
+    {
+        static_cast<void>(context.expectTrue(
+            "visibility query failure restores native visibility",
+            (static_cast<DWORD>(GetWindowLongPtrW(surfaceHwnd, GWL_STYLE)) & WS_VISIBLE) != 0));
+    }
+    static_cast<void>(context.expectTrue("ChildSurface hide succeeds", surface.hide().ok()));
+    static_cast<void>(context.expectFalse("hide updates visibility cache", surface.visible()));
+    static_cast<void>(context.expectTrue("ChildSurface show succeeds", surface.show().ok()));
+    static_cast<void>(context.expectTrue("show updates visibility cache", surface.visible()));
+    bool foundVisibilityEvent = false;
+
+    while(surface.popEvent(geometryEvent))
+    {
+        foundVisibilityEvent = foundVisibilityEvent || geometryEvent.getIf<ChildEvents::VisibilityChanged>() != nullptr;
+    }
+    static_cast<void>(context.expectTrue("show and hide queue VisibilityChanged", foundVisibilityEvent));
+    static_cast<void>(context.expectTrue("ChildSurface interaction enables", surface.setUserInteractionEnabled(true).ok()));
+    static_cast<void>(context.expectTrue("interaction cache updates", surface.userInteractionEnabled()));
+    static_cast<void>(context.expectTrue("ChildSurface interaction disables", surface.setUserInteractionEnabled(false).ok()));
+
+    Desktop::ChildSurface sibling;
+    static_cast<void>(context.expectTrue(
+        "sibling ChildSurface opens",
+        sibling.open(parent, {{{40, 40}, {100, 80}}, true, true}, Desktop::Types::ChildSurface::QueueConfiguration::owned(8)).ok()));
+    static_cast<void>(context.expectTrue("bringToFront succeeds", surface.bringToFront().ok()));
+    static_cast<void>(context.expectTrue("sendToBack succeeds", surface.sendToBack().ok()));
+    static_cast<void>(context.expectTrue("placeAbove succeeds for a valid sibling", surface.placeAbove(sibling).ok()));
+    const auto surfaceOrderHandle = Desktop::Native::Win32::getHandle(surface);
+    const auto siblingHandle = Desktop::Native::Win32::getHandle(sibling);
+    if(context.expectTrue(
+           "sibling ordering native handles resolve",
+           surfaceOrderHandle.ok() && surfaceOrderHandle.value().window != nullptr && siblingHandle.ok() && siblingHandle.value().window != nullptr))
+    {
+        const HWND surfaceOrderHwnd = surfaceOrderHandle.value().window;
+        const HWND siblingHwnd = siblingHandle.value().window;
+        static_cast<void>(context.expectEq("placeAbove produces adjacent native order", siblingHwnd, GetWindow(surfaceOrderHwnd, GW_HWNDNEXT)));
+        static_cast<void>(context.expectTrue("placeBelow succeeds for a valid sibling", surface.placeBelow(sibling).ok()));
+        static_cast<void>(context.expectEq("placeBelow produces adjacent native order", surfaceOrderHwnd, GetWindow(siblingHwnd, GW_HWNDNEXT)));
+    }
+    static_cast<void>(context.expectEq("self sibling is invalid", StatusCode::InvalidArgument, surface.placeAbove(surface).status().code()));
+    const Desktop::ChildSurface closedSibling;
+    static_cast<void>(context.expectEq("closed sibling is invalid", StatusCode::InvalidArgument, surface.placeBelow(closedSibling).status().code()));
+
+    Desktop::Window otherParent;
+    static_cast<void>(otherParent.open(parentDescription, Desktop::Events::owned(8)));
+    Desktop::ChildSurface otherSurface;
+    static_cast<void>(otherSurface.open(otherParent, {}, Desktop::Types::ChildSurface::QueueConfiguration::owned(8)));
+    static_cast<void>(
+        context.expectEq("different-parent sibling is invalid", StatusCode::InvalidArgument, surface.placeAbove(otherSurface).status().code()));
+    static_cast<void>(otherSurface.close());
+    static_cast<void>(otherParent.close());
+
+    // Reject foreign-thread queries, mutations, and close operations.
+    StatusCode wrongThreadMutation = StatusCode::Success;
+    StatusCode wrongThreadClose = StatusCode::Success;
+    ErrorCode wrongThreadHandle = ErrorCode::Success;
+    bool wrongThreadOwnership = true;
+    std::thread wrongThread(
+        [&]
+        {
+            wrongThreadOwnership = surface.ownedByCurrentThread();
+            wrongThreadMutation = surface.setPosition({1, 2}).status().code();
+            wrongThreadClose = surface.close().status().code();
+            wrongThreadHandle = Desktop::Native::Win32::getHandle(surface).status().code();
+        });
+    wrongThread.join();
+    static_cast<void>(context.expectFalse("ChildSurface rejects foreign-thread ownership", wrongThreadOwnership));
+    static_cast<void>(context.expectEq("wrong-thread mutation reports ResourceBusy", StatusCode::ResourceBusy, wrongThreadMutation));
+    static_cast<void>(context.expectEq("wrong-thread close reports ResourceBusy", StatusCode::ResourceBusy, wrongThreadClose));
+    static_cast<void>(context.expectEq("wrong-thread native handle reports ResourceBusy", ErrorCode::ResourceBusy, wrongThreadHandle));
+
+    // Check queue coalescing and per-lifetime event sequencing.
+    surface.clearEvents();
+    static_cast<void>(surface.setPosition({10, 10}));
+    static_cast<void>(surface.setPosition({20, 20}));
+    static_cast<void>(context.expectEq("consecutive position events coalesce", std::size_t{1}, surface.eventQueueInfo().pendingEvents));
+    ChildEvent event;
+    static_cast<void>(context.expectTrue("coalesced ChildSurface event pops", surface.popEvent(event)));
+    const auto *position = event.getIf<ChildEvents::PositionChanged>();
+    static_cast<void>(context.expectTrue("coalesced event has PositionChanged payload", position != nullptr));
+
+    if(position != nullptr)
+    {
+        static_cast<void>(context.expectEq("coalesced position retains latest value", Desktop::Types::LogicalPosition{20, 20}, position->position));
+    }
+    const std::uint64_t lifetimeSequence = event.sequence;
+
+    static_cast<void>(sibling.close());
+    static_cast<void>(surface.close());
+    static_cast<void>(context.expectTrue(
+        "explicit close releases caller-owned ChildSurface event slots",
+        std::ranges::all_of(
+            externalStorage,
+            [](const ChildEvent &stored)
+            {
+                return stored.sequence == 0;
+            })));
+    if(!context.expectTrue(
+           "ChildSurface reopens after explicit finalization",
+           surface.open(parent, {}, Desktop::Types::ChildSurface::QueueConfiguration::owned(2)).ok()))
+    {
+        static_cast<void>(parent.close());
+        return;
+    }
+    static_cast<void>(surface.setPosition({1, 1}));
+    static_cast<void>(surface.popEvent(event));
+    static_cast<void>(context.expectEq("event sequence restarts for each lifetime", std::uint64_t{1}, event.sequence));
+    static_cast<void>(context.expectTrue("prior lifetime produced a normal sequence", lifetimeSequence >= 1));
+
+#if DESKTOP_INTERNAL_TEST_HOOKS
+    // Validate DPI normalization and content-scale event coalescing.
+    const Desktop::Types::LogicalRect dpiRect{{-15, 12}, {800, 600}};
+    const auto dpi96 = Desktop::Internal::TestHooks::calculateChildSurfaceDpiTransition(dpiRect, 96);
+    const auto dpi144 = Desktop::Internal::TestHooks::calculateChildSurfaceDpiTransition(dpi96.logicalRect, 144);
+    const auto dpi144Again = Desktop::Internal::TestHooks::calculateChildSurfaceDpiTransition(dpi144.logicalRect, 144);
+    static_cast<void>(context.expectEq("ChildSurface DPI transition preserves logical rect", dpiRect, dpi144.logicalRect));
+    static_cast<void>(context.expectEq("ChildSurface DPI transition scales physical pixels", Desktop::Types::PixelSize{1200, 900}, dpi144.pixelSize));
+    static_cast<void>(context.expectEq("ChildSurface DPI conversion has no cumulative drift", dpi144.pixelSize, dpi144Again.pixelSize));
+
+    // Preserve native-destruction notifications when the queue is full.
+    surface.clearEvents();
+    static_cast<void>(Desktop::Internal::TestHooks::enqueue(
+        surface,
+        ChildEvents::ContentScaleChanged{{1.0F, 1.0F}, {1.25F, 1.25F}, {96.0F, 96.0F}, {120.0F, 120.0F}, {1000, 750}}));
+    static_cast<void>(Desktop::Internal::TestHooks::enqueue(
+        surface,
+        ChildEvents::ContentScaleChanged{{1.25F, 1.25F}, {1.5F, 1.5F}, {120.0F, 120.0F}, {144.0F, 144.0F}, {1200, 900}}));
+    static_cast<void>(context.expectEq("ChildSurface scale transitions coalesce", std::size_t{1}, surface.eventQueueInfo().pendingEvents));
+    ChildEvent scaleEvent;
+    static_cast<void>(context.expectTrue("coalesced ChildSurface scale event pops", surface.popEvent(scaleEvent)));
+    const auto *scale = scaleEvent.getIf<ChildEvents::ContentScaleChanged>();
+    static_cast<void>(context.expectTrue("coalesced ChildSurface scale has payload", scale != nullptr));
+
+    if(scale != nullptr)
+    {
+        static_cast<void>(
+            context.expectEq("ChildSurface scale keeps earliest predecessor", Desktop::Types::ContentScale{1.0F, 1.0F}, scale->previousScale));
+        static_cast<void>(context.expectEq("ChildSurface scale keeps latest result", Desktop::Types::ContentScale{1.5F, 1.5F}, scale->scale));
+        static_cast<void>(context.expectEq("ChildSurface DPI keeps earliest predecessor", Desktop::Types::Dpi{96.0F, 96.0F}, scale->previousDpi));
+        static_cast<void>(context.expectEq("ChildSurface DPI keeps latest result", Desktop::Types::Dpi{144.0F, 144.0F}, scale->dpi));
+        static_cast<void>(context.expectEq("ChildSurface scale keeps latest pixels", Desktop::Types::PixelSize{1200, 900}, scale->pixelSize));
+    }
+    static_cast<void>(Desktop::Internal::TestHooks::enqueue(
+        surface,
+        ChildEvents::ContentScaleChanged{{1.0F, 1.0F}, {1.25F, 1.25F}, {96.0F, 96.0F}, {120.0F, 120.0F}, {1000, 750}}));
+    static_cast<void>(Desktop::Internal::TestHooks::enqueue(
+        surface,
+        ChildEvents::ContentScaleChanged{{1.25F, 1.25F}, {1.0F, 1.0F}, {120.0F, 120.0F}, {96.0F, 96.0F}, {800, 600}}));
+    static_cast<void>(context.expectEq("net-zero ChildSurface scale transition is removed", std::size_t{0}, surface.eventQueueInfo().pendingEvents));
+    static_cast<void>(
+        context.expectEq("net-zero ChildSurface scale transition is not dropped", std::uint64_t{0}, surface.eventQueueInfo().droppedEvents));
+
+    // Keep geometry coalescing on its side of a visibility event.
+    Desktop::ChildSurface barrierSurface;
+    if(context.expectTrue(
+           "visibility barrier fixture opens",
+           barrierSurface.open(parent, {}, Desktop::Types::ChildSurface::QueueConfiguration::owned(8)).ok()))
+    {
+        static_cast<void>(Desktop::Internal::TestHooks::enqueue(barrierSurface, ChildEvents::PositionChanged{{1, 2}}));
+        static_cast<void>(Desktop::Internal::TestHooks::enqueue(barrierSurface, ChildEvents::SizeChanged{{10, 20}}));
+        static_cast<void>(Desktop::Internal::TestHooks::enqueue(barrierSurface, ChildEvents::VisibilityChanged{true}));
+        static_cast<void>(Desktop::Internal::TestHooks::enqueue(barrierSurface, ChildEvents::PositionChanged{{3, 4}}));
+        static_cast<void>(Desktop::Internal::TestHooks::enqueue(barrierSurface, ChildEvents::PositionChanged{{5, 6}}));
+        static_cast<void>(
+            context.expectEq("visibility separates ChildSurface geometry bursts", std::size_t{4}, barrierSurface.eventQueueInfo().pendingEvents));
+        ChildEvent positionBeforeVisibility;
+        ChildEvent sizeBeforeVisibility;
+        ChildEvent visibilityBarrier;
+        ChildEvent positionAfterVisibility;
+        static_cast<void>(context.expectTrue("position before visibility pops first", barrierSurface.popEvent(positionBeforeVisibility)));
+        static_cast<void>(context.expectTrue("size before visibility pops second", barrierSurface.popEvent(sizeBeforeVisibility)));
+        static_cast<void>(context.expectTrue("visibility event remains a barrier", barrierSurface.popEvent(visibilityBarrier)));
+        static_cast<void>(context.expectTrue("coalesced position after visibility pops last", barrierSurface.popEvent(positionAfterVisibility)));
+        const auto *latestChildPosition = positionAfterVisibility.getIf<ChildEvents::PositionChanged>();
+        static_cast<void>(context.expectTrue(
+            "ChildSurface geometry remains separated by visibility",
+            positionBeforeVisibility.getIf<ChildEvents::PositionChanged>() != nullptr &&
+                sizeBeforeVisibility.getIf<ChildEvents::SizeChanged>() != nullptr &&
+                visibilityBarrier.getIf<ChildEvents::VisibilityChanged>() != nullptr && latestChildPosition != nullptr));
+        if(latestChildPosition != nullptr)
+        {
+            static_cast<void>(context.expectEq(
+                "post-visibility position keeps latest value",
+                Desktop::Types::LogicalPosition{5, 6},
+                latestChildPosition->position));
+        }
+        static_cast<void>(context.expectTrue("visibility barrier fixture closes", barrierSurface.close().ok()));
+    }
+
+    surface.clearEvents();
+    static_cast<void>(surface.setPosition({2, 2}));
+    static_cast<void>(surface.show());
+    static_cast<void>(context.expectEq("two-slot queue fills", std::size_t{2}, surface.eventQueueInfo().pendingEvents));
+    static_cast<void>(
+        context.expectTrue("unexpected native host destruction succeeds", Desktop::Internal::TestHooks::destroyNativeChildSurface(surface).ok()));
+    static_cast<void>(context.expectFalse("unexpected native destruction closes native access", surface.isOpen()));
+    static_cast<void>(context.expectEq(
+        "unexpected native destruction retains pending-finalize state",
+        Desktop::Types::LifetimeState::NativeDestroyedPendingFinalize,
+        surface.lifetimeState()));
+    static_cast<void>(context.expectEq(
+        "native handle invalidates after destruction",
+        ErrorCode::NotOpen,
+        Desktop::Native::Win32::getHandle(surface).status().code()));
+    static_cast<void>(context.expectEq("reopen before finalization is rejected", StatusCode::AlreadyOpen, surface.open(parent).status().code()));
+    bool foundNativeDestroyed = false;
+
+    while(surface.popEvent(event))
+    {
+        foundNativeDestroyed = foundNativeDestroyed || event.getIf<ChildEvents::NativeDestroyed>() != nullptr;
+    }
+    static_cast<void>(context.expectTrue("NativeDestroyed survives a full queue", foundNativeDestroyed));
+    static_cast<void>(context.expectTrue("NativeDestroyed eviction increments drop count", surface.eventQueueInfo().droppedEvents > 0));
+    surface.clearDroppedEventCount();
+    static_cast<void>(context.expectEq("ChildSurface drop counter clears", std::uint64_t{0}, surface.eventQueueInfo().droppedEvents));
+    static_cast<void>(context.expectTrue("pending native destruction finalizes", surface.close().ok()));
+
+    // Route destruction through the shared pump, then retry open and close failures.
+    Desktop::ChildSurface pumpedSurface;
+    if(context.expectTrue("pump fixture opens", pumpedSurface.open(parent, {}, Desktop::Types::ChildSurface::QueueConfiguration::owned(4)).ok()))
+    {
+        const auto pumpedNativeHandle = Desktop::Native::Win32::getHandle(pumpedSurface);
+        if((context.expectTrue("pump fixture exposes HWND", pumpedNativeHandle.ok() && pumpedNativeHandle.value().window != nullptr)) &&
+           (context.expectTrue("native close message posts", PostMessageW(pumpedNativeHandle.value().window, WM_CLOSE, 0, 0) != FALSE)))
+
+        {
+            const Desktop::Types::Events::PumpResult childPump = Desktop::Events::poll();
+            if(context.expectTrue("shared event pump processes ChildSurface native messages", childPump.ok()))
+            {
+                static_cast<void>(context.expectEq("shared pump counts a ChildSurface event", std::size_t{1}, childPump.value().eventsQueued));
+                static_cast<void>(context.expectEq("shared pump reports no ChildSurface drop", std::uint64_t{0}, childPump.value().eventsDropped));
+                static_cast<void>(context.expectEq(
+                    "pumped native destruction enters pending finalization",
+                    Desktop::Types::LifetimeState::NativeDestroyedPendingFinalize,
+                    pumpedSurface.lifetimeState()));
+            }
+        }
+
+        static_cast<void>(pumpedSurface.close());
+    }
+
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::Allocation);
+    static_cast<void>(context.expectEq(
+        "ChildSurface allocation failure is translated",
+        StatusCode::OutOfMemory,
+        surface.open(parent, {}, Desktop::Types::ChildSurface::QueueConfiguration::owned(4)).status().code()));
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::NativeCreation);
+    static_cast<void>(context.expectEq(
+        "ChildSurface native creation failure rolls back",
+        StatusCode::OpenFailed,
+        surface.open(parent, {}, Desktop::Types::ChildSurface::QueueConfiguration::owned(4)).status().code()));
+    static_cast<void>(context.expectFalse("failed ChildSurface open leaves no lifetime", surface.isOpen()));
+    static_cast<void>(context.expectTrue(
+        "ChildSurface recovers after open rollback",
+        surface.open(parent, {}, Desktop::Types::ChildSurface::QueueConfiguration::owned(4)).ok()));
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::Close);
+    static_cast<void>(context.expectEq("ChildSurface close failure is retryable", StatusCode::CloseFailed, surface.close().status().code()));
+    static_cast<void>(context.expectTrue("failed ChildSurface close preserves native lifetime", surface.isOpen()));
+    static_cast<void>(context.expectTrue("ChildSurface close retry succeeds", surface.close().ok()));
+#endif
+
+    // Finalize child surfaces after parent loss and wrong-thread destruction.
+    Desktop::ChildSurface parentLoss;
+    static_cast<void>(parentLoss.open(parent, {{{-12, -8}, {80, 60}}, true, true}, Desktop::Types::ChildSurface::QueueConfiguration::owned(4)));
+    const Desktop::Types::WindowId retainedParentId = parent.id();
+    static_cast<void>(context.expectTrue("parent closes before ChildSurface object", parent.close().ok()));
+    static_cast<void>(context.expectFalse("parent destruction invalidates child host", parentLoss.isOpen()));
+    static_cast<void>(context.expectEq(
+        "parent destruction leaves ChildSurface pending finalization",
+        Desktop::Types::LifetimeState::NativeDestroyedPendingFinalize,
+        parentLoss.lifetimeState()));
+    static_cast<void>(context.expectEq("parent identity remains cached after parent destruction", retainedParentId, parentLoss.parentId()));
+    static_cast<void>(context.expectTrue("parent-loss ChildSurface finalizes", parentLoss.close().ok()));
+
+    if(!context.expectTrue("parent reopens for deferred cleanup", parent.open(parentDescription, Desktop::Events::owned(8)).ok()))
+    {
+        return;
+    }
+
+    auto abandoned = std::make_unique<Desktop::ChildSurface>();
+    if(context.expectTrue(
+           "deferred cleanup fixture opens",
+           abandoned->open(parent, {{{0, 0}, {32, 24}}, false, true}, Desktop::Types::ChildSurface::QueueConfiguration::owned(4)).ok()))
+    {
+        const auto abandonedNativeHandle = Desktop::Native::Win32::getHandle(*abandoned);
+        HWND abandonedHandle = nullptr;
+        if(context.expectTrue("deferred cleanup fixture exposes HWND", abandonedNativeHandle.ok() && abandonedNativeHandle.value().window != nullptr))
+        {
+            abandonedHandle = abandonedNativeHandle.value().window;
+        }
+
+        std::thread destroyer(
+            [ownedSurface = std::move(abandoned)] mutable
+            {
+                ownedSurface.reset();
+            });
+        destroyer.join();
+        if(abandonedHandle != nullptr)
+        {
+            static_cast<void>(context.expectTrue("wrong-thread destructor transfers cleanup until owner pump", IsWindow(abandonedHandle) != FALSE));
+        }
+        static_cast<void>(Desktop::Events::poll());
+        if(abandonedHandle != nullptr)
+        {
+            static_cast<void>(context.expectFalse("owner dispatcher completes deferred ChildSurface cleanup", IsWindow(abandonedHandle) != FALSE));
+        }
+    }
+    static_cast<void>(parent.close());
+}
+
+/// ------------------------------------------------------------

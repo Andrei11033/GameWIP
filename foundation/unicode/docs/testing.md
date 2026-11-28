@@ -4,6 +4,10 @@ Unicode validation covers the public contracts, generated property data, officia
 grapheme conformance, package boundaries, sanitizers, static analysis, and
 diagnostic benchmarks.
 
+Examples use Windows PowerShell and the Windows AMD64 output paths. On Linux, pass
+the same helper arguments to `bash ./gamewip.sh`; set environment variables with
+Bash syntax and use the selected target's output path for executables.
+
 ## Common workflow
 
 Prepare or verify the pinned Unicode data, then run the focused correctness module:
@@ -37,7 +41,7 @@ The Unicode module covers:
 - Caller-backed `Utf8::GraphemeCursor` sizing, indexing, exact seek, forward/backward stepping, endpoint behavior, malformed input, empty input, and
   suffix-index discard.
 - Generated-table shape, packed-value invariants, and representative property lookups.
-- Every case in the official Unicode 17.0.0 `GraphemeBreakTest.txt`, checked through both stateless traversal directions and the indexed cursor
+- Every case in the official Unicode 18.0.0 `GraphemeBreakTest.txt`, checked through both stateless traversal directions and the indexed cursor
   boundary sequence.
 
 Scalar classification boundaries are checked at compile time. Repeated encoding/decoding and traversal cases identify their code point, input bytes
@@ -48,8 +52,8 @@ or byte offset in the report. Test fixtures validate encoded lengths before crea
 The correctness test searches for `GraphemeBreakTest.txt` in this order:
 
 1. `GAMEWIP_UNICODE_GRAPHEME_BREAK_TEST`, when set to an explicit file.
-2. `GAMEWIP_UNICODE_DATA_ROOT/17.0.0/ucd/auxiliary/GraphemeBreakTest.txt`.
-3. The normal GameWIP cache at `build/gamewip/cache/unicode/17.0.0/ucd/auxiliary/GraphemeBreakTest.txt`.
+2. `GAMEWIP_UNICODE_DATA_ROOT/18.0.0/ucd/auxiliary/GraphemeBreakTest.txt`.
+3. The normal GameWIP cache at `build/gamewip/cache/unicode/18.0.0/ucd/auxiliary/GraphemeBreakTest.txt`.
 
 When the file is absent, an ordinary local test run skips only the official conformance suite. Require the fixture and fail closed with:
 
@@ -59,14 +63,20 @@ $env:GAMEWIP_REQUIRE_UNICODE_CONFORMANCE_TESTS = "1"
 Remove-Item Env:GAMEWIP_REQUIRE_UNICODE_CONFORMANCE_TESTS
 ```
 
+On Linux, require the fixture for one run with:
+
+```bash
+GAMEWIP_REQUIRE_UNICODE_CONFORMANCE_TESTS=1 bash ./gamewip.sh module unicode
+```
+
 The primary CI correctness job prepares the pinned data before CTest and requires official Unicode conformance. Ordinary configure, build, test,
 package, and installed-consumer flows do not perform a Unicode data download.
 
 ## Unicode data and version policy
 
-Runtime grapheme segmentation is pinned to Unicode Standard 17.0.0. `getStandardVersion()` exposes that data/behavior version to consumers.
+Runtime grapheme segmentation is pinned to Unicode Standard 18.0.0. `getStandardVersion()` exposes that data/behavior version to consumers.
 
-The generated runtime table is derived from these Unicode 17.0.0 data files:
+The generated runtime table is derived from these Unicode 18.0.0 data files:
 
 - `ucd/auxiliary/GraphemeBreakProperty.txt` for `Grapheme_Cluster_Break`.
 - `ucd/DerivedCoreProperties.txt` for `Indic_Conjunct_Break`.
@@ -76,7 +86,7 @@ Conformance uses:
 
 - `ucd/auxiliary/GraphemeBreakTest.txt`.
 
-The Unicode 17.0.0 data files identify Unicode, Inc. as the copyright holder and refer users to the Unicode terms and license. Unicode Data Files are
+The Unicode 18.0.0 data files identify Unicode, Inc. as the copyright holder and refer users to the Unicode terms and license. Unicode Data Files are
 licensed under Unicode License v3 (SPDX `Unicode-3.0`) unless a file states otherwise. See the [Unicode License
 v3](https://www.unicode.org/license.txt) and [Unicode Terms of Use](https://www.unicode.org/terms_of_use.html).
 
@@ -86,18 +96,18 @@ size tie to retain finer cache locality. The bounded candidate range preserves t
 remain the authority for performance. The generated `unicode/internal/generated/unicode_properties.h` is checked in, so normal consumers do not
 require Python, Unicode source files, or network access.
 
-The current Unicode 17.0.0 generation reports:
+The current Unicode 18.0.0 generation reports:
 
 ```text
 High start: U+0E1000
 Block size | Index width | Index bytes | Unique blocks | Block bytes | Total bytes
-        32 |           2 |       57600 |           304 |        9728 |       67328
-        64 |           1 |       14400 |           226 |       14464 |       28864
-       128 |           1 |        7200 |           156 |       19968 |       27168 selected
+        32 |           2 |       57600 |           308 |        9856 |       67456
+        64 |           1 |       14400 |           230 |       14720 |       29120
+       128 |           1 |        7200 |           157 |       20096 |       27296 selected
        256 |           1 |        3600 |           104 |       26624 |       30224
        512 |           1 |        1800 |            68 |       34816 |       36616
 Selected block size: 128
-Total table bytes: 27168
+Total table bytes: 27296
 ```
 
 These values are review diagnostics for the current data layout, not public ABI promises.
@@ -154,7 +164,7 @@ Build benchmark registration and run the Unicode family:
 
 ```powershell
 .\gamewip.bat bench
-.\build\benchmark\GameWIPBenchmarks.exe --benchmark_filter=BM_Unicode
+.\build\windows-amd64\benchmark\GameWIPBenchmarks.exe --benchmark_filter=BM_Unicode
 ```
 
 The Unicode benchmark family covers representative UTF-8 decoding, validation, scalar encoding, sequential and table-wide scattered property lookup,

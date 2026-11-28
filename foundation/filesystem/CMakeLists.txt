@@ -12,7 +12,7 @@ endif()
 
 option(FILESYSTEM_ENABLE_TEST_HOOKS "Enable FileSystem internal test hooks" OFF)
 
-if(NOT COMMAND gamewip_target_platform_backend)
+if(NOT COMMAND gamewip_add_platform_backend)
     include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPlatform.cmake")
     gamewip_resolve_platform_id(GAMEWIP_PLATFORM_ID)
 endif()
@@ -22,7 +22,6 @@ add_library(GameWIP::FileSystem ALIAS FileSystem)
 
 target_sources(
     FileSystem
-    PRIVATE core/filesystem.cpp core/path.cpp
     PUBLIC
         FILE_SET public_headers
             TYPE HEADERS
@@ -31,11 +30,14 @@ target_sources(
                 "${CMAKE_CURRENT_SOURCE_DIR}/path.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/entry.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/file.h"
+                "${CMAKE_CURRENT_SOURCE_DIR}/file_types.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/directory.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/filesystem.h"
 )
 
-gamewip_target_platform_backend(TARGET FileSystem ROOT "${CMAKE_CURRENT_SOURCE_DIR}/platform")
+add_subdirectory(core)
+add_subdirectory(internal)
+add_subdirectory(platform)
 
 # ------------------------------------------------------------
 # Compile, test-hook, and dependency contracts
@@ -50,7 +52,7 @@ target_compile_definitions(
     INTERFACE $<BUILD_INTERFACE:FILESYSTEM_INTERNAL_TEST_HOOKS=$<BOOL:${FILESYSTEM_ENABLE_TEST_HOOKS}>>
 )
 
-target_link_libraries(FileSystem PUBLIC IO PRIVATE Unicode $<BUILD_INTERFACE:GameWIPBase>)
+target_link_libraries(FileSystem PUBLIC Status IO PRIVATE Unicode $<BUILD_INTERFACE:GameWIPBase>)
 
 set_target_properties(FileSystem PROPERTIES POSITION_INDEPENDENT_CODE ON ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
 
@@ -66,6 +68,7 @@ if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
             "${CMAKE_CURRENT_SOURCE_DIR}/path.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/entry.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/file.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/file_types.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/directory.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/filesystem.h"
         DOCS "${CMAKE_CURRENT_SOURCE_DIR}/docs"

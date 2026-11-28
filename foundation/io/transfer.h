@@ -23,28 +23,6 @@ namespace GameWIP::IO
     /// @note Known-size reads allocate their final output directly and do not use this buffer size.
     inline constexpr std::size_t kDefaultBufferSize = std::size_t{64} * 1024;
 
-    namespace Types
-    {
-        /// @brief Result returned by whole-stream byte reads.
-        struct ReadAllBytesResult
-        {
-            /// @brief Operation status.
-            Status status;
-            /// @brief Bytes collected before end-of-stream or failure.
-            std::vector<std::byte> bytes;
-        };
-
-        /// @brief Result returned by whole-stream UTF-8 text reads.
-        struct ReadAllTextResult
-        {
-            /// @brief Operation status.
-            Status status;
-            /// @brief Validated text collected before end-of-stream or failure.
-            /// @see @ref io_utf8_policy
-            std::string text;
-        };
-    } // namespace Types
-
     /// @name Whole-stream transfer
     /// @{
 
@@ -52,12 +30,12 @@ namespace GameWIP::IO
     /// @param reader Reader starting at the current position.
     /// @param maxBytes Hard maximum accepted output size, or kNoByteLimit for no caller limit.
     /// @param bufferSize Temporary transfer-buffer size for unknown-size readers. Must be nonzero.
-    /// @return Collected bytes and final status, preserving valid bytes produced before a later failure.
+    /// @return Collected bytes, preserving available partial data on later failure.
     /// @note Known-size readers allocate final output directly. An unknown-size reader at a finite
     /// limit may be advanced by one extra probe byte that is not stored.
     /// @note Invalid buffer arguments, capability failures, partial known-size reads, invalid backend
     /// progress, representation limits, and internal allocation failures are reported through status.
-    [[nodiscard]] Types::ReadAllBytesResult readAllBytes(
+    [[nodiscard]] GameWIP::Status::Types::Result<std::vector<std::byte>> readAllBytes(
         Reader &reader,
         std::uint64_t maxBytes = kNoByteLimit,
         std::size_t bufferSize = kDefaultBufferSize) noexcept;
@@ -66,10 +44,10 @@ namespace GameWIP::IO
     /// @param reader Reader to drain from its current position.
     /// @param scratchBuffer Non-empty temporary storage that may be overwritten during the call.
     /// @param maxBytes Hard maximum accepted output size, or kNoByteLimit for no caller limit.
-    /// @return Collected bytes and final status, preserving valid bytes produced before a later failure.
+    /// @return Collected bytes, preserving available partial data on later failure.
     /// @note The scratch buffer is ignored for known-size readers and is never retained. At a finite
     /// limit, an unknown-size reader may be advanced by one extra probe byte that is not stored.
-    [[nodiscard]] Types::ReadAllBytesResult readAllBytes(
+    [[nodiscard]] GameWIP::Status::Types::Result<std::vector<std::byte>> readAllBytes(
         Reader &reader,
         std::span<std::byte> scratchBuffer,
         std::uint64_t maxBytes = kNoByteLimit) noexcept;
@@ -78,9 +56,9 @@ namespace GameWIP::IO
     /// @param reader Reader starting at the current position.
     /// @param maxBytes Hard maximum accepted output size, or kNoByteLimit for no caller limit.
     /// @param bufferSize Temporary transfer-buffer size for unknown-size readers. Must be nonzero.
-    /// @return Validated text and final status; on failure, only the complete valid prefix.
+    /// @return Validated text; on failure, only the complete valid prefix when available.
     /// @see @ref io_utf8_policy
-    [[nodiscard]] Types::ReadAllTextResult readAllText(
+    [[nodiscard]] GameWIP::Status::Types::Result<std::string> readAllText(
         Reader &reader,
         std::uint64_t maxBytes = kNoByteLimit,
         std::size_t bufferSize = kDefaultBufferSize) noexcept;
@@ -89,10 +67,10 @@ namespace GameWIP::IO
     /// @param reader Reader to drain from its current position.
     /// @param scratchBuffer Non-empty temporary storage that may be overwritten during the call.
     /// @param maxBytes Hard maximum accepted output size, or kNoByteLimit for no caller limit.
-    /// @return Validated text and final status; on failure, only the complete valid prefix.
+    /// @return Validated text; on failure, only the complete valid prefix when available.
     /// @note The scratch buffer is ignored for known-size readers and is never retained.
     /// @see @ref io_utf8_policy
-    [[nodiscard]] Types::ReadAllTextResult readAllText(
+    [[nodiscard]] GameWIP::Status::Types::Result<std::string> readAllText(
         Reader &reader,
         std::span<std::byte> scratchBuffer,
         std::uint64_t maxBytes = kNoByteLimit) noexcept;
@@ -100,16 +78,18 @@ namespace GameWIP::IO
     /// @brief Writes all bytes, retrying successful short writes until complete or failed.
     /// @param writer Writer receiving the bytes.
     /// @param bytes Bytes valid for the duration of the call.
-    /// @return Final status and total accepted bytes, including progress from a final failing write.
+    /// @return Total accepted bytes, including progress from a final failing write.
     /// @note Empty input succeeds without calling writer.write(). The helper does not flush or close
     /// the writer. Impossible counts and successful zero progress return WriteFailed.
-    [[nodiscard]] Types::WriteResult writeAllBytes(Writer &writer, std::span<const std::byte> bytes) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<Types::WriteProgress> writeAllBytes(Writer &writer, std::span<const std::byte> bytes) noexcept;
 
     /// @brief Writes all vector bytes, retrying successful short writes until complete or failed.
     /// @tparam Allocator Vector allocator type.
-    /// @return Final status and the total number of bytes accepted, including bytes accepted by a failing write.
+    /// @return Total accepted bytes, including bytes accepted by a failing write.
     template <typename Allocator>
-    [[nodiscard]] Types::WriteResult writeAllBytes(Writer &writer, const std::vector<std::byte, Allocator> &bytes) noexcept
+    [[nodiscard]] GameWIP::Status::Types::Result<Types::WriteProgress> writeAllBytes(
+        Writer &writer,
+        const std::vector<std::byte, Allocator> &bytes) noexcept
     {
         return writeAllBytes(writer, std::span<const std::byte>(bytes.data(), bytes.size()));
     }
@@ -120,7 +100,7 @@ namespace GameWIP::IO
     /// @return EncodingFailed with zero bytes written for invalid input; otherwise the writeAllBytes() result.
     /// @note Validation happens before writer.write() is called. No flush or close is performed.
     /// @see @ref io_utf8_policy
-    [[nodiscard]] Types::WriteResult writeAllText(Writer &writer, std::string_view utf8Text) noexcept;
+    [[nodiscard]] GameWIP::Status::Types::Result<Types::WriteProgress> writeAllText(Writer &writer, std::string_view utf8Text) noexcept;
 
     /// @}
 } // namespace GameWIP::IO

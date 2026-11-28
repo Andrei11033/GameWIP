@@ -5,7 +5,7 @@
 
 #include "desktop/desktop_export.h"
 #include "filesystem/path.h"
-#include "io/status.h"
+#include "status/result.h"
 
 #include <atomic>
 #include <cstddef>
@@ -20,11 +20,11 @@ namespace GameWIP::Desktop
 {
     class Window;
 
-    namespace Detail
+    namespace Internal
     {
         struct ProgressDialogAccess;
         struct ProgressDialogState;
-    } // namespace Detail
+    } // namespace Internal
 } // namespace GameWIP::Desktop
 
 namespace GameWIP::Desktop::Types::Dialogs
@@ -61,8 +61,11 @@ namespace GameWIP::Desktop::Types::Dialogs::File
     /// @brief Description shared by single- and multiple-file open dialogs.
     struct OpenDescription
     {
-        Window *owner = nullptr;                         ///< Optional live owner Window on the calling thread.
-        std::string_view title;                          ///< UTF-8 dialog title; empty selects backend wording.
+        // Owner and title
+        Window *owner = nullptr; ///< Optional live owner Window on the calling thread.
+        std::string_view title;  ///< UTF-8 dialog title; empty selects backend wording.
+
+        // Filters and initial location
         std::span<const Filter> filters;                 ///< Ordered, call-scoped file filters; empty permits all files.
         std::optional<std::size_t> preferredFilterIndex; ///< Optional zero-based initial filter index.
         FileSystem::Types::Path suggestedDirectory;      ///< Optional initial directory suggestion.
@@ -71,12 +74,17 @@ namespace GameWIP::Desktop::Types::Dialogs::File
     /// @brief Description of a save-file dialog.
     struct SaveDescription
     {
-        Window *owner = nullptr;                         ///< Optional live owner Window on the calling thread.
-        std::string_view title;                          ///< UTF-8 dialog title; empty selects backend wording.
+        // Owner and title
+        Window *owner = nullptr; ///< Optional live owner Window on the calling thread.
+        std::string_view title;  ///< UTF-8 dialog title; empty selects backend wording.
+
+        // Filters and initial location
         std::span<const Filter> filters;                 ///< Ordered, call-scoped file filters; empty permits all files.
         std::optional<std::size_t> preferredFilterIndex; ///< Optional zero-based initial filter index.
         FileSystem::Types::Path suggestedDirectory;      ///< Optional initial directory suggestion.
-        std::string_view suggestedFileName;              ///< Optional UTF-8 initial file name.
+
+        // Suggested save name
+        std::string_view suggestedFileName; ///< Optional UTF-8 initial file name.
         /// @brief Optional default extension.
         /// When non-empty, it has no leading period, wildcard syntax, path separator, or embedded NUL.
         std::string_view suggestedExtension;
@@ -85,25 +93,26 @@ namespace GameWIP::Desktop::Types::Dialogs::File
     /// @brief Description shared by single- and multiple-folder selection.
     struct FolderDescription
     {
-        Window *owner = nullptr;                    ///< Optional live owner Window on the calling thread.
-        std::string_view title;                     ///< UTF-8 dialog title; empty selects backend wording.
+        // Owner and title
+        Window *owner = nullptr; ///< Optional live owner Window on the calling thread.
+        std::string_view title;  ///< UTF-8 dialog title; empty selects backend wording.
+
+        // Initial location
         FileSystem::Types::Path suggestedDirectory; ///< Optional initial directory suggestion.
     };
 
     /// @brief Result containing at most one native path.
-    struct Result
+    struct Selection
     {
-        IO::Types::Status status;                       ///< Operation status; cancellation is reported separately.
-        Outcome outcome = Outcome::Cancelled;           ///< User outcome when @c status is successful.
+        Outcome outcome = Outcome::Cancelled;           ///< User outcome when the operation succeeds.
         FileSystem::Types::Path path;                   ///< Selected path when @c outcome is Accepted.
         std::optional<std::size_t> selectedFilterIndex; ///< Zero-based selected filter index when the dialog reports one.
     };
 
     /// @brief Result containing an ordered list of native paths.
-    struct ListResult
+    struct SelectionList
     {
-        IO::Types::Status status;                       ///< Operation status; cancellation is reported separately.
-        Outcome outcome = Outcome::Cancelled;           ///< User outcome when @c status is successful.
+        Outcome outcome = Outcome::Cancelled;           ///< User outcome when the operation succeeds.
         std::vector<FileSystem::Types::Path> paths;     ///< Selected paths in backend order when accepted.
         std::optional<std::size_t> selectedFilterIndex; ///< Zero-based selected filter index when the dialog reports one.
     };
@@ -114,27 +123,32 @@ namespace GameWIP::Desktop::Dialogs
     /// @brief Shows a synchronous native single-file open dialog.
     /// @param description Call-scoped owner, text, filter, and initial-directory settings.
     /// @return Operation status, user outcome, selected path, and selected filter.
-    [[nodiscard]] DESKTOP_EXPORT Types::Dialogs::File::Result openFile(const Types::Dialogs::File::OpenDescription &description) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT GameWIP::Status::Types::Result<Types::Dialogs::File::Selection> openFile(
+        const Types::Dialogs::File::OpenDescription &description) noexcept;
 
     /// @brief Shows a synchronous native multiple-file open dialog.
     /// @param description Call-scoped owner, text, filter, and initial-directory settings.
     /// @return Operation status, user outcome, selected paths, and selected filter.
-    [[nodiscard]] DESKTOP_EXPORT Types::Dialogs::File::ListResult openFiles(const Types::Dialogs::File::OpenDescription &description) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT GameWIP::Status::Types::Result<Types::Dialogs::File::SelectionList> openFiles(
+        const Types::Dialogs::File::OpenDescription &description) noexcept;
 
     /// @brief Shows a synchronous native save-file dialog.
     /// @param description Call-scoped owner, text, filter, and save-name settings.
     /// @return Operation status, user outcome, selected path, and selected filter.
-    [[nodiscard]] DESKTOP_EXPORT Types::Dialogs::File::Result saveFile(const Types::Dialogs::File::SaveDescription &description) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT GameWIP::Status::Types::Result<Types::Dialogs::File::Selection> saveFile(
+        const Types::Dialogs::File::SaveDescription &description) noexcept;
 
     /// @brief Shows a synchronous native single-folder selection dialog.
     /// @param description Call-scoped owner, title, and initial-directory settings.
     /// @return Operation status, user outcome, and selected folder path.
-    [[nodiscard]] DESKTOP_EXPORT Types::Dialogs::File::Result selectFolder(const Types::Dialogs::File::FolderDescription &description) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT GameWIP::Status::Types::Result<Types::Dialogs::File::Selection> selectFolder(
+        const Types::Dialogs::File::FolderDescription &description) noexcept;
 
     /// @brief Shows a synchronous native multiple-folder selection dialog.
     /// @param description Call-scoped owner, title, and initial-directory settings.
     /// @return Operation status, user outcome, and selected folder paths.
-    [[nodiscard]] DESKTOP_EXPORT Types::Dialogs::File::ListResult selectFolders(const Types::Dialogs::File::FolderDescription &description) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT GameWIP::Status::Types::Result<Types::Dialogs::File::SelectionList> selectFolders(
+        const Types::Dialogs::File::FolderDescription &description) noexcept;
 } // namespace GameWIP::Desktop::Dialogs
 
 namespace GameWIP::Desktop::Types::Dialogs::Message
@@ -163,19 +177,21 @@ namespace GameWIP::Desktop::Types::Dialogs::Message
     /// @brief Call-scoped description of a fixed-button message dialog.
     struct Description
     {
-        Window *owner = nullptr;             ///< Optional live owner Window on the calling thread.
-        std::string_view title;              ///< UTF-8 dialog title.
-        std::string_view message;            ///< UTF-8 primary message.
+        // Owner and message content
+        Window *owner = nullptr;  ///< Optional live owner Window on the calling thread.
+        std::string_view title;   ///< UTF-8 dialog title.
+        std::string_view message; ///< UTF-8 primary message.
+
+        // Button and severity policy
         Buttons buttons = Buttons::Ok;       ///< Fixed button combination to present.
         Button defaultButton = Button::None; ///< Optional default button; must belong to @c buttons.
         Severity severity = Severity::None;  ///< Semantic severity used for native presentation.
     };
 
     /// @brief Result of a message-dialog operation.
-    struct Result
+    struct Selection
     {
-        IO::Types::Status status;             ///< Operation status; cancellation is reported separately.
-        Outcome outcome = Outcome::Cancelled; ///< User outcome when @c status is successful.
+        Outcome outcome = Outcome::Cancelled; ///< User outcome when the operation succeeds.
         Button button = Button::None;         ///< Selected button, or Cancel/None when dismissed as documented.
     };
 } // namespace GameWIP::Desktop::Types::Dialogs::Message
@@ -185,7 +201,8 @@ namespace GameWIP::Desktop::Dialogs
     /// @brief Shows a synchronous native message with a fixed portable button set.
     /// @param description Call-scoped owner, text, severity, and button settings.
     /// @return Operation status, user outcome, and selected portable button.
-    [[nodiscard]] DESKTOP_EXPORT Types::Dialogs::Message::Result showMessage(const Types::Dialogs::Message::Description &description) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT GameWIP::Status::Types::Result<Types::Dialogs::Message::Selection> showMessage(
+        const Types::Dialogs::Message::Description &description) noexcept;
 } // namespace GameWIP::Desktop::Dialogs
 
 namespace GameWIP::Desktop::Types::Dialogs::Prompt
@@ -255,26 +272,30 @@ namespace GameWIP::Desktop::Types::Dialogs::Prompt
     /// @brief Call-scoped description of a caller-defined prompt.
     struct Description
     {
-        Window *owner = nullptr;               ///< Optional live owner Window on the calling thread.
-        std::string_view title;                ///< UTF-8 dialog title.
-        std::string_view heading;              ///< UTF-8 prominent heading.
-        std::string_view message;              ///< UTF-8 primary message.
-        Severity severity = Severity::None;    ///< Semantic severity used for native presentation.
+        // Owner and prompt content
+        Window *owner = nullptr;            ///< Optional live owner Window on the calling thread.
+        std::string_view title;             ///< UTF-8 dialog title.
+        std::string_view heading;           ///< UTF-8 prominent heading.
+        std::string_view message;           ///< UTF-8 primary message.
+        Severity severity = Severity::None; ///< Semantic severity used for native presentation.
+
+        // Actions and options
         std::span<const Button> buttons;       ///< Non-empty, call-scoped actions with unique valid IDs.
         std::optional<ButtonId> defaultButton; ///< Optional default action; when present, must be in @c buttons.
         std::optional<ButtonId> cancelButton;  ///< Optional cancellation action; when present, must be in @c buttons.
         std::span<const Option> options;       ///< Call-scoped mutually exclusive options with unique valid IDs.
         std::optional<OptionId> defaultOption; ///< Optional initial option; when present, must be in @c options.
-        std::string_view details;              ///< Optional UTF-8 expandable details.
-        std::string_view supplementalText;     ///< Optional UTF-8 supplemental text.
-        std::optional<CheckBox> checkBox;      ///< Optional checkbox description and initial state.
+
+        // Supplemental content and initial state
+        std::string_view details;          ///< Optional UTF-8 expandable details.
+        std::string_view supplementalText; ///< Optional UTF-8 supplemental text.
+        std::optional<CheckBox> checkBox;  ///< Optional checkbox description and initial state.
     };
 
     /// @brief Result of a caller-defined prompt operation.
-    struct Result
+    struct Selection
     {
-        IO::Types::Status status;             ///< Operation status; cancellation is reported separately.
-        Outcome outcome = Outcome::Cancelled; ///< User outcome when @c status is successful.
+        Outcome outcome = Outcome::Cancelled; ///< User outcome when the operation succeeds.
         std::optional<ButtonId> button;       ///< Selected action identity, or nullopt after dismissal without one.
         std::optional<OptionId> option;       ///< Final selected option identity, or nullopt when none is selected.
         std::optional<bool> checkBoxChecked;  ///< Final checkbox state when a checkbox was presented.
@@ -286,7 +307,8 @@ namespace GameWIP::Desktop::Dialogs
     /// @brief Shows a synchronous native prompt with caller-defined choices.
     /// @param description Call-scoped owner, content, actions, options, and checkbox settings.
     /// @return Operation status, user outcome, selected identities, and final checkbox state.
-    [[nodiscard]] DESKTOP_EXPORT Types::Dialogs::Prompt::Result showPrompt(const Types::Dialogs::Prompt::Description &description) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT GameWIP::Status::Types::Result<Types::Dialogs::Prompt::Selection> showPrompt(
+        const Types::Dialogs::Prompt::Description &description) noexcept;
 } // namespace GameWIP::Desktop::Dialogs
 
 namespace GameWIP::Desktop::Types::Dialogs::Progress
@@ -301,10 +323,13 @@ namespace GameWIP::Desktop::Types::Dialogs::Progress
     /// @brief Initial settings for a modeless operation-progress presentation.
     struct Description
     {
-        Window *owner = nullptr;                     ///< Borrowed owner; its Window object must outlive this open ProgressDialog lifetime.
-        std::string_view title;                      ///< UTF-8 window title, borrowed only during open().
-        std::string_view heading;                    ///< UTF-8 prominent heading, borrowed only during open().
-        std::string_view message;                    ///< UTF-8 operation message, borrowed only during open().
+        // Owner and progress text
+        Window *owner = nullptr;  ///< Borrowed owner; its Window object must outlive this open ProgressDialog lifetime.
+        std::string_view title;   ///< UTF-8 window title, borrowed only during open().
+        std::string_view heading; ///< UTF-8 prominent heading, borrowed only during open().
+        std::string_view message; ///< UTF-8 operation message, borrowed only during open().
+
+        // Progress and cancellation policy
         Mode presentationMode = Mode::Indeterminate; ///< Initial visual progress mode.
         double progress = 0.0;                       ///< Initial normalized value in [0, 1].
         bool cancelable = false;                     ///< Whether user cancellation requests are exposed.
@@ -334,7 +359,7 @@ namespace GameWIP::Desktop
         /// Desktop events.
         /// @param description Initial owner, text, mode, progress, cancellation, and blocking settings.
         /// @return Success, or a status explaining why no presentation was opened.
-        [[nodiscard]] IO::Types::Status open(const Types::Dialogs::Progress::Description &description) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> open(const Types::Dialogs::Progress::Description &description) noexcept;
         /// @brief Reports whether a native presentation is live on its owner thread.
         [[nodiscard]] bool isOpen() const noexcept;
         /// @brief Safely reports whether the caller owns the retained lifetime.
@@ -342,23 +367,23 @@ namespace GameWIP::Desktop
         /// @brief Replaces the native window title.
         /// @param title Strict UTF-8 title with no embedded U+0000.
         /// @return Success, or a validation, ownership, lifetime, or native-operation failure.
-        [[nodiscard]] IO::Types::Status setTitle(std::string_view title) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> setTitle(std::string_view title) noexcept;
         /// @brief Replaces the native heading.
         /// @param heading Strict UTF-8 heading with no embedded U+0000.
         /// @return Success, or a validation, ownership, lifetime, or native-operation failure.
-        [[nodiscard]] IO::Types::Status setHeading(std::string_view heading) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> setHeading(std::string_view heading) noexcept;
         /// @brief Replaces the native message.
         /// @param message Strict UTF-8 message with no embedded U+0000.
         /// @return Success, or a validation, ownership, lifetime, or native-operation failure.
-        [[nodiscard]] IO::Types::Status setMessage(std::string_view message) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> setMessage(std::string_view message) noexcept;
         /// @brief Switches between determinate and indeterminate presentation.
         /// @param mode New visual progress mode.
         /// @return Success, or a validation, ownership, lifetime, or native-operation failure.
-        [[nodiscard]] IO::Types::Status setMode(Types::Dialogs::Progress::Mode mode) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> setMode(Types::Dialogs::Progress::Mode mode) noexcept;
         /// @brief Retains a normalized numeric progress value and displays it when determinate.
         /// @param progress New finite value in [0, 1].
         /// @return Success, or a validation, ownership, lifetime, or native-operation failure.
-        [[nodiscard]] IO::Types::Status setProgress(double progress) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> setProgress(double progress) noexcept;
         /// @brief Reports whether an uncleared owner-thread cancellation request exists.
         [[nodiscard]] bool hasCancelRequest() const noexcept;
         /// @brief Clears the sticky owner-thread cancellation request.
@@ -367,11 +392,11 @@ namespace GameWIP::Desktop
         /// @brief Closes and finalizes the retained progress lifetime.
         /// @details A successful close permits the same object to be opened again. Failed native cleanup is retained for retry.
         /// @return Success when closed or already closed; ResourceBusy on another thread; otherwise the cleanup failure.
-        [[nodiscard]] IO::Types::Status close() noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> close() noexcept;
 
     private:
-        friend struct Detail::ProgressDialogAccess;
-        std::unique_ptr<Detail::ProgressDialogState> state_;
+        friend struct Internal::ProgressDialogAccess;
+        std::unique_ptr<Internal::ProgressDialogState> state_;
         std::atomic_uint64_t ownerThreadToken_{0};
     };
 } // namespace GameWIP::Desktop

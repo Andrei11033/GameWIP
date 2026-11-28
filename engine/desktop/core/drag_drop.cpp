@@ -1,12 +1,13 @@
 /// @file drag_drop.cpp
 /// @brief Portable DragDrop validation, policy, lifecycle, and event queue.
 
+#include "desktop/internal/results.h"
 #include "desktop/drag_drop.h"
 
-#include "desktop/internal/drag_drop_platform.h"
 #include "desktop/internal/drag_drop_state.h"
-#include "desktop/internal/window_platform.h"
 #include "desktop/internal/window_state.h"
+#include "desktop/platform/drag_drop.h"
+#include "desktop/platform/window.h"
 #include "unicode/unicode.h"
 
 #include <exception>
@@ -16,11 +17,11 @@
 #include <unordered_set>
 #include <utility>
 
-namespace GameWIP::Desktop::Detail
+namespace GameWIP::Desktop::Internal
 {
-    // ------------------------------------------------------------
-    // Effect policy and event queue
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Effect policy and event queue
+    /// ------------------------------------------------------------
 
     namespace
     {
@@ -69,6 +70,7 @@ namespace GameWIP::Desktop::Detail
         /// @brief Removes a slot from both queue indexes and returns it to the free list.
         void removeSlot(DragDropState &state, std::size_t slot) noexcept
         {
+            // Remove movement events from the secondary eviction index.
             if(movement(state.eventStorage[slot]))
             {
                 unlinkMovement(state, slot);
@@ -77,6 +79,7 @@ namespace GameWIP::Desktop::Detail
             const std::size_t previous = state.queuePrevious[slot];
             const std::size_t next = state.queueNext[slot];
 
+            // Unlink the slot from FIFO order.
             if(previous == DragDropState::noSlot)
             {
                 state.eventHead = next;
@@ -95,6 +98,7 @@ namespace GameWIP::Desktop::Detail
                 state.queuePrevious[next] = previous;
             }
 
+            // Clear its payload and return the slot to the free list.
             state.eventStorage[slot] = {};
             state.queuePrevious[slot] = DragDropState::noSlot;
             state.queueNext[slot] = DragDropState::noSlot;
@@ -106,6 +110,7 @@ namespace GameWIP::Desktop::Detail
         /// @brief Appends a slot to FIFO order and indexes movement events for selective eviction.
         void appendSlot(DragDropState &state, std::size_t slot, Types::DragDrop::Event event) noexcept
         {
+            // Link the slot at the FIFO tail.
             state.eventStorage[slot] = std::move(event);
             state.queuePrevious[slot] = state.eventTail;
             state.queueNext[slot] = DragDropState::noSlot;
@@ -120,6 +125,7 @@ namespace GameWIP::Desktop::Detail
             }
             state.eventTail = slot;
 
+            // Track movement separately so terminal events can evict it first.
             if(movement(state.eventStorage[slot]))
             {
                 state.movementPrevious[slot] = state.movementTail;
@@ -135,6 +141,8 @@ namespace GameWIP::Desktop::Detail
                 }
                 state.movementTail = slot;
             }
+
+            // Count the slot only after both indexes are complete.
             ++state.eventCount;
         }
     } // namespace
@@ -143,12 +151,15 @@ namespace GameWIP::Desktop::Detail
     void initializeDragDropEventQueue(DragDropState &state)
     {
         const std::size_t capacity = state.eventStorage.size();
+
+        // Initialize empty queue and movement indexes.
         state.queueNext.assign(capacity, DragDropState::noSlot);
         state.queuePrevious.assign(capacity, DragDropState::noSlot);
         state.movementNext.assign(capacity, DragDropState::noSlot);
         state.movementPrevious.assign(capacity, DragDropState::noSlot);
         state.freeNext.resize(capacity);
 
+        // Link every slot into the free list.
         for(std::size_t slot = 0; slot < capacity; ++slot)
         {
             state.freeNext[slot] = slot + 1 < capacity ? slot + 1 : DragDropState::noSlot;
@@ -175,10 +186,13 @@ namespace GameWIP::Desktop::Detail
         Types::DragDrop::Effect target,
         Types::DragDrop::Effect preferred) noexcept
     {
+        // Reject bits outside the portable effect set.
         if(!validEffectBits(source) || !validEffectBits(target) || !validEffectBits(preferred))
         {
             return Types::DragDrop::Effect::None;
         }
+
+        // Keep only effects accepted by both sides.
         const auto candidates = source & target;
 
         if(candidates == Types::DragDrop::Effect::None)
@@ -192,6 +206,7 @@ namespace GameWIP::Desktop::Detail
             return candidates;
         }
 
+        // Use a supported preference, then fall back to a stable order.
         if(preferred != Types::DragDrop::Effect::None && (candidates & preferred) == preferred &&
            (static_cast<std::uint8_t>(preferred) & (static_cast<std::uint8_t>(preferred) - 1U)) == 0)
         {
@@ -212,12 +227,14 @@ namespace GameWIP::Desktop::Detail
     /// @brief Queues movement updates compactly and reserves eviction for terminal events.
     bool enqueueDragDropEvent(DragDropState &state, Types::DragDrop::Events::Payload data, bool terminal) noexcept
     {
+        // Reject events when no event storage was configured.
         if(state.eventStorage.empty())
         {
             return false;
         }
         Types::DragDrop::Event incoming{state.nextSequence++, std::move(data)};
 
+        // Replace the latest movement event for the same drag session.
         if(const auto *moved = incoming.getIf<Types::DragDrop::Events::Moved>(); moved != nullptr && state.eventTail != DragDropState::noSlot)
         {
             if(auto *last = state.eventStorage[state.eventTail].getIf<Types::DragDrop::Events::Moved>();
@@ -235,6 +252,7 @@ namespace GameWIP::Desktop::Detail
             }
         }
 
+        // Drop non-terminal events when full; terminal events evict movement first.
         if(state.eventCount == state.eventStorage.size())
         {
             if(!terminal)
@@ -246,29 +264,30 @@ namespace GameWIP::Desktop::Detail
             ++state.droppedEvents;
         }
 
+        // Append the event through the intrusive free-slot and FIFO indexes.
         const std::size_t slot = state.freeHead;
         state.freeHead = state.freeNext[slot];
         state.freeNext[slot] = DragDropState::noSlot;
         appendSlot(state, slot, std::move(incoming));
         return true;
     }
-} // namespace GameWIP::Desktop::Detail
+} // namespace GameWIP::Desktop::Internal
 
 namespace GameWIP::Desktop
 {
-    // ------------------------------------------------------------
-    // Region validation and publication
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Region validation and publication
+    /// ------------------------------------------------------------
 
     namespace
     {
-        using IO::Types::ErrorCode;
+        using ErrorCode = GameWIP::Status::Types::Code;
         constexpr auto kAllEffects = Types::DragDrop::Effect::Copy | Types::DragDrop::Effect::Move | Types::DragDrop::Effect::Link;
 
         /// @brief Builds a portable status from a single error code.
-        [[nodiscard]] IO::Types::Status error(ErrorCode code) noexcept
+        [[nodiscard]] GameWIP::Status::Types::Status error(ErrorCode code) noexcept
         {
-            return IO::makeStatus(code);
+            return GameWIP::Desktop::Internal::statusFor(code);
         }
 
         /// @brief Returns whether exactly one supported effect bit is selected.
@@ -313,9 +332,9 @@ namespace GameWIP::Desktop
         }
 
         /// @brief Validates, deduplicates, and owns a target's declarative region descriptions.
-        [[nodiscard]] IO::Types::Status copyRegions(
+        [[nodiscard]] GameWIP::Status::Types::Status copyRegions(
             std::span<const Types::DragDrop::RegionDescription> source,
-            std::vector<Detail::DragDropRegion> &destination) noexcept
+            std::vector<Internal::DragDropRegion> &destination) noexcept
         {
             if(source.empty())
             {
@@ -336,7 +355,7 @@ namespace GameWIP::Desktop
                     {
                         return error(ErrorCode::InvalidArgument);
                     }
-                    Detail::DragDropRegion copy{region.id, region.rect, {}, {}, region.effects};
+                    Internal::DragDropRegion copy{region.id, region.rect, {}, {}, region.effects};
                     std::unordered_set<std::string> identities;
                     copy.formats.reserve(region.formats.size());
 
@@ -363,7 +382,7 @@ namespace GameWIP::Desktop
                     destination.push_back(std::move(copy));
                 }
 
-                return IO::successStatus();
+                return GameWIP::Status::Types::Status{};
             }
             catch(const std::bad_alloc &)
             {
@@ -376,15 +395,15 @@ namespace GameWIP::Desktop
         }
 
         /// @brief Returns the target state only when the current thread owns its lifetime.
-        [[nodiscard]] Detail::DragDropState *owned(Detail::DragDropState *state) noexcept
+        [[nodiscard]] Internal::DragDropState *owned(Internal::DragDropState *state) noexcept
         {
             return state && state->ownerThread == std::this_thread::get_id() ? state : nullptr;
         }
     } // namespace
 
-    // ------------------------------------------------------------
-    // Target lifecycle
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Target lifecycle
+    /// ------------------------------------------------------------
 
     DragDropTarget::DragDropTarget() noexcept = default;
     DragDropTarget::~DragDropTarget() noexcept
@@ -394,14 +413,14 @@ namespace GameWIP::Desktop
             return;
         }
 
-        if(!Detail::Platform::dragDropTargetOwnedByCurrentThread(*state_))
+        if(!Platform::dragDropTargetOwnedByCurrentThread(*state_))
         {
-            if(Detail::Platform::deferDragDropCleanupToOwner(state_))
+            if(Platform::deferDragDropCleanupToOwner(state_))
             {
                 return;
             }
 
-            if(!Detail::Platform::closeDragDropTargetBestEffort(*state_))
+            if(!Platform::closeDragDropTargetBestEffort(*state_))
             {
                 // Dispatcher shutdown removes native resources before unregistering
                 // itself, so reaching this branch indicates a broken ownership invariant.
@@ -412,9 +431,9 @@ namespace GameWIP::Desktop
             return;
         }
 
-        if(!Detail::Platform::closeDragDropTargetBestEffort(*state_))
+        if(!Platform::closeDragDropTargetBestEffort(*state_))
         {
-            if(!Detail::Platform::deferDragDropCleanupToOwner(state_))
+            if(!Platform::deferDragDropCleanupToOwner(state_))
             {
                 // An owner dispatcher must accept cleanup until its destructor has
                 // finalized every active target; failure here is an invariant violation.
@@ -426,16 +445,17 @@ namespace GameWIP::Desktop
         state_->clearRetainedEvents();
     }
 
-    IO::Types::Status DragDropTarget::open(Window &window, const Types::DragDrop::TargetDescription &description) noexcept
+    GameWIP::Status::Types::Result<void> DragDropTarget::open(Window &window, const Types::DragDrop::TargetDescription &description) noexcept
     {
         return open(window, description, Types::DragDrop::QueueConfiguration::owned());
     }
 
-    IO::Types::Status DragDropTarget::open(
+    GameWIP::Status::Types::Result<void> DragDropTarget::open(
         Window &window,
         const Types::DragDrop::TargetDescription &description,
         Types::DragDrop::QueueConfiguration queue) noexcept
     {
+        // Validate the wrapper and requested queue storage.
         if(state_)
         {
             return error(ErrorCode::AlreadyOpen);
@@ -449,37 +469,39 @@ namespace GameWIP::Desktop
             return error(ErrorCode::InvalidArgument);
         }
 
-        Detail::WindowState *windowState = Detail::WindowAccess::state(window);
+        // Require a live owner-thread Window without another drop mechanism.
+        Internal::WindowState *windowState = Internal::WindowAccess::state(window);
 
-        if(!windowState || !Detail::Platform::hasLiveNativeWindow(*windowState))
+        if(!windowState || !Platform::hasLiveNativeWindow(*windowState))
         {
             return error(ErrorCode::NotOpen);
         }
 
-        if(!Detail::Platform::ownedByCurrentThread(*windowState))
+        if(!Platform::ownedByCurrentThread(*windowState))
         {
             return error(ErrorCode::ResourceBusy);
         }
 
-        if(windowState->fileDropEnabled || Detail::Platform::hasDragDropTarget(*windowState))
+        if(windowState->fileDropEnabled || Platform::hasDragDropTarget(*windowState))
         {
             return error(ErrorCode::ResourceBusy);
         }
 
         try
         {
-            auto candidate = std::make_unique<Detail::DragDropState>();
+            // Validate and prepare the complete region set before native registration.
+            auto candidate = std::make_unique<Internal::DragDropState>();
             candidate->ownerThread = std::this_thread::get_id();
             candidate->windowId = windowState->id;
             candidate->window = windowState;
-            IO::Types::Status result = copyRegions(description.regions, candidate->regions);
+            GameWIP::Status::Types::Status result = copyRegions(description.regions, candidate->regions);
 
             if(!result.ok())
             {
                 return result;
             }
 
-            result = Detail::Platform::prepareDragDropRegions(candidate->regions);
+            result = Platform::prepareDragDropRegions(candidate->regions);
 
             if(!result.ok())
             {
@@ -500,17 +522,18 @@ namespace GameWIP::Desktop
                 candidate->eventStorage = borrowedQueue->storage;
             }
 
-            Detail::initializeDragDropEventQueue(*candidate);
+            // Build queue indexes, then register and publish the target.
+            Internal::initializeDragDropEventQueue(*candidate);
             candidate->eventStorageKind = ownedQueue != nullptr ? Types::Events::StorageKind::Internal : Types::Events::StorageKind::External;
-            result = Detail::Platform::openDragDropTarget(*candidate, *windowState);
+            result = Platform::openDragDropTarget(*candidate, *windowState);
 
             if(!result.ok())
             {
-                static_cast<void>(Detail::Platform::closeDragDropTargetBestEffort(*candidate));
+                static_cast<void>(Platform::closeDragDropTargetBestEffort(*candidate));
                 return result;
             }
             state_ = std::move(candidate);
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
         catch(const std::bad_alloc &)
         {
@@ -524,7 +547,7 @@ namespace GameWIP::Desktop
 
     bool DragDropTarget::isOpen() const noexcept
     {
-        return state_ && Detail::Platform::hasLiveDragDropTarget(*state_);
+        return state_ && Platform::hasLiveDragDropTarget(*state_);
     }
 
     Types::LifetimeState DragDropTarget::lifetimeState() const noexcept
@@ -542,18 +565,18 @@ namespace GameWIP::Desktop
         return isOpen() ? Types::LifetimeState::Open : Types::LifetimeState::Closed;
     }
 
-    IO::Types::Status DragDropTarget::close() noexcept
+    GameWIP::Status::Types::Result<void> DragDropTarget::close() noexcept
     {
         if(!state_)
         {
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
 
-        if(state_->nativeDestroyedPendingFinalize && !Detail::Platform::hasNativeDragDropResources(*state_))
+        if(state_->nativeDestroyedPendingFinalize && !Platform::hasNativeDragDropResources(*state_))
         {
             state_->clearRetainedEvents();
             state_.reset();
-            return IO::successStatus();
+            return GameWIP::Status::Types::Status{};
         }
 
         if(!owned(state_.get()))
@@ -561,14 +584,14 @@ namespace GameWIP::Desktop
             return error(ErrorCode::ResourceBusy);
         }
 
-        const auto result = Detail::Platform::closeDragDropTarget(*state_);
-        if(result.resourceClosed)
+        const auto result = Platform::closeDragDropTarget(*state_);
+        if(result.hasValue() && result.value())
         {
             state_->clearRetainedEvents();
             state_.reset();
         }
 
-        return result.status;
+        return Internal::result(result.status());
     }
 
     Types::WindowId DragDropTarget::windowId() const noexcept
@@ -581,7 +604,7 @@ namespace GameWIP::Desktop
         return owned(state_.get()) != nullptr;
     }
 
-    IO::Types::Status DragDropTarget::setRegions(std::span<const Types::DragDrop::RegionDescription> regions) noexcept
+    GameWIP::Status::Types::Result<void> DragDropTarget::setRegions(std::span<const Types::DragDrop::RegionDescription> regions) noexcept
     {
         if(!isOpen())
         {
@@ -593,11 +616,11 @@ namespace GameWIP::Desktop
             return error(ErrorCode::ResourceBusy);
         }
 
-        std::vector<Detail::DragDropRegion> candidate;
-        IO::Types::Status result = copyRegions(regions, candidate);
+        std::vector<Internal::DragDropRegion> candidate;
+        GameWIP::Status::Types::Status result = copyRegions(regions, candidate);
         if(result.ok())
         {
-            result = Detail::Platform::prepareDragDropRegions(candidate);
+            result = Platform::prepareDragDropRegions(candidate);
         }
 
         if(result.ok())
@@ -608,9 +631,9 @@ namespace GameWIP::Desktop
         return result;
     }
 
-    // ------------------------------------------------------------
-    // Target event queue
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Target event queue
+    /// ------------------------------------------------------------
 
     bool DragDropTarget::popEvent(Types::DragDrop::Event &out) noexcept
     {
@@ -621,7 +644,7 @@ namespace GameWIP::Desktop
         const std::size_t index = state_->eventHead;
         auto &slot = state_->eventStorage[index];
         out = std::move(slot);
-        Detail::removeSlot(*state_, index);
+        Internal::removeSlot(*state_, index);
         return true;
     }
 
@@ -644,9 +667,9 @@ namespace GameWIP::Desktop
             return;
         }
 
-        while(state_->eventHead != Detail::DragDropState::noSlot)
+        while(state_->eventHead != Internal::DragDropState::noSlot)
         {
-            Detail::removeSlot(*state_, state_->eventHead);
+            Internal::removeSlot(*state_, state_->eventHead);
         }
     }
 
@@ -670,23 +693,23 @@ namespace GameWIP::Desktop
 
 namespace GameWIP::Desktop::DragDrop
 {
-    // ------------------------------------------------------------
-    // Source operation
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Source operation
+    /// ------------------------------------------------------------
 
     Types::DragDrop::Result beginDrag(Window &source, const Types::DragDrop::Description &description) noexcept
     {
-        auto *state = Detail::WindowAccess::state(source);
+        auto *state = Internal::WindowAccess::state(source);
 
-        if(!state || !Detail::Platform::hasLiveNativeWindow(*state))
+        if(!state || !Platform::hasLiveNativeWindow(*state))
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::NotOpen)};
+            return Types::DragDrop::Result::failure(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::NotOpen));
         }
 
-        if(!Detail::Platform::ownedByCurrentThread(*state))
+        if(!Platform::ownedByCurrentThread(*state))
         {
-            return {.status = IO::makeStatus(IO::Types::ErrorCode::ResourceBusy)};
+            return Types::DragDrop::Result::failure(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::ResourceBusy));
         }
-        return Detail::Platform::beginNativeDrag(*state, description);
+        return Platform::beginNativeDrag(*state, description);
     }
 } // namespace GameWIP::Desktop::DragDrop

@@ -11,6 +11,10 @@
 /// @brief Descriptor queries for the GameWIP Input API.
 namespace GameWIP::Input::Query
 {
+    // ------------------------------------------------------------
+    // Selector matching
+    // ------------------------------------------------------------
+
     /// @brief Tests one element descriptor against a persistent selector.
     /// @param element Element descriptor to test.
     /// @param selector Persistent-key, standard, HID, value-kind, and reporting criteria.
@@ -49,6 +53,10 @@ namespace GameWIP::Input::Query
 
         return true;
     }
+
+    // ------------------------------------------------------------
+    // Device lookup
+    // ------------------------------------------------------------
 
     /// @brief Finds one device by runtime identity in a descriptor span.
     /// @param devices Current device descriptors.
@@ -95,6 +103,10 @@ namespace GameWIP::Input::Query
 
         return nullptr;
     }
+
+    // ------------------------------------------------------------
+    // Element lookup
+    // ------------------------------------------------------------
 
     /// @brief Finds one element by runtime identity in a device span.
     /// @param devices Current device descriptors.
@@ -158,6 +170,10 @@ namespace GameWIP::Input::Query
         return nullptr;
     }
 
+    // ------------------------------------------------------------
+    // Identity lookup
+    // ------------------------------------------------------------
+
     /// @brief Finds the first element with a producer-defined persistent key.
     /// @param devices Current device descriptors.
     /// @param persistentKey Stable element binding key.
@@ -185,6 +201,7 @@ namespace GameWIP::Input::Query
         {
             return std::nullopt;
         }
+
         const Types::ElementInfo *element = findElement(devices, Types::ElementSelector{.standard = standard}, device);
         return element == nullptr ? std::nullopt : std::optional<Types::ElementId>{element->id};
     }
@@ -203,6 +220,7 @@ namespace GameWIP::Input::Query
         {
             return std::nullopt;
         }
+
         const Types::ElementInfo *element = findElement(devices, Types::ElementSelector{.hid = hid}, device);
         return element == nullptr ? std::nullopt : std::optional<Types::ElementId>{element->id};
     }

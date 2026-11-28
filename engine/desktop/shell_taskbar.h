@@ -4,10 +4,10 @@
 #pragma once
 
 #include "desktop/desktop_export.h"
+#include "desktop/icon_types.h"
 #include "desktop/shell.h"
 #include "desktop/shell_types.h"
-#include "desktop/window.h"
-#include "io/status.h"
+#include "status/result.h"
 
 #include <memory>
 #include <optional>
@@ -18,11 +18,11 @@ namespace GameWIP::Desktop
 {
     class Window;
 
-    namespace Detail
+    namespace Internal
     {
         struct TaskbarItemAccess;
         struct TaskbarItemState;
-    } // namespace Detail
+    } // namespace Internal
 } // namespace GameWIP::Desktop
 
 namespace GameWIP::Desktop::Types::Taskbar
@@ -81,7 +81,7 @@ namespace GameWIP::Desktop
         /// @param window Open Window whose taskbar state will be published.
         /// @param description Initial presentation and button snapshot.
         /// @return Success, or a status explaining why no taskbar publication was opened.
-        [[nodiscard]] IO::Types::Status open(Window &window, const Types::Taskbar::Description &description) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> open(Window &window, const Types::Taskbar::Description &description) noexcept;
 
         /// @brief Opens with thumbnail-command event delivery through a supplied queue.
         /// @details A non-empty thumbnail-button set requires this overload. The queue is
@@ -90,7 +90,10 @@ namespace GameWIP::Desktop
         /// @param description Initial presentation and button snapshot.
         /// @param eventQueue Open queue owned by the same thread as window.
         /// @return Success, or a status explaining why no taskbar publication was opened.
-        [[nodiscard]] IO::Types::Status open(Window &window, const Types::Taskbar::Description &description, ShellEventQueue &eventQueue) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> open(
+            Window &window,
+            const Types::Taskbar::Description &description,
+            ShellEventQueue &eventQueue) noexcept;
 
         /// @brief Reports whether the taskbar binding is open for its current Window lifetime.
         [[nodiscard]] bool isOpen() const noexcept;
@@ -107,7 +110,7 @@ namespace GameWIP::Desktop
 
         /// @brief Closes the binding and releases its taskbar publication.
         /// @return Success when closed or already closed; ResourceBusy for wrong-thread calls or retained native work.
-        [[nodiscard]] IO::Types::Status close() noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> close() noexcept;
 
         /// @}
 
@@ -118,13 +121,13 @@ namespace GameWIP::Desktop
         /// @details A failed replacement leaves the previously published progress unchanged.
         /// @param progress New normalized progress state, or nullopt to clear progress display.
         /// @return Success, or a validation, ownership, capability, allocation, or native failure.
-        [[nodiscard]] IO::Types::Status setProgress(std::optional<Types::Shell::Progress> progress) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> setProgress(std::optional<Types::Shell::Progress> progress) noexcept;
 
         /// @brief Replaces or clears the taskbar overlay icon.
         /// @details A failed replacement leaves the previously published overlay unchanged.
         /// @param icon New borrowed RGBA8 icon, or nullopt to clear the overlay.
         /// @return Success, or a validation, ownership, capability, allocation, or native failure.
-        [[nodiscard]] IO::Types::Status setOverlayIcon(std::optional<Types::IconImageView> icon) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> setOverlayIcon(std::optional<Types::IconImageView> icon) noexcept;
 
         /// @brief Replaces the complete thumbnail-button set.
         /// @details A non-empty replacement requires a bound event queue; an empty span clears
@@ -132,13 +135,13 @@ namespace GameWIP::Desktop
         /// Win32 accepts at most seven buttons and requires nonzero 16-bit command identities.
         /// @param buttons Complete borrowed button set; an empty span clears all buttons.
         /// @return Success, or a validation, ownership, queue, capability, size, allocation, or native failure.
-        [[nodiscard]] IO::Types::Status setThumbnailButtons(std::span<const Types::Taskbar::ThumbnailButton> buttons) noexcept;
+        [[nodiscard]] GameWIP::Status::Types::Result<void> setThumbnailButtons(std::span<const Types::Taskbar::ThumbnailButton> buttons) noexcept;
 
         /// @}
 
     private:
-        friend struct Detail::TaskbarItemAccess;
+        friend struct Internal::TaskbarItemAccess;
 
-        std::unique_ptr<Detail::TaskbarItemState> state_;
+        std::unique_ptr<Internal::TaskbarItemState> state_;
     };
 } // namespace GameWIP::Desktop

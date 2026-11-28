@@ -11,7 +11,8 @@ explicit move-only `Session` that owns input and binds one primary output; direc
 
 `terminal/terminal.h` is the complete convenience include. Consumers may
 instead include `terminal/types.h`, `terminal/style.h`, `terminal/input.h`,
-`terminal/output.h`, or `terminal/session.h` for the declarations they use.
+`terminal/output_types.h`, `terminal/output.h`, or `terminal/session.h` for the
+declarations they use.
 
 ## Installed CMake
 
@@ -22,7 +23,7 @@ find_package(Terminal ${GAMEWIP_REQUIRED_VERSION} EXACT CONFIG REQUIRED)
 target_link_libraries(MyTarget PRIVATE GameWIP::Terminal)
 ```
 
-The package resolves its exact-version IO dependency.
+The package resolves its exact-version IO and Status dependencies.
 
 ## Source-tree CMake
 
@@ -40,34 +41,32 @@ int main()
     const auto status = GameWIP::Terminal::writeLine("Hello from GameWIP");
     return status.ok() ? 0 : 1;
 }
-
 ```
 
 Select stderr explicitly:
 
 ```cpp
-const auto status = GameWIP::Terminal::writeLine(
-    GameWIP::Terminal::Types::Output::Stream::Stderr,
-    "configuration failed");
+const auto status = GameWIP::Terminal::writeLine(GameWIP::Terminal::Types::Output::Stream::Stderr, "configuration failed");
 ```
 
 ## Minimal checked input
 
 ```cpp
 const auto result = GameWIP::Terminal::readLine();
-if (!result.status.ok())
+if(!result.ok())
 {
     // Backend, validation, or encoding failure.
 }
 else
 {
-    switch (result.outcome)
+    const auto &line = result.value();
+    switch(line.outcome)
     {
     case GameWIP::Terminal::Types::Input::ReadOutcome::Completed:
-        // result.line contains a completed line.
+        // line.line contains a completed line.
         break;
     case GameWIP::Terminal::Types::Input::ReadOutcome::EndOfStream:
-        // result.line may still contain a final unterminated line.
+        // line.line may still contain a final unterminated line.
         break;
     case GameWIP::Terminal::Types::Input::ReadOutcome::TimedOut:
     case GameWIP::Terminal::Types::Input::ReadOutcome::WouldBlock:
@@ -80,8 +79,8 @@ else
 }
 ```
 
-Always inspect `status`, `outcome`, and the payload together. A successful status does not imply `Types::Input::ReadOutcome::Completed`, and a
-terminating outcome can accompany partial data.
+Inspect `status()` first, then `value().outcome` and the payload when `hasValue()` is true. A successful status does not imply
+`Types::Input::ReadOutcome::Completed`, and a terminating outcome can accompany partial data.
 
 Read deadlines use `std::optional<std::chrono::milliseconds>`: `std::nullopt` waits indefinitely, `0ms` polls, positive values bound the complete
 operation, and negative values are `InvalidArgument`. A `std::stop_token` requests cancellation where the endpoint supports cancellable blocking
@@ -96,12 +95,12 @@ Session session;
 Types::SessionOptions options;
 options.deliveryMode = Types::Input::DeliveryMode::Stream;
 
-if (!session.open(options).ok())
+if(!session.open(options).ok())
 {
     return 1;
 }
 
-if (!session.writeText("command: ").ok())
+if(!session.writeText("command: ").ok())
 {
     static_cast<void>(session.close());
     return 2;
@@ -110,9 +109,9 @@ if (!session.writeText("command: ").ok())
 Types::Input::LineOptions lineOptions;
 lineOptions.echo = true;
 const Types::Input::LineResult line = session.readLine(lineOptions);
-if (line.status.ok() && line.outcome == Types::Input::ReadOutcome::Completed)
+if(line.ok() && line.value().outcome == Types::Input::ReadOutcome::Completed)
 {
-    static_cast<void>(session.println("received {}", line.line));
+    static_cast<void>(session.println("received {}", line.value().line));
 }
 
 const auto closeStatus = session.close();
@@ -132,15 +131,15 @@ state.
 using namespace GameWIP::Terminal;
 
 Session session;
-if (!session.open().ok()) // Events is the explicit-session default.
+if(!session.open().ok()) // Events is the explicit-session default.
 {
     return 1;
 }
 
 const Types::Input::EventResult event = session.readEvent();
-if (event.status.ok() && event.outcome == Types::Input::ReadOutcome::Completed)
+if(event.ok() && event.value().outcome == Types::Input::ReadOutcome::Completed)
 {
-    if (const Types::Events::Key *key = event.event->getIf<Types::Events::Key>())
+    if(const Types::Events::Key *key = event.value().event->getIf<Types::Events::Key>())
     {
         // Portable logical key; no Win32 virtual-key code escapes the backend.
     }
@@ -170,8 +169,8 @@ const auto status = writeLine("ready", options);
 
 ## Failure handling
 
-Expected validation, detached-stream, unsupported-operation, encoding, timeout, and backend failures use IO status/result types. Check the status
-before relying on payload fields.
+Expected validation, detached-stream, unsupported-operation, encoding, timeout, and backend failures use the shared `GameWIP::Status` result
+types. Check `ok()` and `hasValue()` before relying on a payload.
 
 Checked Terminal operations contain failures from Terminal-owned allocation, formatting, conversion, and backend work. `OutputBuffer` allocating
 mutations/formatting and the complete Session lifecycle/input/output/control surface use status-returning non-throwing contracts. Caller-owned

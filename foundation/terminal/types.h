@@ -6,8 +6,8 @@
 #include <cstdint>
 
 /// @brief Platform-neutral UTF-8 standard-stream I/O, styling, and terminal control primitives.
-/// @details The shared library owns process-wide stdin/stdout/stderr coordination. Checked Terminal operations translate
-/// expected owned allocation, formatting, conversion, and backend failures into IO statuses/results. Caller-owned argument
+/// @details The shared library owns process-wide stdin/stdout/stderr coordination. Checked Terminal operations report
+/// allocation, formatting, conversion, and backend failures through shared status results. Caller-owned argument
 /// construction that occurs before Terminal receives control remains outside that boundary.
 namespace GameWIP::Terminal
 {

@@ -15,6 +15,7 @@ non-owning Window façade follow the same contract; native providers and COM typ
 The supported public headers are:
 
 - `desktop/types.h`
+- `desktop/icon_types.h`
 - `desktop/description.h`
 - `desktop/events.h`
 - `desktop/display.h`
@@ -28,7 +29,6 @@ The supported public headers are:
 - `desktop/window.h`
 - `desktop/dialogs.h`
 - `desktop/renderer_bridge.h`
-- `desktop/result.h`
 - `desktop/shell.h`
 - `desktop/shell_types.h`
 - `desktop/shell_taskbar.h`
@@ -39,19 +39,21 @@ The supported public headers are:
 - `desktop/native/win32.h` on Win32
 - generated `desktop/desktop_export.h`
 
+`desktop/accessibility.h` remains the umbrella. Focused type, snapshot, and façade headers install under `desktop/accessibility/`.
+
 Internal headers and test hooks are source-tree-only. Every supported entry header is compiled in isolation by repository validation.
 
 `DESKTOP_EXPORT` marks installed production/runtime ABI. `DESKTOP_TEST_EXPORT`
 is limited to source-tree validation hooks and is never installed.
 
-`desktop/window.h` includes the shared vocabulary, description, display-mode surface, and events. Rich display
+`desktop/window.h` includes the shared vocabulary, icon-image values, description, display-mode surface, and events. Rich display
 inspection, cursors, child hosts, accessibility, Clipboard/data transfer, drag and drop, dialogs, shell, renderer
 integration, and native interop are explicit opt-in includes.
 
 ## Dependencies
 
-`IO` and `FileSystem` are public package dependencies because public types expose their contracts. Unicode is a private
-dependency for strict native text conversion; no Unicode type appears in public headers.
+`Status` and `FileSystem` are public package dependencies because public types expose their contracts. FileSystem brings its own IO dependency.
+Unicode is private for strict native text conversion; no Unicode type appears in public headers.
 
 The package is exact-version matched. Applications must call
 `gamewip_attach_application_manifest(TARGET <executable> PER_MONITOR_V2)` from the

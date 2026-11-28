@@ -6,7 +6,8 @@ headers are:
 - `terminal/types.h`: vocabulary shared by input and output;
 - `terminal/style.h`: style types and color factories;
 - `terminal/input.h`: input options, results, events, and direct reads;
-- `terminal/output.h`: output, formatting, controls, buffers, and state scopes;
+- `terminal/output_types.h`: output and cursor types, options, and segments;
+- `terminal/output.h`: output operations, formatting, controls, buffers, and state scopes;
 - `terminal/session.h`: `SessionOptions` and the managed `Session` owner.
 
 Focused headers reduce dependencies and clarify intent. Their declarations have
@@ -26,12 +27,12 @@ means `Types::Output::Stream::Stdout`. `Session` instead binds one input stream 
 
 ## Constants
 
-| Constant | Contract |
-| --- | --- |
-| `kNoWait` | Readable `0ms` value requesting a non-blocking attempt. |
-| `kDefaultQueryTimeout` | Default best-effort timeout for protocol-style cursor queries. |
-| `kDefaultMaxReturnedTextBytes` | Default maximum UTF-8 byte count returned by one text read. |
-| `kDefaultMaxReturnedLineBytes` | Default maximum UTF-8 byte count returned by one line read. |
+| Constant                       | Contract                                                       |
+| ------------------------------ | -------------------------------------------------------------- |
+| `kNoWait`                      | Readable `0ms` value requesting a non-blocking attempt.        |
+| `kDefaultQueryTimeout`         | Default best-effort timeout for protocol-style cursor queries. |
+| `kDefaultMaxReturnedTextBytes` | Default maximum UTF-8 byte count returned by one text read.    |
+| `kDefaultMaxReturnedLineBytes` | Default maximum UTF-8 byte count returned by one line read.    |
 
 Read options use `std::optional<std::chrono::milliseconds>` rather than a negative sentinel: `std::nullopt` waits indefinitely, zero polls, positive
 values establish one total operation deadline, and negative values are `InvalidArgument`. Endpoint support remains authoritative.
@@ -47,23 +48,23 @@ overloads so common dangling-view mistakes fail at compile time.
 
 ## Stream, outcome, and policy enums
 
-| Type | Values |
-| --- | --- |
-| `Types::Input::Stream` | `Stdin` |
-| `Types::Output::Stream` | `Stdout`, `Stderr` |
-| `StreamKind` | `Detached`, `Terminal`, `Redirected`, `Other` |
-| `Types::Input::DeliveryMode` | `Events`, `Stream` |
-| `Types::Input::ControlKeyMode` | `NativeProcessing`, `ReportAsInput` |
-| `Types::Input::ReadOutcome` | `Completed`, `EndOfStream`, `TimedOut`, `WouldBlock`, `Cancelled` |
-| `Types::Input::ConsumedLineEnding` | `None`, `Lf`, `CrLf`, `Cr` |
-| `Types::Output::LineEnding` | `Native`, `Lf`, `CrLf` |
-| `Types::Input::LineEndingMode` | `Strip`, `Keep`, `NormalizeToLf` |
-| `Types::Style::Mode` | `Never`, `Auto`, `Required` |
-| `Types::Style::ColorKind` | `Default`, `Basic`, `Rgb` |
-| `Types::Cursor::MoveDirection` | `Up`, `Down`, `Left`, `Right` |
-| `Types::Output::ClearTarget` | `EntireScreen`, `ScreenBeforeCursor`, `ScreenAfterCursor`, `EntireScreenAndScrollback`, `EntireLine`, `LineBeforeCursor`, `LineAfterCursor` |
-| `Types::Output::ScrollDirection` | `Up`, `Down` |
-| `Types::Output::SegmentKind` | `Text`, `StyledText`, `Bytes` |
+| Type                               | Values                                                                                                                                      |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Types::Input::Stream`             | `Stdin`                                                                                                                                     |
+| `Types::Output::Stream`            | `Stdout`, `Stderr`                                                                                                                          |
+| `StreamKind`                       | `Detached`, `Terminal`, `Redirected`, `Other`                                                                                               |
+| `Types::Input::DeliveryMode`       | `Events`, `Stream`                                                                                                                          |
+| `Types::Input::ControlKeyMode`     | `NativeProcessing`, `ReportAsInput`                                                                                                         |
+| `Types::Input::ReadOutcome`        | `Completed`, `EndOfStream`, `TimedOut`, `WouldBlock`, `Cancelled`                                                                           |
+| `Types::Input::ConsumedLineEnding` | `None`, `Lf`, `CrLf`, `Cr`                                                                                                                  |
+| `Types::Output::LineEnding`        | `Native`, `Lf`, `CrLf`                                                                                                                      |
+| `Types::Input::LineEndingMode`     | `Strip`, `Keep`, `NormalizeToLf`                                                                                                            |
+| `Types::Style::Mode`               | `Never`, `Auto`, `Required`                                                                                                                 |
+| `Types::Style::ColorKind`          | `Default`, `Basic`, `Rgb`                                                                                                                   |
+| `Types::Cursor::MoveDirection`     | `Up`, `Down`, `Left`, `Right`                                                                                                               |
+| `Types::Output::ClearTarget`       | `EntireScreen`, `ScreenBeforeCursor`, `ScreenAfterCursor`, `EntireScreenAndScrollback`, `EntireLine`, `LineBeforeCursor`, `LineAfterCursor` |
+| `Types::Output::ScrollDirection`   | `Up`, `Down`                                                                                                                                |
+| `Types::Output::SegmentKind`       | `Text`, `StyledText`, `Bytes`                                                                                                               |
 
 `Types::Style::BasicColor` contains `Black`, `Red`, `Green`, `Yellow`, `Blue`, `Magenta`, `Cyan`, `White`, `BrightBlack`, `BrightRed`, `BrightGreen`,
 `BrightYellow`, `BrightBlue`, `BrightMagenta`, `BrightCyan`, and `BrightWhite`.
@@ -106,26 +107,26 @@ See @ref terminal_styling.
 The generated `Capabilities` field reference gives the exact `supports...`
 member associated with each item.
 
-Capability query results pair a status with the reported capability structure. `Types::Size` contains `columns` and `rows`; `Types::Cursor::Position`
-contains zero-based `column` and `row`. Their result types pair the value with an IO status.
+Capability queries, `getTerminalSize()`, and `getCursorPosition()` return the value through `GameWIP::Status::Types::Result`. `Types::Size` contains
+`columns` and `rows`; `Types::Cursor::Position` contains zero-based `column` and `row`.
 
 Capabilities are snapshots. Replacing or redirecting a standard handle can invalidate an earlier result.
 
 ## Options
 
-| Type | Fields |
-| --- | --- |
-| `SessionOptions` | `input`, `output`, `deliveryMode`, `controlKeyMode` |
-| `Types::Input::EventOptions` | `timeout`, `stopToken` |
-| `Types::Input::ByteOptions` | `timeout`, `stopToken`, `allowPartial` |
-| `Types::Input::TextOptions` | `timeout`, `stopToken`, `maxReturnedBytes` |
-| `Types::Input::LineOptions` | `timeout`, `stopToken`, `maxReturnedBytes`, `echo`, `lineEndingMode` |
-| `Types::Output::TextOptions` | `styleMode`, `style`, `flushMode` |
-| `Types::Output::LineOptions` | `styleMode`, `style`, `lineEnding`, `flushMode` |
-| `Types::Output::ByteOptions` | `flushMode` |
-| `Types::Output::SegmentOptions` | `styleMode`, `appendLineEnding`, `lineEnding`, `flushMode` |
-| `Types::Output::ControlOptions` | `flushMode` |
-| `Types::Cursor::QueryOptions` | `timeout`, `flushMode` |
+| Type                            | Fields                                                               |
+| ------------------------------- | -------------------------------------------------------------------- |
+| `SessionOptions`                | `input`, `output`, `deliveryMode`, `controlKeyMode`                  |
+| `Types::Input::EventOptions`    | `timeout`, `stopToken`                                               |
+| `Types::Input::ByteOptions`     | `timeout`, `stopToken`, `allowPartial`                               |
+| `Types::Input::TextOptions`     | `timeout`, `stopToken`, `maxReturnedBytes`                           |
+| `Types::Input::LineOptions`     | `timeout`, `stopToken`, `maxReturnedBytes`, `echo`, `lineEndingMode` |
+| `Types::Output::TextOptions`    | `styleMode`, `style`, `flushMode`                                    |
+| `Types::Output::LineOptions`    | `styleMode`, `style`, `lineEnding`, `flushMode`                      |
+| `Types::Output::ByteOptions`    | `flushMode`                                                          |
+| `Types::Output::SegmentOptions` | `styleMode`, `appendLineEnding`, `lineEnding`, `flushMode`           |
+| `Types::Output::ControlOptions` | `flushMode`                                                          |
+| `Types::Cursor::QueryOptions`   | `timeout`, `flushMode`                                               |
 
 A write or control flush request applies after emission. A flush failure can therefore accompany data that was already accepted by the endpoint.
 

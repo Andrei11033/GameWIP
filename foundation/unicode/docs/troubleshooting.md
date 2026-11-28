@@ -82,12 +82,15 @@ Inspect the retained candidate, verify the pinned version/source configuration, 
 
 ## Unicode maintenance cannot find Python or clang-format
 
-The maintenance workflow expects the GameWIP MSYS2 UCRT64 Python and clang-format tools. Run:
+Unicode maintenance requires Python and clang-format. Check project readiness, then
+repair missing prerequisites:
 
 ```powershell
 .\gamewip.bat ready
 .\setup.bat repair
 ```
+
+On Linux, use `bash ./gamewip.sh ready` and `bash ./setup.sh repair`.
 
 Controlled environments may override them with `-PythonPath` / `GAMEWIP_PYTHON` and `-ClangFormatPath` / `GAMEWIP_CLANG_FORMAT`.
 

@@ -10,6 +10,13 @@
       "repository": "https://github.com/google/benchmark.git",
       "commit": "192ef10025eb2c4cdd392bc502f0c852196baa48",
       "cacheDirectory": "benchmark"
+    },
+    "gameinput": {
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.gameinput/4.0.306/microsoft.gameinput.4.0.306.nupkg",
+      "sha512": "F2865D53418BC4135180370D3439B063C166186B9479B150413BBAFE7DAFFBB77F8C7EE3FFFC8FA4B73161B0729C8F4BFCDE5967490167A93CE60F010BE6104C",
+      "cacheDirectory": "microsoft.gameinput.4.0.306",
+      "archiveFile": "microsoft.gameinput.4.0.306.nupkg",
+      "validationFile": "native/include/v1/GameInput.h"
     }
   }
 }

@@ -1,11 +1,12 @@
 @page project_command_line_tools Command-line tools
 
-GameWIP exposes the repository helper `gamewip.bat` and the Windows environment
-bootstrap `setup.bat`. The project helper uses positional command words for
-selection and shared switches for execution policy. With no action, it opens
-the interactive project menu.
+GameWIP exposes `gamewip.bat` on Windows and `gamewip.sh` on supported Linux
+hosts. Setup uses `setup.bat` or `setup.sh` in the same way. The project helper
+uses positional command words for selection and shared switches for execution
+policy. With no action, it opens the interactive project menu.
 
-`gamewip.bat --help`, `gamewip.bat -h`, and `gamewip.bat -?` are help aliases.
+`gamewip.bat --help`, `gamewip.bat -h`, and `gamewip.bat -?` are Windows help
+aliases. On Linux, use `bash ./gamewip.sh --help`.
 
 The project menu hierarchy lives in `scripts/config/commands.json`; setup menu
 entries live in `scripts/setup/config/setup.json`. Their schemas and runtime
@@ -13,10 +14,12 @@ checks reject duplicate keys, unknown handlers, and incomplete menu catalogs
 before use. The shared menu behavior is described in @ref
 project_environment_setup.
 
-Indexed tool selections accept one number or a comma-separated list such as
-`2,3,5,6`. Tool previews and updates use one plan, consent decision, and
-validation boundary for the whole selection. Press Enter to use the displayed
-default, or `q` or Esc to cancel.
+Type a listed menu key or number, then press Enter. Yes/no prompts accept `y`
+or `n`; Enter uses the displayed default. Enter `q` to cancel menus or yes/no
+prompts. Multi-selections accept comma-separated numbers such as `2,3,5,6`;
+submit a blank line to finish.
+Tool previews and updates use one plan, consent decision, and validation
+boundary for the whole selection.
 
 ## Common syntax
 
@@ -24,12 +27,17 @@ default, or `q` or Esc to cancel.
 .\gamewip.bat <action> [command] [target] [options]
 ```
 
+The examples below use Windows PowerShell. On Linux, pass the same arguments to
+`bash ./gamewip.sh`; for example, `bash ./gamewip.sh build dev`.
+
 Examples:
 
 ```powershell
 .\gamewip.bat build test
 .\gamewip.bat test test
+.\gamewip.bat target -TargetPlatform windows -TargetArchitecture arm64
 .\gamewip.bat module unicode
+.\gamewip.bat run game-dev -BuildBeforeRun -LogLevel trace -InputDebug -WindowEvents
 .\gamewip.bat quality check
 .\gamewip.bat quality hygiene status
 .\gamewip.bat tool status
@@ -55,19 +63,21 @@ policy.
 | `tool` | List tools, report status, check upstream versions, install or repair declared versions, or update reviewed pins. |
 | `links` | Run the maintained Markdown-link checker. |
 | `deps` | Check or prepare the shared pinned dependency cache. |
+| `target` | Select the Windows or Linux build platform and AMD64 or ARM64 architecture. |
 | `config` | Configure one visible CMake preset. |
 | `build` | Ensure configuration and build one preset. |
 | `test` | Ensure prerequisites and run one CTest preset. |
 | `module` | Run all correctness modules or one named module. |
 | `wizard` | Interactively assemble a supported validation invocation. |
 | `stress` | Repeat a validation module with bounded parallelism. |
-| `run` | Run one declarative project command. |
+| `run` | Build or run one declarative project command and configure supported game runtime options. |
+| `runtime` | Interactively select a game executable, configure runtime options, and run it. |
 | `bundle` | Run one declarative multi-step bundle. |
 | `doc` | Build generated documentation. |
 | `analyze` | Run the supported C++ static-analysis preset. |
 | `cov` | Run the coverage validation workflow. |
-| `asan` | Run the CLANG64 AddressSanitizer workflow. |
-| `ubsan` | Run the CLANG64 UndefinedBehaviorSanitizer workflow. |
+| `asan` | Run AddressSanitizer for the selected Windows target; AMD64 only. |
+| `ubsan` | Run UndefinedBehaviorSanitizer for the selected Windows target. |
 | `bench` | Measure, dry-run, list, or compare benchmarks. |
 | `history` | List, inspect, or clean owned helper run history. |
 | `list` | Print the current action/catalog values. |
@@ -79,6 +89,10 @@ Use the action names above; help flags are covered separately.
 
 The second positional word is the action-specific command or selection. The
 third is used only when another selector is required.
+
+`target` selects a platform and architecture. Omit both target options to
+choose interactively; supply both to select a target directly. Linux targets
+use Zig; full project builds wait for Linux platform backends.
 
 The quality-hygiene selector may be `standard`, `deep`, a configured check ID,
 `list`, or `status`.
@@ -104,6 +118,11 @@ formatter is required.
 .\gamewip.bat tool update all -Preview
 .\gamewip.bat deps check
 .\gamewip.bat deps prepare
+.\gamewip.bat target
+.\gamewip.bat target -TargetPlatform windows -TargetArchitecture amd64
+.\gamewip.bat target -TargetPlatform windows -TargetArchitecture arm64
+.\gamewip.bat target -TargetPlatform linux -TargetArchitecture amd64
+.\gamewip.bat target -TargetPlatform linux -TargetArchitecture arm64
 .\gamewip.bat config test
 .\gamewip.bat build test
 .\gamewip.bat config test -Offline
@@ -113,6 +132,7 @@ formatter is required.
 .\gamewip.bat module filesystem
 .\gamewip.bat stress logger
 .\gamewip.bat run benchmark-dry-run
+.\gamewip.bat runtime
 .\gamewip.bat bundle quick
 .\gamewip.bat bench dry-run
 .\gamewip.bat bench compare -BaselinePath before.json -CandidatePath after.json
@@ -156,14 +176,21 @@ module implementation.
 | `-RunCount <count>` | Select stress-run count. |
 | `-WorkerCount <count>` | Select stress worker count. |
 | `-PassThroughArgs <arguments>` | Forward arguments only where the selected declarative command permits them. |
+| `-BuildBeforeRun` | Configure and build the selected project command's preset before running it. Cannot be combined with `-SkipBuild`. |
+| `-LogLevel <default\|trace\|debug\|info\|warn\|error\|fatal>` | Set the game runtime log level. Omit it or choose `default` to use the build-selected level. |
+| `-InputDebug` | Enable live Input change reports for a game command. |
+| `-InputDevices` | Enable detailed Input device descriptors at Trace. |
+| `-WindowEvents` | Enable per-event Window reports. |
+| `-InputBackends <list>` | Select comma-separated Windows Input backends for a game command; supports `rawInput`, `hid`, `xinput`, `gameInput`, `directInput`, `windowMessages`, or `none`. |
 | `-SkipBuild` | Do not build prerequisites automatically; require existing usable build state and fail when it is absent. |
-| `-CleanBuild` | Before `config`, `build`, `test`, or `bundle`, remove each selected preset's complete `build/<preset>` tree and recreate it. Cannot be combined with `-SkipBuild`. |
+| `-CleanBuild` | Before `config`, `build`, `test`, or `bundle`, remove each selected preset's complete build tree and recreate it. Cannot be combined with `-SkipBuild`. |
 | `-FailFast` | Stop the quality gate at the first failed check instead of aggregating independent failures. |
 | `-ChangedOnly` | Restrict supported quality work to ordinary changed maintained files. A changed quality policy expands to the complete maintained scope it can affect. |
+| `-ChangedFilesPath <path>` | Read changed repository paths from a JSON manifest for scoped quality checks. |
 | `-FailOnFindings` | Fail an optional hygiene audit when it produces a `PROVEN` finding. Likely, informational, and centrally explained findings remain report-only. |
 | `-Json` | Emit the final structured operation result as JSON. |
 | `-UseCallerTemp` | Keep the caller's TEMP/TMP instead of using operation-owned helper temp. Validation and benchmark executables still scope their own fixtures beneath the active preset tree. |
-| `-Preview` | Print the planned scope and perform only action-specific read-only discovery or preflight. Do not apply the requested local, tracked, machine, or remote mutation; diagnostic run logs and receipts are still retained under `build/gamewip/runs/`. |
+| `-Preview` | Print the planned scope and perform only action-specific read-only discovery or preflight. Do not apply the requested local, tracked, machine, or remote mutation; diagnostic run logs and receipts are retained under `<storage-root>/runs/` (default `build/gamewip/runs/`). |
 | `-NonInteractive` | Disable prompts. This never grants mutation consent at any risk class. |
 | `-Yes` | Approve the printed mutation plan for non-interactive execution. |
 | `-Quiet` | Suppress ordinary console presentation while retaining result/log data. |
@@ -172,6 +199,22 @@ module implementation.
 
 PowerShell common `-Verbose` and `-Debug` behavior remains available. Verbose
 mode is the normal way to expose additional helper or native detail.
+
+The `runtime` action and Development menu open a runtime command builder for
+game executables. It lists Dev, Profile, Release, and startup-test commands.
+From the command line, `run game-dev` accepts the same runtime selections:
+
+```powershell
+.\gamewip.bat run game-dev -BuildBeforeRun -LogLevel trace -InputDebug -WindowEvents
+```
+
+`-BuildBeforeRun` builds even when the executable already exists. Without it,
+the helper builds only when needed. `-PassThroughArgs` remains available for
+other executable arguments. The menu's runtime options are declared in
+`scripts/config/commands.json` under `runtimeBuilderOptions`; add an entry there
+to expose another executable argument. Each executable uses its own build
+preset and build-selected log-level default. Use `gamewip.bat runtime -SkipBuild`
+to require an existing executable.
 
 Menu presentation and status-color conventions are documented in @ref project_environment_setup.
 
@@ -202,9 +245,9 @@ incremental unless `-CleanBuild` is supplied. The high-level `cov`, `asan`, and
 `ubsan` actions always recreate their preset trees so stale instrumentation or
 runtime artifacts cannot affect the result. The `local-release-check` and
 `sanitizer` bundles declare the same policy in the bundle catalog. `sanitizer`
-runs AddressSanitizer and then UndefinedBehaviorSanitizer using fresh
-`build/asan` and `build/ubsan` trees. `quick` remains incremental. Fresh
-recreation is limited to known direct children of the repository `build`
+runs AddressSanitizer and then UndefinedBehaviorSanitizer using fresh `asan` and
+`ubsan` trees for the selected target. `quick` remains incremental. Fresh
+recreation is limited to cataloged preset trees under the repository `build`
 directory and refuses reparse points.
 
 ## Quality and tool policy
@@ -238,10 +281,11 @@ live references without applying them. A current selection is a true no-op. See
 
 ## Run history
 
-Each operation retains its owned evidence under:
+Each operation retains its owned evidence under `<storage-root>` (default
+`build/gamewip`):
 
 ```text
-build/gamewip/runs/<operation-id>/
+<storage-root>/runs/<operation-id>/
   logs/
   artifacts/
   manifest.json

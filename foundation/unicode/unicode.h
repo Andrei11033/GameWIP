@@ -310,10 +310,6 @@ namespace GameWIP::Unicode
         } // namespace Utf16
     } // namespace Types
 
-    // ------------------------------------------------------------
-    // Scalar and version queries
-    // ------------------------------------------------------------
-
     /// @name Scalar and version queries
     /// @{
 
@@ -332,10 +328,6 @@ namespace GameWIP::Unicode
     [[nodiscard]] Types::Version getStandardVersion() noexcept;
 
     /// @}
-
-    // ------------------------------------------------------------
-    // UTF-8 operations
-    // ------------------------------------------------------------
 
     /// @name UTF-8 operations
     /// @{
@@ -466,10 +458,6 @@ namespace GameWIP::Unicode
     } // namespace Utf8
 
     /// @}
-
-    // ------------------------------------------------------------
-    // UTF-16 operations
-    // ------------------------------------------------------------
 
     /// @name UTF-16 operations
     /// @{

@@ -13,6 +13,10 @@ set(raw_log "${TEST_ROOT}/raw.log")
 set(allowed_log "${TEST_ROOT}/allowed.log")
 set(filtered_log "${TEST_ROOT}/filtered.log")
 
+# ------------------------------------------------------------
+# Generate fixture warnings
+# ------------------------------------------------------------
+
 file(REMOVE_RECURSE "${TEST_ROOT}")
 file(MAKE_DIRECTORY "${TEST_ROOT}")
 
@@ -67,6 +71,11 @@ file(STRINGS "${raw_log}" raw_warning_lines)
 file(READ "${raw_log}" raw_contents)
 set(allowed_warning "")
 set(normal_warning_found OFF)
+
+# ------------------------------------------------------------
+# Confirm the filter only removes approved operator warnings
+# ------------------------------------------------------------
+
 foreach(warning_line IN LISTS raw_warning_lines)
     string(FIND "${warning_line}" "Member operator|" operator_marker)
     if(NOT operator_marker EQUAL -1)
@@ -77,9 +86,11 @@ foreach(warning_line IN LISTS raw_warning_lines)
         set(normal_warning_found ON)
     endif()
 endforeach()
+
 if(NOT allowed_warning)
     message(FATAL_ERROR "The Doxygen fixture did not produce the approved undocumented operator warning.\n${raw_contents}")
 endif()
+
 if(NOT normal_warning_found)
     message(FATAL_ERROR "The Doxygen fixture did not produce the normal undocumented declaration warning.\n${raw_contents}")
 endif()

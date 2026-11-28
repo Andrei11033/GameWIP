@@ -6,6 +6,10 @@ include("${CMAKE_CURRENT_LIST_DIR}/GameWIPVersion.cmake")
 
 find_package(Git REQUIRED)
 
+# ------------------------------------------------------------
+# Check version string composition
+# ------------------------------------------------------------
+
 function(expect_version expected)
     gamewip_compose_display_version(actual ${ARGN})
     if(NOT actual STREQUAL expected)
@@ -60,6 +64,11 @@ function(expect_value label actual expected)
 endfunction()
 
 set(test_repository "${CMAKE_CURRENT_BINARY_DIR}/gamewip-version-test-repository")
+
+# ------------------------------------------------------------
+# Prepare a temporary Git repository
+# ------------------------------------------------------------
+
 file(REMOVE_RECURSE "${test_repository}")
 file(MAKE_DIRECTORY "${test_repository}")
 
@@ -75,6 +84,10 @@ function(run_test_git)
         message(FATAL_ERROR "Test Git command failed: ${ARGN}\n" "stdout:\n${git_output}\n" "stderr:\n${git_error}")
     endif()
 endfunction()
+
+# ------------------------------------------------------------
+# Check clean, dirty, and tagged repository states
+# ------------------------------------------------------------
 
 run_test_git(init --quiet)
 run_test_git(config user.name "GameWIP Version Test")
@@ -96,6 +109,12 @@ gamewip_detect_version(dirty_development SOURCE_DIR "${test_repository}" PROJECT
 expect_value("dirty development dirty state" "${dirty_development_DIRTY}" "TRUE")
 expect_value("dirty development display" "${dirty_development_DISPLAY}" "0.1.0-dev.1+g${dirty_development_GIT_COMMIT}.dirty")
 run_test_git(restore tracked.txt)
+
+file(WRITE "${test_repository}/untracked.txt" "untracked version test\n")
+gamewip_detect_version(untracked_development SOURCE_DIR "${test_repository}" PROJECT_VERSION "0.1.0")
+expect_value("untracked development dirty state" "${untracked_development_DIRTY}" "TRUE")
+expect_value("untracked development display" "${untracked_development_DISPLAY}" "0.1.0-dev.1+g${untracked_development_GIT_COMMIT}.dirty")
+file(REMOVE "${test_repository}/untracked.txt")
 
 run_test_git(tag v0.1.0)
 gamewip_detect_version(lightweight_tag SOURCE_DIR "${test_repository}" PROJECT_VERSION "0.1.0")

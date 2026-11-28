@@ -6,7 +6,7 @@ notes. Before ending a scenario, restore the desktop and Window to their origina
 The opt-in validation runner provides the complete guided workflow:
 
 ```powershell
-.\build\test\GameWIPTests.exe --test-module=desktop --manual-tests
+.\build\native\test\GameWIPTests.exe --test-module=desktop --manual-tests
 ```
 
 Answer `yes`, `no`, or `skip` for every manual observation. The runner assigns `GameWIP.Validation.DesktopManualTests` as its explicit process
@@ -29,10 +29,10 @@ to repeat observations without rerunning unrelated assertions. Add
 (case-sensitive). A selector matching nothing fails explicitly. For example:
 
 ```powershell
-.\build\test\GameWIPTests.exe --test-module=desktop --manual-tests --desktop-manual-only --desktop-manual-suite=shell --desktop-manual-case=tray
-.\build\test\GameWIPTests.exe --test-module=desktop --manual-tests --desktop-manual-only --desktop-manual-suite=clipboard --desktop-manual-case="clipboard image"
-.\build\test\GameWIPTests.exe --test-module=desktop --manual-tests --desktop-manual-only --desktop-manual-suite=dialogs --desktop-manual-case=save-overwrite-dpi
-.\build\test\GameWIPTests.exe --test-module=desktop --manual-tests --desktop-manual-only --desktop-manual-suite=dialogs --desktop-manual-case=progress-dpi
+.\build\native\test\GameWIPTests.exe --test-module=desktop --manual-tests --desktop-manual-only --desktop-manual-suite=shell --desktop-manual-case=tray
+.\build\native\test\GameWIPTests.exe --test-module=desktop --manual-tests --desktop-manual-only --desktop-manual-suite=clipboard --desktop-manual-case="clipboard image"
+.\build\native\test\GameWIPTests.exe --test-module=desktop --manual-tests --desktop-manual-only --desktop-manual-suite=dialogs --desktop-manual-case=save-overwrite-dpi
+.\build\native\test\GameWIPTests.exe --test-module=desktop --manual-tests --desktop-manual-only --desktop-manual-suite=dialogs --desktop-manual-case=progress-dpi
 ```
 
 Focused dialog selection supports `save-overwrite-dpi` and `progress-dpi`.
@@ -105,7 +105,7 @@ timestamped before/after cached and native mode geometry for every display-chang
 Run the guided, renderer-independent semantic fixture with:
 
 ```powershell
-.\build\test\GameWIPTests.exe --test-module=desktop --manual-tests --desktop-manual-suite=accessibility
+.\build\native\test\GameWIPTests.exe --test-module=desktop --manual-tests --desktop-manual-suite=accessibility
 ```
 
 The semantic tree is independent of the blue/cyan validation artwork. Use
@@ -185,7 +185,7 @@ passes.
 Run only the guided dialog workflow with:
 
 ```powershell
-.\build\test\GameWIPTests.exe --test-module=desktop --manual-tests --desktop-manual-suite=dialogs
+.\build\native\test\GameWIPTests.exe --test-module=desktop --manual-tests --desktop-manual-suite=dialogs
 ```
 
 | Scenario                                 | Expected behavior                                                                                                                                                                                    |
@@ -229,7 +229,7 @@ Record the source and target applications and exact formats for each direction.
 Run the dedicated guided source/target harness from the repository root:
 
 ```powershell
-.\build\test\GameWIPTests.exe --test-module=desktop --manual-tests --desktop-manual-suite=drag-drop
+.\build\native\test\GameWIPTests.exe --test-module=desktop --manual-tests --desktop-manual-suite=drag-drop
 ```
 
 The green source Window starts `beginDrag()` when the requested mouse button is

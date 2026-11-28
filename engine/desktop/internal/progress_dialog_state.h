@@ -6,9 +6,10 @@
 #include "desktop/dialogs.h"
 #include "desktop/types.h"
 
+#include <cstdint>
 #include <memory>
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
     struct ProgressDialogData;
 
@@ -16,24 +17,29 @@ namespace GameWIP::Desktop::Detail::Platform
     {
         void operator()(ProgressDialogData *data) const noexcept;
     };
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Platform
 
-namespace GameWIP::Desktop::Detail
+namespace GameWIP::Desktop::Internal
 {
     /// @brief Stable portable state for one owner-thread progress dialog.
     struct ProgressDialogState
     {
+        // Native ownership and deferred cleanup
         std::unique_ptr<Platform::ProgressDialogData, Platform::ProgressDialogDataDeleter> platform;
         ProgressDialogState *deferredCleanupNext = nullptr;     ///< Intrusive owner-thread cleanup chain.
         ProgressDialogState *pendingOwnerRestoreNext = nullptr; ///< Intrusive owner re-enable retry chain.
         std::uint64_t ownerToken = 0;                           ///< Stable calling-thread identity for cross-thread queries.
         Types::WindowId ownerId;
+
+        // Dialog progress and cancellation
         Types::Dialogs::Progress::Mode mode = Types::Dialogs::Progress::Mode::Indeterminate;
         double progress = 0.0;
         bool cancelable = false;
         bool blocksOwner = true;
         bool cancelRequested = false;
-        bool nativeDestroyedPendingFinalize = false; ///< HWND is gone and portable close still must run.
+
+        // Pending native finalization
+        bool nativeDestroyedPendingFinalize = false; ///< Native dialog is gone; portable close still must run.
         bool ownerRestorePending = false;            ///< Owner re-enable is queued for dispatcher retry.
     };
 
@@ -49,4 +55,4 @@ namespace GameWIP::Desktop::Detail
             return dialog.state_.get();
         }
     };
-} // namespace GameWIP::Desktop::Detail
+} // namespace GameWIP::Desktop::Internal

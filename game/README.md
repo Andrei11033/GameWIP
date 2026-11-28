@@ -28,7 +28,7 @@ Put new gameplay or engine behavior at the boundary that owns the concept, keep
 platform-specific details behind an internal backend, and cover deterministic
 behavior with focused correctness tests.
 
-## Common checks
+## Windows checks
 
 ```powershell
 cmake --preset test
@@ -39,7 +39,7 @@ ctest --preset test
 Run a focused module with:
 
 ```powershell
-.\build\test\GameWIPTests.exe --test-module=<module>
+.\build\native\test\GameWIPTests.exe --test-module=<module>
 ```
 
 The root [contributor workflow](../CONTRIBUTING.md) defines issue, pull-request,

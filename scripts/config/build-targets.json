@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "defaultTarget": "windows-amd64",
+  "targets": [
+    {
+      "id": "windows-amd64",
+      "name": "Windows AMD64",
+      "platform": "windows",
+      "architecture": "amd64",
+      "backend": "win32",
+      "toolchain": "llvm-mingw",
+      "compilerTriple": "x86_64-w64-mingw32",
+      "processor": "AMD64"
+    },
+    {
+      "id": "windows-arm64",
+      "name": "Windows ARM64",
+      "platform": "windows",
+      "architecture": "arm64",
+      "backend": "win32",
+      "toolchain": "llvm-mingw",
+      "compilerTriple": "aarch64-w64-mingw32",
+      "processor": "ARM64"
+    },
+    {
+      "id": "linux-amd64",
+      "name": "Linux AMD64",
+      "platform": "linux",
+      "architecture": "amd64",
+      "backend": "linux",
+      "toolchain": "zig",
+      "compilerTriple": "x86_64-linux-gnu.2.35",
+      "processor": "x86_64"
+    },
+    {
+      "id": "linux-arm64",
+      "name": "Linux ARM64",
+      "platform": "linux",
+      "architecture": "arm64",
+      "backend": "linux",
+      "toolchain": "zig",
+      "compilerTriple": "aarch64-linux-gnu.2.35",
+      "processor": "aarch64"
+    }
+  ]
+}

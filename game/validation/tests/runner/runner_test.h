@@ -12,14 +12,13 @@ namespace GameWIP::Test
     /// @brief Runtime options for validation-runner tests.
     struct RunnerTestOptions
     {
-        /// @brief Mirrors complete suite output to stdout.
-        bool verboseConsole = false;
-        /// @brief Writes complete test output to reportPath.
-        bool writeReport = true;
-        /// @brief Appends to reportPath instead of replacing it when report writing is enabled.
-        bool appendReport = true;
-        /// @brief Report destination before shared-runner resolution.
-        std::filesystem::path reportPath = "logs/validation/latest_test_report.txt";
+        // Console output
+        bool verboseConsole = false; ///< Enables full console output instead of the default minimal output.
+
+        // Report output
+        bool writeReport = true;  ///< Writes the suite report to reportPath.
+        bool appendReport = true; ///< Appends to reportPath instead of replacing it when report writing is enabled.
+        std::filesystem::path reportPath = "logs/validation/latest_test_report.txt"; ///< Report destination before shared-runner resolution.
     };
 
     /// @brief Runs validation-runner parsing, selection, ordering, and propagation tests.

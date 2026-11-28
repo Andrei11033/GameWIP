@@ -15,9 +15,11 @@ add_library(GameWIP::Unicode ALIAS Unicode)
 
 target_sources(
     Unicode
-    PRIVATE core/conversion.cpp core/grapheme.cpp core/unicode.cpp core/utf16.cpp core/utf8.cpp
     PUBLIC FILE_SET public_headers TYPE HEADERS BASE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/.." FILES "${CMAKE_CURRENT_SOURCE_DIR}/unicode.h"
 )
+
+add_subdirectory(core)
+add_subdirectory(internal)
 
 # ------------------------------------------------------------
 # Compile, link, and output contracts

@@ -1,6 +1,7 @@
 /// @file accessibility_validation.cpp
 /// @brief Complete portable validation before immutable semantic replacement.
 
+#include "desktop/internal/results.h"
 #include "desktop/accessibility.h"
 #include "unicode/unicode.h"
 
@@ -17,9 +18,9 @@ namespace GameWIP::Desktop::Accessibility
         namespace A = Types::Accessibility;
         using Issue = A::ValidationIssue;
 
-        // ------------------------------------------------------------
-        // Primitive validation and resource budgets
-        // ------------------------------------------------------------
+        /// ------------------------------------------------------------
+        /// Primitive validation and resource budgets
+        /// ------------------------------------------------------------
 
         bool validUtf8(std::string_view value) noexcept
         {
@@ -35,11 +36,18 @@ namespace GameWIP::Desktop::Accessibility
         struct Budget
         {
             const A::Limits &limits;
-            std::uint64_t bytes = 0, nodeBytes = 0, extensionValues = 0;
+
+            // Text limits
+            std::uint64_t totalTextBytes = 0;
+            std::uint64_t nodeTextBytes = 0;
+
+            // Extension limits
+            std::uint64_t extensionValues = 0;
+
             Issue string(std::string_view value)
             {
                 if(value.size() > limits.maximumTextBytesPerNode || value.size() > limits.maximumTotalTextBytes ||
-                   nodeBytes + value.size() > limits.maximumTextBytesPerNode || bytes + value.size() > limits.maximumTotalTextBytes)
+                   nodeTextBytes + value.size() > limits.maximumTextBytesPerNode || totalTextBytes + value.size() > limits.maximumTotalTextBytes)
                 {
                     return Issue::LimitExceeded;
                 }
@@ -48,8 +56,8 @@ namespace GameWIP::Desktop::Accessibility
                 {
                     return Issue::InvalidText;
                 }
-                nodeBytes += value.size();
-                bytes += value.size();
+                nodeTextBytes += value.size();
+                totalTextBytes += value.size();
                 return Issue::None;
             }
 
@@ -95,16 +103,15 @@ namespace GameWIP::Desktop::Accessibility
 
         A::ValidationResult fail(Issue issue, A::NodeId node = 0, std::size_t index = 0)
         {
-            return {
-                IO::makeStatus(issue == Issue::LimitExceeded ? IO::Types::ErrorCode::SizeLimitExceeded : IO::Types::ErrorCode::InvalidArgument),
-                issue,
-                node,
-                index};
+            const GameWIP::Status::Types::Code code =
+                issue == Issue::LimitExceeded ? GameWIP::Status::Types::Code::SizeLimitExceeded : GameWIP::Status::Types::Code::InvalidArgument;
+            return A::ValidationResult::failure(GameWIP::Desktop::Internal::statusFor(code), A::ValidationInfo{issue, node, index});
         }
 
         bool validLimits(const A::Limits &limits) noexcept
         {
             const std::array values{
+                // Snapshot and per-node payload limits
                 limits.maximumNodes,
                 limits.maximumChildrenPerNode,
                 limits.maximumRelationsPerNode,
@@ -114,11 +121,15 @@ namespace GameWIP::Desktop::Accessibility
                 limits.maximumTotalTextBytes,
                 limits.maximumTextAnnotationsPerNode,
                 limits.maximumTextFragmentsPerNode,
+
+                // Action and notification transport limits
                 limits.maximumActionQueue,
                 limits.maximumNotificationQueue,
                 limits.maximumActionTextBytes,
                 limits.maximumSelectionRangesPerAction,
                 limits.maximumAnnouncementBytes,
+
+                // Extension, relation, and native-provider limits
                 limits.maximumExtensionDepth,
                 limits.maximumExtensionValuesPerNode,
                 limits.maximumRelationTargetsPerNode,
@@ -135,12 +146,13 @@ namespace GameWIP::Desktop::Accessibility
         }
     } // namespace
 
-    // ------------------------------------------------------------
-    // Complete snapshot validation
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Complete snapshot validation
+    /// ------------------------------------------------------------
 
     A::ValidationResult validate(const A::SnapshotView &snapshot, const A::Limits &limits) noexcept
     {
+        // Validate configured budgets and basic snapshot identity.
         if(!validLimits(limits))
         {
             return fail(Issue::InvalidLimits);
@@ -163,6 +175,7 @@ namespace GameWIP::Desktop::Accessibility
 
         try
         {
+            // Build an ID-sorted index and reject duplicate identities.
             std::vector<std::pair<A::NodeId, std::size_t>> index;
             index.reserve(snapshot.nodes.size());
 
@@ -207,12 +220,14 @@ namespace GameWIP::Desktop::Accessibility
             std::vector<std::uint32_t> incoming(snapshot.nodes.size());
             std::size_t focused = 0;
 
+            // Validate each node and its local references.
             for(std::size_t i = 0; i < snapshot.nodes.size(); ++i)
             {
                 const auto &node = snapshot.nodes[i];
-                budget.nodeBytes = 0;
+                budget.nodeTextBytes = 0;
                 budget.extensionValues = 0;
 
+                // Check role, state, action, and exposure values.
                 if(node.role >= A::Role::Count)
                 {
                     return fail(Issue::InvalidRole, node.id, i);
@@ -239,6 +254,7 @@ namespace GameWIP::Desktop::Accessibility
                     return fail(Issue::InvalidValue, node.id, i);
                 }
 
+                // Validate common labels and shortcut text.
                 for(auto text : {node.name, node.description, node.helpText, node.value, node.language, node.accessKey, node.keyboardShortcut})
                 {
                     if(const Issue issue = budget.string(text); issue != Issue::None)
@@ -257,6 +273,8 @@ namespace GameWIP::Desktop::Accessibility
                 {
                     return fail(Issue::LimitExceeded, node.id, i);
                 }
+
+                // Match child references with the declared parent links.
                 std::vector<A::NodeId> children(node.children.begin(), node.children.end());
                 std::ranges::sort(children);
 
@@ -287,6 +305,7 @@ namespace GameWIP::Desktop::Accessibility
                 std::uint64_t relationTargets = 0;
                 std::uint64_t relationKinds = 0;
 
+                // Validate relation kinds, targets, and uniqueness.
                 for(const auto &relation : node.relations)
                 {
                     if(relation.kind > A::RelationKind::ColumnHeaders || relation.targets.empty())
@@ -322,6 +341,8 @@ namespace GameWIP::Desktop::Accessibility
                         }
                     }
                 }
+
+                // Validate extension identities, values, and node references.
                 const auto checkReferences = [&](const auto &self, const A::ExtensionValue &value) -> bool
                 {
                     if(value.kind == A::ExtensionValueKind::NodeReference)
@@ -379,6 +400,7 @@ namespace GameWIP::Desktop::Accessibility
                     }
                 }
 
+                // Validate optional geometry, value, selection, and collection data.
                 if(node.geometry)
                 {
                     const auto &g = *node.geometry;
@@ -395,13 +417,17 @@ namespace GameWIP::Desktop::Accessibility
                     {
                         return fail(Issue::InvalidGeometry, node.id, i);
                     }
-                    double left = std::numeric_limits<double>::max(), top = left, right = -left, bottom = -left;
+                    double left = std::numeric_limits<double>::max();
+                    double top = left;
+                    double right = -left;
+                    double bottom = -left;
 
                     for(double x : {g.localBounds.x, g.localBounds.x + g.localBounds.width})
                     {
                         for(double y : {g.localBounds.y, g.localBounds.y + g.localBounds.height})
                         {
-                            const double projectedX = t.m11 * x + t.m21 * y + t.tx, projectedY = t.m12 * x + t.m22 * y + t.ty;
+                            const double projectedX = t.m11 * x + t.m21 * y + t.tx;
+                            const double projectedY = t.m12 * x + t.m22 * y + t.ty;
 
                             if(!std::isfinite(projectedX) || !std::isfinite(projectedY))
                             {
@@ -472,8 +498,10 @@ namespace GameWIP::Desktop::Accessibility
 
                     for(auto id : selected)
                     {
-                        if(find(id) == snapshot.nodes.size() || !snapshot.nodes[find(id)].states.contains(A::State::Selected) ||
-                           !snapshot.nodes[find(id)].states.contains(A::State::Selectable))
+                        const std::size_t selectedIndex = find(id);
+
+                        if(selectedIndex == snapshot.nodes.size() || !snapshot.nodes[selectedIndex].states.contains(A::State::Selected) ||
+                           !snapshot.nodes[selectedIndex].states.contains(A::State::Selectable))
                         {
                             return fail(Issue::InvalidSelection, node.id, i);
                         }
@@ -514,6 +542,7 @@ namespace GameWIP::Desktop::Accessibility
                     }
                 }
 
+                // Validate text payloads, ranges, annotations, and caret boundaries.
                 if(node.text)
                 {
                     const auto &text = *node.text;
@@ -609,11 +638,13 @@ namespace GameWIP::Desktop::Accessibility
                 }
             }
 
+            // Confirm every node is reachable from the root without a cycle.
             if(incoming[root] != 0)
             {
                 return fail(Issue::Cycle, snapshot.root);
             }
 
+            // Require exactly one parent edge for every non-root node.
             for(std::size_t i = 0; i < incoming.size(); ++i)
             {
                 if(i != root && incoming[i] != 1)
@@ -622,6 +653,7 @@ namespace GameWIP::Desktop::Accessibility
                 }
             }
 
+            // Walk from the root and reject revisits or unreachable nodes.
             std::vector<std::size_t> work{root};
             std::vector<bool> visited(snapshot.nodes.size());
 
@@ -646,9 +678,16 @@ namespace GameWIP::Desktop::Accessibility
                 return fail(Issue::UnreachableNode);
             }
 
-            // Preorder intervals validate containment without a quadratic walk up every parent chain.
-            std::vector<std::size_t> pending{root}, traversal, ordinal(snapshot.nodes.size()), subtree(snapshot.nodes.size(), 1),
-                grid(snapshot.nodes.size(), snapshot.nodes.size());
+            // Build preorder intervals and table-container ancestry.
+            // This validates containment without a quadratic walk up every parent chain.
+            // Track traversal order and each node's preorder index.
+            std::vector<std::size_t> pending{root};
+            std::vector<std::size_t> traversal;
+            std::vector<std::size_t> ordinal(snapshot.nodes.size());
+
+            // Cache subtree sizes and enclosing table nodes.
+            std::vector<std::size_t> subtree(snapshot.nodes.size(), 1);
+            std::vector<std::size_t> grid(snapshot.nodes.size(), snapshot.nodes.size());
             traversal.reserve(snapshot.nodes.size());
             pending.reserve(snapshot.nodes.size());
 
@@ -680,6 +719,7 @@ namespace GameWIP::Desktop::Accessibility
                 }
             }
 
+            // Validate subtree selections and table-cell containment.
             for(std::size_t i = 0; i < snapshot.nodes.size(); ++i)
             {
                 const auto &node = snapshot.nodes[i];
@@ -711,15 +751,17 @@ namespace GameWIP::Desktop::Accessibility
                 }
             }
 
-            return {};
+            return A::ValidationResult::success(A::ValidationInfo{});
         }
         catch(const std::bad_alloc &)
         {
-            return {IO::makeStatus(IO::Types::ErrorCode::OutOfMemory)};
+            return A::ValidationResult::failure(GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::OutOfMemory));
         }
         catch(...)
         {
-            return {IO::makeStatus(IO::Types::ErrorCode::SizeLimitExceeded), Issue::LimitExceeded};
+            return A::ValidationResult::failure(
+                GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::SizeLimitExceeded),
+                A::ValidationInfo{Issue::LimitExceeded});
         }
     }
 } // namespace GameWIP::Desktop::Accessibility

@@ -8,7 +8,11 @@ Set-StrictMode -Version Latest
 
 function Invoke-GameWipSetupGitQuery
 {
-    param([Parameter(Mandatory = $true)][string[]]$Arguments, [int[]]$AllowedExitCodes = @(0))
+    param(
+        [Parameter(Mandatory = $true)][string[]]$Arguments,
+        [int[]]$AllowedExitCodes = @(0)
+    )
+
     $result = Invoke-GameWipProcess -FilePath git -Arguments (@('-C', $RepositoryRoot) + $Arguments) -OutputMode LogOnly -TimeoutSeconds 60
 
     if ($AllowedExitCodes -notcontains $result.ExitCode)
@@ -21,7 +25,11 @@ function Invoke-GameWipSetupGitQuery
 
 function Select-GameWipZipBranch
 {
-    param([Parameter(Mandatory = $true)][string[]]$Candidates, [Parameter(Mandatory = $true)][string]$Recommended)
+    param(
+        [Parameter(Mandatory = $true)][string[]]$Candidates,
+        [Parameter(Mandatory = $true)][string]$Recommended
+    )
+
     $result = Read-GameWipRepositoryBranchChoice -Candidates $Candidates -Recommended $Recommended
 
     if ($result.Status -eq 'Cancelled')
@@ -34,7 +42,11 @@ function Select-GameWipZipBranch
 
 function Initialize-GameWipZipCheckout
 {
-    param([Parameter(Mandatory = $true)][string]$RepositoryRoot, [string]$Branch, [switch]$ChooseBranch)
+    param(
+        [Parameter(Mandatory = $true)][string]$RepositoryRoot,
+        [string]$Branch,
+        [switch]$ChooseBranch
+    )
 
     if (Test-Path -LiteralPath (Join-Path $RepositoryRoot '.git'))
     {
@@ -42,8 +54,12 @@ function Initialize-GameWipZipCheckout
     }
 
     Write-Host '  Extracted ZIP detected; connecting files to the official Git repository without replacing them.'
+
+    # Initialize Git metadata and fetch available branches.
     Invoke-GameWipSetupNative -FilePath git -ArgumentList @('-C', $RepositoryRoot, 'init') | Out-Null
-    Invoke-GameWipSetupNative -FilePath git -ArgumentList @('-C', $RepositoryRoot, 'remote', 'add', 'origin', 'https://github.com/Andrei11033/GameWIP.git') | Out-Null
+    Invoke-GameWipSetupNative `
+        -FilePath git `
+        -ArgumentList @('-C', $RepositoryRoot, 'remote', 'add', 'origin', 'https://github.com/Andrei11033/GameWIP.git') | Out-Null
     Invoke-GameWipSetupNative -FilePath git -ArgumentList @('-C', $RepositoryRoot, 'fetch', 'origin', '--prune') | Out-Null
     Invoke-GameWipSetupNative -FilePath git -ArgumentList @('-C', $RepositoryRoot, 'remote', 'set-head', 'origin', '--auto') | Out-Null
 
@@ -61,6 +77,7 @@ function Initialize-GameWipZipCheckout
     $recommended = $defaultBranch
     $fewestChanges = [int]::MaxValue
 
+    # Find the branch whose tree best matches the extracted checkout.
     foreach ($candidate in @($defaultBranch) + @($candidates | Where-Object { $_ -ne $defaultBranch }))
     {
         $reset = Invoke-GameWipProcess -FilePath git -Arguments @('-C', $RepositoryRoot, 'reset', '--mixed', $candidate) -OutputMode LogOnly -TimeoutSeconds 60
@@ -83,6 +100,7 @@ function Initialize-GameWipZipCheckout
         }
     }
 
+    # Apply the selected branch without replacing extracted files.
     $names = @($candidates | ForEach-Object { $_.Substring('origin/'.Length) } | Sort-Object -Unique)
     $recommendedName = $recommended.Substring('origin/'.Length)
     $selectedName = if (-not [string]::IsNullOrWhiteSpace($Branch))
@@ -115,7 +133,11 @@ function Initialize-GameWipZipCheckout
 
 function Switch-GameWipRepositoryBranch
 {
-    param([Parameter(Mandatory = $true)][string]$RepositoryRoot, [string]$Branch, [switch]$ChooseBranch)
+    param(
+        [Parameter(Mandatory = $true)][string]$RepositoryRoot,
+        [string]$Branch,
+        [switch]$ChooseBranch
+    )
 
     if (-not (Test-Path -LiteralPath (Join-Path $RepositoryRoot '.git')))
     {
@@ -127,9 +149,17 @@ function Switch-GameWipRepositoryBranch
         return
     }
 
+    # Collect local and remote branch choices.
     $current = ((Invoke-GameWipSetupGitQuery -Arguments @('branch', '--show-current')).Stdout -join '').Trim()
     Invoke-GameWipSetupNative -FilePath git -ArgumentList @('-C', $RepositoryRoot, 'fetch', 'origin', '--prune') | Out-Null
-    $remote = @((Invoke-GameWipSetupGitQuery -Arguments @('for-each-ref', '--format=%(refname:short)', 'refs/remotes/origin')).Stdout | Where-Object { $_ -like 'origin/*' -and $_ -ne 'origin/HEAD' } | ForEach-Object { $_.Substring('origin/'.Length) } | Sort-Object -Unique)
+    $remoteBranches = Invoke-GameWipSetupGitQuery `
+        -Arguments @('for-each-ref', '--format=%(refname:short)', 'refs/remotes/origin')
+    $remote = @(
+        $remoteBranches.Stdout |
+            Where-Object { $_ -like 'origin/*' -and $_ -ne 'origin/HEAD' } |
+            ForEach-Object { $_.Substring('origin/'.Length) } |
+            Sort-Object -Unique
+    )
     $local = @((Invoke-GameWipSetupGitQuery -Arguments @('for-each-ref', '--format=%(refname:short)', 'refs/heads')).Stdout)
     $branches = @($current) + $local + $remote | Sort-Object -Unique
     $selected = if (-not [string]::IsNullOrWhiteSpace($Branch))
@@ -151,6 +181,7 @@ function Switch-GameWipRepositoryBranch
         return
     }
 
+    # Keep the checkout intact when tracked work is present.
     $changes = @((Invoke-GameWipSetupGitQuery -Arguments @('status', '--porcelain', '--untracked-files=no')).Stdout)
 
     if ($changes.Count -ne 0)
@@ -158,6 +189,7 @@ function Switch-GameWipRepositoryBranch
         throw 'Tracked files have local changes. Commit or stash before switching setup branches.'
     }
 
+    # Switch locally or create a tracking branch from origin.
     if ($local -contains $selected)
     {
         Invoke-GameWipSetupNative -FilePath git -ArgumentList @('-C', $RepositoryRoot, 'switch', $selected) | Out-Null
@@ -171,15 +203,26 @@ function Switch-GameWipRepositoryBranch
 
 function Initialize-GameWipRepository
 {
-    param([Parameter(Mandatory = $true)][string]$RepositoryRoot, [string]$Branch, [switch]$ChooseBranch)
+    param(
+        [Parameter(Mandatory = $true)][string]$RepositoryRoot,
+        [string]$Branch,
+        [switch]$ChooseBranch
+    )
+
     Initialize-GameWipZipCheckout -RepositoryRoot $RepositoryRoot -Branch $Branch -ChooseBranch:$ChooseBranch
-    $ucrtBin = Join-Path ([string]$ProjectConfig.managedEnvironment.msys2Root) 'ucrt64\bin'
-    Invoke-GameWipNative -Name 'setup-configure-dev' -FilePath cmake -Arguments @('--preset', 'dev') -PathPrefix $ucrtBin | Out-Null
+
+    # Configure the selected development target through the shared build path.
+    Invoke-GameWipConfigurePreset -Name 'dev' | Out-Null
 }
 
 function Invoke-GameWipRepositoryUpdate
 {
-    param([Parameter(Mandatory = $true)][string]$RepositoryRoot, [switch]$SkipFetch)
+    param(
+        [Parameter(Mandatory = $true)][string]$RepositoryRoot,
+        [switch]$SkipFetch
+    )
+
+    # Refuse to update over tracked changes.
     $changes = @((Invoke-GameWipSetupGitQuery -Arguments @('status', '--porcelain', '--untracked-files=no')).Stdout)
 
     if ($changes.Count -ne 0)
@@ -187,7 +230,11 @@ function Invoke-GameWipRepositoryUpdate
         throw 'Tracked files have local changes. Commit or stash before setup update.'
     }
 
-    $upstreamResult = Invoke-GameWipProcess -FilePath git -Arguments @('-C', $RepositoryRoot, 'rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{upstream}') -OutputMode LogOnly -TimeoutSeconds 30
+    $upstreamResult = Invoke-GameWipProcess `
+        -FilePath git `
+        -Arguments @('-C', $RepositoryRoot, 'rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{upstream}') `
+        -OutputMode LogOnly `
+        -TimeoutSeconds 30
 
     if ($upstreamResult.ExitCode -ne 0 -or $upstreamResult.Stdout.Count -eq 0)
     {
@@ -200,6 +247,8 @@ function Invoke-GameWipRepositoryUpdate
     {
         Invoke-GameWipSetupNative -FilePath git -ArgumentList @('-C', $RepositoryRoot, 'fetch', '--prune') | Out-Null
     }
+
+    # Advance only when Git can fast-forward the current branch.
     Invoke-GameWipSetupNative -FilePath git -ArgumentList @('-C', $RepositoryRoot, 'merge', '--ff-only', $upstream) | Out-Null
     Add-GameWipOperationChange -Message "Fast-forwarded repository from $upstream."
 }
@@ -207,6 +256,7 @@ function Invoke-GameWipRepositoryUpdate
 function Test-GameWipRepositoryState
 {
     param([Parameter(Mandatory = $true)][string]$RepositoryRoot)
+
     $result = Invoke-GameWipProcess -FilePath git -Arguments @('-C', $RepositoryRoot, 'rev-parse', '--show-toplevel') -OutputMode LogOnly -TimeoutSeconds 60
 
     if ($result.ExitCode -ne 0)
@@ -217,7 +267,7 @@ function Test-GameWipRepositoryState
     $actualRoot = [IO.Path]::GetFullPath(($result.Stdout -join '').Trim())
     $expectedRoot = [IO.Path]::GetFullPath($RepositoryRoot)
 
-    if (-not [string]::Equals($actualRoot, $expectedRoot, [StringComparison]::OrdinalIgnoreCase))
+    if (-not [string]::Equals($actualRoot, $expectedRoot, (Get-GameWipPathComparison)))
     {
         throw "Git repository root mismatch. Expected '$expectedRoot', found '$actualRoot'."
     }

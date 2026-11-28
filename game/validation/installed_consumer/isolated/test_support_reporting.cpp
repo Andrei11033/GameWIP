@@ -4,6 +4,7 @@
 #include "test_support/reporting.h"
 
 #include <type_traits>
+#include <utility>
 
 static_assert(std::is_default_constructible_v<GameWIP::TestSupport::Types::Reporting::Options>);
 static_assert(std::is_default_constructible_v<GameWIP::TestSupport::Types::Reporting::SinkStatus>);

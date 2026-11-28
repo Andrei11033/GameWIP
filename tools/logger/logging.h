@@ -22,9 +22,9 @@
 /// debug output and the fatal popup, flush active normal sinks, and do not drain older asynchronous work.
 namespace GameWIP::Logger
 {
-    // ------------------------------------------------------------
-    // Lifecycle
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Lifecycle
+    /// ------------------------------------------------------------
 
     /// @name Lifecycle
     /// @{
@@ -38,16 +38,16 @@ namespace GameWIP::Logger
     /// @brief Initializes a File-only Logger using a UTF-8 directory.
     LOGGER_EXPORT Types::Init::Result initFile(std::string_view directory = {}, Types::Level minLevel = Types::Level::Info) noexcept;
     /// @brief Stops Logger, drains accepted work, flushes and closes active sinks, and returns the first real failure.
-    LOGGER_EXPORT IO::Types::Status shutdown() noexcept;
+    LOGGER_EXPORT Status::Types::Result<void> shutdown() noexcept;
     /// @brief Drains accepted async work and flushes active sinks under an optional Logger-owned deadline.
     /// @details nullopt waits indefinitely, zero polls, positive durations are bounded, and negative durations are invalid.
     LOGGER_EXPORT Types::FlushResult flush(std::optional<std::chrono::milliseconds> timeout = std::nullopt) noexcept;
 
     /// @}
 
-    // ------------------------------------------------------------
-    // State queries and statistics
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// State queries and statistics
+    /// ------------------------------------------------------------
 
     /// @name State queries and statistics
     /// @{
@@ -75,9 +75,9 @@ namespace GameWIP::Logger
 
     /// @}
 
-    // ------------------------------------------------------------
-    // Runtime filtering
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Runtime filtering
+    /// ------------------------------------------------------------
 
     /// @name Runtime filtering
     /// @{
@@ -94,46 +94,46 @@ namespace GameWIP::Logger
         requires(SourceEnum<Source>)
     bool shouldLog(Types::Level level, Source source) noexcept
     {
-        return shouldLog(level, Detail::Core::sourceId(source));
+        return shouldLog(level, Internal::Core::sourceId(source));
     }
 
     /// @brief Sets one registered source filter and returns direct operation status.
-    LOGGER_EXPORT IO::Types::Status setSourceFilter(Types::SourceId source, bool enabled) noexcept;
+    LOGGER_EXPORT Status::Types::Result<void> setSourceFilter(Types::SourceId source, bool enabled) noexcept;
     /// @brief Resets one registered source filter to the default enabled state.
-    LOGGER_EXPORT IO::Types::Status resetSourceFilter(Types::SourceId source) noexcept;
+    LOGGER_EXPORT Status::Types::Result<void> resetSourceFilter(Types::SourceId source) noexcept;
     /// @brief Resets every registered source filter to the default enabled state.
-    LOGGER_EXPORT IO::Types::Status resetSourceFilters() noexcept;
+    LOGGER_EXPORT Status::Types::Result<void> resetSourceFilters() noexcept;
     /// @brief Sets one exact-level filter and returns direct operation status.
-    LOGGER_EXPORT IO::Types::Status setLevelFilter(Types::Level level, bool enabled) noexcept;
+    LOGGER_EXPORT Status::Types::Result<void> setLevelFilter(Types::Level level, bool enabled) noexcept;
     /// @brief Resets one exact-level filter to the default enabled state.
-    LOGGER_EXPORT IO::Types::Status resetLevelFilter(Types::Level level) noexcept;
+    LOGGER_EXPORT Status::Types::Result<void> resetLevelFilter(Types::Level level) noexcept;
     /// @brief Resets every exact-level filter to the default enabled state.
-    LOGGER_EXPORT IO::Types::Status resetLevelFilters() noexcept;
+    LOGGER_EXPORT Status::Types::Result<void> resetLevelFilters() noexcept;
 
     /// @brief Sets one enum-source filter and returns direct operation status.
     template <typename Source>
         requires(SourceEnum<Source>)
-    IO::Types::Status setSourceFilter(Source source, bool enabled) noexcept
+    Status::Types::Result<void> setSourceFilter(Source source, bool enabled) noexcept
     {
-        return setSourceFilter(Detail::Core::sourceId(source), enabled);
+        return setSourceFilter(Internal::Core::sourceId(source), enabled);
     }
 
     /// @brief Resets one enum-source filter to the default enabled state.
     template <typename Source>
         requires(SourceEnum<Source>)
-    IO::Types::Status resetSourceFilter(Source source) noexcept
+    Status::Types::Result<void> resetSourceFilter(Source source) noexcept
     {
-        return resetSourceFilter(Detail::Core::sourceId(source));
+        return resetSourceFilter(Internal::Core::sourceId(source));
     }
 
     /// @}
 
-    // ------------------------------------------------------------
-    // Asynchronous logging
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Asynchronous logging
+    /// ------------------------------------------------------------
 
     /// @cond INTERNAL
-    namespace Detail::Core
+    namespace Internal::Core
     {
         /// @brief Applies the string-source normal-log gate before compile-time formatting.
         template <typename... Args>
@@ -174,7 +174,7 @@ namespace GameWIP::Logger
                 runtimeFormatAndLog(level, source, format, args...);
             }
         }
-    } // namespace Detail::Core
+    } // namespace Internal::Core
     /// @endcond
 
     /// @name Asynchronous logging
@@ -190,15 +190,15 @@ namespace GameWIP::Logger
         requires(SourceEnum<Source>)
     void log(Types::Level level, Source source, std::string_view message) noexcept
     {
-        log(level, Detail::Core::sourceId(source), message);
+        log(level, Internal::Core::sourceId(source), message);
     }
 
     /// @brief Queues a preformatted normal record with fields and metadata.
     template <typename Source> void log(Types::Level level, Source source, const Record &record, std::string_view message) noexcept
     {
-        if(shouldLog(level, Detail::Core::normalizeSource(source)))
+        if(shouldLog(level, Internal::Core::normalizeSource(source)))
         {
-            Detail::Core::preformattedLogWithRecord(level, Detail::Core::normalizeSource(source), record, message);
+            Internal::Core::preformattedLogWithRecord(level, Internal::Core::normalizeSource(source), record, message);
         }
     }
 
@@ -207,9 +207,9 @@ namespace GameWIP::Logger
         requires(sizeof...(Args) > 0)
     void log(Types::Level level, Source &&source, const Record &record, std::format_string<Args...> format, Args &&...args) noexcept
     {
-        if(shouldLog(level, Detail::Core::normalizeSource(source)))
+        if(shouldLog(level, Internal::Core::normalizeSource(source)))
         {
-            Detail::Core::formatAndLogWithRecord(level, std::forward<Source>(source), record, format, std::forward<Args>(args)...);
+            Internal::Core::formatAndLogWithRecord(level, std::forward<Source>(source), record, format, std::forward<Args>(args)...);
         }
     }
 
@@ -218,9 +218,9 @@ namespace GameWIP::Logger
         requires(sizeof...(Args) > 0)
     void log(Types::Level level, Source &&source, const Record &record, Types::RuntimeFormat format, Args &&...args) noexcept
     {
-        if(shouldLog(level, Detail::Core::normalizeSource(source)))
+        if(shouldLog(level, Internal::Core::normalizeSource(source)))
         {
-            Detail::Core::runtimeFormatAndLogWithRecord(level, std::forward<Source>(source), record, format, std::forward<Args>(args)...);
+            Internal::Core::runtimeFormatAndLogWithRecord(level, std::forward<Source>(source), record, format, std::forward<Args>(args)...);
         }
     }
 
@@ -229,7 +229,7 @@ namespace GameWIP::Logger
         requires(sizeof...(Args) > 0)
     void log(Types::Level level, std::string_view source, std::format_string<Args...> format, Args &&...args) noexcept
     {
-        Detail::Core::formatAndLogIfEnabled(level, source, format, std::forward<Args>(args)...);
+        Internal::Core::formatAndLogIfEnabled(level, source, format, std::forward<Args>(args)...);
     }
 
     /// @brief Formats and queues a normal record with a registered source.
@@ -237,7 +237,7 @@ namespace GameWIP::Logger
         requires(sizeof...(Args) > 0)
     void log(Types::Level level, Types::SourceId source, std::format_string<Args...> format, Args &&...args) noexcept
     {
-        Detail::Core::formatAndLogIfEnabled(level, source, format, std::forward<Args>(args)...);
+        Internal::Core::formatAndLogIfEnabled(level, source, format, std::forward<Args>(args)...);
     }
 
     /// @brief Formats and queues a normal record with an enum source.
@@ -245,7 +245,7 @@ namespace GameWIP::Logger
         requires(SourceEnum<Source> && sizeof...(Args) > 0)
     void log(Types::Level level, Source source, std::format_string<Args...> format, Args &&...args) noexcept
     {
-        log(level, Detail::Core::sourceId(source), format, std::forward<Args>(args)...);
+        log(level, Internal::Core::sourceId(source), format, std::forward<Args>(args)...);
     }
 
     /// @brief Runtime-formats and queues a normal record with a UTF-8 string source.
@@ -253,7 +253,7 @@ namespace GameWIP::Logger
         requires(sizeof...(Args) > 0)
     void log(Types::Level level, std::string_view source, Types::RuntimeFormat format, Args &&...args) noexcept
     {
-        Detail::Core::runtimeFormatAndLogIfEnabled(level, source, format, std::forward<Args>(args)...);
+        Internal::Core::runtimeFormatAndLogIfEnabled(level, source, format, std::forward<Args>(args)...);
     }
 
     /// @brief Runtime-formats and queues a normal record with a registered source.
@@ -261,7 +261,7 @@ namespace GameWIP::Logger
         requires(sizeof...(Args) > 0)
     void log(Types::Level level, Types::SourceId source, Types::RuntimeFormat format, Args &&...args) noexcept
     {
-        Detail::Core::runtimeFormatAndLogIfEnabled(level, source, format, std::forward<Args>(args)...);
+        Internal::Core::runtimeFormatAndLogIfEnabled(level, source, format, std::forward<Args>(args)...);
     }
 
     /// @brief Runtime-formats and queues a normal record with an enum source.
@@ -269,7 +269,7 @@ namespace GameWIP::Logger
         requires(SourceEnum<Source> && sizeof...(Args) > 0)
     void log(Types::Level level, Source source, Types::RuntimeFormat format, Args &&...args) noexcept
     {
-        log(level, Detail::Core::sourceId(source), format, std::forward<Args>(args)...);
+        log(level, Internal::Core::sourceId(source), format, std::forward<Args>(args)...);
     }
 
     /// @brief Declares one fixed-severity family of normal logging overloads.
@@ -282,30 +282,30 @@ namespace GameWIP::Logger
         requires(SourceEnum<Source>) \
     void name(Source source, std::string_view message) noexcept \
     { \
-        name(Detail::Core::sourceId(source), message); \
+        name(Internal::Core::sourceId(source), message); \
     } \
     template <typename Source> \
         requires(SourceEnum<Source>) \
     void name(Source source, const Record &record, std::string_view message) noexcept \
     { \
-        name(Detail::Core::sourceId(source), record, message); \
+        name(Internal::Core::sourceId(source), record, message); \
     } \
     template <typename Source, typename... Args> \
         requires(sizeof...(Args) > 0) \
     void name(Source &&source, const Record &record, std::format_string<Args...> format, Args &&...args) noexcept \
     { \
-        if(shouldLog(levelValue, Detail::Core::normalizeSource(source))) \
+        if(shouldLog(levelValue, Internal::Core::normalizeSource(source))) \
         { \
-            Detail::Core::formatAndLogWithRecord(levelValue, std::forward<Source>(source), record, format, std::forward<Args>(args)...); \
+            Internal::Core::formatAndLogWithRecord(levelValue, std::forward<Source>(source), record, format, std::forward<Args>(args)...); \
         } \
     } \
     template <typename Source, typename... Args> \
         requires(sizeof...(Args) > 0) \
     void name(Source &&source, const Record &record, Types::RuntimeFormat format, Args &&...args) noexcept \
     { \
-        if(shouldLog(levelValue, Detail::Core::normalizeSource(source))) \
+        if(shouldLog(levelValue, Internal::Core::normalizeSource(source))) \
         { \
-            Detail::Core::runtimeFormatAndLogWithRecord(levelValue, std::forward<Source>(source), record, format, std::forward<Args>(args)...); \
+            Internal::Core::runtimeFormatAndLogWithRecord(levelValue, std::forward<Source>(source), record, format, std::forward<Args>(args)...); \
         } \
     } \
     template <typename Source, typename... Args> \

@@ -9,19 +9,20 @@ find_package(Logger ${GAMEWIP_REQUIRED_VERSION} EXACT CONFIG REQUIRED)
 target_link_libraries(MyTarget PRIVATE GameWIP::Logger)
 ```
 
-The package installs `logger/types.h`, `logger/config.h`, the `logger/logger.h` umbrella, and focused
-`logger/record.h`, `logger/message_format.h`, `logger/logging.h`, and `logger/reports.h` headers. It also installs optional
-`logger/logger_macros.h`, required detail headers, the generated `logger/logger_export.h` header, and `GameWIP::Logger`.
+The package installs `logger/types.h`, `logger/config.h`, the `logger/logger.h` umbrella, and focused `logger/record.h`,
+`logger/message_format.h`, `logger/logging.h`, and `logger/reports.h` headers. It also installs optional
+`logger/logger_macros.h`, required detail headers, the generated `logger/logger_export.h`, and `GameWIP::Logger`.
+The detail headers contain template definitions required by the installed API; they are not independent API entry points.
 
-`logger.h` exposes `IO::Types::Status`, so IO is a public package dependency and `LoggerConfig.cmake` resolves the exact matching IO package. Terminal
-remains an installed dependency used by Logger's console implementation. FileSystem and Unicode are private implementation dependencies.
+`logger.h` exposes `Status::Types::Result`, so Status is the public dependency and `LoggerConfig.cmake` resolves its exact-version package. IO,
+Terminal, FileSystem, and Unicode are private implementation dependencies.
 
 ## Shared-library exports
 
 `LOGGER_EXPORT` marks installed production/runtime ABI. Source-tree validation
 uses `LOGGER_TEST_EXPORT` from an internal header that is never installed.
 
-Public templates in the Logger headers call exported `GameWIP::Logger::Detail::Core` bridges. Those symbols support the public inline/template API
+Public templates in the Logger headers call exported `GameWIP::Logger::Internal::Core` bridges. Those symbols support the public inline/template API
 but are not source-level consumer APIs.
 
 Initialization, report, and health vocabulary is organized under `Types::Init`,
@@ -36,17 +37,17 @@ compatible compiler/runtime settings.
 Compatibility-relevant changes include public enum/structure layout, signatures, export sets, template requirements, macro behavior, and dependency
 requirements. Internal queue layout, worker implementation, timestamp cache, and private dependency wiring are not ABI promises.
 
-The status-bearing `Types::LogFilePathResult` is part of the public ABI. Its
-status must be inspected before consuming the UTF-8 path, and changes to its
-layout or the `getLogFilePath()` signature require the normal exact-version
-package and validation review.
+`Types::LogFilePathResult` is `Status::Types::Result<std::string>`. Check
+`ok()` before consuming the UTF-8 path. Changes to the result payload or the
+`getLogFilePath()` signature require the normal exact-version package and
+validation review.
 
-The shared-library implementation unregisters its MinGW formatting-scratch FLS callback during module teardown. Consumers that explicitly unload the
-shared library must first quiesce Logger calls and worker threads, as required for any callable code or retained object owned by that module.
+Logger unregisters its MinGW formatting scratch FLS callback during module teardown. Consumers must stop Logger calls, join worker threads,
+and ensure no retained Logger objects remain in use before unloading.
 
 ## Source-tree-only interfaces
 
-The short `Logger` target, `logger/internal/*`, implementation sources, hooks, tests, and benchmarks are repository interfaces only.
+The short `Logger` target, `logger/internal/`, `logger/platform/backend.h`, sources, hooks, tests, and benchmarks are source-tree-only interfaces.
 
 ## Related pages
 

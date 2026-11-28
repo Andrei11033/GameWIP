@@ -73,23 +73,22 @@ int main()
     description.activation.visible = true;
 
     GameWIP::Desktop::Window window;
-    if (!window.open(description).ok())
+    if(!window.open(description).ok())
     {
         return 1;
     }
 
-    while (window.isOpen() && !window.hasCloseRequest())
+    while(window.isOpen() && !window.hasCloseRequest())
     {
-        const auto pump =
-            GameWIP::Desktop::Events::wait(std::chrono::milliseconds{16});
-        if (!pump.status.ok())
+        const auto pump = GameWIP::Desktop::Events::wait(std::chrono::milliseconds{16});
+        if(!pump.ok())
         {
             static_cast<void>(window.close());
             return 2;
         }
 
         GameWIP::Desktop::Types::Event event;
-        while (window.popEvent(event))
+        while(window.popEvent(event))
         {
             // React to the event payload needed by the application.
         }
@@ -97,7 +96,6 @@ int main()
 
     return window.close().ok() ? 0 : 3;
 }
-
 ```
 
 Keep the non-movable `Window` in stable storage and use it on the opening
@@ -105,14 +103,12 @@ thread (@ref desktop_lifecycle_events).
 
 ## Failure handling
 
-Window operations return direct `IO::Types::Status` values or typed
-`Types::Result<T>`/operation-result structures. For query results, inspect
-`ok()` before consuming the optional `value`. Dereference and arrow access terminate
-the process if either the status failed or the value is absent; `value_or()` returns
-the supplied fallback in either case. Operation-specific results document their
-own progress fields. A failed event wait or pump does not close an open window
-automatically. Call `close()` and handle its status; destruction performs only
-best-effort cleanup.
+Window operations return shared status results or operation-specific result
+structures. For value results, inspect `ok()` before consuming `value()`;
+`hasValue()` reports whether complete or partial data is available. Operation-
+specific results document their own progress fields. A failed event wait or
+pump does not close an open window automatically. Call `close()` and handle its
+result; destruction performs only best-effort cleanup.
 
 The close request is sticky even if the corresponding queue event is coalesced
 or dropped. Use `hasCloseRequest()` for lifecycle policy and `popEvent()` for

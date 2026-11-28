@@ -1,259 +1,96 @@
 @page io_examples Examples
 
-The examples use only installed public APIs.
+All fallible operations return the shared `GameWIP::Status::Types::Result<T>` contract. See @ref status for result and diagnostic details.
 
-## Read bounded text from stable memory
-
-The reader borrows `source`, which must outlive it.
+## Read a bounded text stream
 
 ```cpp
-#include "io/io.h"
+std::string source = "settings=true";
+GameWIP::IO::MemoryReader reader(source);
+auto result = GameWIP::IO::readAllText(reader, 4096);
 
-#include <string>
-#include <utility>
-
-bool loadSmallConfig(std::string& output)
+if(result.ok())
 {
-    std::string source = "width=1920\nheight=1080\n";
-    GameWIP::IO::MemoryReader reader(source);
-
-    GameWIP::IO::Types::ReadAllTextResult result =
-        GameWIP::IO::readAllText(reader, 64 * 1024);
-    if (!result.status.ok())
-    {
-        return false;
-    }
-
-    output = std::move(result.text);
-    return true;
+    configure(result.value());
 }
-
-```
-
-`readAllText()` requires strict UTF-8 (@ref io_utf8_policy). The limit rejects oversized input rather than truncating it.
-
-## Seek and read one byte
-
-```cpp
-#include "io/io.h"
-
-#include <array>
-#include <cstddef>
-#include <vector>
-
-bool readThirdByte(std::byte& output)
+else if(result.hasValue())
 {
-    const std::vector<std::byte> source{
-        std::byte{0x10}, std::byte{0x20}, std::byte{0x30}, std::byte{0x40}};
-
-    GameWIP::IO::MemoryReader reader(source);
-    const GameWIP::IO::Types::Status seekStatus =
-        reader.seek(2, GameWIP::IO::Types::SeekOrigin::Begin);
-    if (!seekStatus.ok())
-    {
-        return false;
-    }
-
-    std::array<std::byte, 1> destination{};
-    const GameWIP::IO::Types::ReadResult readResult = reader.read(destination);
-    if (!readResult.status.ok() || readResult.bytesRead != 1)
-    {
-        return false;
-    }
-
-    output = destination[0];
-    return true;
-}
-
-```
-
-## Reuse scratch storage for unknown-size readers
-
-The scratch buffer is borrowed for the call, used only when size or position is unavailable, and may be overwritten.
-
-```cpp
-#include "io/io.h"
-
-#include <array>
-#include <cstddef>
-#include <span>
-
-GameWIP::IO::Types::ReadAllBytesResult readBoundedStream(
-    GameWIP::IO::Reader& reader)
-{
-    std::array<std::byte, 4096> scratch{};
-    return GameWIP::IO::readAllBytes(
-        reader,
-        std::span<std::byte>(scratch),
-        8 * 1024 * 1024);
+    // Keep only the complete valid UTF-8 prefix when useful.
+    inspectPrefix(result.value());
 }
 ```
 
-## Reuse writer capacity
+## Inspect read progress
 
 ```cpp
-#include "io/io.h"
+std::array<std::byte, 64> buffer{};
+auto result = reader.read(buffer);
 
-#include <string>
-#include <string_view>
-
-bool encodeTwice(GameWIP::IO::MemoryWriter& writer)
+if(result.ok())
 {
-    if (!writer.reserve(4096).ok())
+    const auto progress = result.value();
+    process(buffer.first(progress.bytesRead));
+    if(progress.endOfStream)
     {
-        return false;
+        finishInput();
     }
-
-    writer.clear();
-    if (!GameWIP::IO::writeAllText(writer, "first").status.ok())
-    {
-        return false;
-    }
-
-    GameWIP::IO::Types::CopyTextResult firstCopy = writer.copyText();
-    if (!firstCopy.status.ok())
-    {
-        return false;
-    }
-
-    writer.clear();
-    if (!GameWIP::IO::writeAllText(writer, "second").status.ok())
-    {
-        return false;
-    }
-
-    GameWIP::IO::Types::CopyTextResult secondCopy = writer.copyText();
-    return secondCopy.status.ok() && firstCopy.text == "first" && secondCopy.text == "second";
-}
-
-```
-
-`clear()` preserves capacity. `copyText()` validates before copying. A view returned by `bytes()` is borrowed and must not be retained across `clear()`
-or a later write.
-
-## Transfer ownership from MemoryWriter
-
-```cpp
-#include "io/io.h"
-
-#include <cstddef>
-#include <vector>
-
-std::vector<std::byte> buildPacket()
-{
-    GameWIP::IO::MemoryWriter writer;
-    if (!writer.reserve(128).ok())
-    {
-        return {};
-    }
-
-    const std::vector<std::byte> header{
-        std::byte{0x47}, std::byte{0x57}, std::byte{0x49}, std::byte{0x50}};
-
-    const GameWIP::IO::Types::WriteResult result =
-        GameWIP::IO::writeAllBytes(writer, header);
-    if (!result.status.ok())
-    {
-        return {};
-    }
-
-    return writer.takeBytes();
-}
-
-```
-
-`takeBytes()` leaves the writer empty and preserves whether it was open or closed.
-
-## Inspect a failure
-
-```cpp
-#include "io/io.h"
-
-#include <string_view>
-
-std::string_view portableFailureName(const GameWIP::IO::Types::Status& status)
-{
-    return GameWIP::IO::errorCodeName(status.code);
-}
-
-```
-
-Use the portable code for control flow. Treat `nativeCode` and `message` as supplemental diagnostics.
-
-## Create a backend status
-
-```cpp
-#include "io/io.h"
-
-#include <cstdint>
-
-GameWIP::IO::Types::Status permissionFailure(std::int64_t platformCode)
-{
-    return GameWIP::IO::makeStatus(
-        GameWIP::IO::Types::ErrorCode::PermissionDenied,
-        platformCode,
-        "opening the resource was denied");
 }
 ```
 
-Prefer the specific portable category over a generic operation failure.
+The final non-empty read may set `endOfStream`. A failing read may also have a partial `ReadProgress` value.
 
-## Implement a minimal writer
-
-A stateless or externally owned adapter can implement only `write()` and inherit the neutral lifecycle and capability defaults:
+## Preserve write progress
 
 ```cpp
-#include "io/io.h"
+auto result = GameWIP::IO::writeAllBytes(writer, payload);
+if(!result.ok() && result.hasValue())
+{
+    recordAcceptedPrefix(result.value().bytesWritten);
+}
+```
 
-#include <algorithm>
-#include <cstddef>
-#include <cstring>
-#include <span>
+The helper retries successful short writes. A failure result retains total accepted progress.
 
-class FixedBufferWriter final : public GameWIP::IO::Writer
+## Implement a Writer
+
+```cpp
+class LimitedWriter final : public GameWIP::IO::Writer
 {
 public:
-    explicit FixedBufferWriter(std::span<std::byte> destination) noexcept
-        : destination_(destination)
+    GameWIP::Status::Types::Result<GameWIP::IO::Types::WriteProgress>
+    write(std::span<const std::byte> bytes) noexcept override
     {
-    }
+        const std::size_t accepted = std::min(bytes.size(), remainingCapacity_);
+        remainingCapacity_ -= accepted;
 
-    [[nodiscard]] GameWIP::IO::Types::WriteResult write(
-        std::span<const std::byte> bytes) noexcept override
-    {
-        const std::size_t available = destination_.size() - position_;
-        const std::size_t accepted = std::min(available, bytes.size());
-
-        if (accepted != 0)
+        if(accepted != bytes.size())
         {
-            std::memcpy(destination_.data() + position_, bytes.data(), accepted);
-            position_ += accepted;
+            return GameWIP::Status::Types::Result<GameWIP::IO::Types::WriteProgress>::failure(
+                GameWIP::Status::Types::Status(GameWIP::Status::Types::Code::StorageFull),
+                {.bytesWritten = accepted});
         }
 
-        if (accepted != bytes.size())
-        {
-            return {
-                .status = GameWIP::IO::makeStatus(
-                    GameWIP::IO::Types::ErrorCode::StorageFull),
-                .bytesWritten = accepted};
-        }
-
-        return {
-            .status = GameWIP::IO::successStatus(),
-            .bytesWritten = accepted};
+        return GameWIP::Status::Types::Result<GameWIP::IO::Types::WriteProgress>::success({.bytesWritten = accepted});
     }
 
 private:
-    std::span<std::byte> destination_;
-    std::size_t position_ = 0;
+    std::size_t remainingCapacity_ = 1024;
 };
 ```
 
-The adapter does not retain the input span. It reports accepted progress with the capacity failure, allowing `writeAllBytes()` to return the exact
-total.
+An override must not retain the input span and must contain expected failures. Throwing from a `noexcept` operation terminates the process.
 
-## Related pages
+## Inspect optional diagnostics
 
-- @ref io_quick_start
-- @ref io_reader_writer_contract
-- @ref io_error_model
+```cpp
+const auto &status = result.status();
+const auto code = status.code();
+
+if(const auto *diagnostic = status.diagnostic())
+{
+    // Include the native code and message in developer-facing reports.
+    recordDiagnostic(code, diagnostic->nativeCode, diagnostic->message);
+}
+```
+
+Use `code` for decisions. Diagnostic text is UTF-8 and is not stable for parsing.

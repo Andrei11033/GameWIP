@@ -1,0 +1,14 @@
+target_sources(
+    Desktop
+    PRIVATE
+        accessibility.cpp
+        accessibility_text.cpp
+        com.cpp
+        dialogs.cpp
+        display_config.cpp
+        drag_drop.cpp
+        pixels.cpp
+        shell.cpp
+        shell_launch.cpp
+        unicode.cpp
+)

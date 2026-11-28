@@ -16,12 +16,15 @@ include(CMakePackageConfigHelpers)
 
 function(gamewip_install_package)
     cmake_parse_arguments(PARSE_ARGV 0 gamewip_package "" "TARGET;CONFIG_TEMPLATE" "PATH_VARS")
+
     if(gamewip_package_UNPARSED_ARGUMENTS OR NOT gamewip_package_TARGET OR NOT gamewip_package_CONFIG_TEMPLATE)
         message(FATAL_ERROR "gamewip_install_package requires TARGET and CONFIG_TEMPLATE; optional arguments are PATH_VARS.")
     endif()
+
     if(NOT TARGET "${gamewip_package_TARGET}")
         message(FATAL_ERROR "gamewip_install_package target does not exist: ${gamewip_package_TARGET}")
     endif()
+
     if(NOT EXISTS "${gamewip_package_CONFIG_TEMPLATE}")
         message(FATAL_ERROR "gamewip_install_package config template does not exist: ${gamewip_package_CONFIG_TEMPLATE}")
     endif()
@@ -30,6 +33,7 @@ function(gamewip_install_package)
     set(gamewip_package_config "${CMAKE_CURRENT_BINARY_DIR}/${gamewip_package_TARGET}Config.cmake")
     set(gamewip_package_version "${CMAKE_CURRENT_BINARY_DIR}/${gamewip_package_TARGET}ConfigVersion.cmake")
     set(gamewip_package_path_arguments)
+
     if(gamewip_package_PATH_VARS)
         list(APPEND gamewip_package_path_arguments PATH_VARS ${gamewip_package_PATH_VARS})
     endif()

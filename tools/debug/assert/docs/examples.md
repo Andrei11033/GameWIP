@@ -43,7 +43,7 @@ CHECK_ONCE_MSG(false, "This warning should only be logged once from this call si
 ## Ensure result
 
 ```cpp
-if (!ENSURE_MSG(loadOptionalConfig(), "Using defaults because optional config failed"))
+if(!ENSURE_MSG(loadOptionalConfig(), "Using defaults because optional config failed"))
 {
     useDefaultConfig();
 }
@@ -63,7 +63,7 @@ Use interactive assertions only where continuing after a failure is acceptable d
 ## Unreachable and debug break
 
 ```cpp
-switch (mode)
+switch(mode)
 {
 case Mode::A:
     break;

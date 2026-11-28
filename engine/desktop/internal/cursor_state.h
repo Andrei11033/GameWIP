@@ -12,7 +12,7 @@ namespace GameWIP::Desktop
     class Cursor;
 }
 
-namespace GameWIP::Desktop::Detail
+namespace GameWIP::Desktop::Internal
 {
     /// @brief One native cursor handle paired with the DPI it was authored for.
     struct NativeCursorVariant
@@ -46,4 +46,4 @@ namespace GameWIP::Desktop::Detail
         /// @brief Returns the immutable state retained by a public Cursor.
         [[nodiscard]] static const std::shared_ptr<const CursorState> &state(const Cursor &cursor) noexcept;
     };
-} // namespace GameWIP::Desktop::Detail
+} // namespace GameWIP::Desktop::Internal

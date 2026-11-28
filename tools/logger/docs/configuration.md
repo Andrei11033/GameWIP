@@ -40,7 +40,7 @@ config.maxFieldValueLength = 512;
 ```
 
 Registered area labels can set an optional color using `defineSource(id, name, color)`. `Record::layout()` overrides the configured field
-presentation for one call. Adaptive places short fields inline before the message and moves long or multiline field sets to continuation lines.
+presentation for one call. Adaptive places short fields in parentheses after the message and moves long or multiline field sets to continuation lines.
 
 The built-in layout and custom layouts use the same template renderer. A custom compile-time template can replace the complete line layout:
 
@@ -53,9 +53,9 @@ config.layout = diagnosticLayout;
 Use `Record::layout(diagnosticLayout)` to override it for one record. Supported placeholders are `time`, `level`, `area`, `message`,
 `source_file`, `source_function`, `source_line`, `thread_id`, `process_id`, and `fields`. Alignment uses `<` for left, `^` for center, and `>` for
 right, followed by a minimum byte width. Centering puts any odd extra space on the right. Width is measured in UTF-8 bytes, not terminal display
-columns. `auto` uses the longest registered area name or the five-character severity width. The built-in layout places the area before severity and
-uses left alignment for both. Use `{@timestamp}`, `{@severity}`, `{@area}`, `{@message}`, `{@field}`, `{@code}`, `{@path}`, `{@number}`, or
-`{@quoted}` to color literal text with that semantic theme role; `{/}` ends a scope. Scopes can nest up to eight levels, and marked format values
+columns. `auto` uses the widest registered area name for `area` or five bytes for `level`; the built-in layout left-aligns both fields. Use
+`{@timestamp}`, `{@severity}`, `{@area}`, `{@message}`, `{@field}`, `{@code}`, `{@path}`, `{@number}`, or `{@quoted}` to color literal text with the
+matching theme role. `{/}` ends a scope. Scopes can nest up to eight levels, and marked format values
 keep their own role colors inside a scope. `makeLayout()` rejects malformed placeholders and unbalanced scopes at compile time; `init()` rejects
 invalid runtime-constructed templates.
 `init()` copies and compiles the configured layout, and `Record::layout()` copies and compiles its template, so both remain valid after the original
@@ -71,15 +71,16 @@ view expires. Rendering executes the compiled instructions instead of reparsing 
 - a first queue allocation failure retries with the small fallback queue.
 - `workerBatchSize == 0` means use the default and is not itself an adjustment.
 
-These recoveries are successful initialization adjustments reported in `Types::Init::Result::adjustments`; they are not IO failures.
+These recoveries are successful initialization adjustments reported in `Types::Init::Result::value().adjustments`; they are not operation failures.
 
 Undefined `OutputMode`, `Level`, or `FormatPolicy` enum values and invalid initial filters are rejected with `InvalidArgument`. Invalid `FormatPolicy`
 is not silently replaced.
 
 ## `Types::Init::Result`
 
-`status` answers whether initialization itself succeeded. `outcome` tells whether the resulting Logger is Started or Disabled. `requestedOutput` and
-`effectiveOutput` expose fallback directly. `outputSetupStatus` preserves File setup and timestamp setup failures even when overall init succeeds.
+`status()` answers whether initialization itself succeeded. `value().outcome` tells whether the resulting Logger is Started or Disabled.
+`value().requestedOutput` and `value().effectiveOutput` expose fallback directly. `value().outputSetupStatus` preserves File setup and timestamp setup
+failures even when overall init succeeds.
 That can mean Console fallback, or a degraded File logger when the log file opened but timestamp conversion reported a failure.
 
 Use `getQueueLimits()` for authoritative effective queue/message values.

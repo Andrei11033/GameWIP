@@ -5,7 +5,7 @@
 void testDiagnosticConfiguration(TestContext &context)
 {
 #if ASSERT_CHECKS_ENABLED
-    ScopedLoggerShutdown loggerShutdown;
+    const ScopedLoggerShutdown loggerShutdown;
 
     if(!initFileLogger(context, "diagnostics"))
     {
@@ -14,8 +14,8 @@ void testDiagnosticConfiguration(TestContext &context)
     }
 
     CHECK_MSG(false, "assert diagnostic message");
-    Logger::flush(2s);
-    const std::string contents = readFile(context, loggerLogFilePath(context));
+    static_cast<void>(Logger::flush(2s));
+    const std::string contents = readFile(context, assertLogFilePath(context));
 
 #if ASSERT_DIAGNOSTICS
     context.expectTrue("diagnostics include condition", contents.contains("false"), "condition text missing");
@@ -36,7 +36,7 @@ void testDiagnosticConfiguration(TestContext &context)
 void testDiagnosticMessageEvaluation(TestContext &context)
 {
 #if ASSERT_CHECKS_ENABLED
-    ScopedLoggerShutdown loggerShutdown;
+    const ScopedLoggerShutdown loggerShutdown;
 
     if(!initFileLogger(context, "diagnostic_message_evaluation"))
     {
@@ -46,7 +46,7 @@ void testDiagnosticMessageEvaluation(TestContext &context)
 
     int evaluations = 0;
     CHECK_MSG(false, makeDiagnosticMessage(evaluations));
-    const std::string contents = readFile(context, loggerLogFilePath(context));
+    const std::string contents = readFile(context, assertLogFilePath(context));
 
 #if ASSERT_DIAGNOSTICS
     context.expectEq("diagnostic message evaluated when enabled", evaluations, 1);
@@ -92,7 +92,7 @@ void testCompiledOutMessageEvaluation(TestContext &context)
 void testUtf8DiagnosticTruncation(TestContext &context)
 {
 #if ASSERT_CHECKS_ENABLED && ASSERT_DIAGNOSTICS
-    ScopedLoggerShutdown loggerShutdown;
+    const ScopedLoggerShutdown loggerShutdown;
 
     if(!initFileLogger(context, "utf8_truncation"))
     {
@@ -109,17 +109,17 @@ void testUtf8DiagnosticTruncation(TestContext &context)
     }
 
     CHECK_MSG(false, message);
-    Logger::flush(2s);
+    static_cast<void>(Logger::flush(2s));
 
-    const TestSupport::Types::TextResult logText = TestSupport::readTextFile(loggerLogFilePath(context));
-    const std::string statusText = TestSupport::formatInfrastructureStatus(logText.status);
-    context.expectTrue("truncated diagnostic remains valid UTF-8", logText.status.ok(), statusText);
+    const TestSupport::Types::TextResult logText = TestSupport::readTextFile(assertLogFilePath(context));
+    const std::string statusText = TestSupport::formatStatus(logText.status());
+    context.expectTrue("truncated diagnostic remains valid UTF-8", logText.ok(), statusText);
 
-    if(!logText.status.ok())
+    if(!logText.ok())
     {
         return;
     }
-    context.expectContains("truncated diagnostic has visible suffix", logText.text, "... [truncated]");
+    context.expectContains("truncated diagnostic has visible suffix", logText.value(), "... [truncated]");
 #else
     context.skip("UTF-8 diagnostic truncation", "checks or diagnostics are disabled");
 #endif
@@ -131,7 +131,7 @@ void testDiagnosticPreparationEmergencyPath(TestContext &context)
 #if ASSERT_INTERNAL_TEST_HOOKS
     context.expectTrue(
         "diagnostic preparation failure reaches static emergency popup path",
-        GameWIP::Debug::Assert::TestHooks::runDiagnosticPreparationEmergencyPathForTest());
+        GameWIP::Debug::Assert::Internal::TestHooks::runDiagnosticPreparationEmergencyPathForTest());
 #else
     context.skip("diagnostic preparation emergency path", "Assert test hooks are disabled");
 #endif

@@ -50,8 +50,8 @@ Consequently, `queued` can exceed `written` even when no queue-drop counter chan
 
 ## Formatting memory
 
-Formatted overloads reuse nesting-safe per-thread scratch storage. `StrictBounded` constrains formatting growth; `FastNormal` can retain a large
-thread-local capacity after an unusually large message.
+Formatted overloads reuse nesting-safe per-thread scratch storage. Logger core manages nested buffers, while the platform backend supplies their
+per-thread lifetime. `StrictBounded` constrains formatting growth; `FastNormal` can retain a large capacity after an unusually large message.
 
 MinGW builds store that scratch in a process-wide FLS index so nested formatting remains thread/fiber local without depending on compiler TLS
 destruction. The index owns its callback registration and frees it during Logger module teardown, while the callback code is still loaded.

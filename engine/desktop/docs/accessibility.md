@@ -10,8 +10,9 @@ configured limits, and handles teardown.
 
 Values live under `Desktop::Types::Accessibility`; `validate()`, `SnapshotBuilder`,
 `SnapshotReader`, and `Facade` live under `Desktop::Accessibility`.
-`Window::accessibility()` returns a non-owning façade by value. Include the
-focused header and link `GameWIP::Desktop`; no additional package is needed.
+`Window::accessibility()` returns a non-owning façade by value. Include
+`desktop/accessibility.h` or a focused header under `desktop/accessibility/`,
+then link `GameWIP::Desktop`.
 Ordinary Windows allocate no bridge storage. Open the Window, check
 `Capability::Accessibility`, and explicitly `enable()` on its opening thread.
 `Options` fixes limits for the activation. Repeated enable returns `AlreadyOpen`.
@@ -73,7 +74,8 @@ Publication validates, copies, indexes Unicode text,
 computes native metadata, and prepares providers before atomic replacement.
 Invalid UTF-8, unknown enum values/flags, dangling references, invalid geometry,
 invalid values/ranges, and resource failure leave the old tree intact.
-`ValidationResult` identifies the first semantic issue and source node.
+`ValidationResult` carries the first semantic issue and source node as its payload, including on semantic failure. Allocation failure returns status
+without a payload.
 
 ## Geometry and host state
 

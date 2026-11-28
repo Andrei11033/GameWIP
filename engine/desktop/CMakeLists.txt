@@ -13,7 +13,7 @@ endif()
 
 option(DESKTOP_ENABLE_TEST_HOOKS "Enable Desktop internal test hooks" OFF)
 
-if(NOT COMMAND gamewip_target_platform_backend)
+if(NOT COMMAND gamewip_add_platform_backend)
     include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPlatform.cmake")
     gamewip_resolve_platform_id(GAMEWIP_PLATFORM_ID)
 endif()
@@ -24,9 +24,37 @@ endif()
 
 add_library(Desktop SHARED)
 add_library(GameWIP::Desktop ALIAS Desktop)
+add_subdirectory(accessibility)
 
 set(DESKTOP_GENERATED_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
 file(MAKE_DIRECTORY "${DESKTOP_GENERATED_INCLUDE_DIR}/desktop")
+# Keep installed headers and generated API documentation in sync.
+set(DESKTOP_PUBLIC_HEADERS
+    "${CMAKE_CURRENT_SOURCE_DIR}/accessibility.h"
+    ${DESKTOP_ACCESSIBILITY_PUBLIC_HEADERS}
+    "${CMAKE_CURRENT_SOURCE_DIR}/child_surface.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/clipboard.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/cursor.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/data_transfer.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/description.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/dialogs.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/display.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/display_info.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/drag_drop.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/events.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/icon_types.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/renderer_bridge.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/shell.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/shell_jump_lists.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/shell_notifications.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/shell_registration.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/shell_taskbar.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/shell_tray.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/shell_types.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/types.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/window.h"
+)
+
 gamewip_generate_export_header(
     # DESKTOP_EXPORT is the installed production/runtime ABI. Source-tree
     # validation hooks use desktop_test_export.h and are never installed.
@@ -38,74 +66,21 @@ gamewip_generate_export_header(
 
 target_sources(
     Desktop
-    PRIVATE
-        core/accessibility.cpp
-        core/accessibility_snapshot.cpp
-        core/accessibility_validation.cpp
-        internal/accessibility_state.h
-        core/clipboard.cpp
-        core/child_surface.cpp
-        core/child_surface_events.cpp
-        core/cursor.cpp
-        core/dialogs.cpp
-        core/display.cpp
-        core/display_info.cpp
-        core/drag_drop.cpp
-        core/events.cpp
-        core/progress_dialog.cpp
-        core/renderer_bridge.cpp
-        core/shell.cpp
-        core/window.cpp
-        core/desktop_test_hooks.cpp
-        internal/cursor_platform.h
-        internal/cursor_selection.h
-        internal/cursor_state.h
-        internal/drag_drop_platform.h
-        internal/drag_drop_state.h
-        internal/clipboard_platform.h
-        internal/child_surface_platform.h
-        internal/child_surface_state.h
-        internal/dialogs_platform.h
-        internal/progress_dialog_state.h
-        internal/presentation_publication_state.h
-        internal/shell_platform.h
-        internal/shell_state.h
     PUBLIC
         FILE_SET public_headers
             TYPE HEADERS
             BASE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/.." "${DESKTOP_GENERATED_INCLUDE_DIR}"
-            FILES
-                "${CMAKE_CURRENT_SOURCE_DIR}/accessibility.h"
-                "${CMAKE_CURRENT_SOURCE_DIR}/clipboard.h"
-                "${CMAKE_CURRENT_SOURCE_DIR}/child_surface.h"
-                "${CMAKE_CURRENT_SOURCE_DIR}/cursor.h"
-                "${CMAKE_CURRENT_SOURCE_DIR}/data_transfer.h"
-                "${CMAKE_CURRENT_SOURCE_DIR}/description.h"
-                "${CMAKE_CURRENT_SOURCE_DIR}/dialogs.h"
-                "${CMAKE_CURRENT_SOURCE_DIR}/display.h"
-                "${CMAKE_CURRENT_SOURCE_DIR}/display_info.h"
-                "${CMAKE_CURRENT_SOURCE_DIR}/drag_drop.h"
-                "${CMAKE_CURRENT_SOURCE_DIR}/events.h"
-                "${CMAKE_CURRENT_SOURCE_DIR}/renderer_bridge.h"
-                "${CMAKE_CURRENT_SOURCE_DIR}/result.h"
-                "${CMAKE_CURRENT_SOURCE_DIR}/shell.h"
-                "${CMAKE_CURRENT_SOURCE_DIR}/shell_jump_lists.h"
-                "${CMAKE_CURRENT_SOURCE_DIR}/shell_notifications.h"
-                "${CMAKE_CURRENT_SOURCE_DIR}/shell_registration.h"
-                "${CMAKE_CURRENT_SOURCE_DIR}/shell_taskbar.h"
-                "${CMAKE_CURRENT_SOURCE_DIR}/shell_tray.h"
-                "${CMAKE_CURRENT_SOURCE_DIR}/shell_types.h"
-                "${CMAKE_CURRENT_SOURCE_DIR}/types.h"
-                "${CMAKE_CURRENT_SOURCE_DIR}/window.h"
-                "${CMAKE_CURRENT_SOURCE_DIR}/native/win32.h"
-                "${DESKTOP_GENERATED_INCLUDE_DIR}/desktop/desktop_export.h"
+            FILES ${DESKTOP_PUBLIC_HEADERS} "${DESKTOP_GENERATED_INCLUDE_DIR}/desktop/desktop_export.h"
 )
+
+add_subdirectory(core)
+add_subdirectory(internal)
+add_subdirectory(native)
+add_subdirectory(platform)
 
 # ------------------------------------------------------------
 # Compile, test-hook, and dependency contracts
 # ------------------------------------------------------------
-
-gamewip_target_platform_backend(TARGET Desktop ROOT "${CMAKE_CURRENT_SOURCE_DIR}/platform")
 
 target_include_directories(
     Desktop
@@ -122,7 +97,7 @@ target_compile_definitions(
     INTERFACE $<BUILD_INTERFACE:DESKTOP_INTERNAL_TEST_HOOKS=$<BOOL:${DESKTOP_ENABLE_TEST_HOOKS}>>
 )
 
-target_link_libraries(Desktop PUBLIC IO FileSystem PRIVATE Unicode $<BUILD_INTERFACE:GameWIPBase>)
+target_link_libraries(Desktop PUBLIC Status FileSystem PRIVATE Unicode $<BUILD_INTERFACE:GameWIPBase>)
 
 set_target_properties(
     Desktop
@@ -142,29 +117,7 @@ if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
     gamewip_register_doxygen_library(
         NAME Desktop
         PAGE_ID desktop_library
-        PUBLIC_HEADERS
-            "${CMAKE_CURRENT_SOURCE_DIR}/accessibility.h"
-            "${CMAKE_CURRENT_SOURCE_DIR}/clipboard.h"
-            "${CMAKE_CURRENT_SOURCE_DIR}/child_surface.h"
-            "${CMAKE_CURRENT_SOURCE_DIR}/cursor.h"
-            "${CMAKE_CURRENT_SOURCE_DIR}/data_transfer.h"
-            "${CMAKE_CURRENT_SOURCE_DIR}/description.h"
-            "${CMAKE_CURRENT_SOURCE_DIR}/dialogs.h"
-            "${CMAKE_CURRENT_SOURCE_DIR}/display.h"
-            "${CMAKE_CURRENT_SOURCE_DIR}/display_info.h"
-            "${CMAKE_CURRENT_SOURCE_DIR}/drag_drop.h"
-            "${CMAKE_CURRENT_SOURCE_DIR}/events.h"
-            "${CMAKE_CURRENT_SOURCE_DIR}/renderer_bridge.h"
-            "${CMAKE_CURRENT_SOURCE_DIR}/result.h"
-            "${CMAKE_CURRENT_SOURCE_DIR}/shell.h"
-            "${CMAKE_CURRENT_SOURCE_DIR}/shell_jump_lists.h"
-            "${CMAKE_CURRENT_SOURCE_DIR}/shell_notifications.h"
-            "${CMAKE_CURRENT_SOURCE_DIR}/shell_registration.h"
-            "${CMAKE_CURRENT_SOURCE_DIR}/shell_taskbar.h"
-            "${CMAKE_CURRENT_SOURCE_DIR}/shell_tray.h"
-            "${CMAKE_CURRENT_SOURCE_DIR}/shell_types.h"
-            "${CMAKE_CURRENT_SOURCE_DIR}/types.h"
-            "${CMAKE_CURRENT_SOURCE_DIR}/window.h"
+        PUBLIC_HEADERS ${DESKTOP_PUBLIC_HEADERS}
         DOCS "${CMAKE_CURRENT_SOURCE_DIR}/docs"
     )
 endif()

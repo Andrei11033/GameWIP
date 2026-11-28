@@ -52,13 +52,11 @@ function Install-GameWipGitHubReleaseTool
         throw "GitHub release tool '$($Tool.id)' lacks an upstream release tag."
     }
 
-    $platformKey = if ([Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::Linux))
+    $platformKey = Get-GameWipHostAssetKey
+
+    if ($null -eq $platformKey)
     {
-        'linux-amd64'
-    }
-    else
-    {
-        'windows-amd64'
+        throw "Tool '$($Tool.id)' has no supported release platform for this host architecture."
     }
     $asset = $Tool.provider.assets[$platformKey]
 
@@ -83,6 +81,17 @@ function Install-GameWipGitHubReleaseTool
         throw "SHA256 mismatch for '$($asset.archive)'."
     }
 
+    if ($Tool.provider.Contains('installMode') -and $Tool.provider.installMode -eq 'directoryArchive')
+    {
+        Install-GameWipVerifiedDirectoryArchive `
+            -Tool $Tool `
+            -Version $Version `
+            -Asset $asset `
+            -AssetKey $platformKey `
+            -Download $download
+        return
+    }
+
     # Stage the executable in operation-owned temporary storage so downloads,
     # extraction, and version checks cannot leave a partial managed install.
     $candidateRoot = Join-Path $Script:OperationContext.Temp "candidate-$($Tool.id)"
@@ -91,7 +100,7 @@ function Install-GameWipGitHubReleaseTool
 
     if ($asset.Contains('format') -and $asset.format -eq 'executable')
     {
-        $executableName = if ($platformKey -eq 'windows-amd64')
+        $executableName = if ($platformKey.StartsWith('windows-', [StringComparison]::Ordinal))
         {
             "$($Tool.id).exe"
         }
@@ -99,21 +108,14 @@ function Install-GameWipGitHubReleaseTool
         {
             [string]$Tool.id
         }
-        Copy-Item -LiteralPath $download -Destination (Join-Path $candidateRoot $executableName)
+        Copy-Item -LiteralPath $download -Destination (Join-Path $candidateRoot $executableName) | Out-Null
     }
     else
     {
         $extractRoot = Join-Path $Script:OperationContext.Temp "extract-$($Tool.id)"
         New-Item -ItemType Directory -Path $extractRoot | Out-Null
 
-        if ($asset.archive.EndsWith('.zip'))
-        {
-            Expand-Archive -LiteralPath $download -DestinationPath $extractRoot
-        }
-        else
-        {
-            Invoke-GameWipProviderNative -Name "extract-$($Tool.id)" -FilePath tar -Arguments @('-xzf', $download, '-C', $extractRoot) | Out-Null
-        }
+        Expand-GameWipArchive -ArchivePath $download -DestinationPath $extractRoot -Name $Tool.id
         $binary = Get-ChildItem -LiteralPath $extractRoot -Recurse -File | Where-Object { $_.Name -in @($Tool.id, "$($Tool.id).exe") } | Select-Object -First 1
 
         if ($null -eq $binary)
@@ -122,7 +124,7 @@ function Install-GameWipGitHubReleaseTool
         }
 
         $executableName = $binary.Name
-        Copy-Item -LiteralPath $binary.FullName -Destination (Join-Path $candidateRoot $executableName)
+        Copy-Item -LiteralPath $binary.FullName -Destination (Join-Path $candidateRoot $executableName) | Out-Null
     }
 
     $candidate = Join-Path $candidateRoot $executableName
@@ -161,7 +163,7 @@ function Install-GameWipGitHubReleaseTool
     try
     {
         New-Item -ItemType Directory -Path $incoming | Out-Null
-        Copy-Item -LiteralPath $candidate -Destination (Join-Path $incoming $executableName)
+        Copy-Item -LiteralPath $candidate -Destination (Join-Path $incoming $executableName) | Out-Null
 
         if (-not (Test-Path -LiteralPath $familyRoot -PathType Container))
         {
@@ -174,7 +176,7 @@ function Install-GameWipGitHubReleaseTool
         {
             $backup = Join-Path $familyRoot ('.{0}.{1}.backup' -f $Version, [guid]::NewGuid().ToString('N'))
             Set-GameWipMutationStarted
-            Move-Item -LiteralPath $toolRoot -Destination $backup
+            Move-Item -LiteralPath $toolRoot -Destination $backup | Out-Null
         }
         else
         {
@@ -185,13 +187,13 @@ function Install-GameWipGitHubReleaseTool
         {
             # Move the verified payload into place before changing the shim;
             # this keeps the previous shim usable until the new binary exists.
-            Move-Item -LiteralPath $incoming -Destination $toolRoot
+            Move-Item -LiteralPath $incoming -Destination $toolRoot | Out-Null
             $incoming = $null
 
             if (Test-Path -LiteralPath $shimPath -PathType Leaf)
             {
                 $shimBackup = Join-Path (Split-Path -Parent $shimPath) ('.{0}.{1}.backup' -f $Tool.id, [guid]::NewGuid().ToString('N'))
-                Copy-Item -LiteralPath $shimPath -Destination $shimBackup
+                Copy-Item -LiteralPath $shimPath -Destination $shimBackup | Out-Null
             }
             $shimReplacementAttempted = $true
             Write-GameWipManagedToolShim -ToolId $Tool.id -Version $Version -ExecutableName $executableName
@@ -207,7 +209,7 @@ function Install-GameWipGitHubReleaseTool
         {
             if ($shimReplacementAttempted -and $null -ne $shimBackup -and (Test-Path -LiteralPath $shimBackup))
             {
-                Copy-Item -LiteralPath $shimBackup -Destination $shimPath -Force
+                Copy-Item -LiteralPath $shimBackup -Destination $shimPath -Force | Out-Null
                 Remove-Item -LiteralPath $shimBackup -Force
                 $shimBackup = $null
             }
@@ -223,7 +225,7 @@ function Install-GameWipGitHubReleaseTool
 
             if ($null -ne $backup -and (Test-Path -LiteralPath $backup))
             {
-                Move-Item -LiteralPath $backup -Destination $toolRoot
+                Move-Item -LiteralPath $backup -Destination $toolRoot | Out-Null
                 $backup = $null
             }
 

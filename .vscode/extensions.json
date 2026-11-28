@@ -1,3 +1,10 @@
 {
-  "recommendations": ["ms-vscode.cpptools", "ms-vscode.cmake-tools"]
+  "recommendations": [
+    "ms-vscode.cpptools",
+    "ms-vscode.cmake-tools",
+    "ms-python.python",
+    "ms-python.vscode-python-envs",
+    "ms-python.vscode-pylance",
+    "charliermarsh.ruff"
+  ]
 }

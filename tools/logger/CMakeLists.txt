@@ -13,7 +13,7 @@ endif()
 
 include("${PROJECT_SOURCE_DIR}/cmake/GameWIPVisibility.cmake")
 
-if(NOT COMMAND gamewip_target_platform_backend)
+if(NOT COMMAND gamewip_add_platform_backend)
     include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPlatform.cmake")
     gamewip_resolve_platform_id(GAMEWIP_PLATFORM_ID)
 endif()
@@ -30,7 +30,7 @@ file(MAKE_DIRECTORY "${LOGGER_GENERATED_INCLUDE_DIR}/logger")
 
 gamewip_generate_export_header(
     # LOGGER_EXPORT is the installed production/runtime ABI. Source-tree
-    # validation hooks use logger_test_export.h and are never installed.
+    # validation hooks use test_export.h and are never installed.
     TARGET Logger
     OUTPUT "${LOGGER_GENERATED_INCLUDE_DIR}/logger/logger_export.h"
     EXPORT_MACRO LOGGER_EXPORT
@@ -39,17 +39,6 @@ gamewip_generate_export_header(
 
 target_sources(
     Logger
-    PRIVATE
-        core/logger_config.cpp
-        core/logger_filters.cpp
-        core/logger_logging.cpp
-        core/logger_format.cpp
-        core/logger_queue.cpp
-        core/logger_reports.cpp
-        core/logger_runtime.cpp
-        core/logger_state.cpp
-        core/logger_stats.cpp
-        core/logger_test_hooks.cpp
     PUBLIC
         FILE_SET public_headers
             TYPE HEADERS
@@ -63,14 +52,13 @@ target_sources(
                 "${CMAKE_CURRENT_SOURCE_DIR}/logging.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/reports.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/logger_macros.h"
-                "${CMAKE_CURRENT_SOURCE_DIR}/detail/log_templates.h"
-                "${CMAKE_CURRENT_SOURCE_DIR}/detail/report_templates.h"
-                "${CMAKE_CURRENT_SOURCE_DIR}/detail/formatting.h"
-                "${CMAKE_CURRENT_SOURCE_DIR}/detail/layout_template.h"
                 "${LOGGER_GENERATED_INCLUDE_DIR}/logger/logger_export.h"
 )
 
-gamewip_target_platform_backend(TARGET Logger ROOT "${CMAKE_CURRENT_SOURCE_DIR}/platform")
+add_subdirectory(core)
+add_subdirectory(detail)
+add_subdirectory(internal)
+add_subdirectory(platform)
 
 include(GNUInstallDirs)
 
@@ -94,7 +82,11 @@ target_compile_definitions(
     INTERFACE $<BUILD_INTERFACE:LOGGER_INTERNAL_TEST_HOOKS=$<BOOL:${LOGGER_ENABLE_TEST_HOOKS}>>
 )
 
-target_link_libraries(Logger PUBLIC IO PRIVATE FileSystem Terminal Unicode $<BUILD_INTERFACE:GameWIPBase>)
+target_link_libraries(
+    Logger
+    PUBLIC Status
+    PRIVATE IO FileSystem Terminal Unicode $<BUILD_INTERFACE:GameWIPBase>
+)
 
 # ------------------------------------------------------------
 # Output, documentation, and installation

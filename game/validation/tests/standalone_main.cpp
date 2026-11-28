@@ -9,8 +9,8 @@
 #include "validation/tests/registry.h"
 
 #include <algorithm>
-#include <cstdlib>
 #include <cstdio>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <optional>
@@ -26,6 +26,7 @@ namespace
         {
             return false;
         }
+
         const std::string_view argument(arguments[1]);
         return argument == "--help" || argument == "-h" || argument == "-?";
     }
@@ -34,7 +35,7 @@ namespace
     void printHelp() noexcept
     {
         std::puts("Usage:");
-        std::puts("  GameWIPTests.exe [options]");
+        std::puts("  GameWIPTests [options]");
         std::puts("");
         std::puts("Options:");
         std::puts("  --help, -h, -?                       Print help without running tests.");
@@ -53,12 +54,14 @@ namespace
         {
             moduleNames.push_back(module.name);
         }
+
         std::ranges::sort(moduleNames);
 
         for(const std::string_view moduleName : moduleNames)
         {
             std::printf("  %.*s\n", static_cast<int>(moduleName.size()), moduleName.data());
         }
+
         std::puts("");
         std::puts("No options runs every registered module and writes the default aggregate report.");
     }
@@ -75,6 +78,7 @@ namespace
             {
                 continue;
             }
+
             const std::string_view candidate{argument};
 
             if(candidate.rfind(".gamewip-validation-") != std::string_view::npos)
@@ -88,6 +92,7 @@ namespace
         {
             return std::nullopt;
         }
+
         const std::filesystem::path targetPath(targetArgument);
         const std::filesystem::path receipt = targetPath.parent_path() / ".gamewip-generic-launch-receipt.txt";
         std::ofstream output(receipt, std::ios::binary | std::ios::trunc);
@@ -96,6 +101,7 @@ namespace
         {
             return 3;
         }
+
         output << targetArgument;
         return output.good() ? std::optional<int>{0} : std::optional<int>{3};
     }

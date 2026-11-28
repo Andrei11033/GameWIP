@@ -63,6 +63,7 @@ function(gamewip_enable_project_warnings)
                 -Wdocumentation
             )
         endif()
+
         if(GAMEWIP_WARNINGS_AS_ERRORS)
             list(APPEND gamewip_warning_options -Werror)
         endif()

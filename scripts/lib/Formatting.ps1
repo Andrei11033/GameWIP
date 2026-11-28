@@ -83,8 +83,16 @@ function Invoke-GameWipFormat
     Write-GameWipSemanticText -Object $formatConfig -Semantic Muted
     Write-Host "  Files:      $($formatFiles.Count)"
 
-    $help = Invoke-GameWipProcess -FilePath $formatter.Path -Arguments @('--help') -OutputMode LogOnly -TimeoutSeconds 20
-    $supportsIncompleteFormatFailure = $help.ExitCode -eq 0 -and ((@($help.Stdout) + @($help.Stderr)) -join "`n") -match '(?m)^\s*--fail-on-incomplete-format\b'
+    $help = Invoke-GameWipProcess `
+        -FilePath $formatter.Path `
+        -Arguments @('--help') `
+        -OutputMode LogOnly `
+        -TimeoutSeconds 20
+    $helpOutput = (@($help.Stdout) + @($help.Stderr)) -join "`n"
+    $supportsIncompleteFormatFailure = (
+        $help.ExitCode -eq 0 -and
+        $helpOutput -match '(?m)^\s*--fail-on-incomplete-format\b'
+    )
 
     $beforeHashes = @{}
 
@@ -111,26 +119,38 @@ function Invoke-GameWipFormat
         {
             $arguments.Add('--fail-on-incomplete-format') | Out-Null
         }
-        $arguments.Add($(if ($Mode -eq 'check')
-                {
-                    '--dry-run'
-                }
-                else
-                {
-                    '-i'
-                })) | Out-Null
+
+        # Keep the selected mode explicit in each formatter invocation.
+        $modeArgument = if ($Mode -eq 'check')
+        {
+            '--dry-run'
+        }
+        else
+        {
+            '-i'
+        }
+        $arguments.Add($modeArgument) | Out-Null
 
         foreach ($file in $batch)
         {
             $arguments.Add($file) | Out-Null
         }
+
         $batchNumber = [int]($offset / $batchSize) + 1
-        Invoke-GameWipNative -Name "clang-format-$Mode-$batchNumber-of-$batchCount" -FilePath $formatter.Path -Arguments $arguments.ToArray() | Out-Null
+        Invoke-GameWipNative `
+            -Name "clang-format-$Mode-$batchNumber-of-$batchCount" `
+            -FilePath $formatter.Path `
+            -Arguments $arguments.ToArray() |
+            Out-Null
     }
 
     if ($Mode -eq 'check')
     {
-        Write-GameWipStatusLine -Status pass -Text "All $($formatFiles.Count) selected C/C++ files match the repository format." -Semantic Success -Indent 2
+        Write-GameWipStatusLine `
+            -Status pass `
+            -Text "All $($formatFiles.Count) selected C/C++ files match the repository format." `
+            -Semantic Success `
+            -Indent 2
         return
     }
 

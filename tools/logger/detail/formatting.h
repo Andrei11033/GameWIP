@@ -19,7 +19,7 @@
 namespace GameWIP::Logger
 {
     /// @cond INTERNAL
-    namespace Detail::Core
+    namespace Internal::Core
     {
         // Internal message markers use bytes that cannot occur in valid UTF-8 input.
         // This keeps formatting metadata unambiguous without reserving valid text.
@@ -121,9 +121,9 @@ namespace GameWIP::Logger
             std::string &scratch_;
         };
 
-        // ------------------------------------------------------------
-        // Message truncation
-        // ------------------------------------------------------------
+        /// ------------------------------------------------------------
+        /// Message truncation
+        /// ------------------------------------------------------------
 
         /// @brief Finds a truncation boundary that does not split a UTF-8 continuation sequence.
         [[nodiscard]] inline std::size_t utf8PrefixBoundary(std::string_view text, std::size_t limit) noexcept
@@ -217,9 +217,9 @@ namespace GameWIP::Logger
             return true;
         }
 
-        // ------------------------------------------------------------
-        // Bounded formatting
-        // ------------------------------------------------------------
+        /// ------------------------------------------------------------
+        /// Bounded formatting
+        /// ------------------------------------------------------------
 
         /// @brief Output iterator that counts every formatted byte and stores only the configured prefix.
         /// @details StrictBounded formatting avoids building a full oversized message before truncation.
@@ -282,7 +282,7 @@ namespace GameWIP::Logger
             scratch.clear();
             std::size_t written = 0;
             bool truncated = false;
-            BoundedFormatIterator output(scratch, maxMessageLength, written, truncated);
+            BoundedFormatIterator const output(scratch, maxMessageLength, written, truncated);
 
             std::format_to(output, format, std::forward<Args>(args)...);
 
@@ -302,7 +302,7 @@ namespace GameWIP::Logger
             scratch.clear();
             std::size_t written = 0;
             bool truncated = false;
-            BoundedFormatIterator output(scratch, maxMessageLength, written, truncated);
+            BoundedFormatIterator const output(scratch, maxMessageLength, written, truncated);
 
             std::vformat_to(output, format.text, std::make_format_args(args...));
 
@@ -343,9 +343,9 @@ namespace GameWIP::Logger
             return runtimeFormatBounded(scratch, maxMessageLength, format, args...);
         }
 
-        // ------------------------------------------------------------
-        // Public template bridges
-        // ------------------------------------------------------------
+        /// ------------------------------------------------------------
+        /// Public template bridges
+        /// ------------------------------------------------------------
 
         /// @brief Formats a normal log message and contains all formatting/allocation failures.
         template <typename Source, typename... Args>
@@ -392,11 +392,9 @@ namespace GameWIP::Logger
         }
 
         /// @brief Builds a report result for failures that happen before report delivery begins.
-        [[nodiscard]] inline Types::Report::Result reportFailure(IO::Types::ErrorCode code) noexcept
+        [[nodiscard]] inline Types::Report::Result reportFailure(GameWIP::Status::Types::Code code) noexcept
         {
-            Types::Report::Result result;
-            result.status = IO::makeStatus(code);
-            return result;
+            return Types::Report::Result::failure(GameWIP::Status::Types::Status(code));
         }
 
         /// @brief Formats a synchronous report and maps formatting/allocation failures into the report result.
@@ -420,17 +418,17 @@ namespace GameWIP::Logger
             catch(const std::format_error &)
             {
                 recordFormatFailure();
-                return reportFailure(IO::Types::ErrorCode::InvalidArgument);
+                return reportFailure(GameWIP::Status::Types::Code::InvalidArgument);
             }
             catch(const std::bad_alloc &)
             {
                 recordAllocationFailure();
-                return reportFailure(IO::Types::ErrorCode::OutOfMemory);
+                return reportFailure(GameWIP::Status::Types::Code::OutOfMemory);
             }
             catch(...)
             {
                 recordAllocationFailure();
-                return reportFailure(IO::Types::ErrorCode::Unknown);
+                return reportFailure(GameWIP::Status::Types::Code::Unknown);
             }
         }
 
@@ -455,19 +453,19 @@ namespace GameWIP::Logger
             catch(const std::format_error &)
             {
                 recordFormatFailure();
-                return reportFailure(IO::Types::ErrorCode::InvalidArgument);
+                return reportFailure(GameWIP::Status::Types::Code::InvalidArgument);
             }
             catch(const std::bad_alloc &)
             {
                 recordAllocationFailure();
-                return reportFailure(IO::Types::ErrorCode::OutOfMemory);
+                return reportFailure(GameWIP::Status::Types::Code::OutOfMemory);
             }
             catch(...)
             {
                 recordAllocationFailure();
-                return reportFailure(IO::Types::ErrorCode::Unknown);
+                return reportFailure(GameWIP::Status::Types::Code::Unknown);
             }
         }
-    } // namespace Detail::Core
+    } // namespace Internal::Core
     /// @endcond
 } // namespace GameWIP::Logger

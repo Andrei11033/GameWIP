@@ -1,0 +1,4 @@
+target_sources(
+    FileSystem
+    PRIVATE directories.cpp entries.cpp files.cpp native.cpp paths.cpp resolution.cpp status.cpp
+)
