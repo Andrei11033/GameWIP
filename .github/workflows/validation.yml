@@ -140,7 +140,7 @@ jobs:
           fetch-depth: 0
 
       - name: Install dependency preparation tools
-        uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2
+        uses: msys2/setup-msys2@3c51bf698df1e37b2261f53cb67797b97761185c # v2
         with:
           msystem: UCRT64
           update: true
@@ -192,7 +192,7 @@ jobs:
 
       - name: Install host build tools
         id: msys2
-        uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2
+        uses: msys2/setup-msys2@3c51bf698df1e37b2261f53cb67797b97761185c # v2
         with:
           msystem: UCRT64
           location: ${{ github.workspace }}\build\gamewip\tools\msys2
@@ -250,7 +250,7 @@ jobs:
           fetch-depth: 0
 
       - name: Install compiler
-        uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2
+        uses: msys2/setup-msys2@3c51bf698df1e37b2261f53cb67797b97761185c # v2
         with:
           msystem: UCRT64
           update: true
@@ -325,7 +325,7 @@ jobs:
           path: build/gamewip/validation-scope
 
       - name: Install build tools
-        uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2
+        uses: msys2/setup-msys2@3c51bf698df1e37b2261f53cb67797b97761185c # v2
         with:
           msystem: UCRT64
           update: true
@@ -672,7 +672,7 @@ jobs:
           path: build/gamewip/validation-scope
 
       - name: Install coverage tools
-        uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2
+        uses: msys2/setup-msys2@3c51bf698df1e37b2261f53cb67797b97761185c # v2
         with:
           msystem: UCRT64
           update: true
@@ -754,7 +754,7 @@ jobs:
           path: build/gamewip/validation-scope
 
       - name: Install CLANG64 tools
-        uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2
+        uses: msys2/setup-msys2@3c51bf698df1e37b2261f53cb67797b97761185c # v2
         with:
           msystem: CLANG64
           update: true
@@ -825,7 +825,7 @@ jobs:
           path: build/gamewip/validation-scope
 
       - name: Install CLANG64 tools
-        uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2
+        uses: msys2/setup-msys2@3c51bf698df1e37b2261f53cb67797b97761185c # v2
         with:
           msystem: CLANG64
           update: true
@@ -888,7 +888,7 @@ jobs:
           fetch-depth: 0
 
       - name: Install documentation tools
-        uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2
+        uses: msys2/setup-msys2@3c51bf698df1e37b2261f53cb67797b97761185c # v2
         with:
           msystem: UCRT64
           update: true
