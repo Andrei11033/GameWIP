@@ -13,9 +13,9 @@ namespace GameWIP::Logger::Platform
 {
     namespace
     {
-        using Status = GameWIP::Status::Types::Status;
+        using GameWIP::Status::Types::Status;
         using StatusCode = GameWIP::Status::Types::Code;
-        using NativeCodeDomain = GameWIP::Status::Types::NativeCodeDomain;
+        using GameWIP::Status::Types::NativeCodeDomain;
     } // namespace
 
     GameWIP::Status::Types::Status formatLocalTime(std::time_t time, std::string_view timeFormat, std::string &outText)

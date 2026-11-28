@@ -413,23 +413,22 @@ void testChildSurfaces(TestSupport::Context &context)
     if(context.expectTrue("pump fixture opens", pumpedSurface.open(parent, {}, Desktop::Types::ChildSurface::QueueConfiguration::owned(4)).ok()))
     {
         const auto pumpedNativeHandle = Desktop::Native::Win32::getHandle(pumpedSurface);
-        if(context.expectTrue("pump fixture exposes HWND", pumpedNativeHandle.ok() && pumpedNativeHandle.value().window != nullptr))
+        if((context.expectTrue("pump fixture exposes HWND", pumpedNativeHandle.ok() && pumpedNativeHandle.value().window != nullptr)) &&
+           (context.expectTrue("native close message posts", PostMessageW(pumpedNativeHandle.value().window, WM_CLOSE, 0, 0) != FALSE)))
+
         {
-            if(context.expectTrue("native close message posts", PostMessageW(pumpedNativeHandle.value().window, WM_CLOSE, 0, 0) != FALSE))
+            const Desktop::Types::Events::PumpResult childPump = Desktop::Events::poll();
+            if(context.expectTrue("shared event pump processes ChildSurface native messages", childPump.ok()))
             {
-                const Desktop::Types::Events::PumpResult childPump = Desktop::Events::poll();
-                if(context.expectTrue("shared event pump processes ChildSurface native messages", childPump.ok()))
-                {
-                    static_cast<void>(context.expectEq("shared pump counts a ChildSurface event", std::size_t{1}, childPump.value().eventsQueued));
-                    static_cast<void>(
-                        context.expectEq("shared pump reports no ChildSurface drop", std::uint64_t{0}, childPump.value().eventsDropped));
-                    static_cast<void>(context.expectEq(
-                        "pumped native destruction enters pending finalization",
-                        Desktop::Types::LifetimeState::NativeDestroyedPendingFinalize,
-                        pumpedSurface.lifetimeState()));
-                }
+                static_cast<void>(context.expectEq("shared pump counts a ChildSurface event", std::size_t{1}, childPump.value().eventsQueued));
+                static_cast<void>(context.expectEq("shared pump reports no ChildSurface drop", std::uint64_t{0}, childPump.value().eventsDropped));
+                static_cast<void>(context.expectEq(
+                    "pumped native destruction enters pending finalization",
+                    Desktop::Types::LifetimeState::NativeDestroyedPendingFinalize,
+                    pumpedSurface.lifetimeState()));
             }
         }
+
         static_cast<void>(pumpedSurface.close());
     }
 

@@ -158,13 +158,12 @@ void testClipboardRoundTrips(TestSupport::Context &context)
     if(context.expectTrue("foreign BI_RGB fixture publishes", publishNativeClipboardData(context, CF_DIB, rgbDib)))
     {
         const auto rgbRead = Clipboard::readImage();
-        if(context.expectTrue("foreign BI_RGB image reads", rgbRead.ok()))
+        if((context.expectTrue("foreign BI_RGB image reads", rgbRead.ok())) &&
+           (context.expectEq("foreign BI_RGB image has four bytes", std::size_t{4}, rgbRead.value().rgba8.size())))
+
         {
-            if(context.expectEq("foreign BI_RGB image has four bytes", std::size_t{4}, rgbRead.value().rgba8.size()))
-            {
-                static_cast<void>(context.expectEq("foreign RGB red converts", std::byte{0x11}, rgbRead.value().rgba8[0]));
-                static_cast<void>(context.expectEq("foreign RGB alpha becomes opaque", std::byte{0xFF}, rgbRead.value().rgba8[3]));
-            }
+            static_cast<void>(context.expectEq("foreign RGB red converts", std::byte{0x11}, rgbRead.value().rgba8[0]));
+            static_cast<void>(context.expectEq("foreign RGB alpha becomes opaque", std::byte{0xFF}, rgbRead.value().rgba8[3]));
         }
     }
 

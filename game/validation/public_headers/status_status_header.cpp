@@ -6,7 +6,7 @@
 #include <type_traits>
 #include <utility>
 
-using Status = GameWIP::Status::Types::Status;
+using GameWIP::Status::Types::Status;
 using StatusCode = GameWIP::Status::Types::Code;
 
 static_assert(std::is_same_v<decltype(std::declval<const Status &>().code()), StatusCode>);

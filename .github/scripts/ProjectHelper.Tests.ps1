@@ -1109,6 +1109,80 @@ finally
     Remove-Item -LiteralPath $freshTestRoot -Recurse -Force -ErrorAction SilentlyContinue
 }
 
+# ------------------------------------------------------------
+# Build commands use declared preset targets
+# ------------------------------------------------------------
+
+$buildArgumentFunctionNames = @(
+    'Assert-GameWipValidPreset',
+    'Confirm-GameWipToolchain',
+    'Get-GameWipBuildDirectory',
+    'Get-GameWipToolchainPathPrefix',
+    'Invoke-GameWipNative',
+    'Test-GameWipPresetConfigured'
+)
+$originalBuildArgumentFunctions = @{}
+
+foreach ($name in $buildArgumentFunctionNames)
+{
+    $originalBuildArgumentFunctions[$name] = (Get-Command -Name $name).ScriptBlock
+}
+
+$Script:BuildArgumentCapture = @()
+
+try
+{
+    # Capture build arguments without invoking CMake.
+    Set-Item -Path function:Assert-GameWipValidPreset -Value { param([string]$Kind, [string]$Name) }
+    Set-Item -Path function:Confirm-GameWipToolchain -Value { param([string]$PresetName) }
+    Set-Item -Path function:Get-GameWipBuildDirectory -Value { param([string]$PresetName) return "C:\gamewip-builds\$PresetName" }
+    Set-Item -Path function:Get-GameWipToolchainPathPrefix -Value { return @() }
+    Set-Item -Path function:Invoke-GameWipNative -Value {
+        param([string]$Name, [string]$FilePath, [string[]]$Arguments, [string[]]$PathPrefix)
+        $Script:BuildArgumentCapture = @($Arguments)
+    }
+    Set-Item -Path function:Test-GameWipPresetConfigured -Value { param([string]$BuildDirectory) return $true }
+
+    # Explicit targets are honored; presets without targets still build all.
+    $expectedBuildTargets = @{
+        dev = @('GameWIP')
+        test = @('GameWIPTests')
+        analyze = @('static-analysis')
+        'ci-validation' = @()
+    }
+
+    foreach ($presetName in $expectedBuildTargets.Keys)
+    {
+        Invoke-GameWipBuildPreset -Name $presetName
+
+        $expectedArguments = @('--build', "C:\gamewip-builds\$presetName")
+
+        if ($expectedBuildTargets[$presetName].Count -gt 0)
+        {
+            $expectedArguments += '--target'
+            $expectedArguments += $expectedBuildTargets[$presetName]
+        }
+
+        $expectedArguments += '--parallel'
+
+        if (($Script:BuildArgumentCapture -join '|') -ne ($expectedArguments -join '|'))
+        {
+            throw "Build preset '$presetName' did not pass its declared targets to CMake."
+        }
+    }
+}
+
+finally
+{
+    # Restore project functions and remove test state.
+    foreach ($name in $buildArgumentFunctionNames)
+    {
+        Set-Item -Path "function:$name" -Value $originalBuildArgumentFunctions[$name]
+    }
+
+    Remove-Variable -Name BuildArgumentCapture -Scope Script -ErrorAction SilentlyContinue
+}
+
 # Configure arguments must use CMake's cache-definition prefix for every target toolchain.
 # Preserve the functions replaced by this test.
 $configureArgumentFunctions = @{}
@@ -1259,6 +1333,12 @@ if (Test-GameWipWindowsHost)
 }
 
 # Latest-version queries use verified provider data and keep rolling updates informational.
+# Load the Windows query functions so mocked provider tests can run on every host.
+if (-not (Get-Command -Name Get-GameWipMsys2SystemUpdatesQuery -ErrorAction SilentlyContinue))
+{
+    . (Join-Path $repositoryRoot 'scripts/platform/windows/ToolQueries.ps1')
+}
+
 $latestQueryFunctionNames = @(
     'Invoke-GameWipHttpJson',
     'Invoke-GameWipHttpRead',
@@ -1340,6 +1420,25 @@ try
     if ($untrustedZigQuery.State -ne 'integrityUnavailable')
     {
         throw 'Zig latest-version query accepted an archive outside its declared download host.'
+    }
+
+    $script:ZigIndexFixture.'0.17.2'.'x86_64-windows'.tarball = ([string]$script:ZigIndexFixture.'0.17.2'.'x86_64-windows'.tarball).Replace(
+        'https://ziglang.org/',
+        'https://ziglang.org:8443/'
+    )
+    $untrustedZigPortQuery = Get-GameWipToolLatestQuery -Tool $zigTool
+
+    if ($untrustedZigPortQuery.State -ne 'integrityUnavailable')
+    {
+        throw 'Zig latest-version query accepted an archive from a different HTTPS origin port.'
+    }
+
+    $script:ZigIndexFixture.'0.17.2'.'x86_64-windows'.tarball = 'https://ziglang.org/download/0.17.2/%2e%2e%2fescape.zip'
+    $unsafeZigArchiveQuery = Get-GameWipToolLatestQuery -Tool $zigTool
+
+    if ($unsafeZigArchiveQuery.State -ne 'invalidResponse')
+    {
+        throw 'Zig latest-version query accepted a path-like archive name.'
     }
 
     # Unicode version detection reads the official UCD release marker.

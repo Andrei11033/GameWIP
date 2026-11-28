@@ -90,7 +90,7 @@ namespace
 
         const Logger::Types::Report::Result report = Logger::reportError(
             area,
-            std::move(fields),
+            fields,
             "{}: \"{}\" (code={}, nativeCode={}:{})",
             action,
             Logger::quoted(message),
@@ -130,7 +130,7 @@ namespace
 
         Logger::warn(
             area,
-            std::move(fields),
+            fields,
             "{}: \"{}\" (code={}, nativeCode={}:{})",
             action,
             Logger::quoted(message),

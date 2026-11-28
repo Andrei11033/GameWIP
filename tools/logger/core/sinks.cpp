@@ -135,9 +135,9 @@ namespace GameWIP::Logger::Internal::Core
     {
         Status status;
         ReportSinkProgress progress;
-        const auto finishResult = [&]() -> ReportSinkResult
+        const auto finishResult = [&] -> ReportSinkResult
         {
-            return status.ok() ? ReportSinkResult::success(std::move(progress)) : ReportSinkResult::failure(std::move(status), std::move(progress));
+            return status.ok() ? ReportSinkResult::success(progress) : ReportSinkResult::failure(std::move(status), progress);
         };
 
         if(!isValidLevel(level))
@@ -422,7 +422,7 @@ namespace GameWIP::Logger::Internal::Core
         else if(!lockBefore(outputLock, *deadline))
         {
             info.outcome = Types::FlushOutcome::TimedOut;
-            return Types::FlushResult::success(std::move(info));
+            return Types::FlushResult::success(info);
         }
 
         // Flush console streams first, then the configured file sink if time remains.
@@ -474,10 +474,10 @@ namespace GameWIP::Logger::Internal::Core
 
         if(status.ok())
         {
-            return Types::FlushResult::success(std::move(info));
+            return Types::FlushResult::success(info);
         }
 
-        return Types::FlushResult::failure(std::move(status), std::move(info));
+        return Types::FlushResult::failure(std::move(status), info);
     }
 
     Types::FlushResult flushInternal(const FlushDeadline *deadline)
@@ -487,7 +487,7 @@ namespace GameWIP::Logger::Internal::Core
         if(deadline && consumeTestHook(loggerTestHookState.nextTimedFlushTimeout))
         {
             info.outcome = Types::FlushOutcome::TimedOut;
-            return Types::FlushResult::success(std::move(info));
+            return Types::FlushResult::success(info);
         }
 
 #endif
@@ -511,7 +511,7 @@ namespace GameWIP::Logger::Internal::Core
                 if(!lockBefore(lock, *deadline))
                 {
                     info.outcome = Types::FlushOutcome::TimedOut;
-                    return Types::FlushResult::success(std::move(info));
+                    return Types::FlushResult::success(info);
                 }
 
                 if(!loggerState().logCondition.wait_until(
@@ -524,7 +524,7 @@ namespace GameWIP::Logger::Internal::Core
                        }))
                 {
                     info.outcome = Types::FlushOutcome::TimedOut;
-                    return Types::FlushResult::success(std::move(info));
+                    return Types::FlushResult::success(info);
                 }
             }
         }

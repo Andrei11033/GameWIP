@@ -100,7 +100,7 @@ namespace GameWIP::Logger::Internal::Core
         else if(!lockBefore(lifecycleLock, *deadline))
         {
             info.outcome = Types::Report::Outcome::TimedOut;
-            return Types::Report::Result::success(std::move(info));
+            return Types::Report::Result::success(info);
         }
 
         std::string boundedScratch;
@@ -202,10 +202,10 @@ namespace GameWIP::Logger::Internal::Core
 
         if(status.ok())
         {
-            return Types::Report::Result::success(std::move(info));
+            return Types::Report::Result::success(info);
         }
 
-        return Types::Report::Result::failure(std::move(status), std::move(info));
+        return Types::Report::Result::failure(std::move(status), info);
     }
 } // namespace GameWIP::Logger::Internal::Core
 using namespace GameWIP::Logger::Internal::Core;

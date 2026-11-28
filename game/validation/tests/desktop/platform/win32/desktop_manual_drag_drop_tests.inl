@@ -247,12 +247,10 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
             std::format("Hold {} in the source, drag to either target region, then release that same button.", buttonName),
             DD::Description{textItem, DD::EffectPolicy::source(allEffects), button});
 
-        if(run.answer == ManualAnswer::Yes && run.attempted)
+        if((run.answer == ManualAnswer::Yes && run.attempted) && (run.result.hasValue()))
+
         {
-            if(run.result.hasValue())
-            {
-                static_cast<void>(context.expectEq(std::format("{} trigger drops", buttonName), DD::Outcome::Dropped, run.result.value().outcome));
-            }
+            static_cast<void>(context.expectEq(std::format("{} trigger drops", buttonName), DD::Outcome::Dropped, run.result.value().outcome));
         }
     }
 
@@ -293,13 +291,11 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
             std::format("Hold LEFT in the source, keep {} held, drop in green Region 2, then release {}.", modifier, modifier),
             DD::Description{textItem, DD::EffectPolicy::source(allEffects), DD::TriggerButton::Left});
 
-        if(run.answer == ManualAnswer::Yes && run.attempted)
+        if((run.answer == ManualAnswer::Yes && run.attempted) && (run.result.hasValue()))
+
         {
-            if(run.result.hasValue())
-            {
-                static_cast<void>(
-                    context.expectEq(std::format("{} does not override target preference", modifier), DD::Effect::Move, run.result.value().effect));
-            }
+            static_cast<void>(
+                context.expectEq(std::format("{} does not override target preference", modifier), DD::Effect::Move, run.result.value().effect));
         }
     }
 
@@ -457,12 +453,10 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
         "cross both target regions, then drop. Answer yes only if geometry/presentation stayed coherent with no deadlock.",
         DD::Description{textItem, DD::EffectPolicy::source(allEffects), DD::TriggerButton::Left});
 
-    if(modalGeometry.answer == ManualAnswer::Yes && modalGeometry.attempted)
+    if((modalGeometry.answer == ManualAnswer::Yes && modalGeometry.attempted) && (modalGeometry.result.hasValue()))
+
     {
-        if(modalGeometry.result.hasValue())
-        {
-            static_cast<void>(context.expectEq("modal geometry scenario drops", DD::Outcome::Dropped, modalGeometry.result.value().outcome));
-        }
+        static_cast<void>(context.expectEq("modal geometry scenario drops", DD::Outcome::Dropped, modalGeometry.result.value().outcome));
     }
 
     static_cast<void>(context.expectTrue("full target closes before lightweight mode", target.close().ok()));

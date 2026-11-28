@@ -48,7 +48,7 @@ namespace
     constexpr std::string_view kInteractiveBreakChildArgument = "--assert-test-child=interactive-break";
     constexpr std::string_view kSuppressPopupEnvironmentVariable = "INTERNAL_ASSERT_SUPPRESS_POPUP";
     constexpr std::string_view kTestActionEnvironmentVariable = "INTERNAL_ASSERT_TEST_ACTION";
-    constexpr std::string_view kChildLogDirectoryEnvironmentVariable = "INTERNAL_ASSERT_TEST_CHILD_LOG_DIR";
+    constexpr char kChildLogDirectoryEnvironmentVariable[] = "INTERNAL_ASSERT_TEST_CHILD_LOG_DIR";
     constexpr std::string_view kAssertFailureChildMessage = "assert child logger message";
 
     /// @brief Mutable test state and TestSupport-backed reporting for the Assert suite.

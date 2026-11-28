@@ -429,9 +429,8 @@ namespace GameWIP::Desktop::Platform
                         static_cast<void>(restoreTree(applicationPath_, L"Application", applicationCaptured_));
                     }
                 }
-                catch(...)
+                catch(...) // NOLINT(bugprone-empty-catch): Best-effort cleanup still runs below.
                 {
-                    // Continue cleanup if restoring a captured tree throws.
                 }
                 active_ = false;
 
@@ -513,8 +512,7 @@ namespace GameWIP::Desktop::Platform
                 }
 
                 // Reject invalid characters and malformed URI scheme starts.
-                if(normalizedUtf8.empty() || normalizedUtf8.find_first_of("\\/:*?\"<>|") != std::string::npos ||
-                   normalizedUtf8.find('\0') != std::string::npos)
+                if(normalizedUtf8.empty() || normalizedUtf8.find_first_of("\\/:*?\"<>|") != std::string::npos || normalizedUtf8.contains('\0'))
                 {
                     return GameWIP::Desktop::Internal::statusFor(ErrorCode::InvalidArgument);
                 }

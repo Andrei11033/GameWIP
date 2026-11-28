@@ -733,7 +733,7 @@ namespace GameWIP::Desktop::Internal::Win32
         routeDragDropEvent(state, std::move(data), terminal);
         current.activePumpInfo = previousInfo;
         current.activePumpStatus = previousStatus;
-        return Types::Events::PumpResult::success(std::move(info));
+        return Types::Events::PumpResult::success(info);
     }
 
     DD::RegionId testMatchDragDropRegion(

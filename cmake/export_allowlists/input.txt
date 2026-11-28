@@ -34,8 +34,8 @@ GameWIP::Input::System::setMaximumPendingTextBytes
 GameWIP::Input::System::setTextEnabled
 GameWIP::Input::System::System
 GameWIP::Input::Types::Frame::buildChangeSummaries
-GameWIP::Input::Types::Frame::component
 GameWIP::Input::Types::Frame::changeCount
+GameWIP::Input::Types::Frame::component
 GameWIP::Input::Types::Frame::componentChange
 GameWIP::Input::Types::Frame::componentDelta
 GameWIP::Input::Types::Frame::isDown

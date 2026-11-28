@@ -252,6 +252,25 @@ function Invoke-GameWipConfigurePreset
         -PathPrefix $pathPrefix
 }
 
+function Get-GameWipBuildPresetTargets
+{
+    param([Parameter(Mandatory = $true)][string]$Name)
+
+    $buildPreset = @($PresetData.buildPresets | Where-Object { $_.name -eq $Name } | Select-Object -First 1)
+
+    if ($buildPreset.Count -eq 0)
+    {
+        throw "Build preset '$Name' is missing from CMakePresets.json."
+    }
+
+    if ($buildPreset[0].PSObject.Properties.Name -notcontains 'targets')
+    {
+        return @()
+    }
+
+    return @($buildPreset[0].targets | ForEach-Object { [string]$_ })
+}
+
 function Invoke-GameWipBuildPreset
 {
     param(
@@ -303,11 +322,22 @@ function Invoke-GameWipBuildPreset
         Invoke-GameWipConfigurePreset -Name $Name -Offline
     }
 
-    # Build the selected preset.
+    # Build only the targets declared by the preset.
+    $arguments = @('--build', $buildDirectory)
+    $targets = @(Get-GameWipBuildPresetTargets -Name $Name)
+
+    if ($targets.Count -gt 0)
+    {
+        $arguments += '--target'
+        $arguments += $targets
+    }
+
+    $arguments += '--parallel'
+
     Invoke-GameWipNative `
         -Name "build-$Name" `
         -FilePath 'cmake' `
-        -Arguments @('--build', $buildDirectory, '--parallel') `
+        -Arguments $arguments `
         -PathPrefix (Get-GameWipToolchainPathPrefix)
 }
 

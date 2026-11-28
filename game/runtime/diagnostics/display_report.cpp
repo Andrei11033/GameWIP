@@ -109,7 +109,7 @@ namespace
             fields.field("native_code_domain", GameWIP::Status::Types::nativeCodeDomainName(diagnostic->nativeCode->domain))
                 .field("native_code", diagnostic->nativeCode->value);
         }
-        Logger::warn(Logging::Area::Display, std::move(fields), "Display query failed");
+        Logger::warn(Logging::Area::Display, fields, "Display query failed");
     }
 
     void addModeFields(

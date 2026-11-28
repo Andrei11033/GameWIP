@@ -119,7 +119,7 @@ function New-GameWipOwnershipMarker
 {
     param(
         [Parameter(Mandatory = $true)][string]$Resource,
-        [ValidateSet('created', 'claimedEmpty', 'adopted')][string]$Origin = 'created',
+        [ValidateSet('created', 'claimedEmpty', 'claimedProjectOwned', 'adopted')][string]$Origin = 'created',
         [AllowNull()]$Payload = $null,
         [switch]$IncludeProcess
     )
@@ -212,7 +212,7 @@ function Read-GameWipOwnershipMarker
         return [pscustomobject]@{ Status = 'unknown'; Marker = $marker; Reason = 'ownership origin is missing or unsupported' }
     }
 
-    if ($marker.origin -notin @('created', 'claimedEmpty', 'adopted'))
+    if ($marker.origin -notin @('created', 'claimedEmpty', 'claimedProjectOwned', 'adopted'))
     {
         return [pscustomobject]@{ Status = 'unknown'; Marker = $marker; Reason = 'ownership origin is missing or unsupported' }
     }

@@ -710,6 +710,10 @@ try
     Write-GameWipJsonAtomic `
         -Path $rootMarkerPath `
         -Value (New-GameWipOwnershipMarker -Resource project-tools -Origin created -Payload ([ordered]@{ installedBySetup = $true; adoptedByUser = $false }))
+    $claimedMarkerPath = Join-Path $markerTestRoot 'claimed-project-owned.json'
+    Write-GameWipJsonAtomic `
+        -Path $claimedMarkerPath `
+        -Value (New-GameWipOwnershipMarker -Resource project-tools -Origin claimedProjectOwned)
     Write-GameWipJsonAtomic -Path $cmakeMarkerPath -Value ([ordered]@{
             schemaVersion = 1
             toolId = 'cmake'
@@ -724,7 +728,10 @@ try
     )
     Set-Content -LiteralPath (Join-Path $powerShellVersionRoot 'pwsh') -Value 'runtime'
 
+    $claimedMarkerRead = Read-GameWipOwnershipMarker -Path $claimedMarkerPath -Resource project-tools
+
     if ((Read-GameWipOwnershipMarker -Path $rootMarkerPath -Resource project-tools).Status -ne 'valid' -or
+        $claimedMarkerRead.Status -ne 'valid' -or $claimedMarkerRead.Marker.origin -ne 'claimedProjectOwned' -or
         -not (Test-GameWipLinuxJsonToolMarker -Path $cmakeRoot -MarkerName '.gamewip-tool.json' -ToolId cmake) -or
         -not (Test-GameWipLinuxPowerShellMarker -Path $powerShellVersionRoot))
     {
@@ -940,7 +947,29 @@ finally
 if (-not (Test-GameWipWindowsHost))
 {
     # Linux uninstall removes marked external tools and defers build cleanup.
-    $testRoot = Join-Path ([IO.Path]::GetTempPath()) ('gamewip-linux-uninstall-test-' + [guid]::NewGuid().ToString('N'))
+    $buildRoot = Join-Path $repositoryRoot 'build'
+    $testTempRoot = $null
+
+    foreach ($candidate in @([IO.Path]::GetTempPath(), $env:XDG_RUNTIME_DIR, '/tmp'))
+    {
+        if ([string]::IsNullOrWhiteSpace([string]$candidate) -or -not (Test-Path -LiteralPath $candidate -PathType Container))
+        {
+            continue
+        }
+
+        if (-not (Test-GameWipPathWithinRoot -Path $candidate -Root $buildRoot))
+        {
+            $testTempRoot = [string]$candidate
+            break
+        }
+    }
+
+    if ([string]::IsNullOrWhiteSpace($testTempRoot))
+    {
+        throw 'Linux uninstall test requires a temporary directory outside the checkout build folder.'
+    }
+
+    $testRoot = Join-Path $testTempRoot ('gamewip-linux-uninstall-test-' + [guid]::NewGuid().ToString('N'))
     $managedRoot = Join-Path $testRoot 'managed'
     $originalSetupStatePath = $script:SetupStatePath
     $originalLaunchToken = [string]$env:GAMEWIP_SETUP_LAUNCH_TOKEN

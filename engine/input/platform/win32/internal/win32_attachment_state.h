@@ -225,9 +225,9 @@ namespace GameWIP::Input::Internal::Win32
 
 namespace GameWIP::Input::Platform::Win32
 {
+    using ::GameWIP::Input::Internal::SystemState;
+    using ::GameWIP::Input::Internal::Win32::AttachmentState;
     using GameWIP::Status::Types::Code;
-    using SystemState = ::GameWIP::Input::Internal::SystemState;
-    using AttachmentState = ::GameWIP::Input::Internal::Win32::AttachmentState;
     using DeviceBinding = AttachmentState::DeviceBinding;
     using DeviceRole = AttachmentState::DeviceRole;
     using ElementBinding = AttachmentState::ElementBinding;

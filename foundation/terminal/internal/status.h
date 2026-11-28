@@ -14,7 +14,7 @@
 namespace GameWIP::Terminal::Internal
 {
     /// @brief Builds a diagnostic status without letting allocation failures escape a checked boundary.
-    using Status = GameWIP::Status::Types::Status;
+    using GameWIP::Status::Types::Status;
     using StatusCode = GameWIP::Status::Types::Code;
 
     [[nodiscard]] inline Status statusWithMessage(StatusCode code, std::string_view message) noexcept

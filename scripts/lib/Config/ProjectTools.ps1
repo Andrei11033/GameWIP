@@ -221,9 +221,11 @@ function Assert-GameWipProjectToolConfig
                     if (-not [uri]::TryCreate([string]$latestIndex.url, [UriKind]::Absolute, [ref]$indexUri) -or
                         -not [uri]::TryCreate([string]$toolInfo.provider.baseUrl, [UriKind]::Absolute, [ref]$baseUri) -or
                         $indexUri.Scheme -ne 'https' -or
-                        $indexUri.Host -ne $baseUri.Host)
+                        $indexUri.Authority -ne $baseUri.Authority -or
+                        -not [string]::IsNullOrEmpty($indexUri.UserInfo) -or
+                        -not [string]::IsNullOrEmpty($baseUri.UserInfo))
                     {
-                        throw "Archive tool '$($toolInfo.id)' must use an HTTPS version index on its download host."
+                        throw "Archive tool '$($toolInfo.id)' must use an HTTPS version index on its download origin."
                     }
 
                     foreach ($assetKey in @($toolInfo.provider.assets.Keys))

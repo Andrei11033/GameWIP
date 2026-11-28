@@ -96,7 +96,7 @@ namespace GameWIP::Desktop::Internal
 
                         return ChildSurfaceEnqueueResult::Coalesced;
                     }
-                    queued.data = std::move(data);
+                    queued.data = data;
                     return ChildSurfaceEnqueueResult::Coalesced;
                 }
             }
@@ -131,7 +131,7 @@ namespace GameWIP::Desktop::Internal
 
         // Append the event at the logical tail of the ring.
         const std::size_t slot = physicalIndex(state, state.eventCount);
-        state.eventStorage[slot] = {state.nextSequence++, std::move(data)};
+        state.eventStorage[slot] = {state.nextSequence++, data};
         ++state.eventCount;
         return ChildSurfaceEnqueueResult::Queued;
     }

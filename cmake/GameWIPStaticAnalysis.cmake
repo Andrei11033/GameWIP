@@ -87,9 +87,14 @@ function(gamewip_create_static_analysis_targets)
             VERBATIM
         )
     else()
+        # Keep source paths out of the command line on Windows.
+        set(gamewip_format_file_list "${CMAKE_BINARY_DIR}/clang-format-files.txt")
+        string(REPLACE ";" "\n" gamewip_format_file_contents "${gamewip_format_files}")
+        file(WRITE "${gamewip_format_file_list}" "${gamewip_format_file_contents}\n")
+
         add_custom_target(
             clang-format-check
-            COMMAND "${GAMEWIP_CLANG_FORMAT_EXECUTABLE}" --dry-run --Werror ${gamewip_format_files}
+            COMMAND "${GAMEWIP_CLANG_FORMAT_EXECUTABLE}" --dry-run --Werror "--files=${gamewip_format_file_list}"
             WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
             COMMENT "Checking clang-format for GameWIP-owned C++ sources"
             USES_TERMINAL

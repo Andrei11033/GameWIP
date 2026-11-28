@@ -48,9 +48,6 @@ namespace GameWIP::Input::Platform::Win32
             {
             case 0x9C: // Numpad Enter
             case 0x9D: // Right Control
-                scanCode = key & 0x7FU;
-                extended = true;
-                break;
             case 0xB5: // Numpad Divide
             case 0xB7: // Print Screen
             case 0xB8: // Right Alt

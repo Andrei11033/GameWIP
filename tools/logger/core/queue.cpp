@@ -54,7 +54,7 @@ namespace GameWIP::Logger::Internal::Core
         std::unique_ptr<char[]> &ringArena,
         std::unique_ptr<char[]> &batchArena)
     {
-        const auto clearOutputs = [&]() noexcept
+        const auto clearOutputs = [&] noexcept
         {
             ring.reset();
             ringSize = 0;

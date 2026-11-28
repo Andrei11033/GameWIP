@@ -47,7 +47,7 @@ namespace GameWIP::Desktop::Platform
             Types::Dialogs::Message::Selection selection{operation.outcome, operation.button};
             const bool hasPartialValue =
                 operation.outcome == Types::Dialogs::Outcome::Accepted || operation.button != Types::Dialogs::Message::Button::None;
-            return Internal::resultWithPartial(std::move(operation.status), std::move(selection), hasPartialValue);
+            return Internal::resultWithPartial(std::move(operation.status), selection, hasPartialValue);
         }
 
         [[nodiscard]] PromptDialogResult sharedResult(PromptDialogOperation operation)
@@ -55,7 +55,7 @@ namespace GameWIP::Desktop::Platform
             Types::Dialogs::Prompt::Selection selection{operation.outcome, operation.button, operation.option, operation.checkBoxChecked};
             const bool hasPartialValue = operation.outcome == Types::Dialogs::Outcome::Accepted || operation.button.has_value() ||
                                          operation.option.has_value() || operation.checkBoxChecked.has_value();
-            return Internal::resultWithPartial(std::move(operation.status), std::move(selection), hasPartialValue);
+            return Internal::resultWithPartial(std::move(operation.status), selection, hasPartialValue);
         }
 
         /// @brief Maps portable severity to the TaskDialog icon resource.

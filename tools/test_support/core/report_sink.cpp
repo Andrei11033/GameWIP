@@ -202,7 +202,7 @@ namespace GameWIP::TestSupport::Internal
     void ReportSink::disableReport(std::string_view reason, Types::Status failure)
     {
         status_.state = Types::Reporting::SinkState::Failed;
-        status_.failureStatus = failure;
+        status_.failureStatus = std::move(failure);
         report_.close();
 
         if(!reportFailureReported_)

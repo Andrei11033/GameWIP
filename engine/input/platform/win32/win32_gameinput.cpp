@@ -1,6 +1,7 @@
 /// @file win32_gameinput.cpp
 /// @brief Windows GameInput controller discovery and polling.
 
+#include "base/platform/win32/dynamic_library.h"
 #include "input/platform/win32/internal/win32_attachment_state.h"
 #include "input/platform/win32/internal/device_helpers.h"
 #include "input/platform/win32/internal/device_metadata.h"
@@ -9,7 +10,6 @@
 
 #include <algorithm>
 #include <array>
-#include <bit>
 #include <cmath>
 #include <format>
 #include <memory>
@@ -427,16 +427,15 @@ namespace GameWIP::Input::Platform::Win32
         GameInputApi::IGameInput *nativeGameInput = nullptr;
         HRESULT result = E_NOTIMPL;
 
-        static_assert(sizeof(GameInputInitializeFunction) == sizeof(FARPROC));
-        const GameInputInitializeFunction initialize = std::bit_cast<GameInputInitializeFunction>(GetProcAddress(module, "GameInputInitialize"));
+        const GameInputInitializeFunction initialize =
+            GameWIP::Base::Platform::Win32::loadProcedure<GameInputInitializeFunction>(module, "GameInputInitialize");
         if(initialize != nullptr)
         {
             result = initialize(GameInputApi::IID_IGameInput, reinterpret_cast<void **>(&nativeGameInput));
         }
         else
         {
-            static_assert(sizeof(GameInputCreateFunction) == sizeof(FARPROC));
-            const GameInputCreateFunction create = std::bit_cast<GameInputCreateFunction>(GetProcAddress(module, "GameInputCreate"));
+            const GameInputCreateFunction create = GameWIP::Base::Platform::Win32::loadProcedure<GameInputCreateFunction>(module, "GameInputCreate");
             if(create == nullptr)
             {
                 return status(GameWIP::Status::Types::Code::Unsupported);

@@ -170,13 +170,15 @@ namespace
                     break;
                 }
 
-                if(!next.value().has_value())
+                const auto &nextEntry = next.value();
+
+                if(!nextEntry)
                 {
                     break;
                 }
 
                 ++observedEntries;
-                benchmark::DoNotOptimize(next.value()->info.kind);
+                benchmark::DoNotOptimize(nextEntry->info.kind);
             }
 
             if(enumerationFailed)

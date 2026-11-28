@@ -11,10 +11,10 @@
 
 namespace GameWIP::Desktop::Internal
 {
-    using Status = GameWIP::Status::Types::Status;
+    using GameWIP::Status::Types::Status;
     using StatusCode = GameWIP::Status::Types::Code;
-    using NativeCode = GameWIP::Status::Types::NativeCode;
-    using NativeCodeDomain = GameWIP::Status::Types::NativeCodeDomain;
+    using GameWIP::Status::Types::NativeCode;
+    using GameWIP::Status::Types::NativeCodeDomain;
 
     [[nodiscard]] inline Status statusFor(StatusCode code, NativeCode nativeCode, std::string_view message = {}) noexcept
     {

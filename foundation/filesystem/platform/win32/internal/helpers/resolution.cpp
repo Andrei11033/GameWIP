@@ -41,9 +41,9 @@ namespace GameWIP::FileSystem::Platform::Win32
         HANDLE parent,
         const std::wstring &name,
         ACCESS_MASK desiredAccess,
-        ULONG shareAccess,
+        ULONG shareMode,
         ULONG createDisposition,
-        ULONG createOptions,
+        ULONG openOptions,
         ULONG fileAttributes,
         ErrorCode fallback)
     {
@@ -72,9 +72,9 @@ namespace GameWIP::FileSystem::Platform::Win32
             &ioStatus,
             nullptr,
             fileAttributes,
-            shareAccess,
+            shareMode,
             createDisposition,
-            createOptions,
+            openOptions,
             nullptr,
             0);
 
@@ -87,11 +87,11 @@ namespace GameWIP::FileSystem::Platform::Win32
     }
 
     /// @brief Opens one child and rejects reparse points when the policy requires it.
-    [[nodiscard]] Result<HandleInfo> openChild(HANDLE parent, const std::wstring &name, bool doNotFollow, bool forTraversal, DWORD shareMode)
+    [[nodiscard]] Result<HandleInfo> openChild(HANDLE parent, const std::wstring &name, bool doNotFollow, bool requireDirectory, DWORD shareMode)
     {
         ULONG openOptions = kOpenOptionsBase;
 
-        if(forTraversal)
+        if(requireDirectory)
         {
             openOptions |= FILE_DIRECTORY_FILE;
         }
@@ -104,7 +104,7 @@ namespace GameWIP::FileSystem::Platform::Win32
         return openChildNative(
             parent,
             name,
-            forTraversal ? kDirectoryTraversalAccess : kQueryAccess,
+            requireDirectory ? kDirectoryTraversalAccess : kQueryAccess,
             shareMode,
             FILE_OPEN,
             openOptions,
@@ -128,12 +128,21 @@ namespace GameWIP::FileSystem::Platform::Win32
             return failure<HandleInfo>(parent.status());
         }
 
+        HandleInfo root = std::move(parent).value();
+        const ULONG_PTR rootInformation = root.information;
+        UniqueHandle currentParentOwner;
+        HANDLE currentParent = nullptr;
+
         if(heldHandles != nullptr)
         {
-            heldHandles->push_back(std::move(parent).value().handle);
+            heldHandles->push_back(std::move(root.handle));
+            currentParent = heldHandles->back().get();
         }
-
-        HANDLE currentParent = heldHandles != nullptr ? heldHandles->back().get() : parent.value().handle.get();
+        else
+        {
+            currentParentOwner = std::move(root.handle);
+            currentParent = currentParentOwner.get();
+        }
 
         // Resolve each parent directory without following reparse points.
         for(std::size_t index = 0; index + 1 < path.components.size(); ++index)
@@ -169,8 +178,8 @@ namespace GameWIP::FileSystem::Platform::Win32
             }
             else
             {
-                parent.value().handle = std::move(child).value().handle;
-                currentParent = parent.value().handle.get();
+                currentParentOwner = std::move(child).value().handle;
+                currentParent = currentParentOwner.get();
             }
         }
 
@@ -180,7 +189,7 @@ namespace GameWIP::FileSystem::Platform::Win32
             return Result<HandleInfo>::success(HandleInfo{});
         }
 
-        return parent;
+        return Result<HandleInfo>::success(HandleInfo{.handle = std::move(currentParentOwner), .information = rootInformation});
     }
 
     /// @brief Opens an existing final entry with requested access and symlink behavior.
@@ -341,9 +350,9 @@ namespace GameWIP::FileSystem::Platform::Win32
 
             std::vector<UniqueHandle> handles;
             OpenPath openedValue = std::move(opened).value();
-            Types::EntryInfo info = std::move(openedValue.info);
+            Types::EntryInfo info = openedValue.info;
             handles.push_back(std::move(openedValue.handle));
-            return Result<StablePath>::success(StablePath{.handles = std::move(handles), .info = std::move(info)});
+            return Result<StablePath>::success(StablePath{.handles = std::move(handles), .info = info});
         }
 
         auto parsedPath = parseAbsolutePath(absolutePath.value());

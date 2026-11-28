@@ -344,7 +344,7 @@ namespace GameWIP::Desktop::Internal::TestHooks
         {
             return GameWIP::Desktop::Internal::statusFor(GameWIP::Status::Types::Code::NotOpen);
         }
-        static_cast<void>(Internal::enqueueChildSurfaceEvent(*state, std::move(data)));
+        static_cast<void>(Internal::enqueueChildSurfaceEvent(*state, data));
         return GameWIP::Status::Types::Status{};
     }
 

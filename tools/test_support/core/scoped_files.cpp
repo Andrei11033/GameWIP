@@ -152,7 +152,7 @@ namespace GameWIP::TestSupport
         // Restore the prior directory if setup fails after changing it.
         bool directoryChanged = false;
 
-        const auto restoreAfterSetupFailure = [this, &directoryChanged]() noexcept
+        const auto restoreAfterSetupFailure = [this, &directoryChanged] noexcept
         {
             if(!directoryChanged)
             {

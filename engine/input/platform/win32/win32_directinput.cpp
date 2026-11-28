@@ -1,6 +1,7 @@
 /// @file win32_directinput.cpp
 /// @brief Windows DirectInput device discovery and polling.
 
+#include "base/platform/win32/dynamic_library.h"
 #include "input/platform/win32/internal/win32_attachment_state.h"
 #include "input/platform/win32/internal/device_helpers.h"
 #include "input/platform/win32/internal/device_metadata.h"
@@ -8,7 +9,6 @@
 
 #include <algorithm>
 #include <array>
-#include <bit>
 #include <format>
 #include <new>
 #include <string>
@@ -557,8 +557,8 @@ namespace GameWIP::Input::Platform::Win32
             return status(GameWIP::Status::Types::Code::Unsupported);
         }
 
-        static_assert(sizeof(DirectInput8CreateFunction) == sizeof(FARPROC));
-        const DirectInput8CreateFunction create = std::bit_cast<DirectInput8CreateFunction>(GetProcAddress(module, "DirectInput8Create"));
+        const DirectInput8CreateFunction create =
+            GameWIP::Base::Platform::Win32::loadProcedure<DirectInput8CreateFunction>(module, "DirectInput8Create");
         if(create == nullptr)
         {
             FreeLibrary(module);

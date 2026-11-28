@@ -137,7 +137,7 @@ namespace GameWIP::Game::Runtime
             }
 
             // Capture Input and report only the first failure until it resumes.
-            const Input::Types::CaptureResult capture = [&]()
+            const Input::Types::CaptureResult capture = [&]
             {
                 GAMEWIP_PROFILE_ZONE("Capture Input Frame", Color::kInput);
                 return input.capture(inputFrame);

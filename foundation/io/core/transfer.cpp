@@ -17,8 +17,8 @@ namespace GameWIP::IO::Internal::Core
 
     namespace
     {
-        using Code = ResultTypes::Code;
-        using Status = ResultTypes::Status;
+        using ResultTypes::Code;
+        using ResultTypes::Status;
 
         template <typename T> [[nodiscard]] ResultTypes::Result<T> failure(Code code) noexcept
         {
@@ -355,6 +355,7 @@ namespace GameWIP::IO::Internal::Core
                 return failure<ReadScratchBuffer>(Code::Unknown);
             }
 
+            // The view uses the allocation's exact extent; the reader consumes only reported bytes.
 #if defined(__clang__)
 #pragma clang unsafe_buffer_usage begin
 #endif
@@ -490,7 +491,7 @@ namespace GameWIP::IO::Internal::Core
                 return result;
             }
 
-            std::string text = std::move(result).value();
+            std::string text = std::move(result.value());
             const auto validation = Unicode::Utf8::validate(text);
 
             if(validation.outcome == Unicode::Types::ValidationOutcome::Valid)

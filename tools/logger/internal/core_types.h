@@ -36,7 +36,7 @@ namespace GameWIP::Logger::Internal::Core
     using LoggerMemoryStats = Types::MemoryStats;
     using FileSystem::FileWriter;
     using ErrorCode = GameWIP::Status::Types::Code;
-    using Status = GameWIP::Status::Types::Status;
+    using GameWIP::Status::Types::Status;
     using FilePath = FileSystem::Types::Path;
 
     /// @brief Creates a code-only Logger status without allocating diagnostics.

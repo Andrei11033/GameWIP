@@ -224,7 +224,8 @@ function Get-GameWipArchiveIndexLatestQuery
 
         if (-not $validUri -or
             $assetUri.Scheme -ne 'https' -or
-            $assetUri.Host -ne $indexUri.Host -or
+            $assetUri.Authority -ne $indexUri.Authority -or
+            -not [string]::IsNullOrEmpty($assetUri.UserInfo) -or
             -not $assetUri.AbsolutePath.StartsWith($downloadPrefix, [StringComparison]::Ordinal) -or
             $sha256 -notmatch '^[0-9a-f]{64}$')
         {
@@ -238,13 +239,13 @@ function Get-GameWipArchiveIndexLatestQuery
 
         $archive = [uri]::UnescapeDataString([IO.Path]::GetFileName($assetUri.AbsolutePath))
 
-        if ([string]::IsNullOrWhiteSpace($archive) -or $archive -notmatch '(?i)\.(zip|tar\.gz|tar\.xz)$')
+        if ($archive -notmatch '(?i)^[a-z0-9][a-z0-9._+-]*\.(zip|tar\.gz|tar\.xz)$')
         {
             return New-GameWipToolQueryResult `
                 -State invalidResponse `
                 -Provider archiveIndex `
                 -Version $version `
-                -Reason "latest index has an invalid archive name for '$assetKey'" `
+                -Reason "latest index has an invalid or unsafe archive name for '$assetKey'" `
                 -Attempts $http.Attempts
         }
 

@@ -94,12 +94,14 @@ namespace GameWIP::FileSystem
                     return GameWIP::Status::Types::Result<std::optional<Types::Directory::Entry>>::failure(next.status());
                 }
 
-                if(!next.value())
+                auto nextEntry = std::move(next).value();
+
+                if(!nextEntry)
                 {
                     return GameWIP::Status::Types::Result<std::optional<Types::Directory::Entry>>::success(std::nullopt);
                 }
 
-                Platform::DirectoryCursorEntry &candidate = *next.value();
+                Platform::DirectoryCursorEntry &candidate = *nextEntry;
                 if((!options_.includeHidden && candidate.hidden) || !includeEntryKind(candidate.entry.info.kind, options_))
                 {
                     continue;

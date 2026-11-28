@@ -74,8 +74,10 @@ void testStatusDetails(TestSupport::Context &context)
         context.fail("Native detail is present", "the diagnostic or native code is missing");
     }
 
-    const Status copied = nativeStatus;
+    Status copied = nativeStatus;
     static_cast<void>(context.expectTrue("Status copies share immutable diagnostics", copied.diagnostic() == nativeStatus.diagnostic()));
+    copied = Status(Code::Cancelled);
+    static_cast<void>(context.expectEq("Changing a copy preserves the original status", Code::OpenFailed, nativeStatus.code()));
     static_cast<void>(context.expectTrue(
         "Empty message does not allocate message-only detail",
         Status::withDiagnostic(Code::Cancelled, "").diagnostic() == nullptr));

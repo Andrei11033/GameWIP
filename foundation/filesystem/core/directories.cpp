@@ -107,12 +107,14 @@ namespace GameWIP::FileSystem
                     return listDirectoryFailure(next.status(), std::move(entries));
                 }
 
-                if(!next.value())
+                auto nextEntry = std::move(next).value();
+
+                if(!nextEntry)
                 {
                     return GameWIP::Status::Types::Result<std::vector<Types::Directory::Entry>>::success(std::move(entries));
                 }
 
-                entries.push_back(std::move(*next.value()));
+                entries.push_back(std::move(*nextEntry));
             }
         }
         catch(const std::bad_alloc &)
@@ -219,7 +221,9 @@ namespace GameWIP::FileSystem
             while(!pending.empty())
             {
                 // Enforce the limit before removing the next entry.
-                if(removedEntries >= options.maxEntries && !(rootPath.value() && pending.size() == 1))
+                const bool isRootFrame = rootPath.value() && pending.size() == 1;
+
+                if(removedEntries >= options.maxEntries && !isRootFrame)
                 {
                     return removeTreeFailure(ErrorCode::SizeLimitExceeded, removedEntries);
                 }
@@ -254,9 +258,11 @@ namespace GameWIP::FileSystem
                         return removeTreeFailure(child.status(), removedEntries);
                     }
 
-                    if(child.value())
+                    auto childEntry = std::move(child).value();
+
+                    if(childEntry)
                     {
-                        Types::Directory::Entry &entry = child.value()->entry;
+                        Types::Directory::Entry &entry = childEntry->entry;
                         pending.push_back(RemovalFrame{.path = std::move(entry.path), .info = entry.info});
                         continue;
                     }

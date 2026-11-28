@@ -25,12 +25,12 @@
 
 namespace GameWIP::FileSystem::Platform::Win32
 {
+    using GameWIP::Status::Types::Result;
+    using GameWIP::Status::Types::Status;
+    using Internal::ErrorCode;
     using Internal::includeEntryKind;
     using Internal::isValidFileShare;
     using Internal::isValidSymlinkPolicy;
-    using ErrorCode = Internal::ErrorCode;
-    using Status = GameWIP::Status::Types::Status;
-    template <typename T> using Result = GameWIP::Status::Types::Result<T>;
 
     /// ------------------------------------------------------------
     /// Native access and sharing

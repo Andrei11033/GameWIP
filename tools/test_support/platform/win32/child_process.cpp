@@ -280,7 +280,7 @@ namespace GameWIP::TestSupport
             Types::Process::Execution execution;
         } state;
 
-        const auto complete = [&state]() noexcept -> Types::Process::Result
+        const auto complete = [&state] noexcept -> Types::Process::Result
         {
             return state.status.ok() ? Types::Process::Result::success(std::move(state.execution))
                                      : Types::Process::Result::failure(std::move(state.status), std::move(state.execution));

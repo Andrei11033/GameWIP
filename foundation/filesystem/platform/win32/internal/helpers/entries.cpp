@@ -116,7 +116,7 @@ namespace GameWIP::FileSystem::Platform::Win32
         info.lastWriteTime = std::move(lastWriteTime).value();
         info.hasLastWriteTime = true;
         info.readOnly = (basicInfo.FileAttributes & FILE_ATTRIBUTE_READONLY) != 0;
-        return Result<Types::EntryInfo>::success(std::move(info));
+        return Result<Types::EntryInfo>::success(info);
     }
 
     /// @brief Traverses parsed components by handle and applies final/intermediate symlink policy.

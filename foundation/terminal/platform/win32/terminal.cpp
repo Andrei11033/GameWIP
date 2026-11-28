@@ -432,7 +432,7 @@ namespace GameWIP::Terminal::Platform
         {
             if(const std::optional<ErrorCode> code = HookState::consumeFailure(failure))
             {
-                return GameWIP::Terminal::Internal::backendStatus(*code, 0, std::string(message));
+                return GameWIP::Terminal::Internal::backendStatus(*code, 0, message);
             }
             return std::nullopt;
         }
@@ -2032,7 +2032,7 @@ namespace GameWIP::Terminal::Platform
                     .reportPointerEvents = state.reportPointerEvents,
                     .exclusiveEventDelivery = state.exclusiveEventDelivery,
                 };
-                return InputModeSnapshotResult::success(std::move(snapshot));
+                return InputModeSnapshotResult::success(snapshot);
             }
         }
 #endif
@@ -2066,7 +2066,7 @@ namespace GameWIP::Terminal::Platform
         snapshot.mode = inputModeFromConsoleMode(mode);
         snapshot.nativeMode = mode;
         snapshot.hasNativeMode = true;
-        return InputModeSnapshotResult::success(std::move(snapshot));
+        return InputModeSnapshotResult::success(snapshot);
     }
 
     GameWIP::Status::Types::Status setInputMode(InputStream stream, const InputMode &mode)

@@ -79,28 +79,28 @@ namespace GameWIP::Desktop::Internal
         Types::ScreenPosition clientPosition;
         Types::ScreenRect frameRect;
         Types::Insets frameInsets;
-        Types::ContentScale contentScale;
-        Types::Dpi dpi;
-        Types::DpiResizePolicy dpiResizePolicy = Types::DpiResizePolicy::PreserveLogicalClientSize;
-        Types::Display::MonitorId monitor;
-        Types::WindowMode mode = Types::WindowMode::Windowed;
-        Types::FullscreenState fullscreen;
-        Types::PresentationState presentation = Types::PresentationState::Normal;
-        Types::DecorationMode decoration = Types::DecorationMode::System;
-        Types::Controls controls;
         Types::SizeLimits sizeLimits;
         std::optional<Types::AspectRatio> aspectRatio;
+        Types::ContentScale contentScale;
+        Types::Dpi dpi;
+        Types::Display::MonitorId monitor;
+        Types::FullscreenState fullscreen;
+        Types::Controls controls;
+        Types::DpiResizePolicy dpiResizePolicy = Types::DpiResizePolicy::PreserveLogicalClientSize;
+        Types::WindowMode mode = Types::WindowMode::Windowed;
+        Types::PresentationState presentation = Types::PresentationState::Normal;
+        Types::DecorationMode decoration = Types::DecorationMode::System;
 
         // Cursor and input regions
-        Types::CursorMode cursorMode = Types::CursorMode::Normal;
-        Types::CursorShape cursorShape = Types::CursorShape::Arrow;
-        Types::PointerInputMode pointerInputMode = Types::PointerInputMode::Normal;
         std::vector<Types::LogicalRect> pointerInputRegions;
         std::vector<Types::LogicalRect> draggableRegions;
         std::optional<Types::LogicalRect> systemMenuRegion;
         std::optional<Types::LogicalRect> minimizeButtonRegion;
         std::optional<Types::LogicalRect> maximizeButtonRegion;
         std::optional<Types::LogicalRect> closeButtonRegion;
+        Types::CursorMode cursorMode = Types::CursorMode::Normal;
+        Types::CursorShape cursorShape = Types::CursorShape::Arrow;
+        Types::PointerInputMode pointerInputMode = Types::PointerInputMode::Normal;
 
         // Visual state
         Types::BackdropEffect backdrop = Types::BackdropEffect::None;

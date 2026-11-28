@@ -56,11 +56,6 @@ namespace GameWIP::FileSystem::Platform::Win32
         return success();
     }
 
-    /// @brief Moves a native file pointer using one validated seek origin.
-    [[nodiscard]] Result<void> seekNativeHandle(HANDLE handle, std::int64_t offset, IO::Types::SeekOrigin origin);
-    /// @brief Queries the current unsigned native file position.
-    [[nodiscard]] Result<std::uint64_t> nativePosition(HANDLE handle);
-
     /// @brief Resizes a handle and reports a failed restoration of its original file pointer.
     [[nodiscard]] Result<void> truncateNativeHandle(HANDLE handle, std::uint64_t sizeBytes)
     {

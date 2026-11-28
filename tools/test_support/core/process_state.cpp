@@ -9,6 +9,7 @@
 #include <new>
 #include <string_view>
 #include <system_error>
+#include <utility>
 
 namespace GameWIP::TestSupport::Internal
 {
@@ -94,7 +95,7 @@ namespace GameWIP::TestSupport
     {
         if(!status.ok() && restorationStatus_.ok())
         {
-            restorationStatus_ = status;
+            restorationStatus_ = std::move(status);
         }
     }
 

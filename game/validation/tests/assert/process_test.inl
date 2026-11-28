@@ -13,7 +13,7 @@ void initializeChildLogger()
     config.enableFatalPopup = false;
 
     // Route output to the parent-owned fixture directory when requested.
-    if(const char *childLogDirectory = std::getenv(kChildLogDirectoryEnvironmentVariable.data()))
+    if(const char *childLogDirectory = std::getenv(kChildLogDirectoryEnvironmentVariable))
     {
         config.output = Logger::Types::OutputMode::File;
         config.logDirectory = childLogDirectory;

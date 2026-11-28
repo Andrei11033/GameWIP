@@ -23,12 +23,12 @@ namespace GameWIP::Terminal::Internal
 
     using InputCapabilitiesResult = Terminal::Types::Input::CapabilitiesResult;
     using OutputCapabilitiesResult = Terminal::Types::Output::CapabilitiesResult;
-    using SizeResult = Terminal::Types::SizeResult;
-    using PositionResult = Terminal::Types::Cursor::PositionResult;
-    using EventResult = Terminal::Types::Input::EventResult;
-    using ByteResult = Terminal::Types::Input::ByteResult;
-    using TextResult = Terminal::Types::Input::TextResult;
-    using LineResult = Terminal::Types::Input::LineResult;
+    using Terminal::Types::SizeResult;
+    using Terminal::Types::Cursor::PositionResult;
+    using Terminal::Types::Input::ByteResult;
+    using Terminal::Types::Input::EventResult;
+    using Terminal::Types::Input::LineResult;
+    using Terminal::Types::Input::TextResult;
     using ByteWriteResult = GameWIP::Status::Types::Result<IO::Types::WriteProgress>;
 
     // Mutable backend payloads are converted to shared Results at operation boundaries.
@@ -153,13 +153,13 @@ namespace GameWIP::Terminal::Internal
 
     template <typename Result> [[nodiscard]] Result failedResult(GameWIP::Status::Types::Status status) noexcept
     {
-        using Value = typename ResultValue<Result>::Type;
+        using Value = ResultValue<Result>::Type;
         return failure<Value>(std::move(status));
     }
 
     template <typename Result> [[nodiscard]] Result cancelledResult() noexcept
     {
-        using Value = typename ResultValue<Result>::Type;
+        using Value = ResultValue<Result>::Type;
         Value value{};
         value.outcome = Terminal::Types::Input::ReadOutcome::Cancelled;
         return Result::success(std::move(value));
@@ -171,7 +171,7 @@ namespace GameWIP::Terminal::Internal
         {
             return InputCapabilitiesResult::failure(std::move(value.status));
         }
-        return InputCapabilitiesResult::success(std::move(value.capabilities));
+        return InputCapabilitiesResult::success(value.capabilities);
     }
 
     [[nodiscard]] inline OutputCapabilitiesResult result(OutputCapabilitiesOperation value) noexcept
@@ -180,7 +180,7 @@ namespace GameWIP::Terminal::Internal
         {
             return OutputCapabilitiesResult::failure(std::move(value.status));
         }
-        return OutputCapabilitiesResult::success(std::move(value.capabilities));
+        return OutputCapabilitiesResult::success(value.capabilities);
     }
 
     [[nodiscard]] inline SizeResult result(SizeOperation value) noexcept

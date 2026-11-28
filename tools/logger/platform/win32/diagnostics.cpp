@@ -15,7 +15,7 @@
 
 namespace
 {
-    using Status = GameWIP::Status::Types::Status;
+    using GameWIP::Status::Types::Status;
     using StatusCode = GameWIP::Status::Types::Code;
 
     /// @brief Retains a Win32 error code as supplementary diagnostic detail.

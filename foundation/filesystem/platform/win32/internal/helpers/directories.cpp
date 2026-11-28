@@ -424,12 +424,13 @@ namespace GameWIP::FileSystem::Platform::Win32
                 return Result<std::vector<Types::Directory::Entry>>::failure(next.status(), std::move(entries));
             }
 
-            if(!next.value())
+            auto nextValue = std::move(next).value();
+
+            if(!nextValue)
             {
                 return Result<std::vector<Types::Directory::Entry>>::success(std::move(entries));
             }
 
-            auto nextValue = std::move(next).value();
             Platform::DirectoryCursorEntry entry = std::move(*nextValue);
 
             if((!options.includeHidden && entry.hidden) || !includeEntryKind(entry.entry.info.kind, options))

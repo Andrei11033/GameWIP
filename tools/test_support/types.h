@@ -19,7 +19,7 @@ namespace GameWIP::TestSupport
         /// ------------------------------------------------------------
 
         /// @brief Shared portable operation status.
-        using Status = GameWIP::Status::Types::Status;
+        using GameWIP::Status::Types::Status;
         /// @brief Shared result type for a value-bearing operation.
         template <typename T> using Result = GameWIP::Status::Types::Result<T>;
         /// @brief Result containing UTF-8 text.

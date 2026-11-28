@@ -70,14 +70,14 @@ namespace GameWIP::Desktop::Platform
         // enter a blocking wait after an error is ready to return.
         if(!status.ok())
         {
-            return GameWIP::Desktop::Internal::result(std::move(status), std::move(info));
+            return GameWIP::Desktop::Internal::result(std::move(status), info);
         }
 
         // Avoid waiting when no native message source is active.
         if(current.windows.empty() && current.childSurfaces.empty() && (!current.progressDialogs || current.progressDialogs->empty()) &&
            !hasShellEventSources())
         {
-            return GameWIP::Status::Types::Result<Types::Events::PumpInfo>::success(std::move(info));
+            return GameWIP::Status::Types::Result<Types::Events::PumpInfo>::success(info);
         }
 
         // Pending UI Automation actions must be drained without blocking.
@@ -111,13 +111,13 @@ namespace GameWIP::Desktop::Platform
             if(waitResult == WAIT_TIMEOUT)
             {
                 info.timedOut = true;
-                return GameWIP::Status::Types::Result<Types::Events::PumpInfo>::success(std::move(info));
+                return GameWIP::Status::Types::Result<Types::Events::PumpInfo>::success(info);
             }
 
             if(waitResult == WAIT_FAILED)
             {
                 status = statusFromWin32(GameWIP::Status::Types::Code::NativeFailure, GetLastError(), "MsgWaitForMultipleObjectsEx");
-                return GameWIP::Desktop::Internal::result(std::move(status), std::move(info));
+                return GameWIP::Desktop::Internal::result(std::move(status), info);
             }
         }
 
@@ -186,6 +186,6 @@ namespace GameWIP::Desktop::Platform
                 }
             }
         }
-        return GameWIP::Desktop::Internal::result(std::move(status), std::move(info));
+        return GameWIP::Desktop::Internal::result(std::move(status), info);
     }
 } // namespace GameWIP::Desktop::Platform
