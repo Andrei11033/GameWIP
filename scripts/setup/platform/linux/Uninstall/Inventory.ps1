@@ -96,8 +96,9 @@ function Get-GameWipLinuxUninstallInventory
     # Match installed archive directories to declared provider entries.
     $toolsRoot = Join-Path $toolRoot 'tools'
 
-    # Recognize only declared directory-archive tool families.
+    # PowerShell uses a text marker handled by its dedicated branch below.
     $directoryArchiveTools = @($ProjectTools.tools | Where-Object {
+            $_.id -ne 'powershell' -and
             $_.provider.kind -in @('githubRelease', 'archive') -and
             $_.provider.Contains('installMode') -and
             $_.provider.installMode -eq 'directoryArchive' -and

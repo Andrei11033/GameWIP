@@ -488,6 +488,34 @@ if (@($validationMenu.Items | ForEach-Object Key | Group-Object | Where-Object C
     throw 'Validation menu keys must be unique.'
 }
 
+$benchmarkComparisonTestRoot = Join-Path (Get-GameWipStorageAreaPath -Area temp) ('benchmark-compare-test-' + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Force -Path $benchmarkComparisonTestRoot | Out-Null
+
+try
+{
+    $baselineResultPath = Join-Path $benchmarkComparisonTestRoot 'baseline.json'
+    $candidateResultPath = Join-Path $benchmarkComparisonTestRoot 'candidate.json'
+    $baselineDocument = @{ benchmarks = @(@{ name = 'BM_AuditFixture'; cpu_time = 100; real_time = 100; time_unit = 'ns' }) } | ConvertTo-Json -Depth 4
+    $candidateDocument = @{ benchmarks = @(@{ name = 'BM_AuditFixture'; cpu_time = 125; real_time = 125; time_unit = 'ns' }) } | ConvertTo-Json -Depth 4
+    [IO.File]::WriteAllText($baselineResultPath, $baselineDocument, [Text.UTF8Encoding]::new($false))
+    [IO.File]::WriteAllText($candidateResultPath, $candidateDocument, [Text.UTF8Encoding]::new($false))
+    $baselineRows = Get-GameWipBenchmarkComparisonRow -Path $baselineResultPath
+    $candidateRows = Get-GameWipBenchmarkComparisonRow -Path $candidateResultPath
+
+    if (-not $baselineRows.Contains('BM_AuditFixture') -or
+        -not $candidateRows.Contains('BM_AuditFixture') -or
+        $baselineRows['BM_AuditFixture'].CpuNanoseconds -ne 100 -or
+        $candidateRows['BM_AuditFixture'].CpuNanoseconds -ne 125)
+    {
+        throw 'Benchmark comparison did not accept iteration rows without an explicit run_type.'
+    }
+}
+
+finally
+{
+    Remove-Item -LiteralPath $benchmarkComparisonTestRoot -Recurse -Force -ErrorAction SilentlyContinue
+}
+
 foreach ($handler in @('test', 'module', 'stress', 'bench', 'menu-advanced-validation'))
 {
     if ($validationHandlers -notcontains $handler)
@@ -1194,6 +1222,7 @@ $buildArgumentFunctionNames = @(
     'Test-GameWipPresetConfigured'
 )
 $originalBuildArgumentFunctions = @{}
+$Script:BuildArgumentRoot = Join-Path (Get-GameWipStorageAreaPath -Area temp) ('build-arguments-' + [guid]::NewGuid().ToString('N'))
 
 foreach ($name in $buildArgumentFunctionNames)
 {
@@ -1207,7 +1236,10 @@ try
     # Capture build arguments without invoking CMake.
     Set-Item -Path function:Assert-GameWipValidPreset -Value { param([string]$Kind, [string]$Name) }
     Set-Item -Path function:Confirm-GameWipToolchain -Value { param([string]$PresetName) }
-    Set-Item -Path function:Get-GameWipBuildDirectory -Value { param([string]$PresetName) return "C:\gamewip-builds\$PresetName" }
+    Set-Item -Path function:Get-GameWipBuildDirectory -Value {
+        param([string]$PresetName)
+        return Join-Path $Script:BuildArgumentRoot $PresetName
+    }
     Set-Item -Path function:Get-GameWipToolchainPathPrefix -Value { return @() }
     Set-Item -Path function:Invoke-GameWipNative -Value {
         param([string]$Name, [string]$FilePath, [string[]]$Arguments, [string[]]$PathPrefix)
@@ -1227,7 +1259,8 @@ try
     {
         Invoke-GameWipBuildPreset -Name $presetName
 
-        $expectedArguments = @('--build', "C:\gamewip-builds\$presetName")
+        $expectedBuildDirectory = Join-Path $Script:BuildArgumentRoot $presetName
+        $expectedArguments = @('--build', $expectedBuildDirectory)
 
         if ($expectedBuildTargets[$presetName].Count -gt 0)
         {
@@ -1253,6 +1286,7 @@ finally
     }
 
     Remove-Variable -Name BuildArgumentCapture -Scope Script -ErrorAction SilentlyContinue
+    Remove-Variable -Name BuildArgumentRoot -Scope Script -ErrorAction SilentlyContinue
 }
 
 # Configure arguments must use CMake's cache-definition prefix for every target toolchain.

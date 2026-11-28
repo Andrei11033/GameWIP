@@ -96,6 +96,21 @@ foreach ($requiredOption in @('Preview', 'NonInteractive', 'Yes', 'Json', 'Quiet
     }
 }
 
+if (-not [Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::Windows))
+{
+    foreach ($unsupportedAction in @('msys2', 'vs'))
+    {
+        $unsupportedOutput = (& $powerShellPath -NoProfile -ExecutionPolicy Bypass -File $setupScript $unsupportedAction 2>&1 | Out-String)
+
+        if ($LASTEXITCODE -ne 2 -or
+            $unsupportedOutput -notmatch [regex]::Escape("Setup action '$unsupportedAction' is supported on Windows only.") -or
+            $unsupportedOutput -match 'Unknown setup action')
+        {
+            throw "Linux invocation of Windows-only setup action '$unsupportedAction' did not explain its platform restriction."
+        }
+    }
+}
+
 # ------------------------------------------------------------
 # Setup state and service contracts
 # ------------------------------------------------------------
@@ -993,9 +1008,12 @@ if (-not (Test-GameWipWindowsHost))
 
     try
     {
+        $llvmMingwTool = Get-GameWipProjectTool -Id llvm-mingw
+        $llvmMingwAsset = $llvmMingwTool.provider.assets['linux-amd64']
+        $llvmMingwVersion = [string]$llvmMingwTool.requiredVersion
         New-Item -ItemType Directory -Force -Path $managedRoot | Out-Null
         New-Item -ItemType Directory -Force -Path (Join-Path $testRoot 'cache') | Out-Null
-        New-Item -ItemType Directory -Force -Path (Join-Path $managedRoot 'tools/llvm-mingw/20261104') | Out-Null
+        New-Item -ItemType Directory -Force -Path (Join-Path $managedRoot "tools/llvm-mingw/$llvmMingwVersion") | Out-Null
         New-Item -ItemType Directory -Force -Path (Join-Path $managedRoot 'tools/powershell/7.7.0') | Out-Null
         New-Item -ItemType Directory -Force -Path (Join-Path $managedRoot 'tools/custom') | Out-Null
 
@@ -1011,12 +1029,9 @@ if (-not (Test-GameWipWindowsHost))
             })
         Write-GameWipJsonAtomic -Path (Join-Path $managedRoot '.gamewip-managed.json') -Value $rootMarker
 
-        $llvmMingwTool = Get-GameWipProjectTool -Id llvm-mingw
-        $llvmMingwAsset = $llvmMingwTool.provider.assets['linux-amd64']
-
         foreach ($tool in @(
                 @{ Path = (Join-Path $managedRoot 'cmake'); Id = 'cmake'; Version = '4.4.4'; Archive = 'cmake-4.4.4-linux-x86_64.tar.gz'; Sha256 = ('a' * 64); Marker = '.gamewip-tool.json' },
-                @{ Path = (Join-Path $managedRoot 'tools/llvm-mingw/20261104'); Id = 'llvm-mingw'; Version = [string]$llvmMingwTool.requiredVersion; Archive = [string]$llvmMingwAsset.archive; Sha256 = [string]$llvmMingwAsset.sha256; Marker = '.gamewip-tool.json' }
+                @{ Path = (Join-Path $managedRoot "tools/llvm-mingw/$llvmMingwVersion"); Id = 'llvm-mingw'; Version = $llvmMingwVersion; Archive = [string]$llvmMingwAsset.archive; Sha256 = [string]$llvmMingwAsset.sha256; Marker = '.gamewip-tool.json' }
             ))
         {
             Write-GameWipJsonAtomic -Path (Join-Path $tool.Path $tool.Marker) -Value ([ordered]@{
@@ -1092,7 +1107,7 @@ if (-not (Test-GameWipWindowsHost))
         if ($inventory.RemovePaths -contains (Join-Path $managedRoot 'cmake') -or
             $inventory.Preserved -notcontains (Join-Path $managedRoot 'cmake') -or
             $inventory.Unknown -notcontains "$(Join-Path $managedRoot 'cmake') (CMake ownership marker is missing or invalid)" -or
-            $inventory.RemovePaths -notcontains (Join-Path $managedRoot 'tools/llvm-mingw/20261104') -or
+            $inventory.RemovePaths -notcontains (Join-Path $managedRoot "tools/llvm-mingw/$llvmMingwVersion") -or
             $inventory.Preserved -notcontains "$powerShellRoot (currently running helper)")
         {
             throw "Linux uninstall inventory mismatch. Planned: $($inventory.RemovePaths -join ', '). Preserved: $($inventory.Preserved -join ', ')."
@@ -1107,7 +1122,7 @@ if (-not (Test-GameWipWindowsHost))
             throw 'Linux uninstall did not remove the recorded GameWIP-added package.'
         }
 
-        foreach ($name in @('bin', 'npm', 'python', 'powershell', 'tools/llvm-mingw/20261104'))
+        foreach ($name in @('bin', 'npm', 'python', 'powershell', "tools/llvm-mingw/$llvmMingwVersion"))
         {
             if (Test-Path -LiteralPath (Join-Path $managedRoot $name))
             {

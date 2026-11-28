@@ -262,7 +262,12 @@ function Get-GameWipBenchmarkComparisonRow
     foreach ($group in $groups)
     {
         # Prefer aggregate means; use iterations when no mean is available.
-        $mean = @($group.Group | Where-Object { $_.run_type -eq 'aggregate' -and $_.aggregate_name -eq 'mean' } | Select-Object -First 1)
+        $mean = @($group.Group | Where-Object {
+                $_.PSObject.Properties['run_type'] -and
+                $_.run_type -eq 'aggregate' -and
+                $_.PSObject.Properties['aggregate_name'] -and
+                $_.aggregate_name -eq 'mean'
+            } | Select-Object -First 1)
 
         if ($mean.Count -ne 0)
         {

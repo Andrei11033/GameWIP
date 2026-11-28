@@ -42,6 +42,31 @@ $resolvedAction = Resolve-GameWipSetupActionName -Name $Action
 
 if ($null -eq $resolvedAction)
 {
+    $declaredAction = @($SetupActionConfig.Actions | Where-Object { [string]$_.Id -ieq $Action } | Select-Object -First 1)
+
+    if ($declaredAction.Count -eq 1 -and $declaredAction[0].ContainsKey('Platforms'))
+    {
+        $supportedPlatforms = @($declaredAction[0].Platforms | ForEach-Object {
+            if ([string]$_ -eq 'windows')
+            {
+                'Windows'
+            }
+            elseif ([string]$_ -eq 'linux')
+            {
+                'Linux'
+            }
+            else
+            {
+                [string]$_
+            }
+        })
+        $platformList = $supportedPlatforms -join ' or '
+
+        Write-GameWipHost "Setup action '$Action' is supported on $platformList only." -ForegroundColor Red
+        Write-Host "Run the setup helper on $platformList to use this action."
+        exit 2
+    }
+
     Write-GameWipHost "Unknown setup action '$Action'." -ForegroundColor Red
 
     if (Test-GameWipWindowsHost)

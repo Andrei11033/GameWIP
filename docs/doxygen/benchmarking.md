@@ -146,6 +146,9 @@ Google Benchmark's mean aggregate when present, and reports CPU and real-time
 percentage changes. It is descriptive evidence, not a statistical significance
 test or performance gate.
 
+Iteration rows without a `run_type` field are also accepted when no mean
+aggregate is available.
+
 ### Helper options
 
 | Option | Behavior |

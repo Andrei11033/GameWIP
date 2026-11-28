@@ -82,7 +82,8 @@ performs a full system upgrade before installing those packages. On Ubuntu and
 Debian, apt installs missing packages without upgrading installed packages.
 Linux setup installs the pinned CMake archive when the system version is older
 than the project minimum, then ensures declared project tools such as
-LLVM-MinGW and Zig through their providers. Windows-only actions are hidden on Linux.
+LLVM-MinGW and Zig through their providers. Windows-only actions are hidden on
+Linux, and named invocations report the host restriction.
 
 Repair reapplies missing requirements without advancing project pins. Update
 also updates the checkout and environment packages. Both retain dependency
@@ -152,6 +153,10 @@ system packages. It preserves checkout sources and configuration, unrecorded
 external resources, and existing installations outside `build/`. Run uninstall
 through `setup.bat` or `setup.sh` so the launcher can remove the active helper
 runtime and its receipts safely.
+
+Linux uninstall validates the managed PowerShell runtime's text marker
+separately from JSON-marked archive tools, preserving the runtime that is
+currently executing the helper.
 
 ## Adding or changing setup behavior
 
