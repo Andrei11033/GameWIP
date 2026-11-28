@@ -1,5 +1,6 @@
 {
   "C_Cpp.default.compileCommands": [
+    "${workspaceFolder}/build/native/dev/compile_commands.json",
     "${workspaceFolder}/build/windows-amd64/dev/compile_commands.json",
     "${workspaceFolder}/build/windows-arm64/dev/compile_commands.json",
     "${workspaceFolder}/build/linux-amd64/dev/compile_commands.json",

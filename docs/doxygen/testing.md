@@ -14,7 +14,7 @@ project_benchmarking. Library-specific test coverage and approved hooks remain d
 ## Common workflow
 
 Configure and build validation with CMake presets, then run it through CTest.
-Direct CMake commands use `build/<preset>`. The helper uses
+Direct CMake commands use `build/native/<preset>`. The helper uses
 `build/<target>/<preset>` and defaults to `windows-amd64`:
 
 ```powershell
@@ -56,7 +56,8 @@ launches.
 
 Executable examples below use the helper's default Windows AMD64 target. For Linux
 AMD64, use `./build/linux-amd64/test/GameWIPTests` in place of
-`build/windows-amd64/test/GameWIPTests.exe`. Direct CMake builds use `build/test`.
+`build/windows-amd64/test/GameWIPTests.exe`. Direct CMake builds use
+`build/native/test`.
 
 Run all modules directly:
 
@@ -85,7 +86,7 @@ Run one module and retain a focused report:
 
 Relative report paths are rooted beside the test executable, not in the caller's
 current directory or the operating-system temporary directory. Direct CMake
-builds write under `build/test/logs/validation`; helper builds write under
+builds write under `build/native/test/logs/validation`; helper builds write under
 `build/<target>/test/logs/validation`.
 
 Disable the retained report for quick local iteration:

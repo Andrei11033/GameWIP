@@ -60,7 +60,7 @@ Occlusion coverage distinguishes stable backend capability
 ```powershell
 cmake --preset test
 cmake --build --preset test
-ctest --test-dir build/test -R "validation.tests.desktop|validation.exports.Desktop" --output-on-failure
+ctest --test-dir build/native/test -R "validation.tests.desktop|validation.exports.Desktop" --output-on-failure
 ```
 
 Accessibility coverage checks complete-tree validation, recursive owning copies,

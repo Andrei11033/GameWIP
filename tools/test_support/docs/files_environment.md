@@ -47,7 +47,7 @@ failed or conflicting restorations, including failures observed only by a
 guard destructor. A later successful retry does not clear that audit status.
 
 `ScopedTemporaryDirectory` creates a unique child below the process temporary directory using a sanitized readable purpose plus bounded collision
-retries. GameWIP validation scopes that process directory to the active `build/<preset>/temp` tree; standalone library consumers use the host default.
+retries. GameWIP validation scopes that process directory to the active build tree's `temp` directory; standalone library consumers use the host default.
 Its destructor attempts recursive removal and then removes empty TestSupport parent directories; open handles, abnormal termination, or external
 filesystem activity can still leave artifacts.
 

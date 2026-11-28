@@ -300,7 +300,7 @@ function Invoke-GameWipSetupTracyStep
 {
     param([switch]$PrerequisitesReady)
 
-    Write-GameWipSection 'Tracy profiler'
+    Write-GameWipSection 'Tracy tools'
     Initialize-GameWipSetupManagedToolRoot
 
     if (-not (Test-GameWipWindowsHost) -and -not $PrerequisitesReady)

@@ -349,7 +349,7 @@ function Get-GameWipBuildDirectory
 
     if ($Target.platform -eq 'native')
     {
-        return Join-Path $RepositoryRoot (Join-Path 'build' $PresetName)
+        return Join-Path $RepositoryRoot (Join-Path 'build' (Join-Path 'native' $PresetName))
     }
 
     return Join-Path $RepositoryRoot (Join-Path 'build' (Join-Path ([string]$Target.id) $PresetName))

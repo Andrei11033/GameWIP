@@ -52,7 +52,7 @@ From MSYS2 UCRT64 Bash, the equivalent direct commands are:
 ```bash
 cmake --preset dev
 cmake --build --preset dev
-./build/dev/GameWIP.exe
+./build/native/dev/GameWIP.exe
 ```
 
 The executable's `--version` option prints the generated build identity. Run it

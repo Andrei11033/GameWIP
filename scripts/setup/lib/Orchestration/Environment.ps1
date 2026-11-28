@@ -34,25 +34,22 @@ function Invoke-GameWipSetupEnvironmentCheck
         $failures.Add("Project toolchain: $failure") | Out-Null
     }
 
-    # Check profiler tools and checkout state when applicable.
-    if (Test-GameWipWindowsHost)
+    # Check the host's matching Tracy tool set and checkout state.
+    Write-Host '  Checking matching Tracy tools...'
+    $tracyToolsReady = if (Test-GameWipWindowsHost)
     {
-        Write-Host '  Checking matching Tracy tools...'
-
-        if (-not (Test-GameWipTracyToolSet))
-        {
-            $failures.Add('Matching Tracy profiler tools are not installed.') | Out-Null
-        }
+        Test-GameWipTracyToolSet
     }
     else
     {
-        Write-Host '  Checking matching Tracy profiler...'
-
-        if (-not (Test-GameWipLinuxTracyProfiler))
-        {
-            $failures.Add('Matching Tracy profiler is not installed.') | Out-Null
-        }
+        Test-GameWipLinuxTracyToolSet
     }
+
+    if (-not $tracyToolsReady)
+    {
+        $failures.Add('Matching Tracy tools are not installed.') | Out-Null
+    }
+
     Write-Host '  Checking repository and editor integration...'
 
     try

@@ -1,10 +1,10 @@
-# Linux Tracy profiler installation and rollback.
+# Linux Tracy tool installation and rollback.
 
 # ------------------------------------------------------------
-# Verify and install the staged profiler
+# Verify and install the staged tool set
 # ------------------------------------------------------------
 
-function Install-GameWipLinuxTracyProfiler
+function Install-GameWipLinuxTracyToolSet
 {
     param(
         [Parameter(Mandatory = $true)][string]$StageRoot,
@@ -12,9 +12,9 @@ function Install-GameWipLinuxTracyProfiler
         [Parameter(Mandatory = $true)][string]$Version
     )
 
-    if (-not (Test-GameWipLinuxTracyProfiler -ToolRoot $StageRoot))
+    if (-not (Test-GameWipLinuxTracyToolSet -ToolRoot $StageRoot))
     {
-        throw 'The staged Tracy profiler failed verification. Existing tools were not replaced.'
+        throw 'The staged Tracy tool set failed verification. Existing tools were not replaced.'
     }
 
     # Stage beside the destination so the final directory swap stays atomic.
@@ -38,9 +38,9 @@ function Install-GameWipLinuxTracyProfiler
 
         Copy-Item -LiteralPath (Join-Path $StageRoot 'version.txt') -Destination $incoming
 
-        if (-not (Test-GameWipLinuxTracyProfiler -ToolRoot $incoming))
+        if (-not (Test-GameWipLinuxTracyToolSet -ToolRoot $incoming))
         {
-            throw 'The copied Tracy profiler failed verification. Existing tools were not replaced.'
+            throw 'The copied Tracy tool set failed verification. Existing tools were not replaced.'
         }
 
         # Preserve the current installation until the candidate is verified.
@@ -68,12 +68,12 @@ function Install-GameWipLinuxTracyProfiler
             throw
         }
 
-        if (-not (Test-GameWipLinuxTracyProfiler -ToolRoot $Destination))
+        if (-not (Test-GameWipLinuxTracyToolSet -ToolRoot $Destination))
         {
-            throw 'The installed Tracy profiler failed verification.'
+            throw 'The installed Tracy tool set failed verification.'
         }
 
-        Add-GameWipOperationChange -Message "Installed Tracy Wayland and X11 profilers for locked client $Version."
+        Add-GameWipOperationChange -Message "Installed Tracy tools for locked client $Version."
     }
 
     catch
@@ -108,5 +108,5 @@ function Install-GameWipLinuxTracyProfiler
         Invoke-GameWipOwnedTreeRemoval -Path $backup -OwnedRoot $parent
     }
 
-    Write-Host "  Ready: Tracy Wayland and X11 profilers for locked client $Version"
+    Write-Host "  Ready: Tracy tools for locked client $Version"
 }

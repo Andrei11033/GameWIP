@@ -5,7 +5,7 @@
       "name": "base",
       "hidden": true,
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/${presetName}",
+      "binaryDir": "${sourceDir}/build/native/${presetName}",
       "cacheVariables": {
         "GAMEWIP_BUILD_GAME": "OFF",
         "GAMEWIP_BUILD_TESTS": "OFF",

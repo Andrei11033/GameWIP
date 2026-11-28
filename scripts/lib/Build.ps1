@@ -18,7 +18,7 @@ function Reset-GameWipPresetBuildTree
     $relativePresetRoot = Get-GameWipRepositoryRelativePath -Path $presetRoot
     $targetRoot = if ($target.platform -eq 'native')
     {
-        $buildRoot
+        [IO.Path]::GetFullPath((Join-Path $buildRoot 'native'))
     }
     else
     {

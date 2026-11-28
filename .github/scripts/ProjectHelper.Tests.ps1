@@ -69,13 +69,35 @@ Assert-GameWipProjectToolConfig
 Assert-GameWipHygieneConfig
 Assert-GameWipBuildTargetConfig
 
+# Keep native presets separate from target-specific helper builds.
+$nativeTarget = @{ platform = 'native'; id = 'native' }
+$nativeBuildDirectory = Get-GameWipBuildDirectory -PresetName dev -Target $nativeTarget
+$expectedNativeBuildDirectory = Join-Path $repositoryRoot 'build\native\dev'
+
+if (-not [string]::Equals(
+        [IO.Path]::GetFullPath($nativeBuildDirectory),
+        [IO.Path]::GetFullPath($expectedNativeBuildDirectory),
+        (Get-GameWipPathComparison)))
+{
+    throw "Native build directory is inconsistent: '$nativeBuildDirectory'."
+}
+
+$cmakePresets = Get-Content (Join-Path $repositoryRoot 'CMakePresets.json') -Raw | ConvertFrom-Json
+$baseConfigurePreset = $cmakePresets.configurePresets | Where-Object name -eq 'base' | Select-Object -First 1
+
+if ($baseConfigurePreset.binaryDir -cne '${sourceDir}/build/native/${presetName}')
+{
+    throw "Native CMake presets use an unexpected build directory: '$($baseConfigurePreset.binaryDir)'."
+}
+
 $workspaceSettings = Get-Content (Join-Path $repositoryRoot '.vscode/settings.json') -Raw | ConvertFrom-Json
 $compileCommandPaths = @($workspaceSettings.'C_Cpp.default.compileCommands')
-$expectedCompileCommandPaths = @($BuildTargets.targets | ForEach-Object { "`${workspaceFolder}/build/$($_.id)/dev/compile_commands.json" })
+$expectedCompileCommandPaths = @("`${workspaceFolder}/build/native/dev/compile_commands.json") +
+    @($BuildTargets.targets | ForEach-Object { "`${workspaceFolder}/build/$($_.id)/dev/compile_commands.json" })
 
 if (($compileCommandPaths -join '|') -cne ($expectedCompileCommandPaths -join '|'))
 {
-    throw 'VS Code IntelliSense must list every target dev compilation database in target order.'
+    throw 'VS Code IntelliSense must list the native and every target dev compilation database in order.'
 }
 
 $qualityScopeManifest = Join-Path (Get-GameWipStorageAreaPath -Area temp) ('quality-scope-' + [guid]::NewGuid().ToString('N') + '.json')
@@ -1063,6 +1085,7 @@ finally
 
 $freshTestRoot = Join-Path $repositoryRoot ('build\gamewip\temp\fresh-preset-test-' + [guid]::NewGuid().ToString('N'))
 $savedRepositoryRoot = $Script:RepositoryRoot
+$savedSelectedBuildTarget = (Get-Command Get-GameWipSelectedBuildTarget).ScriptBlock
 
 try
 {
@@ -1101,11 +1124,32 @@ try
     {
         throw 'Fresh preset recreation accepted an unknown path-like preset name.'
     }
+
+    # A native clean build may remove only its selected preset.
+    Set-Item -Path function:Get-GameWipSelectedBuildTarget -Value { return @{ platform = 'native'; id = 'native' } }
+    $nativeTestTree = Get-GameWipBuildDirectory -PresetName test
+    $nativeNeighborTree = Get-GameWipBuildDirectory -PresetName coverage
+    [IO.Directory]::CreateDirectory($nativeTestTree) | Out-Null
+    [IO.Directory]::CreateDirectory($nativeNeighborTree) | Out-Null
+    [IO.File]::WriteAllText((Join-Path $nativeTestTree 'stale.txt'), 'stale')
+    [IO.File]::WriteAllText((Join-Path $nativeNeighborTree 'preserved.txt'), 'preserved')
+    Reset-GameWipPresetBuildTree -Name test
+
+    if (Test-Path -LiteralPath $nativeTestTree)
+    {
+        throw 'Fresh native preset recreation retained files from the selected tree.'
+    }
+
+    if (-not (Test-Path -LiteralPath (Join-Path $nativeNeighborTree 'preserved.txt')))
+    {
+        throw 'Fresh native preset recreation modified a neighboring preset tree.'
+    }
 }
 
 finally
 {
     $Script:RepositoryRoot = $savedRepositoryRoot
+    Set-Item -Path function:Get-GameWipSelectedBuildTarget -Value $savedSelectedBuildTarget
     Remove-Item -LiteralPath $freshTestRoot -Recurse -Force -ErrorAction SilentlyContinue
 }
 

@@ -1,7 +1,7 @@
-# Linux Tracy profiler discovery and verification.
+# Linux Tracy tool discovery and verification.
 
 # ------------------------------------------------------------
-# Managed profiler location
+# Managed tool location
 # ------------------------------------------------------------
 
 function Get-GameWipLinuxTracyToolRoot
@@ -41,7 +41,7 @@ function Test-GameWipLinuxTracyExecutable
     }
 }
 
-function Test-GameWipLinuxTracyInstallation
+function Test-GameWipLinuxTracyOwnershipMarker
 {
     param([string]$ToolRoot = (Get-GameWipLinuxTracyToolRoot))
 
@@ -66,26 +66,7 @@ function Test-GameWipLinuxTracyInstallation
             return $false
         }
 
-        $executables = @(Get-GameWipLinuxTracyExecutableSet)
-        $currentInstallation = $true
-
-        foreach ($executable in $executables)
-        {
-            if (-not (Test-GameWipLinuxTracyExecutable -Path (Join-Path $ToolRoot $executable)))
-            {
-                $currentInstallation = $false
-                break
-            }
-        }
-
-        # Recognize the earlier single-profiler layout for uninstall cleanup.
-        $previousInstallation = Test-GameWipLinuxTracyExecutable -Path (Join-Path $ToolRoot 'tracy-profiler')
-
-        if (-not $currentInstallation -and -not $previousInstallation)
-        {
-            return $false
-        }
-
+        # The version marker identifies the managed directory for uninstall.
         return (Get-Content -LiteralPath $versionFile -Raw).Trim() -match '^source-\d+\.\d+\.\d+$'
     }
 
@@ -95,15 +76,16 @@ function Test-GameWipLinuxTracyInstallation
     }
 }
 
-function Test-GameWipLinuxTracyProfiler
+function Test-GameWipLinuxTracyToolSet
 {
     param([string]$ToolRoot = (Get-GameWipLinuxTracyToolRoot))
 
-    if (-not (Test-GameWipLinuxTracyInstallation -ToolRoot $ToolRoot))
+    if (-not (Test-GameWipLinuxTracyOwnershipMarker -ToolRoot $ToolRoot))
     {
         return $false
     }
 
+    # Require every installed tool before reporting the set as ready.
     foreach ($executable in Get-GameWipLinuxTracyExecutableSet)
     {
         if (-not (Test-GameWipLinuxTracyExecutable -Path (Join-Path $ToolRoot $executable)))

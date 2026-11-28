@@ -1,17 +1,17 @@
-# Linux Tracy profiler build orchestration.
+# Linux Tracy tool build orchestration.
 
 # ------------------------------------------------------------
-# Build and install the locked profiler
+# Build and install the locked tool set
 # ------------------------------------------------------------
 
 function Invoke-GameWipLinuxTracyToolBuild
 {
-    # Reuse the profiler when it matches the locked Tracy source.
+    # Reuse tools that match the locked Tracy source.
     $version = Get-GameWipTracyVersion
 
-    if (Test-GameWipLinuxTracyProfiler)
+    if (Test-GameWipLinuxTracyToolSet)
     {
-        Write-Host "  Ready: Tracy Wayland and X11 profilers for locked client $version"
+        Write-Host "  Ready: Tracy tools for locked client $version"
         return
     }
 
@@ -25,7 +25,7 @@ function Invoke-GameWipLinuxTracyToolBuild
 
     if (-not $cmakeStatus.Ready -or [string]::IsNullOrWhiteSpace($cmake))
     {
-        throw 'A compatible CMake installation is required to build the Tracy profiler. Run setup repair first.'
+        throw 'A compatible CMake installation is required to build Tracy tools. Run setup repair first.'
     }
 
     $requiredTools = @(
@@ -38,32 +38,25 @@ function Invoke-GameWipLinuxTracyToolBuild
     {
         if ([string]::IsNullOrWhiteSpace([string]$tool.Path))
         {
-            throw "$($tool.Name) is required to build the Tracy profiler. Run setup system first."
+            throw "$($tool.Name) is required to build Tracy tools. Run setup system first."
         }
     }
 
-    # Keep the source, build cache, and installed profiler in their managed roots.
+    # Keep the source, build cache, and installed tools in their managed roots.
     $sourceRoot = Get-GameWipTracySourcePath
-    $source = Join-Path $sourceRoot 'profiler'
     $cacheRoot = Join-Path (Get-GameWipStorageAreaPath -Area cache) 'tracy/linux'
     $cpmCache = Join-Path $cacheRoot 'cpm-cache'
     $stageRoot = Join-Path $Script:OperationContext.Temp 'tracy-linux-stage'
     $destination = Get-GameWipLinuxTracyToolRoot
     $previousCpmCache = $env:CPM_SOURCE_CACHE
-    $previousBuildRoot = Join-Path $cacheRoot 'build'
 
     Write-Host "  Source: $sourceRoot"
-    Write-Host "  Build: $cacheRoot/<backend>/build"
+    Write-Host "  Build: $cacheRoot/<tool>/build"
     Write-Host "  Staging: $stageRoot"
     Write-Host "  Verified destination: $destination"
 
-    # Prepare clean build and temporary staging directories.
+    # Prepare isolated build and temporary staging directories.
     New-Item -ItemType Directory -Path $cacheRoot, $cpmCache -Force | Out-Null
-
-    if (Test-Path -LiteralPath $previousBuildRoot)
-    {
-        Invoke-GameWipOwnedTreeRemoval -Path $previousBuildRoot -OwnedRoot $cacheRoot
-    }
 
     if (Test-Path -LiteralPath $stageRoot)
     {
@@ -76,17 +69,50 @@ function Invoke-GameWipLinuxTracyToolBuild
     {
         $env:CPM_SOURCE_CACHE = $cpmCache
 
-        # Build one native GUI backend per isolated CMake tree.
-        $variants = @(
+        # Build the shared command-line tools and both native GUI backends.
+        $projects = @(
+            # Shared command-line tools.
             @{
-                Name = 'wayland'
-                Legacy = 'OFF'
+                Name = 'capture'
+                Source = 'capture'
+                Outputs = @(@{ Target = 'tracy-capture'; File = 'tracy-capture' })
                 CMakeArguments = @()
             }
             @{
-                Name = 'x11'
-                Legacy = 'ON'
+                Name = 'csvexport'
+                Source = 'csvexport'
+                Outputs = @(@{ Target = 'tracy-csvexport'; File = 'tracy-csvexport' })
+                CMakeArguments = @()
+            }
+            @{
+                Name = 'import'
+                Source = 'import'
+                Outputs = @(
+                    @{ Target = 'tracy-import-chrome'; File = 'tracy-import-chrome' }
+                    @{ Target = 'tracy-import-fuchsia'; File = 'tracy-import-fuchsia' }
+                )
+                CMakeArguments = @()
+            }
+            @{
+                Name = 'update'
+                Source = 'update'
+                Outputs = @(@{ Target = 'tracy-update'; File = 'tracy-update' })
+                CMakeArguments = @()
+            }
+
+            # Native profiler variants.
+            @{
+                Name = 'profiler-wayland'
+                Source = 'profiler'
+                Outputs = @(@{ Target = 'tracy-profiler'; File = 'tracy-profiler-wayland' })
+                CMakeArguments = @('-DLEGACY=OFF')
+            }
+            @{
+                Name = 'profiler-x11'
+                Source = 'profiler'
+                Outputs = @(@{ Target = 'tracy-profiler'; File = 'tracy-profiler-x11' })
                 CMakeArguments = @(
+                    '-DLEGACY=ON',
                     '-DDOWNLOAD_GLFW=ON',
                     '-DGLFW_BUILD_WAYLAND=OFF',
                     '-DGLFW_BUILD_X11=ON'
@@ -94,51 +120,53 @@ function Invoke-GameWipLinuxTracyToolBuild
             }
         )
 
-        foreach ($variant in $variants)
+        foreach ($project in $projects)
         {
-            $variantRoot = Join-Path $cacheRoot $variant.Name
-            $buildRoot = Join-Path $variantRoot 'build'
+            Write-Host "Building Tracy $($project.Name) $version from the locked dependency source..."
+            $projectSource = Join-Path $sourceRoot $project.Source
+            $projectRoot = Join-Path $cacheRoot $project.Name
+            $buildRoot = Join-Path $projectRoot 'build'
 
             if (Test-Path -LiteralPath $buildRoot)
             {
-                Invoke-GameWipOwnedTreeRemoval -Path $buildRoot -OwnedRoot $variantRoot
+                Invoke-GameWipOwnedTreeRemoval -Path $buildRoot -OwnedRoot $projectRoot
             }
 
             $configureArguments = @(
-                '-S', $source,
+                '-S', $projectSource,
                 '-B', $buildRoot,
                 '-G', 'Ninja',
                 '-DCMAKE_BUILD_TYPE=Release',
                 '-DNO_ISA_EXTENSIONS=ON',
                 '-DNO_LTO=ON',
                 '-DNO_MOLD_LINKER=ON',
-                '-DNO_CCACHE=ON',
-                "-DLEGACY=$($variant.Legacy)"
-            ) + @($variant.CMakeArguments)
+                '-DNO_CCACHE=ON'
+            ) + @($project.CMakeArguments)
 
             Invoke-GameWipSetupNative -FilePath $cmake -ArgumentList $configureArguments | Out-Null
 
-            Invoke-GameWipSetupNative -FilePath $cmake -ArgumentList @(
-                '--build', $buildRoot,
-                '--target', 'tracy-profiler',
-                '--parallel'
-            ) | Out-Null
+            $targets = @($project.Outputs | ForEach-Object { [string]$_.Target })
+            $buildArguments = @('--build', $buildRoot, '--target') + $targets + @('--parallel')
+            Invoke-GameWipSetupNative -FilePath $cmake -ArgumentList $buildArguments | Out-Null
 
-            $builtProfiler = Join-Path $buildRoot 'tracy-profiler'
-            $stagedProfiler = Join-Path $stageRoot "tracy-profiler-$($variant.Name)"
-
-            if (-not (Test-Path -LiteralPath $builtProfiler -PathType Leaf))
+            foreach ($output in $project.Outputs)
             {
-                throw "Tracy $($variant.Name) build did not produce '$builtProfiler'."
-            }
+                $builtOutput = Join-Path $buildRoot ([string]$output.Target)
+                $stagedOutput = Join-Path $stageRoot ([string]$output.File)
 
-            Copy-Item -LiteralPath $builtProfiler -Destination $stagedProfiler -Force
-            Invoke-GameWipSetupNative -FilePath 'chmod' -ArgumentList @('u+x', $stagedProfiler) | Out-Null
+                if (-not (Test-Path -LiteralPath $builtOutput -PathType Leaf))
+                {
+                    throw "Tracy $($project.Name) build did not produce '$builtOutput'."
+                }
+
+                Copy-Item -LiteralPath $builtOutput -Destination $stagedOutput -Force
+                Invoke-GameWipSetupNative -FilePath 'chmod' -ArgumentList @('u+x', $stagedOutput) | Out-Null
+            }
         }
 
         Write-GameWipTextAtomic -Path (Join-Path $stageRoot 'version.txt') -Content "source-$version`n"
 
-        Install-GameWipLinuxTracyProfiler `
+        Install-GameWipLinuxTracyToolSet `
             -StageRoot $stageRoot `
             -Destination $destination `
             -Version $version

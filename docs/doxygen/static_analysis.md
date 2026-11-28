@@ -54,7 +54,7 @@ reliably.
 ## C++ static analysis
 
 The `analyze` preset enables the `static-analysis` build target. Direct CMake
-places its compilation database under `build/analyze`; the helper uses the
+places its compilation database under `build/native/analyze`; the helper uses the
 selected target's build tree, such as `build/<target>/analyze` for a cross-target
 build.
 

@@ -10,13 +10,13 @@ validation runner. For a direct CMake build, run:
 Windows:
 
 ```powershell
-.\build\test\GameWIPTests.exe --test-module=io --no-test-report
+.\build\native\test\GameWIPTests.exe --test-module=io --no-test-report
 ```
 
 Linux:
 
 ```sh
-./build/test/GameWIPTests --test-module=io --no-test-report
+./build/native/test/GameWIPTests --test-module=io --no-test-report
 ```
 
 Use @ref project_testing for configure/build commands, reporting, CTest behavior, and validation authoring rules.

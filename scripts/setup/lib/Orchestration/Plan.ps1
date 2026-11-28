@@ -59,7 +59,7 @@ function Get-GameWipSetupPlan
             )
             $commonPlan += @(Get-GameWipWindowsHostInstallPlan)
             $commonPlan += @(Get-GameWipEditorInstallPlan)
-            $commonPlan += 'Build the matching Tracy profiler.'
+            $commonPlan += 'Build the matching Tracy tools.'
 
             $commonPlan += @('Build docs unless skipped.', 'Verify the selected environment.')
             return @($hostPlan) + @($commonPlan)
@@ -74,14 +74,14 @@ function Get-GameWipSetupPlan
                 @(Get-GameWipWindowsHostInstallPlan) +
                 @('Prepare or reuse the locked dependency cache.') +
                 @(Get-GameWipEditorInstallPlan) +
-                @('Build the matching Tracy profiler.') +
+                @('Build the matching Tracy tools.') +
                 @('Verify complete environment.')
             }
 
             return @(Get-GameWipSetupLinuxPlan) +
             @('Repair declared project tools.', 'Prepare or reuse the locked dependency cache.') +
             @(Get-GameWipEditorInstallPlan) +
-            @('Build the matching Tracy profiler.') +
+            @('Build the matching Tracy tools.') +
             @('Verify the selected environment.')
         }
 
@@ -94,14 +94,14 @@ function Get-GameWipSetupPlan
                 @(Get-GameWipWindowsHostInstallPlan) +
                 @('Fast-forward repository.', 'Prepare or refresh dependencies for the updated lock file.') +
                 @(Get-GameWipEditorInstallPlan) +
-                @('Build the matching Tracy profiler.') +
+                @('Build the matching Tracy tools.') +
                 @('Verify complete environment.')
             }
 
             return @(Get-GameWipSetupLinuxPlan) +
             @('Update declared project tools.', 'Fast-forward repository.', 'Prepare or refresh dependencies for the updated lock file.') +
             @(Get-GameWipEditorInstallPlan) +
-            @('Build the matching Tracy profiler.') +
+            @('Build the matching Tracy tools.') +
             @('Verify the selected environment.')
         }
 
@@ -162,7 +162,7 @@ function Get-GameWipSetupPlan
                 @(Get-GameWipSetupLinuxPlan)
             }
 
-            return @($hostPlan) + @('Prepare or reuse the locked Tracy source, then build/install the matching profiler.')
+            return @($hostPlan) + @('Prepare or reuse the locked Tracy source, then build/install the matching tools.')
         }
 
         'doc'

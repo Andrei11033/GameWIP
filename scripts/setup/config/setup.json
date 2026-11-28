@@ -192,8 +192,8 @@
     },
     {
       "id": "profiler",
-      "name": "Install matching Tracy profiler",
-      "description": "Prepare or reuse the locked Tracy source, then build and install the matching profiler.",
+      "name": "Install Tracy tools",
+      "description": "Prepare or reuse the locked Tracy source, then build and install its tools.",
       "risk": "machine",
       "network": true,
       "mutation": "machine",

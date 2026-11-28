@@ -39,7 +39,7 @@ ctest --preset test
 Run a focused module with:
 
 ```powershell
-.\build\test\GameWIPTests.exe --test-module=<module>
+.\build\native\test\GameWIPTests.exe --test-module=<module>
 ```
 
 The root [contributor workflow](../CONTRIBUTING.md) defines issue, pull-request,

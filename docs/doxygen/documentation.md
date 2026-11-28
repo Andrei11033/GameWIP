@@ -569,7 +569,7 @@ Build the generated manual and check the warning log:
 ```powershell
 cmake --preset docs
 cmake --build --preset docs
-$warningLog = Get-Item .\build\docs\docs\doxygen\doxygen_warnings.log
+$warningLog = Get-Item .\build\native\docs\docs\doxygen\doxygen_warnings.log
 if ($warningLog.Length -ne 0) {
     Get-Content $warningLog
     throw "Doxygen emitted unexpected warnings."
@@ -578,7 +578,7 @@ if ($warningLog.Length -ne 0) {
 
 The generated Doxyfile must keep explicit inputs, write HTML output under the
 build tree, and write warnings to
-`build/docs/docs/doxygen/doxygen_warnings.log`. Local and CI validation treat a
+`build/native/docs/docs/doxygen/doxygen_warnings.log`. Local and CI validation treat a
 warning log containing unexpected warnings as a failure; a successful Doxygen
 process exit alone is not enough. Undocumented passive enum values and
 explicitly approved equality and bitmask operators are exceptions to the

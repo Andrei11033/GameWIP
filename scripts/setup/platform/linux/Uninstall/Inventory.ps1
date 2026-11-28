@@ -171,7 +171,7 @@ function Get-GameWipLinuxUninstallInventory
                 }
                 elseif ($family.Name -eq 'tracy' -and (Test-GameWipLinuxOwnedDirectory -Path $family.FullName))
                 {
-                    # Separate marked Linux profiler data from unknown Tracy files.
+                    # Separate marked Linux Tracy tools from unknown files.
                     $managedTracyDirectories = [System.Collections.Generic.List[string]]::new()
                     $unknownTracyDirectories = [System.Collections.Generic.List[string]]::new()
 
@@ -180,7 +180,7 @@ function Get-GameWipLinuxUninstallInventory
                         if ($installation.PSIsContainer -and
                             $installation.Name -eq 'linux' -and
                             (Test-GameWipLinuxOwnedDirectory -Path $installation.FullName) -and
-                            (Test-GameWipLinuxTracyInstallation -ToolRoot $installation.FullName))
+                            (Test-GameWipLinuxTracyOwnershipMarker -ToolRoot $installation.FullName))
                         {
                             $managedTracyDirectories.Add($installation.FullName) | Out-Null
                         }
@@ -195,7 +195,7 @@ function Get-GameWipLinuxUninstallInventory
                     # Remove the family only when every entry is recognized.
                     if ($unknownTracyDirectories.Count -eq 0 -and $managedTracyDirectories.Count -ne 0)
                     {
-                        $proven.Add("$($family.FullName) (Tracy profiler version marker)") | Out-Null
+                        $proven.Add("$($family.FullName) (Tracy version marker)") | Out-Null
                         $planned.Add($family.FullName) | Out-Null
                         $removePaths.Add($family.FullName) | Out-Null
                     }
@@ -203,7 +203,7 @@ function Get-GameWipLinuxUninstallInventory
                     {
                         foreach ($path in $managedTracyDirectories)
                         {
-                            $proven.Add("$path (Tracy profiler version marker)") | Out-Null
+                            $proven.Add("$path (Tracy version marker)") | Out-Null
                             $planned.Add($path) | Out-Null
                             $removePaths.Add($path) | Out-Null
                         }

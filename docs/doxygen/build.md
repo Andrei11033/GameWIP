@@ -2,7 +2,7 @@
 
 GameWIP uses CMake presets to keep development, testing, benchmarking,
 profiling, coverage, analysis, documentation, and release builds separate.
-Native CMake builds use `build/<preset>`. The helper uses
+Native CMake builds use `build/native/<preset>`. The helper uses
 `build/<target>/<preset>` for Windows and Linux targets so their caches stay
 separate. Zig provides Linux AMD64 and ARM64 compiler targets on both Windows and
 Linux hosts. Full project builds wait for Linux platform backends.
@@ -208,7 +208,7 @@ For the helper's default Windows AMD64 target:
 .\build\windows-amd64\dev\GameWIP.exe --version
 ```
 
-Direct CMake builds place the executable at `build/dev/GameWIP.exe`. The
+Direct CMake builds place the executable at `build/native/dev/GameWIP.exe`. The
 executable prints the generated display version without entering startup
 validation.
 
@@ -313,10 +313,10 @@ conversion.
 
 | Artifact | Location | Producer |
 | --- | --- | --- |
-| Build tree | `build/<preset>/` direct; `build/<target>/<preset>/` helper | CMake preset |
-| Game executable | `<build-tree>/GameWIP.exe` | Game target presets |
-| Test executable | `<build-tree>/GameWIPTests.exe` | Test preset |
-| Benchmark executable | `<build-tree>/GameWIPBenchmarks.exe` | Benchmark preset |
+| Build tree | `build/native/<preset>/` direct; `build/<target>/<preset>/` helper | CMake preset |
+| Game executable | `<build-tree>/GameWIP` (`.exe` on Windows) | Game target presets |
+| Test executable | `<build-tree>/GameWIPTests` (`.exe` on Windows) | Test preset |
+| Benchmark executable | `<build-tree>/GameWIPBenchmarks` (`.exe` on Windows) | Benchmark preset |
 | Validation reports | `<build-tree>/logs/validation/` | Standalone or embedded validation |
 | Validation and benchmark temporary workspaces | `<build-tree>/temp/` | Validation/benchmark runners and child processes |
 | Doxygen HTML | `<build-tree>/docs/doxygen/html/` | Docs preset |

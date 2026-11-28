@@ -109,7 +109,8 @@ iteration.
 
 GitHub-hosted validation already receives a new workspace for every job.
 Repository workflows may cache immutable tool downloads and dependency data,
-but must not cache or restore `build/<preset>` CMake trees. Reusing those trees
+but must not cache or restore CMake build trees under `build/native/` or
+`build/<target>/`. Reusing those trees
 would weaken the clean-run guarantee and can preserve artifacts that CMake no
 longer knows how to clean.
 

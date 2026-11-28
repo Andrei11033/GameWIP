@@ -25,10 +25,10 @@ The equivalent raw CMake sequence is:
 cmake --preset coverage
 cmake --build --preset coverage
 ctest --preset coverage
-cmake --build build/coverage --target coverage
+cmake --build build/native/coverage --target coverage
 ```
 
-For a clean raw-CMake result, begin with an empty `build/coverage` tree. Raw
+For a clean raw-CMake result, begin with an empty `build/native/coverage` tree. Raw
 CMake commands otherwise remain incremental.
 
 The coverage workflow requires standalone tests.

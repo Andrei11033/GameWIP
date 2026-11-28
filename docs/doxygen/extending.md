@@ -169,7 +169,7 @@ Run focused and aggregate validation before merge:
 ```powershell
 cmake --preset test
 cmake --build --preset test
-.\build\test\GameWIPTests.exe --test-module=<module>
+.\build\native\test\GameWIPTests.exe --test-module=<module>
 ctest --preset test
 ```
 

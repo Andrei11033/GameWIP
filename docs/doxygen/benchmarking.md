@@ -224,7 +224,7 @@ so a fast producer result cannot hide lost work.
 
 Benchmark fixtures are created below the standalone build tree's `temp`
 directory and below the active game build tree's `temp` directory for embedded
-runs. Direct CMake uses `build/benchmark`; the Windows helper uses
+runs. Direct CMake uses `build/native/benchmark`; the helper uses
 `build/<target>/benchmark`. The runner scopes and restores `TEMP`, `TMP`, and
 `TMPDIR`, so fixture and Logger benchmark files do not spill into the host
 temporary directory.

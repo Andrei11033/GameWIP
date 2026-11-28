@@ -7,6 +7,14 @@
 function Get-GameWipLinuxTracyExecutableSet
 {
     return @(
+        # Shared command-line tools.
+        'tracy-capture'
+        'tracy-csvexport'
+        'tracy-import-chrome'
+        'tracy-import-fuchsia'
+        'tracy-update'
+
+        # Native profiler variants.
         'tracy-profiler-wayland'
         'tracy-profiler-x11'
     )

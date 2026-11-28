@@ -21,10 +21,11 @@ Windows installs the profiler and companion tools under
 `build/gamewip/tools/managed/tools/tracy/windows`). It uses UCRT64 GCC and Ninja
 with an `x86-64-v3` baseline. Linux installs the native profiler under
 `<managed-tools-root>/tools/tracy/linux`, with separate Wayland and X11
-variants selected from the active desktop session. Linux uses the system
-display libraries and loader. Tracy warns that `libwayland-client` versions
-below 1.22 have reduced functionality. Both builds use the locked source and
-keep build state under `<storage-root>/cache/tracy`.
+variants selected from the active desktop session, plus the same command-line
+tools as Windows. Linux uses the system display libraries and loader. Tracy
+warns that `libwayland-client` versions below 1.22 have reduced functionality.
+Both builds use the locked source and keep build state under
+`<storage-root>/cache/tracy`.
 
 ## Run a profiling build
 

@@ -59,7 +59,7 @@ Or use CMake directly from MSYS2 UCRT64 Bash:
 ```bash
 cmake --preset dev
 cmake --build --preset dev
-./build/dev/GameWIP.exe
+./build/native/dev/GameWIP.exe
 ```
 
 See the [getting started guide](docs/doxygen/getting_started.md), the

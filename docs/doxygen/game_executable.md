@@ -81,7 +81,7 @@ Logger, Desktop, or runtime services:
 ```
 
 These paths use the helper's default Windows AMD64 target. Direct CMake builds use
-`build/dev`; the helper uses `build/<target>/dev`.
+`build/native/dev`; the helper uses `build/<target>/dev`.
 
 | Argument | Availability | Behavior |
 | --- | --- | --- |
