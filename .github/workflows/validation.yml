@@ -171,7 +171,6 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 45
     env:
-      GAMEWIP_MSYS2_ROOT: C:\MSYS2
       GAMEWIP_VALIDATION_CHANGED_FILES_PATH: ${{ github.workspace }}\build\gamewip\validation-scope\gamewip-validation-scope.json
 
     strategy:
@@ -192,15 +191,22 @@ jobs:
           path: build/gamewip/validation-scope
 
       - name: Install host build tools
+        id: msys2
         uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2
         with:
           msystem: UCRT64
-          location: C:\MSYS2
+          location: ${{ github.workspace }}\build\gamewip\tools\msys2
           update: true
           install: >-
             git
             mingw-w64-ucrt-x86_64-cmake
             mingw-w64-ucrt-x86_64-ninja
+
+      - name: Select managed MSYS2 root
+        shell: pwsh
+        env:
+          GAMEWIP_MSYS2_ROOT: ${{ steps.msys2.outputs.msys2-location }}
+        run: Add-Content -LiteralPath $env:GITHUB_ENV -Value "GAMEWIP_MSYS2_ROOT=$env:GAMEWIP_MSYS2_ROOT"
 
       - name: Restore locked dependency cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -465,7 +471,7 @@ jobs:
           registry=scripts/config/project-tools.json
           version() { jq -r --arg id "$1" '.tools[] | select(.id == $id) | .requiredVersion' "$registry"; }
 
-          quality_python="$GITHUB_WORKSPACE/build/gamewip/tools/python"
+          quality_python="$GITHUB_WORKSPACE/build/gamewip/tools/managed/python"
           python3 -m venv "$quality_python"
           pip_packages=()
           if [[ "${{ needs.change_scope.outputs.needs_cpp }}" == true ]]; then
@@ -495,7 +501,7 @@ jobs:
           gersemi_asset="$(jq -r '.tools[] | select(.id == "gersemi") | .provider.assets["linux-amd64"].archive' "$registry")"
           gersemi_sha256="$(jq -r '.tools[] | select(.id == "gersemi") | .provider.assets["linux-amd64"].sha256' "$registry")"
           gersemi_download="$RUNNER_TEMP/$gersemi_asset"
-          gersemi_bin="$GITHUB_WORKSPACE/build/gamewip/tools/bin"
+          gersemi_bin="$GITHUB_WORKSPACE/build/gamewip/tools/managed/bin"
           mkdir -p "$gersemi_bin"
           curl --fail --location --silent --show-error \
             --output "$gersemi_download" \
@@ -530,7 +536,7 @@ jobs:
           if [[ "${{ needs.change_scope.outputs.needs_markdown }}" == true ]]; then
             packages+=("markdownlint-cli2@$(version markdownlint-cli2)")
           fi
-          npm_prefix="$GITHUB_WORKSPACE/build/gamewip/tools/npm"
+          npm_prefix="$GITHUB_WORKSPACE/build/gamewip/tools/managed/npm"
           mkdir -p "$npm_prefix"
           npm install --global --prefix "$npm_prefix" "${packages[@]}"
           echo "$npm_prefix/bin" >> "$GITHUB_PATH"
@@ -538,10 +544,7 @@ jobs:
       - name: Install registry-pinned PowerShell analyzer
         if: needs.change_scope.outputs.needs_powershell == 'true'
         shell: pwsh
-        run: |
-          $registry = Get-Content scripts/config/project-tools.json -Raw | ConvertFrom-Json
-          $version = ($registry.tools | Where-Object id -EQ psscriptanalyzer).requiredVersion
-          Install-Module PSScriptAnalyzer -RequiredVersion $version -Scope CurrentUser -Force
+        run: ./scripts/GameWIP.ps1 tool ensure psscriptanalyzer -Yes -NonInteractive
 
       - name: Check JavaScript helper
         if: >-
@@ -574,7 +577,7 @@ jobs:
           needs.change_scope.outputs.needs_helper_tests == 'true'
         shell: pwsh
         run: |
-          $qualityPython = Join-Path $env:GITHUB_WORKSPACE 'build/gamewip/tools/python/bin'
+          $qualityPython = Join-Path $env:GITHUB_WORKSPACE 'build/gamewip/tools/managed/python/bin'
           $env:PATH = "$qualityPython$([IO.Path]::PathSeparator)$env:PATH"
           ./.github/scripts/WorkflowHelper.Tests.ps1
           ./.github/scripts/ProjectHelper.Tests.ps1
@@ -634,7 +637,7 @@ jobs:
           archive_path="$RUNNER_TEMP/$archive"
           curl --fail --silent --show-error --location --output "$archive_path" "$url"
           printf '%s  %s\n' "$sha256" "$archive_path" | sha256sum --check -
-          bin="$GITHUB_WORKSPACE/build/gamewip/tools/bin"
+          bin="$GITHUB_WORKSPACE/build/gamewip/tools/managed/bin"
           mkdir -p "$bin"
           tar --extract --gzip --directory "$RUNNER_TEMP" --file "$archive_path" actionlint
           install -m 0755 "$RUNNER_TEMP/actionlint" "$bin/actionlint"
@@ -643,7 +646,7 @@ jobs:
       - name: Run complete repository quality policy
         shell: pwsh
         run: |
-          $qualityPython = Join-Path $env:GITHUB_WORKSPACE 'build/gamewip/tools/python/bin'
+          $qualityPython = Join-Path $env:GITHUB_WORKSPACE 'build/gamewip/tools/managed/python/bin'
           $env:PATH = "$qualityPython$([IO.Path]::PathSeparator)$env:PATH"
           ./scripts/GameWIP.ps1 quality check -ChangedFilesPath $env:GAMEWIP_VALIDATION_CHANGED_FILES_PATH
 
