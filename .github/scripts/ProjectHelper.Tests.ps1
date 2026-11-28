@@ -1449,12 +1449,15 @@ $latestQueryFunctionNames = @(
     'Invoke-GameWipHttpJson',
     'Invoke-GameWipHttpRead',
     'Test-GameWipWindowsHost',
+    'Test-GameWipCancellationRequested',
     'Get-GameWipMsys2Root',
-    'Invoke-GameWipProcess'
+    'Invoke-GameWipProcess',
+    'Get-GameWipPowerShellGalleryVersions'
 )
 $originalLatestQueryFunctions = @{}
 $msysRoot = $null
 $script:ZigIndexFixtureEmpty = $false
+$script:LatestQueryCancellationRequested = $false
 
 foreach ($name in $latestQueryFunctionNames)
 {
@@ -1463,6 +1466,31 @@ foreach ($name in $latestQueryFunctionNames)
 
 try
 {
+    # Preserve user cancellation through both Gallery query layers.
+    Set-Item -Path function:Test-GameWipCancellationRequested -Value { return $script:LatestQueryCancellationRequested }
+    Set-Item -Path function:Get-GameWipPowerShellGalleryVersions -Value {
+        throw [System.OperationCanceledException]::new('fixture cancellation')
+    }
+    $script:LatestQueryCancellationRequested = $true
+    $galleryTool = @{ provider = @{ kind = 'powershellGallery'; package = 'Pester' }; capabilities = @{ checkLatest = $true } }
+    $galleryQueryCancelled = $false
+
+    try
+    {
+        Get-GameWipToolLatestQuery -Tool $galleryTool | Out-Null
+    }
+    catch [System.OperationCanceledException]
+    {
+        $galleryQueryCancelled = $true
+    }
+
+    if (-not $galleryQueryCancelled)
+    {
+        throw 'PowerShell Gallery latest-version queries swallowed user cancellation.'
+    }
+
+    $script:LatestQueryCancellationRequested = $false
+
     # Zig checks the newest stable version and all declared archive checksums.
     $zigTool = Get-GameWipProjectTool -Id 'zig'
     $zigIndexFixture = [ordered]@{ master = [pscustomobject]@{ version = '0.18.0-dev.10+fixture' } }
@@ -1640,7 +1668,7 @@ finally
     {
         Remove-Item -LiteralPath $msysRoot -Recurse -Force -ErrorAction SilentlyContinue
     }
-    Remove-Variable -Name ZigIndexFixture, ZigIndexFixtureEmpty, Msys2QueryRoot, Msys2QueryProcessResult -Scope Script -ErrorAction SilentlyContinue
+    Remove-Variable -Name ZigIndexFixture, ZigIndexFixtureEmpty, Msys2QueryRoot, Msys2QueryProcessResult, LatestQueryCancellationRequested -Scope Script -ErrorAction SilentlyContinue
 }
 
 $conflictingBuildPolicyRejected = $false

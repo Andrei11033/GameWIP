@@ -155,5 +155,5 @@ void testMutationCopyMoveAndRemoval(TestSupport::Context &context, const std::fi
     static_cast<void>(
         context.expectTrue("partial tree removal honors exact limit", partialRemoval.hasValue() && partialRemoval.value() == kPartialRemovalLimit));
     expectPredicate(context, "partial tree removal preserves root", FileSystem::isDirectory(wideTree), true);
-    static_cast<void>(context.expectTrue("partial tree removal cleanup succeeds", FileSystem::removeDirectoryTree(wideTree).ok()));
+    static_cast<void>(expectStatus(context, "partial tree removal cleanup succeeds", FileSystem::removeDirectoryTree(wideTree)));
 }

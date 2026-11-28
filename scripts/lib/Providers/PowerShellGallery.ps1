@@ -39,6 +39,11 @@ function Get-GameWipPowerShellGalleryToolLatestVersion
 
     catch
     {
+        if ($_.Exception -is [System.OperationCanceledException] -and (Test-GameWipCancellationRequested))
+        {
+            throw
+        }
+
         return $null
     }
 }

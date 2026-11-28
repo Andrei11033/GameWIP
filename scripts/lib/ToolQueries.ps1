@@ -410,6 +410,11 @@ function Get-GameWipToolLatestQuery
 
             catch
             {
+                if ($_.Exception -is [System.OperationCanceledException] -and (Test-GameWipCancellationRequested))
+                {
+                    throw
+                }
+
                 return New-GameWipToolQueryResult `
                     -State unavailable `
                     -Provider powershellGallery `

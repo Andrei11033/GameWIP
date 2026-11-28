@@ -26,7 +26,7 @@ Windows:
 Linux:
 
 ```bash
-.\setup.sh
+./setup.sh
 ```
 
 Setup prepares the development environment and pinned dependencies. Windows setup also prepares profiler tools.
