@@ -127,9 +127,9 @@ void testInitResultModel(TestContext &context)
         GameWIP::Status::Types::Code::InvalidArgument);
 
     Logger::Types::Config invalidAlignment = makeConsoleConfig();
-    invalidAlignment.layout = {"{area:aligned}"};
+    invalidAlignment.layout = {"{area:x12}"};
     context.expectEq(
-        "legacy area-only alignment syntax rejected",
+        "unsupported alignment specifier rejected",
         Logger::init(invalidAlignment).status().code(),
         GameWIP::Status::Types::Code::InvalidArgument);
 
