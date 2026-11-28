@@ -104,7 +104,7 @@ function Select-GameWipEditor
     while ($true)
     {
         Write-GameWipSection 'Select editors and IDEs'
-        Write-Host 'Press a number to toggle an editor:'
+        Write-Host 'Type a number to toggle an editor or S to save, then press Enter:'
 
         $availableOptions = @(Get-GameWipAvailableEditorOptions -EditorConfig $EditorConfig)
 
@@ -129,9 +129,9 @@ function Select-GameWipEditor
             Write-Host "$($option.Key). [$mark] $($option.Name)$recommended"
         }
         Write-Host 'S. Save selection'
-        Write-Host 'Esc. Cancel'
+        Write-Host 'Q. Cancel'
         $allowedKeys = @($availableOptions | ForEach-Object { [string]$_.Key }) + @('S', 's')
-        $choiceResult = Read-GameWipActionKey -Prompt 'Choose:' -AllowedKeys $allowedKeys -AllowEscape
+        $choiceResult = Read-GameWipActionChoice -Prompt 'Choose:' -AllowedKeys $allowedKeys -AllowCancel
 
         if ($choiceResult.Status -eq 'Cancelled')
         {
@@ -161,7 +161,7 @@ function Select-GameWipEditor
 
         if (-not $option)
         {
-            Write-GameWipHost 'Press a listed number, S, or Esc.' -ForegroundColor Yellow
+            Write-GameWipHost 'Enter a listed number or S, then press Enter; Q cancels.' -ForegroundColor Yellow
             continue
         }
 

@@ -14,10 +14,12 @@ checks reject duplicate keys, unknown handlers, and incomplete menu catalogs
 before use. The shared menu behavior is described in @ref
 project_environment_setup.
 
-Indexed tool selections accept one number or a comma-separated list such as
-`2,3,5,6`. Tool previews and updates use one plan, consent decision, and
-validation boundary for the whole selection. Press Enter to use the displayed
-default, or `q` or Esc to cancel.
+Type a listed menu key or number, then press Enter. Yes/no prompts accept `y`
+or `n`; Enter uses the displayed default. Enter `q` to cancel menus or yes/no
+prompts. Multi-selections accept comma-separated numbers such as `2,3,5,6`;
+submit a blank line to finish.
+Tool previews and updates use one plan, consent decision, and validation
+boundary for the whole selection.
 
 ## Common syntax
 

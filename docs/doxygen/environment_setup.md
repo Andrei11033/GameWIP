@@ -80,6 +80,8 @@ console primitive. The project menu hierarchy lives in
 `scripts/config/commands.json`, and setup menu entries live in
 `scripts/setup/config/setup.json`. Their schemas and runtime checks reject
 duplicate keys, unknown handlers, and incomplete menu catalogs before use.
+Both menus use line-based choices; see @ref project_command_line_tools for
+selection, defaults, and cancellation behavior.
 
 ## Setup actions
 

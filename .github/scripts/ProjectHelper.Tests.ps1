@@ -987,14 +987,31 @@ finally
 # Menu input and status rendering
 # ------------------------------------------------------------
 
-$originalActionKeyReader = (Get-Command Read-GameWipActionKey).ScriptBlock
-function Read-GameWipActionKey
+$interactiveConsoleImplementation = (Get-Command Test-GameWipInteractiveConsole).ScriptBlock
+function Test-GameWipInteractiveConsole
 {
-    return New-GameWipChoiceResult -Status Selected -Value X
+    return $true
+}
+
+$script:menuInput = [System.Collections.Generic.Queue[string]]::new()
+$script:menuInput.Enqueue('q')
+$script:menuInput.Enqueue('invalid')
+$script:menuInput.Enqueue('x')
+function Read-Host
+{
+    param([string]$Prompt)
+    return $script:menuInput.Dequeue()
 }
 
 try
 {
+    $cancelledMenu = Read-GameWipActionMenuItem `
+        -Title 'Test menu' `
+        -Prompt 'Choose:' `
+        -Items @([pscustomobject]@{ Key = 'X'; Label = 'Test item'; Handler = 'test-handler' }) `
+        -ExitLabel Back `
+        6>$null
+
     $menuResult = Read-GameWipActionMenuItem `
         -Title 'Test menu' `
         -Prompt 'Choose:' `
@@ -1002,15 +1019,26 @@ try
         -ExitLabel Back `
         6>$null
 
+    if ($cancelledMenu.Status -ne 'Cancelled')
+    {
+        throw 'The shared declarative menu renderer did not accept Q as its exit choice.'
+    }
+
     if ($menuResult.Status -ne 'Selected' -or $menuResult.Value -ne 'test-handler')
     {
-        throw 'The shared declarative menu renderer did not return the configured handler.'
+        throw 'The shared declarative menu renderer did not wait for valid line input before returning its handler.'
+    }
+
+    if ($script:menuInput.Count -ne 0)
+    {
+        throw 'The shared declarative menu renderer did not retry invalid line input.'
     }
 }
 
 finally
 {
-    Set-Item -Path function:Read-GameWipActionKey -Value $originalActionKeyReader
+    Remove-Item -Path function:Read-Host
+    Set-Item -Path function:Test-GameWipInteractiveConsole -Value $interactiveConsoleImplementation
 }
 
 $originalPresentationContext = $Script:OperationContext
@@ -1961,7 +1989,7 @@ if ($operationResult -is [array] -or $operationResult.Status -ne 'failed')
     throw 'Operation failure did not return exactly one structured result.'
 }
 
-# Catalogs larger than the single-key alphabet fall back to numbered input.
+# Catalogs larger than the single-key alphabet use numbered line input.
 $interactiveConsoleImplementation = (Get-Command Test-GameWipInteractiveConsole).ScriptBlock
 function Test-GameWipInteractiveConsole
 {
@@ -1981,6 +2009,84 @@ try
     if ($largeChoice.Status -ne 'Selected' -or $largeChoice.Value -ne 'choice-25')
     {
         throw 'A large menu catalog did not accept numbered input.'
+    }
+}
+
+finally
+{
+    Remove-Item -Path function:Read-Host
+    Set-Item -Path function:Test-GameWipInteractiveConsole -Value $interactiveConsoleImplementation
+}
+
+# Short menus, defaults, cancellation, and confirmations use the same line input.
+$interactiveConsoleImplementation = (Get-Command Test-GameWipInteractiveConsole).ScriptBlock
+function Test-GameWipInteractiveConsole
+{
+    return $true
+}
+
+$script:menuInput = [System.Collections.Generic.Queue[string]]::new()
+$script:menuInput.Enqueue('2')
+$script:menuInput.Enqueue('q')
+$script:menuInput.Enqueue('')
+$script:menuInput.Enqueue('')
+$script:menuInput.Enqueue('2,3')
+$script:menuInput.Enqueue('')
+$script:menuInput.Enqueue('n')
+$script:menuInput.Enqueue('q')
+function Read-Host
+{
+    param([string]$Prompt)
+    return $script:menuInput.Dequeue()
+}
+
+try
+{
+    $selectedChoice = Read-GameWipMenuChoiceResult -Prompt 'Short catalog' -Choices @('first', 'second')
+    $cancelledChoice = Read-GameWipMenuChoiceResult -Prompt 'Short catalog' -Choices @('first', 'second')
+    $defaultChoice = Read-GameWipMenuChoiceResult -Prompt 'Default catalog' -Choices @('first', 'second') -Default 'first'
+    $defaultConfirmation = Read-GameWipYesNo -Prompt 'Confirm' -Default $true
+    $multiChoice = Read-GameWipMultiChoiceResult -Prompt 'Multiple choices' -Choices @('one', 'two', 'three')
+    $negativeConfirmation = Read-GameWipYesNo -Prompt 'Confirm' -Default $true
+    $cancelledConfirmation = $false
+
+    try
+    {
+        Read-GameWipYesNo -Prompt 'Confirm' -Default $false
+    }
+    catch [System.OperationCanceledException]
+    {
+        $cancelledConfirmation = $true
+    }
+
+    if ($selectedChoice.Status -ne 'Selected' -or $selectedChoice.Value -ne 'second')
+    {
+        throw 'A short menu did not select the typed choice after line submission.'
+    }
+
+    if ($cancelledChoice.Status -ne 'Cancelled')
+    {
+        throw 'A short menu did not accept Q as cancellation.'
+    }
+
+    if ($defaultChoice.Status -ne 'Selected' -or $defaultChoice.Value -ne 'first' -or -not $defaultConfirmation)
+    {
+        throw 'Menu and confirmation defaults were not accepted with Enter.'
+    }
+
+    if ($multiChoice.Status -ne 'Selected' -or ($multiChoice.Value -join ',') -ne 'two,three')
+    {
+        throw 'Multi-selection did not accept typed numbers followed by Enter.'
+    }
+
+    if ($negativeConfirmation -or -not $cancelledConfirmation)
+    {
+        throw 'Yes/no confirmation did not accept typed answers and Q cancellation.'
+    }
+
+    if ($script:menuInput.Count -ne 0)
+    {
+        throw 'A line-based menu or confirmation did not consume exactly one submitted answer.'
     }
 }
 
