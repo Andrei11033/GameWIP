@@ -368,18 +368,22 @@ try
         vscodeExtensions = @('publisher.extension')
         msys2InstalledBySetup = $true
     } | ConvertTo-Json | Set-Content -LiteralPath $script:SetupStatePath
-    $legacyState = Get-GameWipSetupState
+    $partialState = Get-GameWipSetupState
 
-    if ($script:SetupStateReadStatus -ne 'needs-repair' -or @($legacyState.systemPackages).Count -ne 0)
+    if ($script:SetupStateReadStatus -ne 'needs-repair' -or @($partialState.systemPackages).Count -ne 0)
     {
-        throw 'Setup state without system package tracking must be recoverable with an empty package list.'
+        throw 'Setup state without system package tracking must be marked for repair.'
     }
 
     $null = Repair-GameWipSetupState
+    $repairedState = Get-GameWipSetupState
 
-    if ($script:SetupStateReadStatus -ne 'valid' -or @((Get-Content -Raw -LiteralPath $script:SetupStatePath | ConvertFrom-Json).systemPackages).Count -ne 0)
+    if ($script:SetupStateReadStatus -ne 'valid' -or @($repairedState.systemPackages).Count -ne 0 -or
+        @($repairedState.wingetPackages) -notcontains 'package.id' -or
+        @($repairedState.vscodeExtensions) -notcontains 'publisher.extension' -or
+        -not $repairedState.msys2InstalledBySetup)
     {
-        throw 'Setup repair did not persist the normalized package list.'
+        throw 'Setup repair did not preserve known ownership while normalizing package tracking.'
     }
 
     foreach ($missingField in @('wingetPackages', 'vscodeExtensions', 'msys2InstalledBySetup'))
