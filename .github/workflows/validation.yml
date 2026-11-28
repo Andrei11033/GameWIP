@@ -171,6 +171,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 45
     env:
+      GAMEWIP_MSYS2_ROOT: C:\MSYS2
       GAMEWIP_VALIDATION_CHANGED_FILES_PATH: ${{ github.workspace }}\build\gamewip\validation-scope\gamewip-validation-scope.json
 
     strategy:

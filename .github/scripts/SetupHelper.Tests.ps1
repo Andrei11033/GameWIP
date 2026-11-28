@@ -1191,4 +1191,7 @@ if (-not (Test-GameWipWindowsHost))
     }
 }
 
+# Expected child failures must not fail the calling workflow step.
+$global:LASTEXITCODE = 0
+
 Write-Host 'Setup helper regression tests passed.'

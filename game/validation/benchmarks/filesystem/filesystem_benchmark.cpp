@@ -178,7 +178,8 @@ namespace
                 }
 
                 ++observedEntries;
-                benchmark::DoNotOptimize(nextEntry->info.kind);
+                auto entryKind = nextEntry->info.kind;
+                benchmark::DoNotOptimize(entryKind);
             }
 
             if(enumerationFailed)
